@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/gateway.js",
-    "dev": "node --watch src/gateway.js"
+    "start": "node src/gateway-users.js",
+    "dev": "node --watch src/gateway-users.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
