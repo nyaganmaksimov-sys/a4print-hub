@@ -7,13 +7,6 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
-// Legacy embedded POS extensions.
-if (/\/admin\/pos\.html$/.test(location.pathname)) {
-  document.write('<script src="./pos-customer.js?v=20260830-2"></' + 'script>');
-  document.write('<script src="./pos-redesign.js?v=20260830-1"></' + 'script>');
-}
-
-// Separate cashier workspace extensions.
-if (/\/pos\/(?:index\.html)?$/.test(location.pathname)) {
-  document.write('<script src="./returns-link.js?v=20260830-1"></' + 'script>');
+if (/\/admin\/(?!login\.html$)/.test(location.pathname)) {
+  document.write('<script defer src="./navigation.js?v=20260830-1"></' + 'script>');
 }
