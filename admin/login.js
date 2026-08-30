@@ -36,7 +36,7 @@ form.addEventListener('submit', async (event) => {
     if (operatorError) throw operatorError;
 
     if (isAdmin) location.replace('./index.html');
-    else if (isOperator) location.replace('./pos.html');
+    else if (isOperator) location.replace('../pos/index.html');
     else throw new Error('Для этой учётной записи не назначена роль доступа.');
   } catch (err) {
     showError(err?.message || 'Не удалось выполнить вход.');
