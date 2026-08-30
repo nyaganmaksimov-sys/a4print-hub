@@ -40,8 +40,16 @@ async function requireAdmin(req,res,next){
   }catch(e){next(e)}
 }
 
+async function ensureSystemRoles(){
+  const {error}=await supabase.from('roles').upsert([
+    {name:'POS_OPERATOR',description:'Кассир / оператор кассы A4-Принт'}
+  ],{onConflict:'name'});
+  if(error) throw error;
+}
+
 app.get('/api/v1/users/roles',requireAdmin,async(_req,res,next)=>{
   try{
+    await ensureSystemRoles();
     const {data,error}=await supabase.from('roles').select('id,name,description').order('name');
     if(error) throw error;
     res.json({success:true,roles:data||[]});
