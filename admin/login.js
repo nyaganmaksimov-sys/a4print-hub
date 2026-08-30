@@ -20,17 +20,24 @@ form.addEventListener('submit', async (event) => {
   submit.textContent = 'Входим...';
 
   try {
-    if (!SUPABASE_PUBLISHABLE_KEY) {
-      throw new Error('Не задан Publishable Key Supabase в admin/config.js.');
-    }
+    if (!SUPABASE_PUBLISHABLE_KEY) throw new Error('Не задан Publishable Key Supabase в admin/config.js.');
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: document.getElementById('email').value.trim(),
       password: document.getElementById('password').value
     });
-
     if (authError) throw authError;
-    location.replace('./index.html');
+
+    const [{ data: isAdmin, error: adminError }, { data: isOperator, error: operatorError }] = await Promise.all([
+      supabase.rpc('has_role', { required_role: 'ADMIN' }),
+      supabase.rpc('has_role', { required_role: 'POS_OPERATOR' })
+    ]);
+    if (adminError) throw adminError;
+    if (operatorError) throw operatorError;
+
+    if (isAdmin) location.replace('./index.html');
+    else if (isOperator) location.replace('./pos.html');
+    else throw new Error('Для этой учётной записи не назначена роль доступа.');
   } catch (err) {
     showError(err?.message || 'Не удалось выполнить вход.');
   } finally {
