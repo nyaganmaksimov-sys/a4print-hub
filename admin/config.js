@@ -9,5 +9,5 @@ window.A4PRINT_CONFIG = {
 
 // POS-only extension: customer search/details and manager comments.
 if (/\/admin\/pos\.html$/.test(location.pathname)) {
-  document.write('<script src="./pos-customer.js?v=20260830-1"><\\/script>');
+  document.write('<script src="./pos-customer.js?v=20260830-2"></' + 'script>');
 }
