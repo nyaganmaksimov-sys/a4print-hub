@@ -1,33 +1,11 @@
-const API_BASE = window.A4PRINT_API_URL || '';
+import { supabase } from './guard.js';
 const id = new URLSearchParams(location.search).get('id');
-const $ = (x) => document.getElementById(x);
-
-function esc(value=''){return String(value).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-
-function render(o){
-  $('title').textContent=`Заказ #${o.order_number ?? '—'}`;
-  $('subtitle').textContent=o.business_unit==='3D_ARTPRINT'?'3D-ARTPRINT':'А4-Принт';
-  $('status').textContent=o.status||'—';
-  const customer=o.customer||{};
-  $('details').innerHTML=`
-    <div style="display:grid;gap:18px">
-      <div><h3>Клиент</h3><div>${esc(customer.full_name||'Не указан')}</div><div style="color:#64748b">${esc(customer.phone||'')} ${customer.email?` · ${esc(customer.email)}`:''}</div></div>
-      <div><h3>Модель</h3><div><b>${esc(o.model_name||'—')}</b></div>${o.model_url?`<a href="${esc(o.model_url)}" target="_blank" rel="noopener">🔗 Открыть модель</a>`:'<span style="color:#94a3b8">Ссылка не указана</span>'}</div>
-      <div><h3>Позиции</h3><div id="items">${(o.items||[]).map(i=>`<div style="padding:10px 0;border-bottom:1px solid #e5e7eb"><b>${esc(i.name)}</b> × ${esc(i.quantity)} — ${Number(i.total_price||0).toLocaleString('ru-RU')} ₽<div style="color:#64748b;font-size:13px">${esc(JSON.stringify(i.parameters||{}))}</div></div>`).join('')||'—'}</div></div>
-      <div><h3>Стоимость</h3><strong style="font-size:24px">${Number(o.total||0).toLocaleString('ru-RU')} ₽</strong></div>
-      <div><h3>Комментарий</h3><div>${esc(o.customer_comment||'Нет')}</div></div>
-    </div>`;
-  $('history').innerHTML=(o.status_history||[]).map(h=>`<div style="padding:10px 0;border-bottom:1px solid #e5e7eb"><b>${esc(h.new_status)}</b><div style="color:#64748b;font-size:13px">${esc(h.comment||'')}</div></div>`).join('')||'<div class="empty">История пока пуста</div>';
-}
-
-async function load(){
-  if(!API_BASE||!id){$('details').innerHTML='<div class="empty">Не указан ID заказа</div>';return;}
-  try{const r=await fetch(`${API_BASE}/api/v1/orders/${encodeURIComponent(id)}`);if(!r.ok)throw new Error(`HTTP ${r.status}`);const d=await r.json();render(d.order||d);}catch(e){console.error(e);$('details').innerHTML='<div class="empty">Не удалось загрузить заказ</div>';}
-}
-
-document.querySelectorAll('[data-status]').forEach(btn=>btn.addEventListener('click',async()=>{
-  if(!API_BASE||!id)return;
-  btn.disabled=true;
-  try{const r=await fetch(`${API_BASE}/api/v1/orders/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:btn.dataset.status})});if(!r.ok)throw new Error(`HTTP ${r.status}`);await load();}catch(e){alert('Не удалось изменить статус заказа');console.error(e)}finally{btn.disabled=false;}
-}));
-load();
+const $ = x => document.getElementById(x);
+const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён'};
+function esc(v=''){return String(v).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function render(o){$('title').textContent=`Заказ №${o.order_number??'—'}`;$('subtitle').textContent=o.business_unit==='3D_ARTPRINT'?'3D-ARTPRINT':o.business_unit==='A4_PRINT'?'А4-Принт':'Общий';$('status').textContent=labels[o.status]||o.status;const c=o.customers||{};$('details').innerHTML=`<div style="display:grid;gap:20px"><div><h3>Клиент</h3><b>${esc(c.full_name||c.company_name||'Не указан')}</b><div style="color:#64748b">${esc(c.phone||'')}${c.email?` · ${esc(c.email)}`:''}</div></div><div><h3>Модель / работа</h3><b>${esc(o.model_name||o.source||'—')}</b>${o.model_url?`<div><a href="${esc(o.model_url)}" target="_blank" rel="noopener">🔗 Открыть модель</a></div>`:''}</div><div><h3>Позиции</h3>${(o.order_items||[]).map(i=>`<div style="padding:10px 0;border-bottom:1px solid #e5e7eb"><b>${esc(i.name)}</b> × ${i.quantity}<span style="float:right">${Number(i.total_price||0).toLocaleString('ru-RU')} ₽</span></div>`).join('')||'—'}</div><div><h3>Стоимость</h3><strong style="font-size:26px">${Number(o.total||0).toLocaleString('ru-RU')} ₽</strong></div><div><h3>Комментарий клиента</h3><div>${esc(o.customer_comment||'Нет')}</div></div><div><h3>Внутренний комментарий</h3><textarea id="internalComment" style="width:100%;min-height:90px;padding:10px">${esc(o.internal_comment||'')}</textarea><button id="saveComment" style="margin-top:8px">Сохранить комментарий</button></div><div><button id="productionBtn">🏭 Передать в производство</button></div></div>`;$('history').innerHTML=(o.order_status_history||[]).map(h=>`<div style="padding:10px 0;border-bottom:1px solid #e5e7eb"><b>${labels[h.new_status]||h.new_status}</b><div style="color:#64748b;font-size:13px">${new Date(h.created_at).toLocaleString('ru-RU')} ${esc(h.comment||'')}</div></div>`).join('')||'<div class="empty">История пока пуста</div>';$('saveComment').onclick=saveComment;$('productionBtn').onclick=sendProduction;}
+async function load(){if(!id){$('details').innerHTML='<div class="empty">Не указан ID заказа</div>';return}const {data,error}=await supabase.from('orders').select('*,customers(*),order_items(*),order_status_history(*)').eq('id',id).single();if(error){$('details').innerHTML=`<div class="empty">Ошибка: ${esc(error.message)}</div>`;return}render(data)}
+async function saveComment(){const {error}=await supabase.from('orders').update({internal_comment:$('internalComment').value,updated_at:new Date().toISOString()}).eq('id',id);if(error)alert(error.message);else alert('Комментарий сохранён')}
+async function changeStatus(status){const {data:old,error:e}=await supabase.from('orders').select('status').eq('id',id).single();if(e)return alert(e.message);const {error}=await supabase.from('orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await supabase.from('order_status_history').insert({order_id:id,old_status:old.status,new_status:status,comment:'Изменено из панели управления'});load()}
+async function sendProduction(){const {data:o,error:e}=await supabase.from('orders').select('order_number,model_name,status').eq('id',id).single();if(e)return alert(e.message);const {data:exists}=await supabase.from('production_jobs').select('id').eq('order_id',id).limit(1);if(exists?.length)return alert('Производственное задание уже создано');const {error}=await supabase.from('production_jobs').insert({order_id:id,title:`Заказ №${o.order_number}${o.model_name?' — '+o.model_name:''}`,status:'NEW'});if(error)return alert(error.message);if(o.status==='NEW')await changeStatus('CONFIRMED');alert('Заказ передан в производство')}
+document.querySelectorAll('[data-status]').forEach(btn=>btn.onclick=()=>changeStatus(btn.dataset.status));load();
