@@ -6,3 +6,8 @@ window.A4PRINT_CONFIG = {
   supabasePublishableKey: 'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu',
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
+
+// POS-only extension: customer search/details and manager comments.
+if (/\/admin\/pos\.html$/.test(location.pathname)) {
+  document.write('<script src="./pos-customer.js?v=20260830-1"><\\/script>');
+}
