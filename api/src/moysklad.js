@@ -1,7 +1,42 @@
 // Server-side only. MOYSKLAD_TOKEN must never be exposed to admin/*.html or committed to git.
 const BASE = 'https://api.moysklad.ru/api/remap/1.2';
 const headers = token => ({ Authorization: `Bearer ${token}`, Accept: 'application/json;charset=utf-8', 'Content-Type': 'application/json' });
-async function ms(token,path,options={}){const r=await fetch(path.startsWith('http')?path:BASE+path,{...options,headers:{...headers(token),...(options.headers||{})}});if(!r.ok)throw new Error(`MoySklad HTTP ${r.status}: ${await r.text()}`);return r.status===204?null:r.json()}
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function ms(token, path, options = {}) {
+  const url = path.startsWith('http') ? path : BASE + path;
+  const method = String(options.method || 'GET').toUpperCase();
+  const attempts = method === 'GET' ? 3 : 1;
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const r = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: { ...headers(token), ...(options.headers || {}) }
+      });
+      clearTimeout(timer);
+      if (!r.ok) throw new Error(`MoySklad HTTP ${r.status}: ${await r.text()}`);
+      return r.status === 204 ? null : r.json();
+    } catch (e) {
+      clearTimeout(timer);
+      lastError = e;
+      if (String(e?.message || '').startsWith('MoySklad HTTP ')) throw e;
+      if (attempt < attempts) {
+        await sleep(500 * attempt);
+        continue;
+      }
+    }
+  }
+
+  const cause = lastError?.cause?.code || lastError?.cause?.message || lastError?.name || lastError?.message || 'unknown';
+  throw new Error(`Не удалось соединиться с МойСклад (${method} ${url}): ${cause}. Повторите попытку через несколько секунд.`);
+}
+
 function salePrice(row){const p=Array.isArray(row.salePrices)?row.salePrices[0]:null;return p?Number(p.value||0)/100:0}
 function itemType(type){return type==='service'?'SERVICE':'PRODUCT'}
 function sku(row){return row.article||row.code||`MS-${row.id}`}
