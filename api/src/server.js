@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale } from './moysklad.js';
+import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -40,7 +40,7 @@ async function authContext(req) {
 async function requireAdmin(req, res, next) {
   try {
     const ctx = await authContext(req);
-    if (ctx.error) return res.status(ctx.error === 'AUTH_REQUIRED' ? 401 : 401).json({ success: false, error: ctx.error });
+    if (ctx.error) return res.status(401).json({ success: false, error: ctx.error });
     const { data: isAdmin, error } = await ctx.client.rpc('has_role', { required_role: 'ADMIN' });
     if (error) throw error;
     if (!isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
@@ -64,6 +64,13 @@ async function requirePosUser(req, res, next) {
     req.isAdmin = Boolean(isAdmin);
     next();
   } catch (e) { next(e); }
+}
+
+async function operatorProfile(authUserId) {
+  if (!supabase || !authUserId) return null;
+  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id', authUserId).maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 const msReady = res => {
@@ -90,6 +97,32 @@ app.get('/api/v1/integrations/moysklad/stock', requirePosUser, async (req, res, 
   } catch (e) { next(e); }
 });
 
+app.get('/api/v1/pos/shift', requirePosUser, async (req, res, next) => {
+  try {
+    if (!msReady(res)) return;
+    const status = await getRetailShiftStatus(process.env.MOYSKLAD_TOKEN);
+    res.json({ success: true, ...status });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/v1/pos/shift/open', requirePosUser, async (req, res, next) => {
+  try {
+    if (!msReady(res)) return;
+    const profile = await operatorProfile(req.authUser.id);
+    const result = await openRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
+    res.json({ success: true, alreadyOpen: result.alreadyOpen, shift: { id: result.shift?.id, name: result.shift?.name, openDate: result.shift?.openDate || result.shift?.moment || result.shift?.created }, store: { id: result.store?.id, name: result.store?.name } });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/v1/pos/shift/close', requirePosUser, async (req, res, next) => {
+  try {
+    if (!msReady(res)) return;
+    const profile = await operatorProfile(req.authUser.id);
+    const result = await closeRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
+    res.json({ success: true, shift: { id: result.shift?.id, name: result.shift?.name, closeDate: result.shift?.closeDate }, store: { id: result.store?.id, name: result.store?.name } });
+  } catch (e) { next(e); }
+});
+
 app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
@@ -111,8 +144,11 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
         external_type: g.external_href?.split('/').slice(-2, -1)[0] || 'product'
       };
     });
-    const sale = await createRetailSale({ token: process.env.MOYSKLAD_TOKEN, items, paymentMethod: input.payment_method });
-    res.json({ success: true, moysklad: { id: sale.id, name: sale.name, href: sale.meta?.href }, sum: Number(sale.sum || 0) / 100 });
+    const profile = await operatorProfile(req.authUser.id);
+    if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
+    const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
+    const sale = await createRetailSale({ token: process.env.MOYSKLAD_TOKEN, items, paymentMethod: input.payment_method, operatorName });
+    res.json({ success: true, operator: { id: profile?.id || null, name: operatorName }, moysklad: { id: sale.id, name: sale.name, href: sale.meta?.href }, sum: Number(sale.sum || 0) / 100 });
   } catch (e) { next(e); }
 });
 
