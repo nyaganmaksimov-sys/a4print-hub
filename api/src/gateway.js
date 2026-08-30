@@ -194,8 +194,17 @@ app.post('/api/v1/pos/returns', requirePos, async (req, res, next) => {
     if (!positions.length || total <= 0) return res.status(400).json({ success: false, error: 'EMPTY_RETURN', message: 'Укажите количество возвращаемых позиций.' });
 
     const operatorName = req.pos.profile.full_name || req.pos.profile.email || 'Оператор';
+    const warehouseMeta = sale.store?.meta || store.store?.meta;
+    if (!warehouseMeta) {
+      return res.status(409).json({
+        success: false,
+        error: 'MOYSKLAD_STORE_NOT_CONFIGURED',
+        message: 'Для точки продаж МойСклад не найден склад. Укажите склад в настройках точки продаж и повторите возврат.'
+      });
+    }
     const payload = {
       organization: { meta: sale.organization?.meta || organization.meta },
+      store: { meta: warehouseMeta },
       retailStore: { meta: sale.retailStore?.meta || store.meta },
       retailShift: { meta: shift.meta },
       demand: { meta: sale.meta },
