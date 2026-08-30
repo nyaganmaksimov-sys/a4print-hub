@@ -3,17 +3,11 @@
 
 alter table if exists public.users enable row level security;
 
--- Active authenticated HUB employees may read the internal staff directory.
--- This is required so the chat can resolve the current employee profile
--- and display sender names. It does not grant INSERT/UPDATE/DELETE rights.
+-- Supabase Auth accounts in this project are HUB employee accounts.
+-- Authenticated employees may read staff names/profile ids so chat can
+-- resolve the current profile and display message authors.
+-- No INSERT/UPDATE/DELETE permission is granted here.
 drop policy if exists users_read_active_staff on public.users;
 create policy users_read_active_staff on public.users
 for select to authenticated
-using (
-  exists (
-    select 1
-    from public.users self
-    where self.auth_user_id = auth.uid()
-      and self.is_active = true
-  )
-);
+using (auth.uid() is not null);
