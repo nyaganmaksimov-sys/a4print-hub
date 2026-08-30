@@ -73,6 +73,21 @@ async function operatorProfile(authUserId) {
   return data;
 }
 
+const cleanText = (value, max = 500) => String(value || '').trim().slice(0, max);
+const customerFields = 'id,full_name,company_name,email,phone,notes,created_at,updated_at';
+
+function customerView(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    full_name: row.full_name,
+    company_name: row.company_name || '',
+    email: row.email || '',
+    phone: row.phone || '',
+    notes: row.notes || ''
+  };
+}
+
 const msReady = res => {
   if (!supabase) { res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' }); return false; }
   if (!process.env.MOYSKLAD_TOKEN) { res.status(503).json({ success: false, error: 'MOYSKLAD_NOT_CONFIGURED' }); return false; }
@@ -123,6 +138,85 @@ app.post('/api/v1/pos/shift/close', requirePosUser, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+app.get('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
+  try {
+    if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
+    const q = cleanText(req.query.q, 100).replace(/[,%()]/g, ' ');
+    if (q.length < 2) return res.json({ success: true, customers: [] });
+    const { data, error } = await supabase
+      .from('customers')
+      .select(customerFields)
+      .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`)
+      .order('updated_at', { ascending: false })
+      .limit(12);
+    if (error) throw error;
+    res.json({ success: true, customers: (data || []).map(customerView) });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
+  try {
+    if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
+    const profile = await operatorProfile(req.authUser.id);
+    if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
+
+    const id = cleanText(req.body?.id, 80) || null;
+    const fullName = cleanText(req.body?.full_name, 200);
+    const phone = cleanText(req.body?.phone, 80);
+    const email = cleanText(req.body?.email, 200).toLowerCase();
+    const companyName = cleanText(req.body?.company_name, 200);
+    const managerComment = cleanText(req.body?.manager_comment, 1500);
+    if (!fullName) return res.status(400).json({ success: false, error: 'CUSTOMER_NAME_REQUIRED', message: 'Укажите имя клиента.' });
+
+    let existing = null;
+    if (id) {
+      const { data, error } = await supabase.from('customers').select(customerFields).eq('id', id).maybeSingle();
+      if (error) throw error;
+      existing = data;
+    }
+    if (!existing && phone) {
+      const { data, error } = await supabase.from('customers').select(customerFields).eq('phone', phone).limit(1).maybeSingle();
+      if (error) throw error;
+      existing = data;
+    }
+    if (!existing && email) {
+      const { data, error } = await supabase.from('customers').select(customerFields).eq('email', email).limit(1).maybeSingle();
+      if (error) throw error;
+      existing = data;
+    }
+
+    const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
+    let notes = existing?.notes || '';
+    if (managerComment) {
+      const stamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+      const line = `[${stamp}] ${operatorName}: ${managerComment}`;
+      notes = notes ? `${notes}\n${line}` : line;
+    }
+
+    const payload = {
+      full_name: fullName,
+      company_name: companyName || null,
+      email: email || null,
+      phone: phone || null,
+      notes: notes || null,
+      updated_at: new Date().toISOString()
+    };
+
+    let saved;
+    if (existing?.id) {
+      const { data, error } = await supabase.from('customers').update(payload).eq('id', existing.id).select(customerFields).single();
+      if (error) throw error;
+      saved = data;
+    } else {
+      const { data, error } = await supabase.from('customers').insert(payload).select(customerFields).single();
+      if (error) throw error;
+      saved = data;
+    }
+
+    res.status(existing ? 200 : 201).json({ success: true, customer: customerView(saved) });
+  } catch (e) { next(e); }
+});
+
 app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
@@ -147,8 +241,29 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
     const profile = await operatorProfile(req.authUser.id);
     if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
     const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
-    const sale = await createRetailSale({ token: process.env.MOYSKLAD_TOKEN, items, paymentMethod: input.payment_method, operatorName });
-    res.json({ success: true, operator: { id: profile?.id || null, name: operatorName }, moysklad: { id: sale.id, name: sale.name, href: sale.meta?.href }, sum: Number(sale.sum || 0) / 100 });
+
+    let customer = null;
+    const customerId = cleanText(input.customer_id, 80);
+    if (customerId) {
+      const { data, error: customerError } = await supabase.from('customers').select(customerFields).eq('id', customerId).maybeSingle();
+      if (customerError) throw customerError;
+      customer = data;
+    }
+
+    const sale = await createRetailSale({
+      token: process.env.MOYSKLAD_TOKEN,
+      items,
+      paymentMethod: input.payment_method,
+      operatorName,
+      customer: customer ? { name: customer.full_name, phone: customer.phone, company: customer.company_name } : null
+    });
+    res.json({
+      success: true,
+      operator: { id: profile?.id || null, name: operatorName },
+      customer: customerView(customer),
+      moysklad: { id: sale.id, name: sale.name, href: sale.meta?.href },
+      sum: Number(sale.sum || 0) / 100
+    });
   } catch (e) { next(e); }
 });
 
