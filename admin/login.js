@@ -28,15 +28,13 @@ form.addEventListener('submit', async (event) => {
     });
     if (authError) throw authError;
 
-    const [{ data: isAdmin, error: adminError }, { data: isOperator, error: operatorError }] = await Promise.all([
-      supabase.rpc('has_role', { required_role: 'ADMIN' }),
-      supabase.rpc('has_role', { required_role: 'POS_OPERATOR' })
-    ]);
-    if (adminError) throw adminError;
-    if (operatorError) throw operatorError;
+    const roleNames = ['ADMIN','MANAGER','WAREHOUSE','PRODUCTION','VIEWER','POS_OPERATOR'];
+    const checks = await Promise.all(roleNames.map(name => supabase.rpc('has_role', { required_role: name })));
+    for (const check of checks) if (check.error) throw check.error;
+    const has = Object.fromEntries(roleNames.map((name,i)=>[name,Boolean(checks[i].data)]));
 
-    if (isAdmin) location.replace('./index.html');
-    else if (isOperator) location.replace('../pos/index.html');
+    if (has.ADMIN || has.MANAGER || has.WAREHOUSE || has.PRODUCTION || has.VIEWER) location.replace('./index.html');
+    else if (has.POS_OPERATOR) location.replace('../pos/index.html');
     else throw new Error('Для этой учётной записи не назначена роль доступа.');
   } catch (err) {
     showError(err?.message || 'Не удалось выполнить вход.');
