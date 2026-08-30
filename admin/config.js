@@ -7,7 +7,8 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
-// POS-only extension: customer search/details and manager comments.
+// POS-only extensions: customer card and modern cashier workspace.
 if (/\/admin\/pos\.html$/.test(location.pathname)) {
   document.write('<script src="./pos-customer.js?v=20260830-2"></' + 'script>');
+  document.write('<script src="./pos-redesign.js?v=20260830-1"></' + 'script>');
 }
