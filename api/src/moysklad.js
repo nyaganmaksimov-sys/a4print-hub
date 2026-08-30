@@ -11,38 +11,15 @@ export async function fetchMoySkladStock(token){const data=await ms(token,'/repo
 
 function metaId(entity){return entity?.id||entity?.meta?.href?.split('/').pop()||null}
 function sameEntity(a,b){const ai=metaId(a),bi=metaId(b);return Boolean(ai&&bi&&ai===bi)}
+async function retailBaseContext(token){const [stores,orgs]=await Promise.all([ms(token,'/entity/retailstore?limit=100'),ms(token,'/entity/organization?limit=100')]);const store=stores.rows?.find(x=>!x.archived)||stores.rows?.[0];const organization=orgs.rows?.find(x=>!x.archived)||orgs.rows?.[0];if(!store)throw new Error('В МойСклад не найдена активная точка продаж');if(!organization)throw new Error('В МойСклад не найдено юрлицо');return{store,organization}}
+async function findOpenShift(token,store){const shifts=await ms(token,'/entity/retailshift?limit=100&order=created,desc');const rows=shifts.rows||[];return rows.find(x=>!x.closeDate&&sameEntity(x.retailStore,store))||rows.find(x=>!x.closeDate)||null}
 
-export async function getRetailContext(token){
-  const [stores,orgs,shifts]=await Promise.all([
-    ms(token,'/entity/retailstore?limit=100'),
-    ms(token,'/entity/organization?limit=100'),
-    ms(token,'/entity/retailshift?limit=100&order=created,desc')
-  ]);
-  const store=stores.rows?.find(x=>!x.archived)||stores.rows?.[0];
-  const organization=orgs.rows?.find(x=>!x.archived)||orgs.rows?.[0];
-  if(!store)throw new Error('В МойСклад не найдена активная точка продаж');
-  if(!organization)throw new Error('В МойСклад не найдено юрлицо');
-  const rows=shifts.rows||[];
-  const shift=rows.find(x=>!x.closeDate&&sameEntity(x.retailStore,store))||rows.find(x=>!x.closeDate);
-  if(!shift)throw new Error('В МойСклад нет открытой розничной смены. Откройте смену в МойСклад → Розница/Касса и повторите оплату.');
-  return{store,organization,shift};
-}
+export async function getRetailShiftStatus(token){const {store,organization}=await retailBaseContext(token);const shift=await findOpenShift(token,store);return{store:{id:store.id,name:store.name},organization:{id:organization.id,name:organization.name},shift:shift?{id:shift.id,name:shift.name,openDate:shift.openDate||shift.moment||shift.created,closeDate:shift.closeDate||null}:null}}
 
-export async function createRetailSale({token,items,paymentMethod}){
-  if(!items?.length)throw new Error('Пустой чек');
-  const {store,organization,shift}=await getRetailContext(token);
-  const positions=items.map(x=>{
-    if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);
-    return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
-  });
-  const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);
-  const payload={
-    organization:{meta:organization.meta},
-    retailStore:{meta:store.meta},
-    retailShift:{meta:shift.meta},
-    positions,
-    payedSum:total,
-    description:`A4PRINT HUB · ${paymentMethod||'Оплата'}`
-  };
-  return ms(token,'/entity/retaildemand',{method:'POST',body:JSON.stringify(payload)});
-}
+export async function openRetailShift(token){const {store,organization}=await retailBaseContext(token);const current=await findOpenShift(token,store);if(current)return{alreadyOpen:true,shift:current,store,organization};const payload={organization:{meta:organization.meta},retailStore:{meta:store.meta},description:'Открыто из A4PRINT HUB'};const shift=await ms(token,'/entity/retailshift',{method:'POST',body:JSON.stringify(payload)});return{alreadyOpen:false,shift,store,organization}}
+
+export async function closeRetailShift(token){const {store}=await retailBaseContext(token);const shift=await findOpenShift(token,store);if(!shift)throw new Error('Открытая смена не найдена');const id=metaId(shift);const closeDate=new Date().toISOString();const updated=await ms(token,`/entity/retailshift/${id}`,{method:'PUT',body:JSON.stringify({closeDate})});return{shift:updated||{...shift,closeDate},store}}
+
+export async function getRetailContext(token){const {store,organization}=await retailBaseContext(token);const shift=await findOpenShift(token,store);if(!shift)throw new Error('В МойСклад нет открытой розничной смены. Откройте смену в кассе и повторите оплату.');return{store,organization,shift}}
+
+export async function createRetailSale({token,items,paymentMethod}){if(!items?.length)throw new Error('Пустой чек');const {store,organization,shift}=await getRetailContext(token);const positions=items.map(x=>{if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}}});const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);const payload={organization:{meta:organization.meta},retailStore:{meta:store.meta},retailShift:{meta:shift.meta},positions,payedSum:total,description:`A4PRINT HUB · ${paymentMethod||'Оплата'}`};return ms(token,'/entity/retaildemand',{method:'POST',body:JSON.stringify(payload)})}
