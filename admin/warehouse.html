@@ -1,1 +1,222 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Склад — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script></head><body><main class="main" style="margin-left:0"><header class="topbar"><div><h1>📦 Склад</h1><p>Номенклатура, остатки и движения</p></div><div><span id="userEmail" style="margin-right:12px"></span><a href="./index.html">← Главная</a></div></header><section class="stats"><article><span>Позиций</span><strong id="itemsCount">0</strong></article><article><span>Материалы</span><strong id="materialsCount">0</strong></article><article><span>Низкий остаток</span><strong id="lowCount">0</strong></article></section><section class="panel"><div class="panel-head"><h2>Номенклатура</h2><button id="add">＋ Добавить</button></div><div class="toolbar"><input id="search" placeholder="Поиск по названию или SKU"><select id="type"><option value="">Все типы</option><option value="PRODUCT">Товары</option><option value="MATERIAL">Материалы</option><option value="SERVICE">Услуги</option><option value="FINISHED_PRODUCT">Готовая продукция</option><option value="MODEL_3D">3D-модели</option></select><button id="refresh">Обновить</button></div><div id="list"><div class="empty">Загрузка...</div></div></section><dialog id="dlg"><form method="dialog" id="form"><h2>Новая позиция</h2><label>Название<input id="name" required></label><label>SKU<input id="sku" required></label><label>Тип<select id="itemType"><option value="PRODUCT">Товар</option><option value="MATERIAL">Материал</option><option value="SERVICE">Услуга</option><option value="FINISHED_PRODUCT">Готовая продукция</option><option value="MODEL_3D">3D-модель</option></select></label><label>Единица<input id="unit" value="шт"></label><label>Продажная цена, ₽<input id="sale" type="number" min="0" step="0.01" value="0"></label><label>Минимальный остаток<input id="min" type="number" min="0" step="0.001" value="0"></label><div class="actions"><button value="cancel">Отмена</button><button id="save" value="default">Сохранить</button></div></form></dialog></main><script type="module">import {supabase} from './guard.js';const {data:{session}}=await supabase.auth.getSession();if(session)document.getElementById('userEmail').textContent=session.user.email||'';const $=id=>document.getElementById(id);let items=[];const money=v=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v||0));async function load(){const {data,error}=await supabase.from('catalog_items').select('*').order('name');if(error){$('list').innerHTML=`<div class="empty">Ошибка: ${error.message}</div>`;return}items=data||[];render()}function render(){const q=$('search').value.toLowerCase(),t=$('type').value;const a=items.filter(x=>(!q||x.name.toLowerCase().includes(q)||x.sku.toLowerCase().includes(q))&&(!t||x.item_type===t));$('itemsCount').textContent=items.length;$('materialsCount').textContent=items.filter(x=>x.item_type==='MATERIAL').length;$('lowCount').textContent=0;$('list').innerHTML=a.map(x=>`<div class="row"><div><b>${x.name}</b><small>${x.sku} · ${x.item_type} · ${x.unit}</small></div><strong>${money(x.sale_price)}</strong><span>мин. ${x.min_stock||0}</span></div>`).join('')||'<div class="empty">Ничего не найдено</div>'}$('refresh').onclick=load;$('search').oninput=render;$('type').onchange=render;$('add').onclick=()=>{if(!$('dlg').open)$('dlg').showModal()};$('form').onsubmit=async e=>{e.preventDefault();const {error}=await supabase.from('catalog_items').insert({name:$('name').value.trim(),sku:$('sku').value.trim(),item_type:$('itemType').value,unit:$('unit').value.trim()||'шт',sale_price:Number($('sale').value)||0,min_stock:Number($('min').value)||0});if(error){alert(error.message);return}$('dlg').close();e.target.reset();$('unit').value='шт';await load()};load();</script><style>.toolbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}.toolbar input,.toolbar select,dialog input,dialog select{padding:11px;border:1px solid #dbe1ea;border-radius:9px;font:inherit}.toolbar input{flex:1;min-width:220px}.row{display:grid;grid-template-columns:1fr 150px 150px;gap:16px;padding:15px 0;border-bottom:1px solid #e5e7eb;align-items:center}.row small{display:block;color:#64748b;margin-top:5px}.row strong{font-size:16px}dialog{border:0;border-radius:16px;padding:26px;width:min(440px,calc(100% - 32px));box-shadow:0 20px 60px #0002}dialog::backdrop{background:#0006}dialog label{display:grid;gap:7px;margin:12px 0}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}</style></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Склад и номенклатура — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./config.js"></script>
+</head>
+<body>
+<main class="main" style="margin-left:0">
+  <header class="topbar">
+    <div>
+      <h1>📦 Склад и номенклатура</h1>
+      <p>Товары, материалы, цены, остатки и быстрый приход</p>
+    </div>
+    <div><span id="userEmail" style="margin-right:12px"></span><a href="./index.html">← Главная</a></div>
+  </header>
+
+  <section class="stats">
+    <article><span>Позиций</span><strong id="itemsCount">0</strong></article>
+    <article><span>Материалы</span><strong id="materialsCount">0</strong></article>
+    <article><span>Низкий остаток</span><strong id="lowCount">0</strong></article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Номенклатура</h2><small class="muted">Редактирование и остатки прямо из списка</small></div>
+      <button id="add">＋ Добавить товар</button>
+    </div>
+    <div class="toolbar">
+      <input id="search" placeholder="Поиск по названию, SKU или категории">
+      <select id="type">
+        <option value="">Все типы</option>
+        <option value="PRODUCT">Товары</option>
+        <option value="MATERIAL">Материалы</option>
+        <option value="SERVICE">Услуги</option>
+        <option value="FINISHED_PRODUCT">Готовая продукция</option>
+        <option value="MODEL_3D">3D-модели</option>
+      </select>
+      <select id="stockFilter">
+        <option value="">Все остатки</option>
+        <option value="positive">Есть в наличии</option>
+        <option value="low">Низкий остаток</option>
+        <option value="zero">Нет в наличии</option>
+      </select>
+      <button id="refresh">Обновить</button>
+    </div>
+    <div class="table-head"><span>Позиция</span><span>Цена</span><span>Остаток</span><span>Действия</span></div>
+    <div id="list"><div class="empty">Загрузка...</div></div>
+  </section>
+</main>
+
+<dialog id="itemDlg">
+  <form method="dialog" id="itemForm">
+    <h2 id="itemDlgTitle">Новая позиция</h2>
+    <input id="editId" type="hidden">
+    <div class="form-grid">
+      <label class="wide">Название<input id="name" required maxlength="200"></label>
+      <label>SKU / артикул<input id="sku" required maxlength="100"></label>
+      <label>Категория<input id="category" maxlength="120" placeholder="Например: Бумага"></label>
+      <label>Тип
+        <select id="itemType">
+          <option value="PRODUCT">Товар</option>
+          <option value="MATERIAL">Материал</option>
+          <option value="SERVICE">Услуга</option>
+          <option value="FINISHED_PRODUCT">Готовая продукция</option>
+          <option value="MODEL_3D">3D-модель</option>
+        </select>
+      </label>
+      <label>Единица<input id="unit" value="шт" maxlength="30"></label>
+      <label>Цена продажи, ₽<input id="sale" type="number" min="0" step="0.01" value="0"></label>
+      <label>Закупочная цена, ₽<input id="cost" type="number" min="0" step="0.01" value="0"></label>
+      <label>Минимальный остаток<input id="min" type="number" min="0" step="0.001" value="0"></label>
+      <label class="wide">Описание<textarea id="description" rows="3" maxlength="2000"></textarea></label>
+      <label class="check wide"><input id="active" type="checkbox" checked> Активная позиция</label>
+    </div>
+    <div id="itemError" class="form-error"></div>
+    <div class="actions"><button value="cancel">Отмена</button><button id="saveItem" value="default">Сохранить</button></div>
+  </form>
+</dialog>
+
+<dialog id="qtyDlg">
+  <form method="dialog" id="qtyForm">
+    <h2>＋ Быстрый приход</h2>
+    <p id="qtyItemName" class="muted"></p>
+    <input id="qtyItemId" type="hidden">
+    <label>Количество<input id="qty" type="number" min="0.001" step="0.001" required autofocus></label>
+    <label>Закупочная цена за единицу, ₽<input id="qtyCost" type="number" min="0" step="0.01" value="0"></label>
+    <label>Комментарий<input id="qtyNote" maxlength="500" placeholder="Например: поставка 31.08"></label>
+    <div id="qtyError" class="form-error"></div>
+    <div class="actions"><button value="cancel">Отмена</button><button id="saveQty" value="default">Добавить на склад</button></div>
+  </form>
+</dialog>
+
+<script type="module">
+import {supabase} from './guard.js';
+const $=id=>document.getElementById(id);
+const {data:{session}}=await supabase.auth.getSession();
+if(session)$('userEmail').textContent=session.user.email||'';
+
+let items=[];
+let balances=new Map();
+let profileId=null;
+let organizationId=null;
+const money=v=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v||0));
+const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const typeLabel={PRODUCT:'Товар',MATERIAL:'Материал',SERVICE:'Услуга',FINISHED_PRODUCT:'Готовая продукция',MODEL_3D:'3D-модель'};
+
+async function initContext(){
+  if(session?.user?.id){
+    const {data}=await supabase.from('users').select('id').eq('auth_user_id',session.user.id).maybeSingle();
+    profileId=data?.id||null;
+  }
+  const {data:org}=await supabase.from('organizations').select('id').eq('code','A4PRINT').maybeSingle();
+  organizationId=org?.id||null;
+}
+
+async function load(){
+  $('list').innerHTML='<div class="empty">Загрузка...</div>';
+  const [catalogResult,txResult]=await Promise.all([
+    supabase.from('catalog_items').select('*').order('name'),
+    supabase.from('inventory_transactions').select('catalog_item_id,transaction_type,quantity')
+  ]);
+  if(catalogResult.error){$('list').innerHTML=`<div class="empty">Ошибка: ${esc(catalogResult.error.message)}</div>`;return}
+  items=catalogResult.data||[];
+  balances=new Map();
+  for(const x of txResult.data||[]){
+    const plus=['RECEIPT','TRANSFER_IN','PRODUCTION_IN','ADJUSTMENT'].includes(x.transaction_type);
+    balances.set(x.catalog_item_id,(balances.get(x.catalog_item_id)||0)+(plus?1:-1)*Number(x.quantity||0));
+  }
+  render();
+}
+
+function render(){
+  const q=$('search').value.trim().toLowerCase();
+  const t=$('type').value;
+  const sf=$('stockFilter').value;
+  const filtered=items.filter(x=>{
+    const stock=balances.get(x.id)||0;
+    const low=x.item_type!=='SERVICE'&&stock<=Number(x.min_stock||0);
+    const text=`${x.name||''} ${x.sku||''} ${x.category||''}`.toLowerCase();
+    if(q&&!text.includes(q))return false;
+    if(t&&x.item_type!==t)return false;
+    if(sf==='positive'&&stock<=0)return false;
+    if(sf==='zero'&&stock!==0)return false;
+    if(sf==='low'&&!low)return false;
+    return true;
+  });
+  $('itemsCount').textContent=items.length;
+  $('materialsCount').textContent=items.filter(x=>x.item_type==='MATERIAL').length;
+  $('lowCount').textContent=items.filter(x=>x.item_type!=='SERVICE'&&(balances.get(x.id)||0)<=Number(x.min_stock||0)).length;
+  $('list').innerHTML=filtered.map(x=>{
+    const stock=balances.get(x.id)||0;
+    const low=x.item_type!=='SERVICE'&&stock<=Number(x.min_stock||0);
+    const inactive=x.is_active===false;
+    return `<div class="row ${inactive?'inactive':''}">
+      <div class="item-main"><b>${esc(x.name)}</b><small>${esc(x.sku)} · ${esc(typeLabel[x.item_type]||x.item_type)}${x.category?` · ${esc(x.category)}`:''}${inactive?' · НЕАКТИВНА':''}</small></div>
+      <strong>${money(x.sale_price)}</strong>
+      <div class="stock ${low?'stock-low':''}"><b>${x.item_type==='SERVICE'?'—':`${stock.toFixed(3).replace(/\.000$/,'')} ${esc(x.unit)}`}</b><small>${x.item_type==='SERVICE'?'без складского учёта':`мин. ${x.min_stock||0}`}</small></div>
+      <div class="row-actions">
+        ${x.item_type==='SERVICE'?'':`<button class="mini primary" data-action="qty" data-id="${x.id}">＋ Кол-во</button>`}
+        <button class="mini" data-action="edit" data-id="${x.id}">✎ Изменить</button>
+        <a class="mini linkbtn" href="./item.html?id=${encodeURIComponent(x.id)}">Карточка</a>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty">Ничего не найдено</div>';
+}
+
+function openNew(){
+  $('itemForm').reset();$('editId').value='';$('unit').value='шт';$('active').checked=true;$('itemDlgTitle').textContent='Новая позиция';$('itemError').textContent='';$('itemDlg').showModal();
+}
+function openEdit(id){
+  const x=items.find(v=>v.id===id);if(!x)return;
+  $('editId').value=x.id;$('name').value=x.name||'';$('sku').value=x.sku||'';$('category').value=x.category||'';$('itemType').value=x.item_type||'PRODUCT';$('unit').value=x.unit||'шт';$('sale').value=Number(x.sale_price||0);$('cost').value=Number(x.cost_price||0);$('min').value=Number(x.min_stock||0);$('description').value=x.description||'';$('active').checked=x.is_active!==false;$('itemDlgTitle').textContent='Редактирование позиции';$('itemError').textContent='';$('itemDlg').showModal();
+}
+function openQty(id){
+  const x=items.find(v=>v.id===id);if(!x)return;
+  $('qtyForm').reset();$('qtyItemId').value=x.id;$('qtyItemName').textContent=`${x.name} · текущий остаток ${(balances.get(x.id)||0).toFixed(3).replace(/\.000$/,'')} ${x.unit}`;$('qtyCost').value=Number(x.cost_price||0);$('qtyError').textContent='';$('qtyDlg').showModal();setTimeout(()=>$('qty').focus(),50);
+}
+
+$('add').onclick=openNew;
+$('refresh').onclick=load;
+$('search').oninput=render;$('type').onchange=render;$('stockFilter').onchange=render;
+$('list').onclick=e=>{const el=e.target.closest('[data-action]');if(!el)return;el.dataset.action==='edit'?openEdit(el.dataset.id):openQty(el.dataset.id)};
+
+$('itemForm').onsubmit=async e=>{
+  e.preventDefault();$('itemError').textContent='';$('saveItem').disabled=true;
+  const id=$('editId').value;
+  const payload={
+    organization_id:organizationId,
+    name:$('name').value.trim(),sku:$('sku').value.trim(),category:$('category').value.trim()||null,
+    item_type:$('itemType').value,unit:$('unit').value.trim()||'шт',sale_price:Number($('sale').value)||0,
+    cost_price:Number($('cost').value)||0,min_stock:Number($('min').value)||0,description:$('description').value.trim()||null,
+    is_active:$('active').checked,updated_at:new Date().toISOString()
+  };
+  const result=id?await supabase.from('catalog_items').update(payload).eq('id',id):await supabase.from('catalog_items').insert(payload);
+  $('saveItem').disabled=false;
+  if(result.error){$('itemError').textContent=result.error.message;return}
+  $('itemDlg').close();await load();
+};
+
+$('qtyForm').onsubmit=async e=>{
+  e.preventDefault();$('qtyError').textContent='';$('saveQty').disabled=true;
+  const itemId=$('qtyItemId').value;const quantity=Number($('qty').value);const unitCost=Number($('qtyCost').value)||0;
+  if(!(quantity>0)){$('qtyError').textContent='Количество должно быть больше нуля.';$('saveQty').disabled=false;return}
+  const {error}=await supabase.from('inventory_transactions').insert({catalog_item_id:itemId,transaction_type:'RECEIPT',quantity,unit_cost:unitCost,note:$('qtyNote').value.trim()||'Быстрый приход',created_by:profileId});
+  if(error){$('qtyError').textContent=error.message;$('saveQty').disabled=false;return}
+  const current=items.find(x=>x.id===itemId);
+  if(current&&unitCost>0&&Number(current.cost_price||0)!==unitCost)await supabase.from('catalog_items').update({cost_price:unitCost,updated_at:new Date().toISOString()}).eq('id',itemId);
+  $('saveQty').disabled=false;$('qtyDlg').close();await load();
+};
+
+await initContext();
+await load();
+</script>
+<style>
+.muted{color:#64748b}.toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}.toolbar input,.toolbar select,dialog input,dialog select,dialog textarea{padding:11px;border:1px solid #dbe1ea;border-radius:9px;font:inherit;box-sizing:border-box}.toolbar input{flex:1;min-width:220px}.table-head,.row{display:grid;grid-template-columns:minmax(240px,1fr) 150px 170px minmax(290px,auto);gap:16px;align-items:center}.table-head{padding:10px 0;color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;border-bottom:1px solid #e5e7eb}.row{padding:14px 0;border-bottom:1px solid #e5e7eb}.row small,.stock small{display:block;color:#64748b;margin-top:5px}.inactive{opacity:.58}.stock-low b{color:#dc2626}.row-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.mini{padding:7px 9px;border-radius:8px;border:1px solid #dbe1ea;background:#fff;color:#1e293b;font:inherit;font-size:12px;cursor:pointer;text-decoration:none}.mini.primary{background:#0f172a;color:#fff;border-color:#0f172a}.linkbtn{display:inline-flex;align-items:center}dialog{border:0;border-radius:16px;padding:26px;width:min(680px,calc(100% - 32px));box-shadow:0 20px 60px #0002}dialog#qtyDlg{width:min(440px,calc(100% - 32px))}dialog::backdrop{background:#0006}dialog label{display:grid;gap:7px;margin:10px 0}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.form-grid .wide{grid-column:1/-1}.check{display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;justify-content:flex-start}.check input{width:auto}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.form-error{color:#b91c1c;margin-top:10px;min-height:18px;font-size:13px}
+@media(max-width:900px){.table-head{display:none}.row{grid-template-columns:1fr 1fr}.row-actions{grid-column:1/-1;justify-content:flex-start}}@media(max-width:560px){.row,.form-grid{grid-template-columns:1fr}.form-grid .wide{grid-column:auto}.row-actions{grid-column:auto}}
+</style>
+</body>
+</html>
