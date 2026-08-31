@@ -9,4 +9,5 @@ window.A4PRINT_CONFIG = {
 
 if (/\/admin\/(?!login\.html$)/.test(location.pathname)) {
   document.write('<script defer src="./navigation.js?v=20260831-1"></' + 'script>');
+  document.write('<script defer src="./layout.js?v=20260831-1"></' + 'script>');
 }
