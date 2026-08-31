@@ -7,11 +7,21 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const form = document.getElementById('form');
 const submit = document.getElementById('submit');
 const error = document.getElementById('error');
+const recoveryBox=document.getElementById('recoveryBox');
+const recoveryEmail=document.getElementById('recoveryEmail');
+const recoveryError=document.getElementById('recoveryError');
+const recoverySuccess=document.getElementById('recoverySuccess');
+const sendRecovery=document.getElementById('sendRecovery');
 
 function showError(message) {
   error.textContent = message;
   error.style.display = 'block';
 }
+function resetRecoveryMessages(){recoveryError.style.display='none';recoverySuccess.style.display='none';recoveryError.textContent='';recoverySuccess.textContent=''}
+
+document.getElementById('showRecovery').onclick=()=>{resetRecoveryMessages();recoveryEmail.value=document.getElementById('email').value.trim();recoveryBox.classList.add('open');recoveryEmail.focus()};
+document.getElementById('hideRecovery').onclick=()=>recoveryBox.classList.remove('open');
+sendRecovery.onclick=async()=>{resetRecoveryMessages();const email=recoveryEmail.value.trim();if(!email){recoveryError.textContent='Введите email.';recoveryError.style.display='block';return}sendRecovery.disabled=true;sendRecovery.textContent='Отправляем...';try{const redirectTo=new URL('./reset-password.html',location.href).href;const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;recoverySuccess.textContent='Ссылка отправлена. Откройте письмо и перейдите по ней.';recoverySuccess.style.display='block'}catch(e){recoveryError.textContent=e?.message||'Не удалось отправить письмо.';recoveryError.style.display='block'}finally{sendRecovery.disabled=false;sendRecovery.textContent='Отправить ссылку'}};
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
