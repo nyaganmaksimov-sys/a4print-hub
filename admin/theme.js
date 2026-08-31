@@ -1,0 +1,41 @@
+(()=>{
+  if(window.__A4PRINT_THEME_LOADED__)return;window.__A4PRINT_THEME_LOADED__=true;
+  const KEY='a4print_ui_theme_v1', CUSTOM='a4print_ui_custom_bg_v1';
+  const themes={
+    pearl:{name:'Светлый',bg:'radial-gradient(circle at 15% 15%,rgba(59,130,246,.12),transparent 34%),linear-gradient(135deg,#f8fafc 0%,#eef2ff 52%,#f8fafc 100%)',accent:'#2563eb',side:'rgba(15,23,42,.94)'},
+    sky:{name:'Небо',bg:'radial-gradient(circle at 18% 12%,rgba(255,255,255,.82),transparent 24%),linear-gradient(135deg,#dbeafe 0%,#e0f2fe 45%,#eef2ff 100%)',accent:'#0284c7',side:'rgba(3,37,65,.92)'},
+    graphite:{name:'Графит',bg:'radial-gradient(circle at 70% 10%,rgba(59,130,246,.22),transparent 30%),linear-gradient(135deg,#0f172a 0%,#111827 52%,#1e293b 100%)',accent:'#60a5fa',side:'rgba(2,6,23,.92)',dark:true},
+    violet:{name:'Фиолетовый',bg:'radial-gradient(circle at 20% 15%,rgba(255,255,255,.36),transparent 25%),linear-gradient(135deg,#ede9fe 0%,#fae8ff 52%,#e0e7ff 100%)',accent:'#7c3aed',side:'rgba(46,16,101,.90)'},
+    warm:{name:'Тёплый',bg:'radial-gradient(circle at 15% 15%,rgba(255,255,255,.65),transparent 30%),linear-gradient(135deg,#fff7ed 0%,#fef3c7 48%,#fdf2f8 100%)',accent:'#ea580c',side:'rgba(67,20,7,.91)'}
+  };
+  const css=`
+  :root{--a4-accent:#2563eb;--a4-glass:rgba(255,255,255,.82);--a4-border:rgba(148,163,184,.22);--a4-text:#172033;--a4-muted:#64748b;--a4-shadow:0 18px 50px rgba(15,23,42,.10)}
+  html{background:#eef2f7} body{background:var(--a4-bg)!important;background-attachment:fixed!important;background-size:cover!important;color:var(--a4-text)!important;transition:background .25s ease,color .25s ease}
+  body:before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04));backdrop-filter:saturate(115%)}
+  .sidebar,.side{background:var(--a4-side)!important;backdrop-filter:blur(22px) saturate(130%);border-color:rgba(255,255,255,.08)!important;box-shadow:8px 0 32px rgba(15,23,42,.14)}
+  .sidebar a,.nav a,.nav button{transition:.18s ease}.sidebar a:hover,.sidebar a.active,.nav .active{background:rgba(255,255,255,.12)!important;color:#fff!important;transform:translateX(2px)}
+  .main,.wrap{position:relative}.panel,.stats article,.stat,.card,.operator,.shiftcard,.right,.topbar,.client,.units div,.order-row{background:var(--a4-glass)!important;border-color:var(--a4-border)!important;box-shadow:var(--a4-shadow)!important;backdrop-filter:blur(18px) saturate(125%)}
+  .panel,.stats article,.stat,.card,.operator,.shiftcard,.client,.units div{border-radius:18px!important}
+  button,.button,input,select,textarea{transition:.18s ease}button:not(.a4-theme-fab):not(.a4-theme-close):hover{transform:translateY(-1px);filter:brightness(1.03)}
+  input,select,textarea{background:rgba(255,255,255,.88)!important;border-color:rgba(148,163,184,.3)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
+  input:focus,select:focus,textarea:focus{outline:3px solid color-mix(in srgb,var(--a4-accent) 18%,transparent)!important;border-color:var(--a4-accent)!important}
+  .topbar h1,.top h1,h1,h2,h3{letter-spacing:-.02em}.muted,.meta,.topbar p{color:var(--a4-muted)!important}
+  .a4-theme-fab{position:fixed;right:22px;bottom:22px;z-index:10020;width:48px;height:48px;border:1px solid rgba(255,255,255,.45);border-radius:15px;background:rgba(15,23,42,.88);color:#fff;font-size:20px;cursor:pointer;box-shadow:0 14px 35px rgba(15,23,42,.28);backdrop-filter:blur(14px)}
+  .a4-theme-panel{position:fixed;right:22px;bottom:80px;z-index:10021;width:min(350px,calc(100vw - 32px));padding:18px;background:rgba(255,255,255,.94);border:1px solid rgba(148,163,184,.26);border-radius:20px;box-shadow:0 24px 70px rgba(15,23,42,.25);backdrop-filter:blur(24px);display:none;color:#172033}.a4-theme-panel.open{display:block}.a4-theme-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.a4-theme-head b{font-size:16px}.a4-theme-close{border:0;background:transparent;font-size:21px;cursor:pointer;color:#475569}.a4-theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.a4-theme-choice{border:1px solid #dbe2ea;border-radius:14px;padding:8px;background:#fff;cursor:pointer;text-align:left}.a4-theme-choice.on{outline:3px solid color-mix(in srgb,var(--a4-accent) 25%,transparent);border-color:var(--a4-accent)}.a4-theme-preview{height:46px;border-radius:10px;margin-bottom:6px;border:1px solid rgba(15,23,42,.08)}.a4-theme-name{font-size:12px;font-weight:800}.a4-theme-custom{margin-top:12px;padding-top:12px;border-top:1px solid #eef2f7}.a4-theme-custom label{display:block;border:1px dashed #cbd5e1;border-radius:12px;padding:10px;text-align:center;cursor:pointer;font-size:13px;font-weight:700}.a4-theme-custom input{display:none}.a4-theme-note{margin-top:8px;color:#64748b;font-size:11px;line-height:1.4}
+  body.a4-dark{--a4-glass:rgba(15,23,42,.78);--a4-border:rgba(148,163,184,.18);--a4-text:#e5edf8;--a4-muted:#a8b4c7;--a4-shadow:0 18px 55px rgba(0,0,0,.24)}body.a4-dark input,body.a4-dark select,body.a4-dark textarea{background:rgba(15,23,42,.8)!important;color:#e5edf8!important}body.a4-dark .empty{background:rgba(15,23,42,.5)!important;color:#a8b4c7!important}body.a4-dark .right{color:#e5edf8!important}
+  @media(max-width:700px){.a4-theme-fab{right:14px;bottom:14px}.a4-theme-panel{right:14px;bottom:70px}.a4-theme-grid{grid-template-columns:repeat(2,1fr)}}`;
+  const style=document.createElement('style');style.id='a4-global-theme-style';style.textContent=css;document.head.appendChild(style);
+  function current(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return{}}}
+  function apply(id,custom){const t=themes[id]||themes.pearl;document.documentElement.style.setProperty('--a4-bg',custom?`linear-gradient(rgba(248,250,252,.18),rgba(248,250,252,.18)),url("${custom}")`:t.bg);document.documentElement.style.setProperty('--a4-accent',t.accent);document.documentElement.style.setProperty('--a4-side',t.side);document.body?.classList.toggle('a4-dark',!!t.dark&&!custom);document.documentElement.style.setProperty('--a4-text',t.dark&&!custom?'#e5edf8':'#172033');document.documentElement.style.setProperty('--a4-muted',t.dark&&!custom?'#a8b4c7':'#64748b');}
+  const saved=current();apply(saved.id||'pearl',saved.custom||localStorage.getItem(CUSTOM)||'');
+  document.addEventListener('DOMContentLoaded',()=>{
+    apply(saved.id||'pearl',saved.custom||localStorage.getItem(CUSTOM)||'');
+    const fab=document.createElement('button');fab.className='a4-theme-fab';fab.type='button';fab.title='Оформление и фон';fab.textContent='🎨';
+    const panel=document.createElement('div');panel.className='a4-theme-panel';panel.innerHTML=`<div class="a4-theme-head"><b>Оформление и фон</b><button class="a4-theme-close" type="button">×</button></div><div class="a4-theme-grid">${Object.entries(themes).map(([id,t])=>`<button class="a4-theme-choice" type="button" data-theme="${id}"><div class="a4-theme-preview" style="background:${t.bg}"></div><div class="a4-theme-name">${t.name}</div></button>`).join('')}</div><div class="a4-theme-custom"><label>📷 Выбрать свой фон<input type="file" accept="image/*" id="a4CustomBg"></label><div class="a4-theme-note">Фон сохраняется только в этом браузере. Лучше использовать изображение до 3 МБ.</div></div>`;
+    document.body.append(fab,panel);
+    const mark=id=>panel.querySelectorAll('[data-theme]').forEach(b=>b.classList.toggle('on',b.dataset.theme===id));mark(saved.id||'pearl');
+    fab.onclick=()=>panel.classList.toggle('open');panel.querySelector('.a4-theme-close').onclick=()=>panel.classList.remove('open');
+    panel.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{const id=b.dataset.theme;localStorage.setItem(KEY,JSON.stringify({id}));localStorage.removeItem(CUSTOM);apply(id,'');mark(id)});
+    panel.querySelector('#a4CustomBg').onchange=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>3*1024*1024){alert('Выберите изображение до 3 МБ.');return}const r=new FileReader();r.onload=()=>{const data=String(r.result||'');try{localStorage.setItem(CUSTOM,data);localStorage.setItem(KEY,JSON.stringify({id:'pearl',custom:data}));apply('pearl',data);mark('pearl')}catch{alert('Не удалось сохранить фон: файл слишком большой для браузера.')}};r.readAsDataURL(f)};
+  });
+})();
