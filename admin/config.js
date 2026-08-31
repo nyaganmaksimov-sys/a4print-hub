@@ -7,7 +7,15 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
-if (/\/admin\/(?!login\.html$)/.test(location.pathname)) {
-  document.write('<script defer src="./navigation.js?v=20260831-1"></' + 'script>');
-  document.write('<script defer src="./layout.js?v=20260831-1"></' + 'script>');
-}
+(function loadHubUi(){
+  if (!/\/admin\/(?!login\.html$)/.test(location.pathname)) return;
+  const base = new URL('./', document.currentScript?.src || location.href);
+  const load = (file) => {
+    const s = document.createElement('script');
+    s.src = new URL(file, base).href + '?v=20260831-3';
+    s.defer = true;
+    document.head.appendChild(s);
+  };
+  load('navigation.js');
+  load('layout.js');
+})();
