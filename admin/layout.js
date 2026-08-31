@@ -12,10 +12,11 @@
     .a4-layout-toolbar{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;gap:8px;align-items:center;padding:8px;background:rgba(15,23,42,.94);border-radius:14px;box-shadow:0 8px 28px rgba(15,23,42,.22)}
     .a4-layout-toolbar button{border:0;border-radius:9px;padding:9px 12px;font:700 12px/1 Arial,sans-serif;cursor:pointer;background:#fff;color:#0f172a}
     .a4-layout-toolbar button.a4-primary{background:#2563eb;color:#fff}
-    .a4-layout-toolbar .a4-reset{display:none}.a4-layout-editing .a4-layout-toolbar .a4-reset{display:block}
-    .a4-layout-handle{display:none;position:absolute;top:8px;right:8px;z-index:20;border:1px dashed #94a3b8!important;background:#fff!important;color:#334155!important;border-radius:8px!important;padding:6px 9px!important;font:700 11px/1 Arial,sans-serif!important;cursor:grab!important;box-shadow:0 2px 8px rgba(15,23,42,.12)}
+    .a4-layout-toolbar .a4-reset{display:none!important}.a4-layout-editing .a4-layout-toolbar .a4-reset{display:block!important}
+    .a4-layout-handle{display:none!important;position:absolute;top:8px;right:8px;z-index:20;border:1px dashed #94a3b8!important;background:#fff!important;color:#334155!important;border-radius:8px!important;padding:6px 9px!important;font:700 11px/1 Arial,sans-serif!important;cursor:grab!important;box-shadow:0 2px 8px rgba(15,23,42,.12)}
+    body:not(.a4-layout-editing) .a4-layout-handle{display:none!important;visibility:hidden!important;pointer-events:none!important}
     .a4-layout-editing .a4-layout-block{position:relative;outline:2px dashed rgba(37,99,235,.32);outline-offset:3px;min-height:40px}
-    .a4-layout-editing .a4-layout-block>.a4-layout-handle{display:block}
+    .a4-layout-editing .a4-layout-block>.a4-layout-handle{display:block!important;visibility:visible!important;pointer-events:auto!important}
     .a4-layout-block.a4-dragging{opacity:.45}.a4-layout-drop-before{box-shadow:0 -4px 0 #2563eb!important}.a4-layout-drop-after{box-shadow:0 4px 0 #2563eb!important}
     @media(max-width:700px){.a4-layout-toolbar{right:10px;bottom:10px}.a4-layout-toolbar button{padding:8px 9px}}
   `;
@@ -36,7 +37,6 @@
     const nodes = [...main.querySelectorAll('.card, article, .panel, .dashboard-card, .widget')];
     return nodes.filter(el => {
       if (el.closest('.sidebar,.topbar,header,nav,dialog,form,table,tbody,thead')) return false;
-      // Avoid nested cards: only top-most movable card in a visual group.
       const parentMovable = el.parentElement?.closest?.('.card,article,.panel,.dashboard-card,.widget');
       if (parentMovable && main.contains(parentMovable)) return false;
       const p = el.parentElement;
@@ -57,10 +57,20 @@
         h.textContent = '↕ Переместить';
         h.title = 'Перетащите блок';
         h.draggable = true;
+        h.hidden = !editing;
         el.prepend(h);
       }
     });
+    syncHandleVisibility();
     return blocks;
+  }
+
+  function syncHandleVisibility() {
+    document.querySelectorAll('.a4-layout-handle').forEach(h => {
+      h.hidden = !editing;
+      h.setAttribute('aria-hidden', editing ? 'false' : 'true');
+      h.tabIndex = editing ? 0 : -1;
+    });
   }
 
   function save() {
@@ -143,7 +153,9 @@
     const toggle=document.createElement('button'); toggle.type='button'; toggle.className='a4-primary'; toggle.textContent='Настроить блоки';
     const reset=document.createElement('button'); reset.type='button'; reset.className='a4-reset'; reset.textContent='Сбросить';
     toggle.onclick=()=>{
-      editing=!editing; document.body.classList.toggle(EDIT_CLASS,editing);
+      editing=!editing;
+      document.body.classList.toggle(EDIT_CLASS,editing);
+      syncHandleVisibility();
       toggle.textContent=editing?'Готово':'Настроить блоки';
       if(!editing) save();
     };
@@ -153,8 +165,9 @@
 
   function init(){
     if (/\/admin\/login\.html$/.test(location.pathname)) return;
+    document.body.classList.remove(EDIT_CLASS);
     markBlocks(); restore(); enableDnD(); toolbar();
-    // Re-scan pages that render cards asynchronously.
+    syncHandleVisibility();
     const obs=new MutationObserver(()=>markBlocks());
     const main=document.querySelector('.main')||document.querySelector('main');
     if(main) obs.observe(main,{childList:true,subtree:true});
