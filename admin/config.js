@@ -9,10 +9,10 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260831-9') => {
+  const load = (file, version='20260831-10') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
-    s.defer = true;
+    s.async = false;
     document.head.appendChild(s);
   };
 
