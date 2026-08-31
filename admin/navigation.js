@@ -10,7 +10,29 @@ document.addEventListener('DOMContentLoaded',async()=>{
   toggle.onclick=()=>{const next=!document.body.classList.contains('a4-sidebar-collapsed');document.body.classList.toggle('a4-sidebar-collapsed',next);localStorage.setItem(COLLAPSE_KEY,next?'1':'0')};
 
   const brand=sidebar.querySelector('.brand');
-  if(brand){brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#fff;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#38bdf8">HUB</span></div>`;const img=document.getElementById('globalHubLogo'),fallback=document.getElementById('globalHubLogoFallback');img.onerror=()=>{img.style.display='none';fallback.style.display='block'};const cached=localStorage.getItem('a4print_hub_logo');if(cached)img.src=cached;try{const cfg=window.A4PRINT_CONFIG||{};if(cfg.supabaseUrl&&cfg.supabasePublishableKey){const{createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);const{data:{session}}=await supabase.auth.getSession();if(session){const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();const saved=data?.value?.logo||'';if(saved){img.style.display='block';fallback.style.display='none';img.src=saved;localStorage.setItem('a4print_hub_logo',saved)}else{localStorage.removeItem('a4print_hub_logo');img.src='./assets/logo_bd_transparent.svg?v=20260830-4'}}}}catch(e){console.warn('Не удалось загрузить логотип HUB из настроек',e)}}
+  if(brand){
+    brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#fff;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#38bdf8">HUB</span></div>`;
+    const img=document.getElementById('globalHubLogo'),fallback=document.getElementById('globalHubLogoFallback');
+    img.onerror=()=>{img.style.display='none';fallback.style.display='block'};
+    let normalLogo=localStorage.getItem('a4print_hub_logo')||'./assets/logo_bd_transparent.svg?v=20260830-4';
+    const syncSidebarLogo=()=>{img.style.display='block';fallback.style.display='none';img.src=document.body.classList.contains('a4-side-light')?'./assets/logo_bd1.png?v=20260831-1':normalLogo};
+    syncSidebarLogo();
+    new MutationObserver(syncSidebarLogo).observe(document.body,{attributes:true,attributeFilter:['class']});
+    try{
+      const cfg=window.A4PRINT_CONFIG||{};
+      if(cfg.supabaseUrl&&cfg.supabasePublishableKey){
+        const{createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+        const{data:{session}}=await supabase.auth.getSession();
+        if(session){
+          const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();
+          const saved=data?.value?.logo||'';
+          if(saved){normalLogo=saved;localStorage.setItem('a4print_hub_logo',saved)}else{localStorage.removeItem('a4print_hub_logo');normalLogo='./assets/logo_bd_transparent.svg?v=20260830-4'}
+          syncSidebarLogo();
+        }
+      }
+    }catch(e){console.warn('Не удалось загрузить логотип HUB из настроек',e)}
+  }
 
   const nav=sidebar.querySelector('nav');if(!nav)return;
   const path=location.pathname.split('/').pop()||'index.html';
