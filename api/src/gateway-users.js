@@ -12,7 +12,22 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 const supabase = supabaseUrl && serviceKey ? createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken:false, persistSession:false } }) : null;
 
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',').map(v=>v.trim()).filter(Boolean) || true }));
+const configuredOrigins=(process.env.CORS_ORIGIN||'').split(',').map(v=>v.trim()).filter(Boolean);
+const allowedOrigins=new Set([
+  ...configuredOrigins,
+  'http://a4print-hub.ru',
+  'https://a4print-hub.ru',
+  'http://www.a4print-hub.ru',
+  'https://www.a4print-hub.ru',
+  'https://nyaganmaksimov-sys.github.io'
+]);
+app.use(cors({
+  origin(origin,callback){
+    if(!origin||allowedOrigins.has(origin)) return callback(null,true);
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  credentials:false
+}));
 app.use(express.json({ limit:'2mb' }));
 
 const child = spawn(process.execPath, ['src/gateway.js'], {
@@ -218,16 +233,41 @@ app.post('/api/v1/partners/:id/users',requireManagerOrAdmin,async(req,res,next)=
   }catch(e){next(e)}
 });
 
-app.use(async(req,res,next)=>{
+app.patch('/api/v1/partner-users/:id',requireManagerOrAdmin,async(req,res,next)=>{
   try{
-    const url=`http://127.0.0.1:${innerPort}${req.originalUrl}`;
-    const headers={...req.headers};delete headers.host;delete headers['content-length'];
-    const method=req.method.toUpperCase();
-    const response=await fetch(url,{method,headers,body:['GET','HEAD'].includes(method)?undefined:JSON.stringify(req.body??{})});
-    res.status(response.status);response.headers.forEach((v,k)=>{if(!['content-encoding','transfer-encoding','content-length','connection'].includes(k.toLowerCase()))res.setHeader(k,v)});
-    res.send(Buffer.from(await response.arrayBuffer()));
+    const {data:user,error:uErr}=await supabase.from('partner_users').select('id,auth_user_id').eq('id',req.params.id).single();if(uErr)throw uErr;
+    const updates={};
+    for(const key of ['full_name','phone']) if(typeof req.body?.[key]==='string') updates[key]=req.body[key].trim()||null;
+    if(typeof req.body?.is_admin==='boolean') updates.is_admin=req.body.is_admin;
+    if(typeof req.body?.is_active==='boolean') updates.is_active=req.body.is_active;
+    updates.updated_at=new Date().toISOString();
+    const {error}=await supabase.from('partner_users').update(updates).eq('id',user.id);if(error)throw error;
+    const authUpdates={};
+    if(typeof req.body?.password==='string'&&req.body.password){if(req.body.password.length<6)return res.status(400).json({success:false,error:'PASSWORD_TOO_SHORT'});authUpdates.password=req.body.password;}
+    if(typeof req.body?.is_active==='boolean')authUpdates.ban_duration=req.body.is_active?'none':'876000h';
+    if(Object.keys(authUpdates).length){const{error:aErr}=await supabase.auth.admin.updateUserById(user.auth_user_id,authUpdates);if(aErr)throw aErr;}
+    res.json({success:true});
   }catch(e){next(e)}
 });
 
-app.use((err,_req,res,_next)=>{console.error(err);const status=err.status||500;res.status(status).json({success:false,error:status===500?'INTERNAL_SERVER_ERROR':err.message,message:err.message})});
-app.listen(port,()=>console.log(`A4PRINT HUB user gateway on ${port}; inner ${innerPort}`));
+app.use(async(req,res,next)=>{
+  try{
+    const target=new URL(req.originalUrl,`http://127.0.0.1:${innerPort}`);
+    const headers={};
+    for(const [k,v] of Object.entries(req.headers)) if(!['host','content-length'].includes(k.toLowerCase())&&typeof v!=='undefined') headers[k]=v;
+    const init={method:req.method,headers};
+    if(!['GET','HEAD'].includes(req.method)) init.body=JSON.stringify(req.body||{});
+    const response=await fetch(target,init);
+    const text=await response.text();
+    res.status(response.status);
+    response.headers.forEach((v,k)=>{if(!['content-length','connection','transfer-encoding'].includes(k.toLowerCase()))res.setHeader(k,v)});
+    res.send(text);
+  }catch(e){next(e)}
+});
+
+app.use((err,_req,res,_next)=>{
+  console.error(err);
+  res.status(err.status||500).json({success:false,error:err.message||'INTERNAL_SERVER_ERROR'});
+});
+
+app.listen(port,()=>console.log(`A4PRINT HUB user gateway listening on ${port}, inner gateway ${innerPort}`));
