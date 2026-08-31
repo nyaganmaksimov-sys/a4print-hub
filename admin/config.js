@@ -8,14 +8,19 @@ window.A4PRINT_CONFIG = {
 };
 
 (function loadHubUi(){
-  if (!/\/admin\/(?!login\.html$)/.test(location.pathname)) return;
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file) => {
+  const load = (file, version='20260831-7') => {
     const s = document.createElement('script');
-    s.src = new URL(file, base).href + '?v=20260831-6';
+    s.src = new URL(file, base).href + '?v=' + version;
     s.defer = true;
     document.head.appendChild(s);
   };
+
+  // Global visual theme is shared by HUB, login pages and POS.
+  load('theme.js');
+
+  // Internal HUB tools are only needed inside /admin/ after login.
+  if (!/\/admin\/(?!login\.html$)/.test(location.pathname)) return;
   load('navigation.js');
   load('layout.js');
   load('help-context.js');
