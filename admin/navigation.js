@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded',async()=>{
+async function initA4Navigation(){
+  if(window.__A4PRINT_NAV_READY__)return;window.__A4PRINT_NAV_READY__=true;
   const sidebar=document.querySelector('.sidebar');if(!sidebar)return;
   const COLLAPSE_KEY='a4print_sidebar_collapsed_v1';
   const collapsed=localStorage.getItem(COLLAPSE_KEY)==='1';
@@ -24,24 +25,12 @@ document.addEventListener('DOMContentLoaded',async()=>{
     systems:svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>')
   };
 
-  let head=sidebar.querySelector('.a4-sidebar-head');
-  if(!head){head=document.createElement('div');head.className='a4-sidebar-head';sidebar.prepend(head)}
+  let head=sidebar.querySelector('.a4-sidebar-head');if(!head){head=document.createElement('div');head.className='a4-sidebar-head';sidebar.prepend(head)}
   const toggle=document.createElement('button');toggle.type='button';toggle.className='a4-sidebar-toggle';toggle.title='Свернуть/развернуть меню';toggle.innerHTML=`<span>${icons.menu}</span><small>Меню</small>`;head.appendChild(toggle);
   toggle.onclick=()=>{const next=!document.body.classList.contains('a4-sidebar-collapsed');document.body.classList.toggle('a4-sidebar-collapsed',next);localStorage.setItem(COLLAPSE_KEY,next?'1':'0')};
 
-  const brand=sidebar.querySelector('.brand');
-  if(brand){
-    brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#fff;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#38bdf8">HUB</span></div>`;
-    const img=document.getElementById('globalHubLogo'),fallback=document.getElementById('globalHubLogoFallback');
-    img.onerror=()=>{img.style.display='none';fallback.style.display='block'};
-    let normalLogo=localStorage.getItem('a4print_hub_logo')||'./assets/logo_bd_transparent.svg?v=20260830-4';
-    const syncSidebarLogo=()=>{img.style.display='block';fallback.style.display='none';img.src=document.body.classList.contains('a4-side-light')?'./assets/logo_bd1.png?v=20260831-1':normalLogo};
-    syncSidebarLogo();new MutationObserver(syncSidebarLogo).observe(document.body,{attributes:true,attributeFilter:['class']});
-    try{const cfg=window.A4PRINT_CONFIG||{};if(cfg.supabaseUrl&&cfg.supabasePublishableKey){const{createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);const{data:{session}}=await supabase.auth.getSession();if(session){const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();const saved=data?.value?.logo||'';if(saved){normalLogo=saved;localStorage.setItem('a4print_hub_logo',saved)}else{localStorage.removeItem('a4print_hub_logo');normalLogo='./assets/logo_bd_transparent.svg?v=20260830-4'}syncSidebarLogo()}}}catch(e){console.warn('Не удалось загрузить логотип HUB из настроек',e)}
-  }
+  const brand=sidebar.querySelector('.brand');if(brand){brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#fff;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#38bdf8">HUB</span></div>`;const img=document.getElementById('globalHubLogo'),fallback=document.getElementById('globalHubLogoFallback');img.onerror=()=>{img.style.display='none';fallback.style.display='block'};let normalLogo=localStorage.getItem('a4print_hub_logo')||'./assets/logo_bd_transparent.svg?v=20260830-4';const syncSidebarLogo=()=>{img.style.display='block';fallback.style.display='none';img.src=document.body.classList.contains('a4-side-light')?'./assets/logo_bd1.png?v=20260831-1':normalLogo};syncSidebarLogo();new MutationObserver(syncSidebarLogo).observe(document.body,{attributes:true,attributeFilter:['class']});try{const cfg=window.A4PRINT_CONFIG||{};if(cfg.supabaseUrl&&cfg.supabasePublishableKey){const{createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);const{data:{session}}=await supabase.auth.getSession();if(session){const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();const saved=data?.value?.logo||'';if(saved){normalLogo=saved;localStorage.setItem('a4print_hub_logo',saved)}else{localStorage.removeItem('a4print_hub_logo');normalLogo='./assets/logo_bd_transparent.svg?v=20260830-4'}syncSidebarLogo()}}}catch(e){console.warn('Не удалось загрузить логотип HUB из настроек',e)}}
 
-  const nav=sidebar.querySelector('nav');if(!nav)return;
-  const path=location.pathname.split('/').pop()||'index.html';
-  const items=[['index.html','home','Главная'],['manager.html','manager','Рабочий стол менеджера'],['orders.html','orders','Заказы'],['customers.html','customers','Клиенты'],['partners.html','partners','Партнёры'],['users.html','users','Пользователи'],['warehouse.html','warehouse','Склад и номенклатура'],['production.html','production','Производство'],['messages.html','messages','Сообщения'],['documents.html','documents','Документы'],['payments.html','payments','Оплаты'],['reports.html','reports','Отчёты'],['settings.html','settings','Настройки'],['help.html','help','Инструкция'],['../index.html','systems','Выбор системы']];
-  nav.innerHTML=items.map(([href,icon,label])=>`<a href="${href.startsWith('..')?href:'./'+href}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}</a>`).join('');
-});
+  const nav=sidebar.querySelector('nav');if(!nav)return;const path=location.pathname.split('/').pop()||'index.html';const items=[['index.html','home','Главная'],['manager.html','manager','Рабочий стол менеджера'],['orders.html','orders','Заказы'],['customers.html','customers','Клиенты'],['partners.html','partners','Партнёры'],['users.html','users','Пользователи'],['warehouse.html','warehouse','Склад и номенклатура'],['production.html','production','Производство'],['messages.html','messages','Сообщения'],['documents.html','documents','Документы'],['payments.html','payments','Оплаты'],['reports.html','reports','Отчёты'],['settings.html','settings','Настройки'],['help.html','help','Инструкция'],['../index.html','systems','Выбор системы']];nav.innerHTML=items.map(([href,icon,label])=>`<a href="${href.startsWith('..')?href:'./'+href}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}</a>`).join('');
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initA4Navigation,{once:true});else initA4Navigation();
