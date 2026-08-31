@@ -12,7 +12,7 @@ window.A4PRINT_CONFIG = {
   const base = new URL('./', document.currentScript?.src || location.href);
   const load = (file) => {
     const s = document.createElement('script');
-    s.src = new URL(file, base).href + '?v=20260831-5';
+    s.src = new URL(file, base).href + '?v=20260831-6';
     s.defer = true;
     document.head.appendChild(s);
   };
