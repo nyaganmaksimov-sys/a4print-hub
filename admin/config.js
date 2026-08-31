@@ -9,7 +9,7 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260831-11') => {
+  const load = (file, version='20260831-12') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -17,6 +17,7 @@ window.A4PRINT_CONFIG = {
   };
 
   load('theme.js');
+  load('ui-icons.js');
 
   if (!/\/admin\/(?!login\.html$)/.test(location.pathname)) return;
   load('navigation.js');
