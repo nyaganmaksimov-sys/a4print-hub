@@ -19,15 +19,35 @@ function showError(message) {
   error.style.display = 'block';
 }
 function resetRecoveryMessages(){recoveryError.style.display='none';recoverySuccess.style.display='none';recoveryError.textContent='';recoverySuccess.textContent=''}
+const sleep=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
+const isFutureJwtError=(err)=>String(err?.message||err||'').toLowerCase().includes('jwt issued at future');
 
-async function routeByRole(){
+async function checkRolesOnce(){
   const roleNames=['ADMIN','MANAGER','WAREHOUSE','PRODUCTION','VIEWER','POS_OPERATOR'];
   const checks=await Promise.all(roleNames.map(name=>supabase.rpc('has_role',{required_role:name})));
   for(const check of checks) if(check.error) throw check.error;
-  const has=Object.fromEntries(roleNames.map((name,i)=>[name,Boolean(checks[i].data)]));
+  return Object.fromEntries(roleNames.map((name,i)=>[name,Boolean(checks[i].data)]));
+}
+
+async function checkRolesWithRetry(){
+  let lastError;
+  for(let attempt=0;attempt<6;attempt++){
+    try{
+      return await checkRolesOnce();
+    }catch(err){
+      lastError=err;
+      if(!isFutureJwtError(err)) throw err;
+      await sleep(2000 + attempt*1000);
+    }
+  }
+  throw lastError;
+}
+
+async function routeByRole(){
+  const has=await checkRolesWithRetry();
   if(has.ADMIN||has.MANAGER||has.WAREHOUSE||has.PRODUCTION||has.VIEWER){location.replace('./index.html');return true}
   if(has.POS_OPERATOR){location.replace('../pos/index.html');return true}
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({scope:'local'});
   throw new Error('Для этой учётной записи не назначена роль доступа. Обратитесь к администратору.');
 }
 
@@ -35,7 +55,7 @@ document.getElementById('showRecovery').onclick=()=>{resetRecoveryMessages();rec
 document.getElementById('hideRecovery').onclick=()=>recoveryBox.classList.remove('open');
 sendRecovery.onclick=async()=>{resetRecoveryMessages();const email=recoveryEmail.value.trim();if(!email){recoveryError.textContent='Введите email.';recoveryError.style.display='block';return}sendRecovery.disabled=true;sendRecovery.textContent='Отправляем...';try{const redirectTo=new URL('./reset-password.html',location.href).href;const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;recoverySuccess.textContent='Ссылка отправлена. Откройте письмо и перейдите по ней.';recoverySuccess.style.display='block'}catch(e){recoveryError.textContent=e?.message||'Не удалось отправить письмо.';recoveryError.style.display='block'}finally{sendRecovery.disabled=false;sendRecovery.textContent='Отправить ссылку'}};
 
-googleLogin.addEventListener('click',async()=>{
+googleLogin?.addEventListener('click',async()=>{
   error.style.display='none';
   googleLogin.disabled=true;
   try{
@@ -49,14 +69,13 @@ googleLogin.addEventListener('click',async()=>{
 async function finishOAuth(){
   if(new URLSearchParams(location.search).get('oauth')!=='1') return;
   error.style.display='none';
-  googleLogin.disabled=true;
-  googleLogin.lastChild.textContent=' Проверяем доступ...';
+  if(googleLogin) googleLogin.disabled=true;
   try{
     const{data:{session},error:sessionError}=await supabase.auth.getSession();
     if(sessionError) throw sessionError;
     if(!session) return;
     await routeByRole();
-  }catch(err){showError(err?.message||'Не удалось завершить вход через Google.');googleLogin.disabled=false}
+  }catch(err){showError(err?.message||'Не удалось завершить вход через Google.');if(googleLogin) googleLogin.disabled=false}
 }
 
 form.addEventListener('submit', async (event) => {
@@ -68,11 +87,19 @@ form.addEventListener('submit', async (event) => {
   try {
     if (!SUPABASE_PUBLISHABLE_KEY) throw new Error('Не задан Publishable Key Supabase в admin/config.js.');
 
+    // Remove only a stale local session before issuing a fresh password session.
+    // This avoids reusing an old browser token after password recovery.
+    await supabase.auth.signOut({scope:'local'}).catch(()=>{});
+
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: document.getElementById('email').value.trim(),
       password: document.getElementById('password').value
     });
     if (authError) throw authError;
+
+    // Hosted Auth and PostgREST can very briefly disagree about a freshly issued JWT iat.
+    // Retry only that specific transient error; all other errors are surfaced immediately.
+    submit.textContent = 'Проверяем доступ...';
     await routeByRole();
   } catch (err) {
     showError(err?.message || 'Не удалось выполнить вход.');
