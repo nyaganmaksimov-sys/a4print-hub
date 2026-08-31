@@ -1,81 +1,66 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Рабочий стол менеджера — A4PRINT HUB</title>
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./config.js"></script>
-  <style>
-    .manager-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}.quick a{display:block;padding:16px;border:1px solid #e6ebf2;border-radius:16px;background:#fff;text-decoration:none;color:#0f172a;font-weight:800}.quick a span{display:block;color:#64748b;font-size:12px;font-weight:500;margin-top:5px}.manager-panel{background:#fff;border:1px solid #e6ebf2;border-radius:18px;padding:18px}.manager-panel h2{margin:0}.panel-head2{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.panel-head2 a{font-size:13px}.searchbox,.calc-grid input,.calc-grid select{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #dbe1ea;border-radius:10px;font:inherit}.customer-mini,.order-mini{display:grid;gap:3px;padding:12px 0;border-bottom:1px solid #eef2f7}.customer-mini:last-child,.order-mini:last-child{border-bottom:0}.customer-mini b,.order-mini b{font-size:14px}.customer-mini small,.order-mini small{color:#64748b}.calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.calc-grid label{display:grid;gap:6px;font-size:13px;color:#475569}.calc-grid .full{grid-column:1/-1}.calc-total{margin-top:14px;padding:16px;border-radius:14px;background:#f8fafc;border:1px solid #e6ebf2;display:flex;justify-content:space-between;align-items:center}.calc-total strong{font-size:26px}.chat-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.chat-card{display:block;padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e6ebf2;text-decoration:none;color:#0f172a;font-weight:750}.chat-card small{display:block;color:#64748b;font-weight:500;margin-top:4px}.empty-mini{padding:18px;color:#94a3b8;text-align:center}.section-gap{margin-top:18px}@media(max-width:1000px){.manager-grid{grid-template-columns:1fr}.quick{grid-template-columns:1fr 1fr}}@media(max-width:620px){.quick,.chat-cards,.calc-grid{grid-template-columns:1fr}.calc-grid .full{grid-column:auto}.sidebar{display:none}.main{margin-left:0!important}}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Рабочий стол менеджера — A4PRINT HUB</title>
+<link rel="stylesheet" href="./styles.css"><script src="./config.js"></script>
+<style>
+.manager-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}.quick a{display:block;padding:16px;border:1px solid #e6ebf2;border-radius:16px;background:#fff;text-decoration:none;color:#0f172a;font-weight:800}.quick a span{display:block;color:#64748b;font-size:12px;font-weight:500;margin-top:5px}.manager-panel{background:#fff;border:1px solid #e6ebf2;border-radius:18px;padding:18px}.manager-panel h2{margin:0}.panel-head2{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.panel-head2 a{font-size:13px}.searchbox,.calc-grid input,.calc-grid select{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #dbe1ea;border-radius:10px;font:inherit}.customer-mini,.order-mini{display:grid;gap:3px;padding:12px 0;border-bottom:1px solid #eef2f7}.customer-mini:last-child,.order-mini:last-child{border-bottom:0}.customer-mini b,.order-mini b{font-size:14px}.customer-mini small,.order-mini small{color:#64748b}.calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.calc-grid label{display:grid;gap:6px;font-size:13px;color:#475569}.calc-grid .full{grid-column:1/-1}.calc-total{margin-top:14px;padding:16px;border-radius:14px;background:#f8fafc;border:1px solid #e6ebf2;display:flex;justify-content:space-between;align-items:center}.calc-total strong{font-size:26px}.calc-note{font-size:12px;color:#64748b;margin-top:10px;line-height:1.45}.chat-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.chat-card{display:block;padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e6ebf2;text-decoration:none;color:#0f172a;font-weight:750}.chat-card small{display:block;color:#64748b;font-weight:500;margin-top:4px}.empty-mini{padding:18px;color:#94a3b8;text-align:center}.section-gap{margin-top:18px}@media(max-width:1000px){.manager-grid{grid-template-columns:1fr}.quick{grid-template-columns:1fr 1fr}}@media(max-width:620px){.quick,.chat-cards,.calc-grid{grid-template-columns:1fr}.calc-grid .full{grid-column:auto}.sidebar{display:none}.main{margin-left:0!important}}
+</style>
 </head>
 <body>
 <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
 <main class="main">
-  <header class="topbar"><div><h1>🧑‍💼 Рабочий стол менеджера</h1><p>Клиенты, заказы, расчёт стоимости и внутреннее общение</p></div><div class="user"><span id="userEmail"></span></div></header>
-
-  <section class="quick">
-    <a href="./customers.html">👥 База клиентов<span>Поиск и контакты</span></a>
-    <a href="./orders.html">🛒 Заказы<span>Открыть все заказы</span></a>
-    <a href="#calculator">🧮 Калькулятор<span>Быстрый расчёт стоимости</span></a>
-    <a href="./messages.html">💬 Чат персонала<span>Общий и рабочие каналы</span></a>
-  </section>
-
-  <section class="manager-grid">
-    <div>
-      <article class="manager-panel">
-        <div class="panel-head2"><h2>Клиенты</h2><a href="./customers.html">Вся база →</a></div>
-        <input id="customerSearch" class="searchbox" placeholder="Имя, компания, телефон, email…">
-        <div id="customers"><div class="empty-mini">Загрузка…</div></div>
-      </article>
-
-      <article class="manager-panel section-gap">
-        <div class="panel-head2"><h2>Последние заказы</h2><a href="./orders.html">Все заказы →</a></div>
-        <div id="orders"><div class="empty-mini">Загрузка…</div></div>
-      </article>
-    </div>
-
-    <div>
-      <article class="manager-panel" id="calculator">
-        <div class="panel-head2"><h2>Калькулятор стоимости</h2><button id="resetCalc">Сбросить</button></div>
-        <div class="calc-grid">
-          <label class="full">Услуга<select id="service"><option value="0">Выберите услугу</option><option value="25">Ч/б печать A4 — 25 ₽</option><option value="50">Цветная печать A4 — 50 ₽</option><option value="150">Фото/плотная печать — 150 ₽</option><option value="300">Широкоформатная печать — 300 ₽</option><option value="500">3D-печать / базовая работа — 500 ₽</option></select></label>
-          <label>Количество<input id="qty" type="number" min="1" step="1" value="1"></label>
-          <label>Цена за единицу, ₽<input id="unitPrice" type="number" min="0" step="0.01" value="0"></label>
-          <label>Доп. работы, ₽<input id="extras" type="number" min="0" step="0.01" value="0"></label>
-          <label>Скидка, %<input id="discount" type="number" min="0" max="100" step="1" value="0"></label>
-          <label>Срочность, %<input id="urgency" type="number" min="0" step="1" value="0"></label>
-          <label>Наценка, %<input id="markup" type="number" min="0" step="1" value="0"></label>
-        </div>
-        <div class="calc-total"><span>Итого</span><strong id="calcTotal">0 ₽</strong></div>
-      </article>
-
-      <article class="manager-panel section-gap">
-        <div class="panel-head2"><h2>Чат персонала</h2><a href="./messages.html">Открыть чат →</a></div>
-        <div class="chat-cards">
-          <a class="chat-card" href="./messages.html">💬 Общий чат<small>Для всего персонала</small></a>
-          <a class="chat-card" href="./messages.html">🧑‍💼 Менеджеры<small>Продажи и клиенты</small></a>
-          <a class="chat-card" href="./messages.html">🏭 Производство<small>Передача задач в работу</small></a>
-          <a class="chat-card" href="./messages.html">📦 Склад<small>Материалы и остатки</small></a>
-        </div>
-      </article>
-    </div>
-  </section>
+<header class="topbar"><div><h1>🧑‍💼 Рабочий стол менеджера</h1><p>Клиенты, заказы, расчёт стоимости и внутреннее общение</p></div><div class="user"><span id="userEmail"></span></div></header>
+<section class="quick"><a href="./customers.html">👥 База клиентов<span>Поиск и контакты</span></a><a href="./orders.html">🛒 Заказы<span>Открыть все заказы</span></a><a href="#calculator">🧮 Калькулятор<span>Предварительный расчёт заказа</span></a><a href="./messages.html">💬 Чат персонала<span>Общий и рабочие каналы</span></a></section>
+<section class="manager-grid"><div>
+<article class="manager-panel"><div class="panel-head2"><h2>Клиенты</h2><a href="./customers.html">Вся база →</a></div><input id="customerSearch" class="searchbox" placeholder="Имя, компания, телефон, email…"><div id="customers"><div class="empty-mini">Загрузка…</div></div></article>
+<article class="manager-panel section-gap"><div class="panel-head2"><h2>Последние заказы</h2><a href="./orders.html">Все заказы →</a></div><div id="orders"><div class="empty-mini">Загрузка…</div></div></article>
+</div><div>
+<article class="manager-panel" id="calculator"><div class="panel-head2"><h2>Калькулятор предварительного заказа</h2><button id="resetCalc">Сбросить</button></div>
+<div class="calc-grid">
+<label>Направление<select id="direction"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option></select></label>
+<label>Категория<select id="category"></select></label>
+<label class="full">Услуга<select id="service"></select></label>
+<label>Количество<input id="qty" type="number" min="1" step="1" value="1"></label>
+<label>Цена за единицу, ₽<input id="unitPrice" type="number" min="0" step="0.01" value="0"></label>
+<label>Доп. работы, ₽<input id="extras" type="number" min="0" step="0.01" value="0"></label>
+<label>Скидка, %<input id="discount" type="number" min="0" max="100" step="1" value="0"></label>
+<label>Срочность, %<input id="urgency" type="number" min="0" step="1" value="0"></label>
+<label>Наценка, %<input id="markup" type="number" min="0" step="1" value="0"></label>
+</div>
+<div class="calc-total"><span>Итого</span><strong id="calcTotal">0 ₽</strong></div>
+<div id="serviceHint" class="calc-note"></div>
+</article>
+<article class="manager-panel section-gap"><div class="panel-head2"><h2>Чат персонала</h2><a href="./messages.html">Открыть чат →</a></div><div class="chat-cards"><a class="chat-card" href="./messages.html">💬 Общий чат<small>Для всего персонала</small></a><a class="chat-card" href="./messages.html">🧑‍💼 Менеджеры<small>Продажи и клиенты</small></a><a class="chat-card" href="./messages.html">🏭 Производство<small>Передача задач в работу</small></a><a class="chat-card" href="./messages.html">📦 Склад<small>Материалы и остатки</small></a></div></article>
+</div></section>
 </main>
 <script type="module">
 import {supabase} from './guard.js';
-const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const money=v=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(Number(v||0));
+const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const money=v=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(Number(v||0));
+const services={
+ A4_PRINT:{
+  'Полиграфия':['Визитки','Листовки и флаеры','Буклеты','Календари','Плакаты и постеры','Широкоформатная печать'],
+  'Сувенирная продукция':['Печать на кружках','Печать на футболках и текстиле','Фото-сувениры','Подарочная продукция с нанесением'],
+  'Печати и штампы':['Изготовление печати','Изготовление штампа','Оснастка для печати'],
+  'Фото и интерьер':['Фотокерамика','Фото для памятников','Интерьерная фотопечать']
+ },
+ '3D_ARTPRINT':{
+  '3D-печать':['3D-печать по готовой модели','3D-печать детали на заказ','3D-печать прототипа','Мелкосерийная 3D-печать'],
+  '3D-моделирование':['Создание 3D-модели по чертежу','Моделирование детали по образцу','Подготовка и доработка модели к печати'],
+  '3D-сканирование':['3D-сканирование детали','Оцифровка объекта для последующего моделирования'],
+  'Индивидуальные изделия':['Сувенир по индивидуальному заказу','Макет или прототип','Запчасть или крепёж по образцу']
+ }
+};
+const hints={A4_PRINT:'В калькуляторе оставлены услуги, которые менеджер реально может продавать по предварительному заказу. Копирование, обычная распечатка документов, фото на документы и перевод документов исключены.',3D_ARTPRINT:'Для 3D-заказов цена обычно зависит от модели, материала, массы, времени печати и подготовки. Пока менеджер вводит согласованную цену за единицу вручную.'};
 const {data:{session}}=await supabase.auth.getSession();if(session)$('userEmail').textContent=session.user.email||'';
 async function checkAccess(){const [{data:a},{data:m}]=await Promise.all([supabase.rpc('has_role',{required_role:'ADMIN'}),supabase.rpc('has_role',{required_role:'MANAGER'})]);if(!a&&!m){document.querySelector('.main').innerHTML='<div class="empty-mini">Доступ только для администратора или менеджера.</div>';throw new Error('NO_ACCESS')}}
-let customers=[];
-async function loadCustomers(){const {data,error}=await supabase.from('customers').select('id,full_name,company_name,email,phone,updated_at,created_at').order('updated_at',{ascending:false}).limit(100);if(error)throw error;customers=data||[];renderCustomers()}
-function renderCustomers(){const q=$('customerSearch').value.trim().toLowerCase();const rows=customers.filter(c=>`${c.full_name||''} ${c.company_name||''} ${c.phone||''} ${c.email||''}`.toLowerCase().includes(q)).slice(0,8);$('customers').innerHTML=rows.map(c=>`<div class="customer-mini"><b>${esc(c.full_name||c.company_name||'Без имени')}</b><small>${esc(c.company_name||'Частный клиент')} · ${esc(c.phone||'телефон не указан')} ${c.email?'· '+esc(c.email):''}</small></div>`).join('')||'<div class="empty-mini">Клиенты не найдены</div>'}
+let customers=[];async function loadCustomers(){const {data,error}=await supabase.from('customers').select('id,full_name,company_name,email,phone,updated_at,created_at').order('updated_at',{ascending:false}).limit(100);if(error)throw error;customers=data||[];renderCustomers()}function renderCustomers(){const q=$('customerSearch').value.trim().toLowerCase();const rows=customers.filter(c=>`${c.full_name||''} ${c.company_name||''} ${c.phone||''} ${c.email||''}`.toLowerCase().includes(q)).slice(0,8);$('customers').innerHTML=rows.map(c=>`<div class="customer-mini"><b>${esc(c.full_name||c.company_name||'Без имени')}</b><small>${esc(c.company_name||'Частный клиент')} · ${esc(c.phone||'телефон не указан')} ${c.email?'· '+esc(c.email):''}</small></div>`).join('')||'<div class="empty-mini">Клиенты не найдены</div>'}
 async function loadOrders(){const {data,error}=await supabase.from('orders').select('id,order_number,status,total,created_at,customers(full_name,company_name)').order('created_at',{ascending:false}).limit(8);if(error)throw error;const rows=data||[];$('orders').innerHTML=rows.map(o=>`<a class="order-mini" href="./order.html?id=${o.id}" style="text-decoration:none;color:inherit"><b>Заказ №${esc(o.order_number||'—')} · ${money(o.total)}</b><small>${esc(o.customers?.full_name||o.customers?.company_name||'Клиент не указан')} · ${esc(o.status||'')}</small></a>`).join('')||'<div class="empty-mini">Заказов пока нет</div>'}
+function fillCategories(){const d=$('direction').value,cats=Object.keys(services[d]);$('category').innerHTML=cats.map(x=>`<option>${esc(x)}</option>`).join('');$('serviceHint').textContent=hints[d];fillServices()}
+function fillServices(){const d=$('direction').value,c=$('category').value,list=services[d][c]||[];$('service').innerHTML='<option value="">Выберите услугу</option>'+list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');$('unitPrice').value=0;calc()}
 function calc(){const qty=Math.max(1,Number($('qty').value)||1),price=Math.max(0,Number($('unitPrice').value)||0),extras=Math.max(0,Number($('extras').value)||0),discount=Math.min(100,Math.max(0,Number($('discount').value)||0)),urgency=Math.max(0,Number($('urgency').value)||0),markup=Math.max(0,Number($('markup').value)||0);let total=qty*price+extras;total*=1+markup/100;total*=1+urgency/100;total*=1-discount/100;$('calcTotal').textContent=money(total)}
-$('service').onchange=()=>{$('unitPrice').value=$('service').value;calc()};['qty','unitPrice','extras','discount','urgency','markup'].forEach(id=>$(id).addEventListener('input',calc));$('resetCalc').onclick=()=>{$('service').value='0';$('qty').value=1;$('unitPrice').value=0;$('extras').value=0;$('discount').value=0;$('urgency').value=0;$('markup').value=0;calc()};$('customerSearch').oninput=renderCustomers;
-try{await checkAccess();await Promise.all([loadCustomers(),loadOrders()]);calc()}catch(e){if(e.message!=='NO_ACCESS')console.error(e)}
+$('direction').onchange=fillCategories;$('category').onchange=fillServices;['qty','unitPrice','extras','discount','urgency','markup'].forEach(id=>$(id).addEventListener('input',calc));$('resetCalc').onclick=()=>{$('direction').value='A4_PRINT';$('qty').value=1;$('unitPrice').value=0;$('extras').value=0;$('discount').value=0;$('urgency').value=0;$('markup').value=0;fillCategories()};$('customerSearch').oninput=renderCustomers;
+try{await checkAccess();fillCategories();await Promise.all([loadCustomers(),loadOrders()]);calc()}catch(e){if(e.message!=='NO_ACCESS')console.error(e)}
 </script>
-</body>
-</html>
+</body></html>
