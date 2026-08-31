@@ -24,19 +24,36 @@ child.on('exit', code => { console.error('Inner gateway exited', code); process.
 process.on('SIGTERM',()=>child.kill('SIGTERM'));
 process.on('SIGINT',()=>child.kill('SIGINT'));
 
+async function authClientForRequest(req){
+  if(!supabase || !publishableKey) throw Object.assign(new Error('DATABASE_NOT_CONFIGURED'),{status:503});
+  const token=(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
+  if(!token) throw Object.assign(new Error('AUTH_REQUIRED'),{status:401});
+  const client=createClient(supabaseUrl,publishableKey,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{autoRefreshToken:false,persistSession:false}});
+  const {data:{user},error}=await client.auth.getUser(token);
+  if(error||!user) throw Object.assign(new Error('INVALID_SESSION'),{status:401});
+  return {client,user};
+}
+
 async function requireAdmin(req,res,next){
   try{
-    if(!supabase || !publishableKey) return res.status(503).json({success:false,error:'DATABASE_NOT_CONFIGURED'});
-    const token=(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
-    if(!token) return res.status(401).json({success:false,error:'AUTH_REQUIRED'});
-    const client=createClient(supabaseUrl,publishableKey,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{autoRefreshToken:false,persistSession:false}});
-    const {data:{user},error}=await client.auth.getUser(token);
-    if(error||!user) return res.status(401).json({success:false,error:'INVALID_SESSION'});
+    const {client,user}=await authClientForRequest(req);
     const {data:isAdmin,error:rErr}=await client.rpc('has_role',{required_role:'ADMIN'});
     if(rErr) throw rErr;
     if(!isAdmin) return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
-    req.authUser=user;
-    next();
+    req.authUser=user; req.authClient=client; next();
+  }catch(e){next(e)}
+}
+
+async function requireManagerOrAdmin(req,res,next){
+  try{
+    const {client,user}=await authClientForRequest(req);
+    const [{data:isAdmin,error:aErr},{data:isManager,error:mErr}]=await Promise.all([
+      client.rpc('has_role',{required_role:'ADMIN'}),
+      client.rpc('has_role',{required_role:'MANAGER'})
+    ]);
+    if(aErr) throw aErr;if(mErr) throw mErr;
+    if(!isAdmin&&!isManager) return res.status(403).json({success:false,error:'MANAGER_REQUIRED'});
+    req.authUser=user; req.authClient=client; next();
   }catch(e){next(e)}
 }
 
@@ -114,6 +131,93 @@ app.patch('/api/v1/users/:id',requireAdmin,async(req,res,next)=>{
   }catch(e){next(e)}
 });
 
+// -------------------------
+// Partner Portal management
+// -------------------------
+app.get('/api/v1/partners',requireManagerOrAdmin,async(_req,res,next)=>{
+  try{
+    const {data,error}=await supabase.from('partners').select('id,name,legal_name,tax_id,contact_name,email,phone,address,discount_percent,credit_limit,payment_terms_days,notes,is_active,created_at,partner_users(id,full_name,email,phone,is_admin,is_active,created_at)').order('created_at',{ascending:false});
+    if(error) throw error;
+    const partnerIds=(data||[]).map(x=>x.id);
+    let counts={};
+    if(partnerIds.length){
+      const {data:orders,error:oErr}=await supabase.from('orders').select('partner_id').in('partner_id',partnerIds);
+      if(oErr) throw oErr;
+      counts=(orders||[]).reduce((a,o)=>(a[o.partner_id]=(a[o.partner_id]||0)+1,a),{});
+    }
+    res.json({success:true,partners:(data||[]).map(p=>({...p,orders_count:counts[p.id]||0}))});
+  }catch(e){next(e)}
+});
+
+app.post('/api/v1/partners',requireManagerOrAdmin,async(req,res,next)=>{
+  try{
+    const name=String(req.body?.name||'').trim();
+    const contactName=String(req.body?.contact_name||'').trim();
+    const email=String(req.body?.email||'').trim().toLowerCase();
+    const phone=String(req.body?.phone||'').trim();
+    const password=String(req.body?.password||'');
+    if(!name) return res.status(400).json({success:false,error:'PARTNER_NAME_REQUIRED',message:'Укажите название партнёра.'});
+    if((email||password||contactName)&&(!email||!contactName||password.length<6)) return res.status(400).json({success:false,error:'INVALID_PARTNER_USER',message:'Для входа партнёра укажите контактное лицо, email и пароль от 6 символов.'});
+    const payload={
+      name,legal_name:String(req.body?.legal_name||'').trim()||null,tax_id:String(req.body?.tax_id||'').trim()||null,
+      contact_name:contactName||null,email:email||null,phone:phone||null,address:String(req.body?.address||'').trim()||null,
+      discount_percent:Math.max(0,Math.min(100,Number(req.body?.discount_percent)||0)),
+      credit_limit:Math.max(0,Number(req.body?.credit_limit)||0),payment_terms_days:Math.max(0,Math.floor(Number(req.body?.payment_terms_days)||0)),
+      notes:String(req.body?.notes||'').trim()||null,is_active:true
+    };
+    const {data:partner,error:pErr}=await supabase.from('partners').insert(payload).select().single();
+    if(pErr) throw pErr;
+    let authUser=null;
+    try{
+      if(email){
+        const {data:authData,error:aErr}=await supabase.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:contactName,partner_portal:true,partner_id:partner.id}});
+        if(aErr) throw aErr;
+        authUser=authData.user;
+        const {error:puErr}=await supabase.from('partner_users').insert({partner_id:partner.id,auth_user_id:authUser.id,full_name:contactName,email,phone:phone||null,is_admin:true,is_active:true});
+        if(puErr) throw puErr;
+      }
+      res.status(201).json({success:true,partner});
+    }catch(e){if(authUser)await supabase.auth.admin.deleteUser(authUser.id).catch(()=>{});await supabase.from('partners').delete().eq('id',partner.id);throw e}
+  }catch(e){next(e)}
+});
+
+app.patch('/api/v1/partners/:id',requireManagerOrAdmin,async(req,res,next)=>{
+  try{
+    const updates={};
+    for(const key of ['name','legal_name','tax_id','contact_name','email','phone','address','notes']) if(typeof req.body?.[key]==='string') updates[key]=req.body[key].trim()||null;
+    if(typeof req.body?.discount_percent!=='undefined') updates.discount_percent=Math.max(0,Math.min(100,Number(req.body.discount_percent)||0));
+    if(typeof req.body?.credit_limit!=='undefined') updates.credit_limit=Math.max(0,Number(req.body.credit_limit)||0);
+    if(typeof req.body?.payment_terms_days!=='undefined') updates.payment_terms_days=Math.max(0,Math.floor(Number(req.body.payment_terms_days)||0));
+    if(typeof req.body?.is_active==='boolean') updates.is_active=req.body.is_active;
+    updates.updated_at=new Date().toISOString();
+    const {data,error}=await supabase.from('partners').update(updates).eq('id',req.params.id).select().single();
+    if(error) throw error;
+    if(typeof req.body?.is_active==='boolean'){
+      const {data:users}=await supabase.from('partner_users').select('auth_user_id').eq('partner_id',req.params.id);
+      for(const u of users||[]) await supabase.auth.admin.updateUserById(u.auth_user_id,{ban_duration:req.body.is_active?'none':'876000h'}).catch(()=>{});
+      await supabase.from('partner_users').update({is_active:req.body.is_active,updated_at:new Date().toISOString()}).eq('partner_id',req.params.id);
+    }
+    res.json({success:true,partner:data});
+  }catch(e){next(e)}
+});
+
+app.post('/api/v1/partners/:id/users',requireManagerOrAdmin,async(req,res,next)=>{
+  try{
+    const fullName=String(req.body?.full_name||'').trim();
+    const email=String(req.body?.email||'').trim().toLowerCase();
+    const phone=String(req.body?.phone||'').trim();
+    const password=String(req.body?.password||'');
+    if(!fullName||!email||password.length<6) return res.status(400).json({success:false,error:'INVALID_PARTNER_USER',message:'Укажите имя, email и пароль от 6 символов.'});
+    const {data:partner,error:pErr}=await supabase.from('partners').select('id,is_active').eq('id',req.params.id).single();if(pErr)throw pErr;
+    const {data:authData,error:aErr}=await supabase.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:fullName,partner_portal:true,partner_id:partner.id}});if(aErr)throw aErr;
+    try{
+      const {data:pu,error:puErr}=await supabase.from('partner_users').insert({partner_id:partner.id,auth_user_id:authData.user.id,full_name:fullName,email,phone:phone||null,is_admin:Boolean(req.body?.is_admin),is_active:partner.is_active}).select().single();
+      if(puErr) throw puErr;
+      res.status(201).json({success:true,user:pu});
+    }catch(e){await supabase.auth.admin.deleteUser(authData.user.id).catch(()=>{});throw e}
+  }catch(e){next(e)}
+});
+
 app.use(async(req,res,next)=>{
   try{
     const url=`http://127.0.0.1:${innerPort}${req.originalUrl}`;
@@ -125,5 +229,5 @@ app.use(async(req,res,next)=>{
   }catch(e){next(e)}
 });
 
-app.use((err,_req,res,_next)=>{console.error(err);res.status(500).json({success:false,error:'INTERNAL_SERVER_ERROR',message:err.message})});
+app.use((err,_req,res,_next)=>{console.error(err);const status=err.status||500;res.status(status).json({success:false,error:status===500?'INTERNAL_SERVER_ERROR':err.message,message:err.message})});
 app.listen(port,()=>console.log(`A4PRINT HUB user gateway on ${port}; inner ${innerPort}`));
