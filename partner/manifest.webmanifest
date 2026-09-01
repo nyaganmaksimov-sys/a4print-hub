@@ -1,0 +1,25 @@
+{
+  "name": "A4PRINT Partner CRM",
+  "short_name": "Partner CRM",
+  "description": "Личный кабинет партнёра A4PRINT HUB: клиенты, заказы, товары и сообщения ЦУИМ.",
+  "lang": "ru",
+  "start_url": "./crm.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f8fc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "./pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {"name":"Сообщения ЦУИМ","short_name":"Сообщения","url":"./crm-messages.html"},
+    {"name":"Заказы","short_name":"Заказы","url":"./crm-orders.html"},
+    {"name":"Товары","short_name":"Товары","url":"./products.html"}
+  ]
+}
