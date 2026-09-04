@@ -1,5 +1,8 @@
 (function(){
   if(new URLSearchParams(location.search).get('embed')!=='1')return;
+  window.__A4_CHAT_EMBED__=true;
+  window.__A4PRINT_CHAT_NOTIFICATIONS_V2__=true;
+  window.__A4PRINT_CHAT_NOTIFICATIONS__=true;
   document.documentElement.classList.add('a4-chat-embed');
   const style=document.createElement('style');
   style.id='a4-chat-embed-style';
