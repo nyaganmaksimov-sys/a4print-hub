@@ -38,7 +38,7 @@ window.A4PRINT_CONFIG = {
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
   const mobileContext = isAdmin && (params.get('mobile') === '1' || params.get('app') === '1' || (standalone && isMobile));
 
-  if (mobileContext) load('mobile-shell.js','20260904-1');
+  if (mobileContext) load('mobile-shell.js','20260904-2');
 
   if (isChatApp) {
     load('dialog-fixes.js');
