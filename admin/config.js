@@ -9,7 +9,7 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-8') => {
+  const load = (file, version='20260904-9') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -22,6 +22,7 @@ window.A4PRINT_CONFIG = {
   load('ui-fixes.js');
 
   if (!/\/admin\/(?!login\.html$)/.test(location.pathname)) return;
+  if (/\/admin\/messages\.html$/.test(location.pathname)) load('chat-app-mode.js','20260904-1');
   load('navigation.js');
   load('layout.js');
   load('help-context.js');
