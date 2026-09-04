@@ -17,16 +17,19 @@
     @media(max-width:760px){html.a4-chat-app-mode .chat-shell{height:100dvh!important;min-height:100dvh!important}.a4-chat-hub-link{display:none}.a4-chat-install-link{padding:7px 8px;font-size:11px}}
   `;
   document.head.appendChild(style);
-  if(appMode)document.documentElement.classList.add('a4-chat-app-mode');
+  if(appMode){
+    document.documentElement.classList.add('a4-chat-app-mode');
+    const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260904-1';shell.async=false;document.head.appendChild(shell);
+  }
   const addLink=()=>{
     const actions=document.querySelector('.chat-head .head-actions');
     if(!actions)return;
     if(appMode){
       if(document.querySelector('.a4-chat-hub-link'))return;
-      const a=document.createElement('a');a.className='a4-chat-hub-link';a.href='/admin/index.html';a.textContent='↗ HUB';a.title='Открыть полную систему A4PRINT HUB';actions.appendChild(a);
+      const a=document.createElement('a');a.className='a4-chat-hub-link';a.href='/mobile/';a.textContent='A4';a.title='Главная A4PRINT HUB';actions.appendChild(a);
     }else{
       if(document.querySelector('.a4-chat-install-link'))return;
-      const a=document.createElement('a');a.className='a4-chat-install-link';a.href='/chat/';a.textContent='⬇ A4 Chat';a.title='Установить A4PRINT HUB Chat на компьютер или телефон';actions.appendChild(a);
+      const a=document.createElement('a');a.className='a4-chat-install-link';a.href='/mobile/';a.textContent='📲 A4PRINT HUB';a.title='Открыть мобильное приложение A4PRINT HUB';actions.appendChild(a);
     }
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addLink,{once:true});else addLink();
