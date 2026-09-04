@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="color-scheme" content="light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="A4 Chat">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="A4PRINT HUB Chat">
+  <title>A4PRINT HUB Chat</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260904-1">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../admin/assets/a4print-hub-logo.png">
+  <link rel="stylesheet" href="./styles.css?v=20260904-1">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <div class="brand-row">
+        <div class="app-logo" aria-hidden="true">A4<span>💬</span></div>
+        <div>
+          <div class="brand-name">A4PRINT HUB Chat</div>
+          <div class="brand-sub">Внутренняя связь команды</div>
+        </div>
+      </div>
+      <h1>Рабочие чаты всегда под рукой</h1>
+      <p>Личные сообщения, общий чат, файлы, уведомления и быстрый доступ с компьютера и телефона.</p>
+      <div class="hero-actions">
+        <button id="installBtn" class="install-btn" type="button" hidden>⬇ Установить приложение</button>
+        <button id="openChatBtn" class="ghost-btn" type="button" hidden>💬 Открыть чат</button>
+      </div>
+      <div class="features">
+        <span>🔔 Уведомления</span><span>🔊 Звук</span><span>📎 Файлы</span><span>✏️ Редактирование</span>
+      </div>
+    </section>
+
+    <section class="auth-card" id="authCard">
+      <div class="auth-head">
+        <div>
+          <h2>Вход в аккаунт</h2>
+          <p>Используйте тот же аккаунт сотрудника, что и в A4PRINT HUB.</p>
+        </div>
+        <span class="secure">🔒</span>
+      </div>
+
+      <div id="sessionHint" class="session-hint" hidden></div>
+
+      <div class="social-grid">
+        <button class="social google" type="button" data-provider="google"><span class="social-mark">G</span><span>Google</span></button>
+        <button class="social yandex" type="button" data-provider="custom:yandex"><span class="social-mark">Я</span><span>Яндекс</span></button>
+        <button class="social mail" type="button" data-provider="custom:mailru"><span class="social-mark">@</span><span>Mail.ru</span></button>
+      </div>
+
+      <div class="divider"><span>или по email</span></div>
+
+      <form id="loginForm" novalidate>
+        <label class="field">
+          <span>Email</span>
+          <input id="email" type="email" autocomplete="username" inputmode="email" placeholder="name@company.ru" required>
+        </label>
+        <label class="field">
+          <span>Пароль</span>
+          <div class="password-wrap">
+            <input id="password" type="password" autocomplete="current-password" placeholder="Ваш пароль" required>
+            <button id="togglePassword" type="button" class="eye" aria-label="Показать пароль">👁</button>
+          </div>
+        </label>
+        <button id="loginBtn" class="primary" type="submit">Войти в A4PRINT Chat</button>
+      </form>
+
+      <div class="auth-links">
+        <button id="forgotBtn" type="button">Забыли пароль?</button>
+        <a href="../admin/register.html?returnTo=%2Fchat%2F">Регистрация сотрудника</a>
+      </div>
+
+      <div id="recoverBox" class="recover-box" hidden>
+        <strong>Восстановление пароля</strong>
+        <p>Укажите email. Ссылка для смены пароля придёт на почту.</p>
+        <input id="recoverEmail" type="email" autocomplete="email" placeholder="Email">
+        <div class="recover-actions">
+          <button id="sendRecovery" class="primary small" type="button">Отправить ссылку</button>
+          <button id="cancelRecovery" class="ghost small" type="button">Отмена</button>
+        </div>
+      </div>
+
+      <div id="message" class="message" hidden></div>
+
+      <div class="footer-note">Доступ к рабочим чатам открывается после одобрения администратора.</div>
+    </section>
+  </main>
+
+  <div id="iosInstall" class="ios-install" hidden>
+    <div><strong>Установка на iPhone/iPad</strong><br>Нажмите <b>Поделиться</b> → <b>На экран «Домой»</b>.</div>
+    <button id="closeIosInstall" type="button">×</button>
+  </div>
+
+  <div id="loading" class="loading" hidden><div class="spinner"></div><span>Проверяем аккаунт…</span></div>
+
+  <script type="module" src="./app.js?v=20260904-1"></script>
+</body>
+</html>
