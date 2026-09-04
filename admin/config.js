@@ -9,27 +9,43 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-12') => {
+  const load = (file, version='20260904-13') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
     document.head.appendChild(s);
   };
 
+  const isAdmin = /\/admin\/(?!login\.html$)/.test(location.pathname);
+  const isChat = /\/admin\/messages\.html$/.test(location.pathname);
+  const isChatApp = isChat && (new URLSearchParams(location.search).get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
+
+  // Установленное приложение чата запускаем минимальным набором скриптов —
+  // без боковой навигации, конструктора блоков и лишних плавающих кнопок.
+  if (isChatApp) {
+    load('dialog-fixes.js');
+    load('ui-fixes.js');
+    load('chat-app-mode.js','20260904-3');
+    load('chat-ui-fixes.js','20260904-2');
+    load('chat-notifications.js','20260904-4');
+    return;
+  }
+
   load('theme.js');
   load('ui-icons.js');
   load('dialog-fixes.js');
   load('ui-fixes.js');
 
-  if (!/\/admin\/(?!login\.html$)/.test(location.pathname)) return;
-  if (/\/admin\/messages\.html$/.test(location.pathname)) {
-    load('chat-app-mode.js','20260904-2');
-    load('chat-ui-fixes.js','20260904-1');
+  if (!isAdmin) return;
+  if (isChat) {
+    load('chat-app-mode.js','20260904-3');
+    load('chat-ui-fixes.js','20260904-2');
   }
   load('navigation.js');
   load('chat-launcher.js','20260904-2');
   load('layout.js');
   load('help-context.js');
-  if (!/\/admin\/(login|register|pending)\.html$/.test(location.pathname)) load('chat-notifications.js','20260904-2');
+  if (!/\/admin\/(login|register|pending)\.html$/.test(location.pathname)) load('chat-notifications.js','20260904-4');
+  if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-1');
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js');
 })();
