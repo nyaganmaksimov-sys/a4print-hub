@@ -1,0 +1,33 @@
+{
+  "name": "A4PRINT HUB",
+  "short_name": "A4PRINT HUB",
+  "description": "Рабочее приложение А4-Принт и 3D-ARTPRINT",
+  "lang": "ru",
+  "start_url": "/mobile/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/admin/assets/a4print-hub-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Чат",
+      "short_name": "Чат",
+      "url": "/admin/messages.html?app=1"
+    },
+    {
+      "name": "Заказы",
+      "short_name": "Заказы",
+      "url": "/admin/orders.html?mobile=1"
+    }
+  ]
+}
