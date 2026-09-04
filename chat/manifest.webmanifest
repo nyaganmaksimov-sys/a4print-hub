@@ -7,7 +7,7 @@
   "start_url": "/chat/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#f8fafc",
   "theme_color": "#0f172a",
