@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>Возврат в A4PRINT HUB</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:#f4f7fb;color:#0f172a}.card{width:min(440px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:24px;padding:30px;box-shadow:0 18px 50px rgba(15,23,42,.10);text-align:center}.mark{width:56px;height:56px;border-radius:17px;display:grid;place-items:center;margin:0 auto 18px;background:#0f172a;color:#fff;font-weight:900}.spin{width:26px;height:26px;border:3px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;margin:20px auto;animation:s .8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}h1{font-size:24px;margin:0 0 8px}p{margin:0;color:#64748b;line-height:1.45}.actions{display:none;gap:10px;margin-top:20px}.actions.show{display:grid}.btn{display:block;text-decoration:none;border:0;border-radius:14px;padding:14px 16px;background:#2563eb;color:#fff;font:inherit;font-weight:800}.secondary{background:#eef2ff;color:#1e40af}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark">A4</div>
+    <h1>Возвращаемся в приложение</h1>
+    <p id="text">Авторизация завершена. Сейчас откроется A4PRINT HUB.</p>
+    <div class="spin" id="spin"></div>
+    <div class="actions" id="actions">
+      <a class="btn" id="openApp" href="#">Открыть A4PRINT HUB</a>
+      <a class="btn secondary" id="openWeb" href="#">Продолжить в веб-версии</a>
+    </div>
+  </main>
+  <script>
+    (()=>{
+      const suffix=location.search+location.hash;
+      const appUrl='a4printhub://auth/callback'+suffix;
+      const webUrl='/mobile/'+suffix;
+      document.getElementById('openApp').href=appUrl;
+      document.getElementById('openWeb').href=webUrl;
+      location.replace(appUrl);
+      setTimeout(()=>{
+        document.getElementById('spin').style.display='none';
+        document.getElementById('text').textContent='Если приложение не открылось автоматически, нажмите кнопку ниже.';
+        document.getElementById('actions').classList.add('show');
+      },1400);
+    })();
+  </script>
+</body>
+</html>

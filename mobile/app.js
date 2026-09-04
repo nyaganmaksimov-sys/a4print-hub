@@ -1,13 +1,19 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { Capacitor } from 'https://cdn.jsdelivr.net/npm/@capacitor/core@7/+esm';
+import { App as NativeApp } from 'https://cdn.jsdelivr.net/npm/@capacitor/app@7/+esm';
+import { Browser as NativeBrowser } from 'https://cdn.jsdelivr.net/npm/@capacitor/browser@7/+esm';
 
 const SUPABASE_URL='https://qgakliolffnwkymoqvzn.supabase.co';
 const SUPABASE_KEY='sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
+const OAUTH_RETURN='https://a4print-hub.ru/mobile/auth-callback.html';
+const IS_NATIVE=Capacitor.isNativePlatform();
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const statusName={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Пауза',CANCELLED:'Отменён'};
 const providerTitles={google:'Google','custom:yandex':'Яндекс','custom:mailru':'Mail.ru'};
 let authSettings=null;
+let oauthFinishing=false;
 
 const withTimeout=(promise,ms,message)=>Promise.race([
   Promise.resolve(promise),
@@ -47,6 +53,62 @@ function setHomeNotice(message=''){
 }
 function statusClass(s){return s==='READY'?'ready':s==='NEW'?'new':['CONFIRMED','IN_PROGRESS'].includes(s)?'work':''}
 function customerName(o){const c=o.customers||{};return c.full_name||c.company_name||'Клиент не указан'}
+
+function paramsFromUrl(rawUrl){
+  try{
+    const u=new URL(rawUrl);
+    const out=new URLSearchParams(u.search);
+    const hash=new URLSearchParams(String(u.hash||'').replace(/^#/,''));
+    hash.forEach((value,key)=>out.set(key,value));
+    return out;
+  }catch{return new URLSearchParams()}
+}
+
+async function finishOAuth(rawUrl){
+  if(oauthFinishing||!rawUrl)return false;
+  const params=paramsFromUrl(rawUrl);
+  const oauthError=params.get('error_description')||params.get('error');
+  const accessToken=params.get('access_token');
+  const refreshToken=params.get('refresh_token');
+  const code=params.get('code');
+  if(!oauthError&&!accessToken&&!code)return false;
+
+  oauthFinishing=true;
+  try{
+    if(oauthError)throw new Error(decodeURIComponent(oauthError.replace(/\+/g,' ')));
+    if(accessToken&&refreshToken){
+      const {error}=await supabase.auth.setSession({access_token:accessToken,refresh_token:refreshToken});
+      if(error)throw error;
+    }else if(code){
+      const {error}=await supabase.auth.exchangeCodeForSession(code);
+      if(error)throw error;
+    }else{
+      throw new Error('Сервер авторизации не вернул сессию. Попробуйте ещё раз.');
+    }
+    try{if(IS_NATIVE)await NativeBrowser.close()}catch{}
+    if(location.pathname.includes('/mobile/'))history.replaceState({},'', '/mobile/');
+    await enterApp();
+    return true;
+  }catch(ex){
+    try{if(IS_NATIVE)await NativeBrowser.close()}catch{}
+    showLogin(friendlyError(ex,'Не удалось завершить вход.'));
+    return true;
+  }finally{oauthFinishing=false}
+}
+
+async function initOAuthBridge(){
+  if(!IS_NATIVE){
+    await finishOAuth(location.href);
+    return;
+  }
+  try{
+    await NativeApp.addListener('appUrlOpen',event=>{
+      if(/^a4printhub:\/\//i.test(event?.url||''))finishOAuth(event.url).catch(ex=>showLogin(friendlyError(ex)));
+    });
+    const launch=await NativeApp.getLaunchUrl();
+    if(/^a4printhub:\/\//i.test(launch?.url||''))await finishOAuth(launch.url);
+  }catch(ex){console.warn('Native OAuth bridge unavailable',ex)}
+}
 
 async function loadAuthSettings(){
   if(authSettings)return authSettings;
@@ -162,13 +224,18 @@ for(const b of document.querySelectorAll('[data-provider]')){
     try{
       const settings=await loadAuthSettings();
       if(providerEnabled(settings,provider)===false)throw new Error(`${providerTitles[provider]||provider} пока не подключён в A4PRINT HUB.`);
-      const redirectTo='https://a4print-hub.ru/mobile/?oauth=1';
-      const {error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo}});
+      const {data,error}=await supabase.auth.signInWithOAuth({
+        provider,
+        options:{redirectTo:OAUTH_RETURN,skipBrowserRedirect:IS_NATIVE}
+      });
       if(error)throw error;
+      if(IS_NATIVE){
+        if(!data?.url)throw new Error('Не удалось получить адрес авторизации.');
+        await NativeBrowser.open({url:data.url,toolbarColor:'#0f172a'});
+      }
     }catch(ex){
       showLogin(friendlyError(ex,'Не удалось открыть авторизацию.'));
-      b.disabled=false;
-    }
+    }finally{b.disabled=false}
   });
 }
 
@@ -178,4 +245,5 @@ $('logout').onclick=async()=>{
 };
 
 refreshProviderButtons().catch(()=>{});
+initOAuthBridge().catch(ex=>console.warn('OAuth bridge init failed',ex));
 enterApp().catch(ex=>showLogin(friendlyError(ex,'Не удалось открыть приложение.')));

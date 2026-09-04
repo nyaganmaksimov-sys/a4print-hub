@@ -45,6 +45,36 @@ jobs:
         working-directory: mobile-app
         run: npx cap sync android
 
+      - name: Configure A4PRINT HUB deep link
+        working-directory: mobile-app
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          strings = Path('android/app/src/main/res/values/strings.xml')
+          text = strings.read_text(encoding='utf-8')
+          if 'name="custom_url_scheme"' in text:
+              text = re.sub(r'<string name="custom_url_scheme">.*?</string>', '<string name="custom_url_scheme">a4printhub</string>', text)
+          else:
+              text = text.replace('</resources>', '    <string name="custom_url_scheme">a4printhub</string>\n</resources>')
+          strings.write_text(text, encoding='utf-8')
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          xml = manifest.read_text(encoding='utf-8')
+          if 'android:scheme="@string/custom_url_scheme"' not in xml:
+              deep_link = '''
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="@string/custom_url_scheme" android:host="auth" />
+                  </intent-filter>
+              '''
+              xml = xml.replace('</activity>', deep_link + '\n        </activity>', 1)
+          manifest.write_text(xml, encoding='utf-8')
+          PY
+
       - name: Build debug APK
         working-directory: mobile-app/android
         run: |

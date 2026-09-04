@@ -1,6 +1,6 @@
 {
   "name": "a4print-hub-android",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Android shell for A4PRINT HUB staff app",
   "scripts": {
@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/browser": "^7.0.0",
     "@capacitor/core": "^7.0.0"
   },
   "devDependencies": {

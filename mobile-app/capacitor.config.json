@@ -5,7 +5,11 @@
   "server": {
     "url": "https://a4print-hub.ru/mobile/",
     "cleartext": false,
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "allowNavigation": [
+      "a4print-hub.ru",
+      "*.a4print-hub.ru"
+    ]
   },
   "android": {
     "allowMixedContent": false
