@@ -1,4 +1,10 @@
 (function(){
+  const startupParams=new URLSearchParams(location.search);
+  if(startupParams.get('installed')==='1'){
+    location.replace('/admin/messages.html?app=1&from=legacy-pwa&v=20260904-11');
+    return;
+  }
+
   const SUPABASE_URL='https://qgakliolffnwkymoqvzn.supabase.co';
   const SUPABASE_KEY='sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
   const $=id=>document.getElementById(id);
@@ -15,7 +21,7 @@
   function clearMessage(){const el=$('message');if(el){el.hidden=true;el.textContent='';el.className='message'}}
   function providerName(p){if(p==='google')return'Google';if(p==='custom:yandex')return'Яндекс';if(p==='custom:mailru')return'Mail.ru';return p}
   function isStandalone(){return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true}
-  function openChat(){location.href='/admin/messages.html?app=1&v=pwa4'}
+  function openChat(){location.href='/admin/messages.html?app=1&v=pwa5'}
   function timeout(p,ms){return Promise.race([Promise.resolve(p),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))])}
 
   const ua=navigator.userAgent||'';
@@ -129,7 +135,7 @@
       const session=data?.session;
       if(!session){setStatus('Войдите в аккаунт сотрудника или добавьте A4 Chat на экран.');return null}
       setStatus(`✅ Вход выполнен: ${session.user?.email||'сотрудник'}. Чат можно открыть сразу.`,'ok');
-      if(isStandalone()||new URLSearchParams(location.search).get('installed')==='1')setTimeout(openChat,120);
+      if(isStandalone())setTimeout(openChat,120);
       timeout(sb.from('users').select('full_name,is_active').eq('auth_user_id',session.user.id).maybeSingle(),6000)
         .then(({data:user,error})=>{
           if(error)return;
