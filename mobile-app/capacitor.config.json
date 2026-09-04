@@ -8,8 +8,14 @@
     "androidScheme": "https",
     "allowNavigation": [
       "a4print-hub.ru",
-      "*.a4print-hub.ru"
+      "*.a4print-hub.ru",
+      "a4print-hub-api.onrender.com"
     ]
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
   },
   "android": {
     "allowMixedContent": false
