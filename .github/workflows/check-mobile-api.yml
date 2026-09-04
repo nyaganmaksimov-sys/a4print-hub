@@ -1,0 +1,33 @@
+name: Check Mobile API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - '.github/workflows/check-mobile-api.yml'
+  workflow_dispatch:
+
+jobs:
+  check-mobile-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait for A4PRINT HUB mobile API
+        shell: bash
+        run: |
+          set +e
+          URL="https://a4print-hub-api.onrender.com/api/v1/mobile/health"
+          for attempt in $(seq 1 40); do
+            echo "API check $attempt/40"
+            code=$(curl -L -sS --max-time 20 -o /tmp/a4-mobile-health.json -w "%{http_code}" "$URL")
+            cat /tmp/a4-mobile-health.json 2>/dev/null || true
+            echo
+            if [ "$code" = "200" ] && grep -q '"mobileAuth":true' /tmp/a4-mobile-health.json; then
+              echo "A4PRINT HUB mobile API is ready"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Mobile API did not become ready in time"
+          exit 1
