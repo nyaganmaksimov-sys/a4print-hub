@@ -12,7 +12,7 @@ window.A4PRINT_CONFIG = {
   const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
   window.__A4_MOBILE__ = !!isMobile;
 
-  const load = (file, version='20260904-21') => {
+  const load = (file, version='20260904-22') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -36,7 +36,6 @@ window.A4PRINT_CONFIG = {
   const isEmbed = isChat && params.get('embed') === '1';
   const isChatApp = isChat && (params.get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
 
-  // Установленный/встроенный чат: сначала чат, фоновые сервисы потом.
   if (isChatApp) {
     load('dialog-fixes.js');
     load('ui-fixes.js');
@@ -50,7 +49,6 @@ window.A4PRINT_CONFIG = {
     return;
   }
 
-  // Страницы входа/регистрации/приглашения не грузят административную оболочку.
   if (isAuthPage) return;
 
   load('theme.js');
@@ -60,15 +58,14 @@ window.A4PRINT_CONFIG = {
 
   if (!isAdmin) return;
 
-  // Основная оболочка должна появиться первой и не зависеть от чата/Push.
   load('navigation.js','20260904-10');
   load('workspace-clean.js','20260904-2');
   load('nav-accordion.js','20260904-3');
+  load('modern-ui.js','20260904-1');
 
   if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-2');
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js','20260904-2');
 
-  // Уведомления, Push и мини-чат запускаются только после загрузки страницы.
   background(() => {
     load('chat-notifications.js','20260904-6');
     load('push-client.js','20260904-3');
