@@ -5,16 +5,28 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   <title>A4PRINT HUB</title>
-  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./styles.css?v=2">
+  <style>
+    .mobile-brand{display:flex;align-items:center;justify-content:center;gap:11px;margin:2px 0 24px;font-weight:900;font-size:19px;letter-spacing:-.02em}.mobile-brand-mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:#111827;color:#fff;font-size:17px;box-shadow:0 8px 20px rgba(15,23,42,.15)}
+    .social-auth{display:grid;gap:9px;margin:0 0 18px}.login-card .social-button{height:49px;background:#fff;color:#172033;border:1px solid #dbe1ea;box-shadow:none;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px}.login-card .social-button:active{background:#f8fafc}.social-icon{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:#f1f5f9;color:#0f172a;font-weight:950;font-size:12px}.provider-disabled{opacity:.62}.login-divider{display:flex;align-items:center;gap:10px;color:#94a3b8;font-size:11px;margin:0 0 16px}.login-divider:before,.login-divider:after{content:"";height:1px;background:#e5e7eb;flex:1}.home-notice{display:none;padding:11px 13px;border-radius:12px;background:#fff7ed;color:#9a3412;font-size:12px;border:1px solid #fed7aa}.home-notice.show{display:block}
+  </style>
 </head>
 <body>
   <div id="loginView" class="screen login-screen">
     <div class="login-card">
-      <img src="/admin/assets/a4print-hub-logo.png" alt="A4PRINT HUB" class="login-logo">
+      <div class="mobile-brand"><span class="mobile-brand-mark">A4</span><span>A4PRINT HUB</span></div>
       <h1>Вход в A4PRINT HUB</h1>
       <p>Рабочее приложение для сотрудников</p>
+
+      <div class="social-auth" aria-label="Вход через социальные сервисы">
+        <button class="social-button" type="button" data-provider="google"><span class="social-icon">G</span>Войти через Google</button>
+        <button class="social-button" type="button" data-provider="custom:yandex"><span class="social-icon">Я</span>Войти через Яндекс</button>
+        <button class="social-button" type="button" data-provider="custom:mailru"><span class="social-icon">@</span>Войти через Mail.ru</button>
+      </div>
+      <div class="login-divider">или по email</div>
+
       <form id="loginForm">
-        <label>Email<input id="email" type="email" autocomplete="username" required></label>
+        <label>Email<input id="email" type="email" autocomplete="username" inputmode="email" required></label>
         <label>Пароль<input id="password" type="password" autocomplete="current-password" required></label>
         <div id="loginError" class="error"></div>
         <button id="loginButton" type="submit">Войти</button>
@@ -30,6 +42,7 @@
     </header>
 
     <main class="content">
+      <div id="homeNotice" class="home-notice"></div>
       <section class="metrics">
         <a href="/admin/orders.html?status=NEW&mobile=1"><span>Новые</span><strong id="newOrders">0</strong></a>
         <a href="/admin/orders.html?status=WORK&mobile=1"><span>В работе</span><strong id="workOrders">0</strong></a>
@@ -53,6 +66,6 @@
     </nav>
   </div>
 
-  <script type="module" src="./app.js?v=1"></script>
+  <script type="module" src="./app.js?v=2"></script>
 </body>
 </html>
