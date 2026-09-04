@@ -9,7 +9,7 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-14') => {
+  const load = (file, version='20260904-15') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -18,15 +18,18 @@ window.A4PRINT_CONFIG = {
 
   const isAdmin = /\/admin\/(?!login\.html$)/.test(location.pathname);
   const isChat = /\/admin\/messages\.html$/.test(location.pathname);
-  const isChatApp = isChat && (new URLSearchParams(location.search).get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
+  const params = new URLSearchParams(location.search);
+  const isEmbed = isChat && params.get('embed') === '1';
+  const isChatApp = isChat && (params.get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
 
-  // Установленное приложение чата — отдельный минимальный интерфейс.
+  // Установленное приложение/встроенный чат — отдельный минимальный интерфейс.
   if (isChatApp) {
     load('dialog-fixes.js');
     load('ui-fixes.js');
     load('chat-app-mode.js','20260904-3');
     load('chat-ui-fixes.js','20260904-2');
-    load('chat-notifications.js','20260904-4');
+    if (isEmbed) load('chat-embed.js','20260904-2');
+    else load('chat-notifications.js','20260904-4');
     return;
   }
 
@@ -41,11 +44,13 @@ window.A4PRINT_CONFIG = {
     load('chat-ui-fixes.js','20260904-2');
   }
 
-  // Один центр уведомлений для всей системы. Он ставит глобальный флаг
-  // до navigation.js, поэтому старый второй колокольчик не запускается.
+  // Один центр уведомлений для всей системы.
   if (!/\/admin\/(login|register|pending)\.html$/.test(location.pathname)) load('chat-notifications.js','20260904-4');
   load('navigation.js','20260904-9');
   load('workspace-clean.js','20260904-1');
+
+  // Свернутый чат доступен на любой рабочей странице, кроме самой страницы сообщений.
+  if (!isChat && !/\/admin\/(login|register|pending)\.html$/.test(location.pathname)) load('chat-widget.js','20260904-1');
 
   if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-1');
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js');
