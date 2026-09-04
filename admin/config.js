@@ -9,18 +9,21 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const isMobile = window.matchMedia?.('(max-width:760px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
-  const load = (file, version='20260904-19') => {
+  const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+  window.__A4_MOBILE__ = !!isMobile;
+
+  const load = (file, version='20260904-21') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
     document.head.appendChild(s);
   };
+
   const background = fn => {
     const schedule = () => {
       const run = () => { try { fn(); } catch(e) { console.warn('A4 background module failed', e); } };
-      if ('requestIdleCallback' in window) requestIdleCallback(run, {timeout:isMobile ? 3200 : 1600});
-      else setTimeout(run, isMobile ? 1400 : 450);
+      if ('requestIdleCallback' in window) requestIdleCallback(run, {timeout:isMobile ? 4200 : 1800});
+      else setTimeout(run, isMobile ? 1800 : 500);
     };
     if (document.readyState === 'complete') schedule();
     else window.addEventListener('load', schedule, {once:true});
@@ -33,16 +36,16 @@ window.A4PRINT_CONFIG = {
   const isEmbed = isChat && params.get('embed') === '1';
   const isChatApp = isChat && (params.get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
 
-  // Установленное приложение/встроенный чат: сначала сам чат, фоновые сервисы потом.
+  // Установленный/встроенный чат: сначала чат, фоновые сервисы потом.
   if (isChatApp) {
     load('dialog-fixes.js');
     load('ui-fixes.js');
-    load('chat-app-mode.js','20260904-3');
-    load('chat-ui-fixes.js','20260904-2');
-    if (isEmbed) load('chat-embed.js','20260904-3');
+    load('chat-app-mode.js','20260904-4');
+    load('chat-ui-fixes.js','20260904-3');
+    if (isEmbed) load('chat-embed.js','20260904-4');
     else background(() => {
-      load('chat-notifications.js','20260904-5');
-      load('push-client.js','20260904-2');
+      load('chat-notifications.js','20260904-6');
+      load('push-client.js','20260904-3');
     });
     return;
   }
@@ -56,23 +59,19 @@ window.A4PRINT_CONFIG = {
   load('ui-fixes.js');
 
   if (!isAdmin) return;
-  if (isChat) {
-    load('chat-app-mode.js','20260904-3');
-    load('chat-ui-fixes.js','20260904-2');
-  }
 
-  // Навигация и рабочая оболочка важнее чата — запускаем их сразу.
-  load('navigation.js','20260904-9');
-  load('workspace-clean.js','20260904-1');
-  load('nav-accordion.js','20260904-2');
+  // Основная оболочка должна появиться первой и не зависеть от чата/Push.
+  load('navigation.js','20260904-10');
+  load('workspace-clean.js','20260904-2');
+  load('nav-accordion.js','20260904-3');
 
-  if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-1');
-  if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js');
+  if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-2');
+  if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js','20260904-2');
 
-  // Уведомления, Push и мини-чат не блокируют первоначальную загрузку страницы.
+  // Уведомления, Push и мини-чат запускаются только после загрузки страницы.
   background(() => {
-    load('chat-notifications.js','20260904-5');
-    load('push-client.js','20260904-2');
-    if (!isChat) load('chat-widget.js','20260904-2');
+    load('chat-notifications.js','20260904-6');
+    load('push-client.js','20260904-3');
+    if (!isChat) load('chat-widget.js','20260904-3');
   });
 })();
