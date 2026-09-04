@@ -69,6 +69,6 @@ window.A4PRINT_CONFIG = {
   background(() => {
     load('chat-notifications.js','20260904-6');
     load('push-client.js','20260904-3');
-    if (!isChat) load('chat-widget.js','20260904-3');
+    if (!isChat) load('chat-widget.js','20260904-4');
   });
 })();
