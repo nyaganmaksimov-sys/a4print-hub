@@ -31,28 +31,69 @@
   document.head.appendChild(style);
 
   const root=document.createElement('div');root.id='a4ChatWidget';
-  root.innerHTML=`<div id="a4ChatWidgetPanel" aria-hidden="true"><div class="a4-chat-widget-head"><div class="a4-chat-widget-title"><b>A4 Chat</b><span>Рабочие сообщения</span></div><a href="./messages.html?app=1" title="Открыть полный чат">↗</a><button type="button" id="a4ChatWidgetClose" title="Свернуть">−</button></div><div class="a4-chat-widget-loading" id="a4ChatWidgetLoading">Открываем чат…</div></div><button type="button" id="a4ChatWidgetButton" title="Открыть чат" aria-label="Открыть чат">💬<b id="a4ChatWidgetCount">0</b></button>`;
+  root.innerHTML=`<div id="a4ChatWidgetPanel" aria-hidden="true"><div class="a4-chat-widget-head"><div class="a4-chat-widget-title"><b>A4 Chat</b><span id="a4ChatWidgetSubtitle">Рабочие сообщения</span></div><a id="a4ChatWidgetFull" href="./messages.html?app=1" title="Открыть полный чат">↗</a><button type="button" id="a4ChatWidgetClose" title="Свернуть">−</button></div><div class="a4-chat-widget-loading" id="a4ChatWidgetLoading">Открываем чат…</div></div><button type="button" id="a4ChatWidgetButton" title="Открыть чат" aria-label="Открыть чат">💬<b id="a4ChatWidgetCount">0</b></button>`;
   document.body.appendChild(root);
 
-  const panel=root.querySelector('#a4ChatWidgetPanel'),button=root.querySelector('#a4ChatWidgetButton'),close=root.querySelector('#a4ChatWidgetClose');
+  const panel=root.querySelector('#a4ChatWidgetPanel'),button=root.querySelector('#a4ChatWidgetButton'),close=root.querySelector('#a4ChatWidgetClose'),full=root.querySelector('#a4ChatWidgetFull'),subtitle=root.querySelector('#a4ChatWidgetSubtitle');
 
-  function ensureFrame(){
-    if(iframeLoaded)return;iframeLoaded=true;
-    if(!document.getElementById('a4ChatWidgetLoading')){const l=document.createElement('div');l.id='a4ChatWidgetLoading';l.className='a4-chat-widget-loading';l.textContent='Открываем чат…';panel.appendChild(l)}
-    const frame=document.createElement('iframe');frame.id='a4ChatWidgetFrame';frame.title='A4PRINT HUB Chat';frame.loading='lazy';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.src='./messages.html?app=1&embed=1&v=widget3';frame.onload=()=>document.getElementById('a4ChatWidgetLoading')?.remove();panel.appendChild(frame);
+  function withMode(url,embed=true){
+    const u=new URL(url||'./messages.html',location.href);
+    u.searchParams.set('app','1');
+    if(embed)u.searchParams.set('embed','1');else u.searchParams.delete('embed');
+    u.searchParams.set('v',embed?'widget4':'notify4');
+    return u.pathname+`?${u.searchParams.toString()}`;
   }
+
+  async function latestTarget(){
+    const rows=window.__A4_CHAT_UNREAD_NOTIFICATIONS__||[];
+    const latest=rows[0];
+    if(!latest)return{embed:'./messages.html?app=1&embed=1&v=widget4',full:'./messages.html?app=1',unread:false};
+    try{
+      const resolver=window.__A4_RESOLVE_CHAT_NOTIFICATION_URL__;
+      const base=typeof resolver==='function'?await resolver(latest):`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}`;
+      return{embed:withMode(base,true),full:withMode(base,false),unread:true};
+    }catch(e){console.warn('A4 chat widget target resolve failed',e);return{embed:`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}&app=1&embed=1&v=widget4`,full:`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}&app=1`,unread:true}}
+  }
+
+  function ensureFrame(targetUrl,forceNavigate=false){
+    let frame=document.getElementById('a4ChatWidgetFrame');
+    if(frame){
+      if(forceNavigate&&targetUrl&&frame.dataset.target!==targetUrl){frame.dataset.target=targetUrl;frame.src=targetUrl}
+      return frame;
+    }
+    iframeLoaded=true;
+    if(!document.getElementById('a4ChatWidgetLoading')){const l=document.createElement('div');l.id='a4ChatWidgetLoading';l.className='a4-chat-widget-loading';l.textContent='Открываем чат…';panel.appendChild(l)}
+    frame=document.createElement('iframe');frame.id='a4ChatWidgetFrame';frame.title='A4PRINT HUB Chat';frame.loading='lazy';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.dataset.target=targetUrl||'./messages.html?app=1&embed=1&v=widget4';frame.src=frame.dataset.target;frame.onload=()=>document.getElementById('a4ChatWidgetLoading')?.remove();panel.appendChild(frame);return frame;
+  }
+
   function releaseFrame(){
     if(!isMobile)return;
     const frame=document.getElementById('a4ChatWidgetFrame');if(frame)frame.remove();iframeLoaded=false;
   }
-  function setOpen(open){
-    root.classList.toggle('open',open);panel.setAttribute('aria-hidden',open?'false':'true');button.title=open?'Свернуть чат':'Открыть чат';button.firstChild.textContent=open?'×':'💬';if(open)ensureFrame();else setTimeout(releaseFrame,180);try{localStorage.setItem(OPEN_KEY,open?'1':'0')}catch{}
+
+  async function setOpen(open){
+    root.classList.toggle('open',open);panel.setAttribute('aria-hidden',open?'false':'true');button.title=open?'Свернуть чат':'Открыть чат';button.firstChild.textContent=open?'×':'💬';
+    if(open){
+      button.disabled=true;
+      try{
+        const target=await latestTarget();
+        full.href=target.full;
+        subtitle.textContent=target.unread?'Открываем непрочитанное сообщение':'Рабочие сообщения';
+        ensureFrame(target.embed,target.unread);
+      }finally{button.disabled=false}
+    }else{
+      subtitle.textContent='Рабочие сообщения';
+      setTimeout(releaseFrame,180);
+    }
+    try{localStorage.setItem(OPEN_KEY,open?'1':'0')}catch{}
   }
+
   button.onclick=()=>setOpen(!root.classList.contains('open'));close.onclick=()=>setOpen(false);
 
   function syncBadge(){const source=document.getElementById('hubChatNotifyCount'),target=document.getElementById('a4ChatWidgetCount');if(!target)return;const n=Number(source?.textContent||0)||0;target.textContent=n>99?'99+':String(n);target.style.display=n?'block':'none'}
   const observeBadge=()=>{const source=document.getElementById('hubChatNotifyCount');if(source){syncBadge();new MutationObserver(syncBadge).observe(source,{childList:true,subtree:true,characterData:true});return true}return false};
   if(!observeBadge()){const obs=new MutationObserver(()=>{if(observeBadge())obs.disconnect()});obs.observe(document.body,{childList:true,subtree:true});setTimeout(()=>obs.disconnect(),10000)}
+  window.addEventListener('a4:chat-unread',syncBadge);
 
   if(!isMobile&&localStorage.getItem(OPEN_KEY)==='1')setOpen(true);
 })();
