@@ -1,5 +1,7 @@
 import { supabase } from './guard.js';
 
+window.__A4PRINT_CHAT_PAGE__=true;
+
 const $ = id => document.getElementById(id);
 const cfg = window.A4PRINT_CONFIG || {};
 
@@ -35,6 +37,36 @@ function updateNotifButton(){
   if(Notification.permission==='granted'){el.textContent='🔔 Уведомления включены';el.className='on';el.disabled=false}
   else if(Notification.permission==='denied'){el.textContent='🔕 Уведомления запрещены';el.className='off';el.disabled=false}
   else{el.textContent='🔔 Включить уведомления';el.className='';el.disabled=false}
+}
+
+function showIncomingToast(title,body,onClick){
+  let host=document.getElementById('chatIncomingToastHost');
+  if(!host){host=document.createElement('div');host.id='chatIncomingToastHost';host.style.cssText='position:fixed;right:18px;top:18px;z-index:11000;display:grid;gap:10px;max-width:min(380px,calc(100vw - 36px))';document.body.appendChild(host)}
+  const el=document.createElement('button');
+  el.type='button';
+  el.style.cssText='width:100%;border:1px solid #93c5fd;background:#fff;border-radius:14px;padding:13px 15px;box-shadow:0 18px 48px rgba(15,23,42,.22);text-align:left;cursor:pointer;color:#0f172a;font:inherit';
+  el.innerHTML=`<strong style="display:block;margin-bottom:5px">💬 ${esc(title||'Новое сообщение')}</strong><span style="font-size:13px;color:#475569;line-height:1.4">${esc(body||'Новое сообщение или вложение')}</span>`;
+  el.onclick=()=>{try{onClick?.()}finally{el.remove()}};
+  host.appendChild(el);
+  setTimeout(()=>el.remove(),9000);
+}
+
+function notifyIncomingBrowser(title,body,id){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  try{
+    const n=new Notification(title||'A4PRINT HUB',{body:body||'Новое сообщение или вложение',tag:`a4-chat-msg-${id||Date.now()}`,renotify:true});
+    n.onclick=()=>{window.focus();$('text')?.focus();n.close()};
+  }catch(e){console.warn('Browser notification failed',e)}
+}
+
+function handleIncomingMessage(message){
+  if(!message||!profile||message.sender_id===profile.id)return;
+  const sender=staff.find(x=>x.id===message.sender_id);
+  const senderName=sender?.full_name||sender?.email||'Сотрудник';
+  const preview=(message.body||'').trim()||'Новое сообщение или вложение';
+  const title=`Сообщение от ${senderName}`;
+  showIncomingToast(title,preview,()=>{$('text')?.focus()});
+  notifyIncomingBrowser(title,preview,message.id);
 }
 
 async function loadStaff(){
@@ -128,7 +160,7 @@ async function loadMessages(){
 
 function attachmentHtml(a){return`<button type="button" class="attachment" data-download="${esc(a.id)}" data-name="${esc(a.file_name)}"><span class="attachment-icon">${fileIcon(a)}</span><span class="attachment-info"><span class="attachment-name">${esc(a.file_name)}</span><span class="attachment-size">${sizeFmt(a.file_size)} · скачать</span></span><span>⬇️</span></button>`}
 function render(rows){$('messages').innerHTML=rows.length?rows.map(m=>{const at=(m.message_attachments||[]).map(attachmentHtml).join('');return`<div class="msg ${m.sender_id===profile.id?'mine':''}"><div class="meta">${esc(m.users?.full_name||m.users?.email||'Сотрудник')} · ${fmt(m.created_at)}</div>${m.body?`<div class="body">${esc(m.body)}</div>`:''}${at?`<div class="attachments">${at}</div>`:''}</div>`}).join(''):'<div class="empty-chat">Сообщений пока нет. Напишите первым.</div>';document.querySelectorAll('[data-download]').forEach(b=>b.onclick=()=>downloadAttachment(b.dataset.download,b.dataset.name));$('messages').scrollTop=$('messages').scrollHeight}
-function subscribe(){if(channel)supabase.removeChannel(channel);channel=supabase.channel(`a4print-chat-${room.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},()=>setTimeout(()=>loadMessages().then(markRoomRead).catch(showError),180)).on('postgres_changes',{event:'UPDATE',schema:'public',table:'message_attachments',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError)).subscribe()}
+function subscribe(){if(channel)supabase.removeChannel(channel);channel=supabase.channel(`a4print-chat-${room.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},p=>{handleIncomingMessage(p.new);setTimeout(()=>loadMessages().then(()=>new Promise(r=>setTimeout(r,450))).then(markRoomRead).catch(showError),120)}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'message_attachments',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError)).subscribe()}
 function showError(e){console.error(e);$('messages').insertAdjacentHTML('beforeend',`<div class="empty-chat" style="color:#b91c1c">${esc(e.message||'Ошибка чата')}</div>`)}
 
 function drawPending(){const el=$('pending');if(!pending.length){el.classList.remove('show');el.innerHTML='';return}el.classList.add('show');el.innerHTML=pending.map(x=>`<div class="pending-item ${x.status||''}"><span>${x.status==='uploading'?'⏳':x.status==='error'?'⚠️':fileIcon(x)}</span><span class="pending-name">${esc(x.file_name||x.name)}</span>${x.status==='uploading'?'':`<button type="button" class="pending-remove" data-remove="${esc(x.localId)}">×</button>`}</div>`).join('');el.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removePending(b.dataset.remove))}
@@ -142,7 +174,7 @@ $('fileInput').onchange=e=>addFiles(e.target.files);
 $('staffSearch').oninput=renderStaff;
 $('generalRoom').onclick=()=>openGeneral();
 $('recipientSelect').onchange=async e=>{const value=e.target.value;const ok=value==='general'?await openGeneral():await openDirect(value);if(!ok)e.target.value=activeKey};
-$('notifBtn').onclick=async()=>{if(!('Notification'in window))return alert('Этот браузер не поддерживает системные уведомления.');if(Notification.permission==='denied'){alert('Уведомления запрещены в настройках браузера. Разрешите уведомления для a4print-hub.ru.');return}if(Notification.permission!=='granted')await Notification.requestPermission();updateNotifButton()};
+$('notifBtn').onclick=async()=>{if(!('Notification'in window))return alert('Этот браузер не поддерживает системные уведомления.');if(Notification.permission==='denied'){alert('Уведомления запрещены в настройках браузера. Разрешите уведомления для a4print-hub.ru.');return}if(Notification.permission!=='granted')await Notification.requestPermission();updateNotifButton();if(Notification.permission==='granted'){showIncomingToast('Тест уведомлений','Уведомления A4PRINT HUB работают.');notifyIncomingBrowser('A4PRINT HUB','Тестовое уведомление: всё работает.','test')}};
 $('composer').onsubmit=async e=>{e.preventDefault();if(!room||!profile)return;const body=$('text').value.trim(),ready=pending.filter(x=>x.id&&x.status!=='error');if(!body&&!ready.length)return;if(pending.some(x=>x.status==='uploading'))return alert('Дождитесь окончания загрузки файлов.');try{$('send').disabled=true;$('attachBtn').disabled=true;const{data:message,error}=await supabase.from('messages').insert({room_id:room.id,sender_id:profile.id,body}).select('id').single();if(error)throw error;if(ready.length){const{error:aErr}=await supabase.from('message_attachments').update({message_id:message.id}).in('id',ready.map(x=>x.id));if(aErr){await supabase.from('messages').delete().eq('id',message.id);throw aErr}}$('text').value='';pending=[];drawPending();await loadMessages()}catch(err){alert(err.message||'Не удалось отправить сообщение.')}finally{$('send').disabled=false;$('attachBtn').disabled=false;$('text').focus()}};
 $('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit()}});
 $('refresh').onclick=async()=>{try{await Promise.all([loadMessages(),loadDriveStatus(),loadStaff(),markRoomRead()])}catch(e){alert(e.message||'Не удалось обновить чат.')}};
