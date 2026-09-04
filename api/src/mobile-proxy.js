@@ -18,6 +18,14 @@ const service = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
 
+app.get('/api/v1/mobile/health', (_req, res) => res.json({
+  success: true,
+  service: 'a4print-hub-mobile-api',
+  mobileAuth: true,
+  authConfigured: Boolean(supabaseUrl && publishableKey),
+  databaseConfigured: Boolean(service)
+}));
+
 function publicClient() {
   if (!supabaseUrl || !publishableKey) return null;
   return createClient(supabaseUrl, publishableKey, { auth: { autoRefreshToken: false, persistSession: false } });
