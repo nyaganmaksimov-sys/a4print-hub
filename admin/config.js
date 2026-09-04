@@ -8,8 +8,7 @@ window.A4PRINT_CONFIG = {
 };
 
 // The legacy employees UI still calls /api/v1/users on the Render API.
-// Route only those staff-management calls through a protected Supabase Edge Function
-// so the Employees section remains available even when Render is asleep/unreachable.
+// Route only those staff-management calls through the protected Supabase Edge Function.
 (function installStaffAdminFetchBridge(){
   const cfg = window.A4PRINT_CONFIG;
   if (!cfg?.supabaseUrl || !cfg?.supabasePublishableKey || !cfg?.apiBaseUrl) return;
@@ -35,21 +34,36 @@ window.A4PRINT_CONFIG = {
 
     const sourceHeaders = new Headers(init.headers || (typeof input !== 'string' ? input?.headers : undefined) || {});
     const authorization = sourceHeaders.get('Authorization') || sourceHeaders.get('authorization') || '';
-    return nativeFetch(edgeUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': cfg.supabasePublishableKey,
-        ...(authorization ? { Authorization: authorization } : {})
-      },
-      body: JSON.stringify(body)
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    try {
+      return await nativeFetch(edgeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': cfg.supabasePublishableKey,
+          ...(authorization ? { Authorization: authorization } : {})
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+    } catch (e) {
+      if (e?.name === 'AbortError') {
+        return new Response(JSON.stringify({ success:false, error:'STAFF_API_TIMEOUT', message:'Не удалось загрузить сотрудников. Обновите страницу ещё раз.' }), {
+          status: 504,
+          headers: { 'Content-Type':'application/json' }
+        });
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   };
 })();
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-3') => {
+  const load = (file, version='20260904-4') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
