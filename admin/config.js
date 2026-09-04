@@ -7,9 +7,49 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
+// The legacy employees UI still calls /api/v1/users on the Render API.
+// Route only those staff-management calls through a protected Supabase Edge Function
+// so the Employees section remains available even when Render is asleep/unreachable.
+(function installStaffAdminFetchBridge(){
+  const cfg = window.A4PRINT_CONFIG;
+  if (!cfg?.supabaseUrl || !cfg?.supabasePublishableKey || !cfg?.apiBaseUrl) return;
+  const nativeFetch = window.fetch.bind(window);
+  const legacyPrefix = cfg.apiBaseUrl.replace(/\/$/, '') + '/api/v1/users';
+  const edgeUrl = cfg.supabaseUrl.replace(/\/$/, '') + '/functions/v1/staff-admin';
+
+  window.fetch = async function(input, init = {}) {
+    const url = typeof input === 'string' ? input : input?.url;
+    if (!url || !url.startsWith(legacyPrefix)) return nativeFetch(input, init);
+
+    const path = url.slice(legacyPrefix.length);
+    const method = String(init.method || 'GET').toUpperCase();
+    let requestBody = {};
+    try { requestBody = init.body ? JSON.parse(init.body) : {}; } catch (_) {}
+
+    let body;
+    if (method === 'GET' && (path === '/roles' || path === '/roles/')) body = { action: 'roles' };
+    else if (method === 'GET' && (!path || path === '/')) body = { action: 'list' };
+    else if (method === 'POST' && (!path || path === '/')) body = { action: 'create', payload: requestBody };
+    else if (method === 'PATCH' && /^\/[0-9a-f-]+\/?$/i.test(path)) body = { action: 'update', user_id: path.replace(/^\//, '').replace(/\/$/, ''), payload: requestBody };
+    else return nativeFetch(input, init);
+
+    const sourceHeaders = new Headers(init.headers || (typeof input !== 'string' ? input?.headers : undefined) || {});
+    const authorization = sourceHeaders.get('Authorization') || sourceHeaders.get('authorization') || '';
+    return nativeFetch(edgeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': cfg.supabasePublishableKey,
+        ...(authorization ? { Authorization: authorization } : {})
+      },
+      body: JSON.stringify(body)
+    });
+  };
+})();
+
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-2') => {
+  const load = (file, version='20260904-3') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
