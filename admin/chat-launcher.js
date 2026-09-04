@@ -1,8 +1,8 @@
 (function(){
   if(window.__A4_CHAT_LAUNCHER__)return;
   window.__A4_CHAT_LAUNCHER__=true;
-  const CHAT_URL='/admin/messages.html?app=1&v=pwa3';
-  const INSTALL_URL='/chat/?v=20260904-4';
+  const CHAT_URL='/admin/messages.html?app=1&v=pwa4';
+  const INSTALL_URL='/chat/start.html?b=20260904-1';
   const style=document.createElement('style');
   style.textContent=`
     .a4-chat-nav-link .a4-nav-icon{display:grid;place-items:center}
@@ -19,25 +19,18 @@
     const nav=document.querySelector('.sidebar nav');
     if(!nav||nav.querySelector('.a4-chat-nav-link'))return false;
     const link=document.createElement('a');
-    link.className='a4-chat-nav-link';
-    link.href=CHAT_URL;
-    link.title='A4PRINT HUB Chat';
+    link.className='a4-chat-nav-link';link.href=CHAT_URL;link.title='A4PRINT HUB Chat';
     link.innerHTML='<span class="a4-nav-icon"><span class="a4-chat-nav-mark">💬</span></span><span class="a4-nav-label">A4 Chat</span>';
     const messages=[...nav.querySelectorAll('a')].find(a=>/messages\.html/.test(a.getAttribute('href')||''));
-    if(messages)messages.insertAdjacentElement('afterend',link);else nav.appendChild(link);
-    return true;
+    if(messages)messages.insertAdjacentElement('afterend',link);else nav.appendChild(link);return true;
   }
-
   function addDashboard(){
     if(!/\/admin\/(index\.html)?$/.test(location.pathname)||document.querySelector('.a4-chat-dashboard'))return;
-    const stats=document.querySelector('.main .stats');
-    if(!stats)return;
-    const card=document.createElement('section');
-    card.className='a4-chat-dashboard';
+    const stats=document.querySelector('.main .stats');if(!stats)return;
+    const card=document.createElement('section');card.className='a4-chat-dashboard';
     card.innerHTML=`<div class="a4-chat-dashboard-copy"><h2>💬 A4PRINT HUB Chat</h2><p>Отдельный рабочий мессенджер для ПК и телефона.</p><div class="a4-chat-dashboard-features"><span>🔔 уведомления</span><span>🔊 звук</span><span>📎 файлы</span><span>👥 личные чаты</span></div></div><div class="a4-chat-dashboard-actions"><a class="a4-chat-open" href="${CHAT_URL}">💬 Открыть чат</a><a class="a4-chat-install" href="${INSTALL_URL}">⬇ Установить приложение</a></div>`;
     stats.insertAdjacentElement('afterend',card);
   }
-
   function init(){addNav();addDashboard()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
   let tries=0;const timer=setInterval(()=>{init();if(++tries>20||(document.querySelector('.a4-chat-nav-link')&&(!/\/admin\/(index\.html)?$/.test(location.pathname)||document.querySelector('.a4-chat-dashboard'))))clearInterval(timer)},250);
