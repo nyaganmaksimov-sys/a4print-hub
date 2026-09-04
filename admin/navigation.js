@@ -60,6 +60,31 @@ async function initA4Navigation(){
     ['help.html','help','Инструкция'],
     ['../index.html','systems','Выбор системы']
   ];
-  nav.innerHTML=items.map(([href,icon,label])=>`<a href="${href.startsWith('..')?href:'./'+href}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}${href==='requests.html'?'<b id="requestCount" style="display:none">0</b>':''}</a>`).join('');
+  nav.innerHTML=items.map(([href,icon,label])=>`<a href="${href.startsWith('..')?href:'./'+href}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}${href==='requests.html'?'<b id="requestCount" style="display:none">0</b>':''}${href==='messages.html'?'<b id="messageCount" style="display:none;background:#ef4444;color:#fff;min-width:20px;height:20px;border-radius:999px;padding:0 6px;align-items:center;justify-content:center;font-size:11px;margin-left:auto">0</b>':''}</a>`).join('');
+  initA4ChatNotifications().catch(console.warn);
 }
+
+async function initA4ChatNotifications(){
+  if(window.__A4PRINT_CHAT_NOTIFICATIONS__)return;
+  window.__A4PRINT_CHAT_NOTIFICATIONS__=true;
+  const {supabase}=await import('./guard.js');
+  const{data:{session}}=await supabase.auth.getSession();if(!session)return;
+  const{data:profile}=await supabase.from('users').select('id').eq('auth_user_id',session.user.id).maybeSingle();if(!profile)return;
+  const badge=document.getElementById('messageCount');
+  const refresh=async()=>{const{count,error}=await supabase.from('notifications').select('id',{count:'exact',head:true}).eq('type','CHAT_MESSAGE').eq('is_read',false);if(error)return;const n=Number(count||0);if(badge){badge.textContent=n>99?'99+':String(n);badge.style.display=n?'inline-flex':'none'}};
+  const toast=n=>{
+    let host=document.getElementById('a4MessageToastHost');
+    if(!host){host=document.createElement('div');host.id='a4MessageToastHost';host.style.cssText='position:fixed;right:18px;top:18px;z-index:10050;display:grid;gap:10px;max-width:min(360px,calc(100vw - 36px))';document.body.appendChild(host)}
+    const el=document.createElement('button');el.type='button';el.style.cssText='border:1px solid #bfdbfe;background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 14px 40px rgba(15,23,42,.18);text-align:left;cursor:pointer;color:#0f172a;font:inherit';el.innerHTML=`<strong style="display:block;margin-bottom:4px">💬 ${escapeA4(n.title||'Новое сообщение')}</strong><span style="font-size:13px;color:#475569">${escapeA4(n.body||'Откройте чат')}</span>`;el.onclick=()=>{location.href='./messages.html'};host.appendChild(el);setTimeout(()=>el.remove(),7000);
+  };
+  const notifySystem=n=>{if(!('Notification'in window)||Notification.permission!=='granted'||!document.hidden)return;try{const x=new Notification(n.title||'A4PRINT HUB',{body:n.body||'Новое сообщение',tag:`a4-chat-${n.id}`});x.onclick=()=>{window.focus();location.href='./messages.html';x.close()}}catch{}};
+  await refresh();
+  window.addEventListener('a4:notifications-changed',refresh);
+  supabase.channel(`a4-chat-notifications-${profile.id}`)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},p=>{if(p.new?.type==='CHAT_MESSAGE'){refresh();toast(p.new);notifySystem(p.new)}})
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},()=>refresh())
+    .subscribe();
+}
+function escapeA4(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initA4Navigation,{once:true});else initA4Navigation();
