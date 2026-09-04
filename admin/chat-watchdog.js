@@ -1,6 +1,11 @@
 (function(){
   if(window.__A4_CHAT_WATCHDOG__)return;
   window.__A4_CHAT_WATCHDOG__=true;
+  const q=new URLSearchParams(location.search);
+  const standalone=window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true;
+  if(q.get('app')==='1'||standalone){
+    const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260904-1';shell.async=false;document.head.appendChild(shell);
+  }
   let done=false;
   const $=id=>document.getElementById(id);
   function ready(){
