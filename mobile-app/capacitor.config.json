@@ -1,0 +1,13 @@
+{
+  "appId": "ru.a4printhub.staff",
+  "appName": "A4PRINT HUB",
+  "webDir": "www",
+  "server": {
+    "url": "https://a4print-hub.ru/mobile/",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

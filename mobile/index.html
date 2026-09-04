@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=1">
+</head>
+<body>
+  <div id="loginView" class="screen login-screen">
+    <div class="login-card">
+      <img src="/admin/assets/a4print-hub-logo.png" alt="A4PRINT HUB" class="login-logo">
+      <h1>Вход в A4PRINT HUB</h1>
+      <p>Рабочее приложение для сотрудников</p>
+      <form id="loginForm">
+        <label>Email<input id="email" type="email" autocomplete="username" required></label>
+        <label>Пароль<input id="password" type="password" autocomplete="current-password" required></label>
+        <div id="loginError" class="error"></div>
+        <button id="loginButton" type="submit">Войти</button>
+      </form>
+      <a class="forgot" href="/admin/login.html">Забыли пароль?</a>
+    </div>
+  </div>
+
+  <div id="appView" class="screen app-screen hidden">
+    <header class="app-header">
+      <div><small>A4PRINT HUB</small><h1 id="hello">Главная</h1></div>
+      <button id="logout" class="icon-button" type="button" title="Выйти">⎋</button>
+    </header>
+
+    <main class="content">
+      <section class="metrics">
+        <a href="/admin/orders.html?status=NEW&mobile=1"><span>Новые</span><strong id="newOrders">0</strong></a>
+        <a href="/admin/orders.html?status=WORK&mobile=1"><span>В работе</span><strong id="workOrders">0</strong></a>
+        <a href="/admin/orders.html?status=READY&mobile=1"><span>Готовы</span><strong id="readyOrders">0</strong></a>
+      </section>
+
+      <a class="primary-action" href="/admin/manager.html?mobile=1">+ Создать заказ</a>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Последние заказы</h2><a href="/admin/orders.html?mobile=1">Все →</a></div>
+        <div id="recentOrders" class="orders"><div class="empty">Загрузка…</div></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <a class="active" href="/mobile/"><span>⌂</span><small>Главная</small></a>
+      <a href="/admin/orders.html?mobile=1"><span>▣</span><small>Заказы</small></a>
+      <a href="/admin/messages.html?app=1"><span>●</span><small>Чат</small></a>
+      <a href="/admin/customers.html?mobile=1"><span>◉</span><small>Клиенты</small></a>
+      <a href="/admin/index.html?mobile=1"><span>•••</span><small>Ещё</small></a>
+    </nav>
+  </div>
+
+  <script type="module" src="./app.js?v=1"></script>
+</body>
+</html>
