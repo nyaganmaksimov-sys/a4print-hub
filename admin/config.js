@@ -43,7 +43,7 @@ window.A4PRINT_CONFIG = {
     load('chat-ui-fixes.js','20260904-3');
     if (isEmbed) load('chat-embed.js','20260904-4');
     else background(() => {
-      load('chat-notifications.js','20260904-6');
+      load('chat-notifications.js','20260904-7');
       load('push-client.js','20260904-3');
     });
     return;
@@ -67,8 +67,8 @@ window.A4PRINT_CONFIG = {
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js','20260904-2');
 
   background(() => {
-    load('chat-notifications.js','20260904-6');
+    load('chat-notifications.js','20260904-7');
     load('push-client.js','20260904-3');
-    if (!isChat) load('chat-widget.js','20260904-4');
+    if (!isChat) load('chat-widget.js','20260904-5');
   });
 })();
