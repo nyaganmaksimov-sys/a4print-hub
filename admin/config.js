@@ -10,9 +10,10 @@ window.A4PRINT_CONFIG = {
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
   const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
   window.__A4_MOBILE__ = !!isMobile;
 
-  const load = (file, version='20260904-22') => {
+  const load = (file, version='20260904-23') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -29,12 +30,15 @@ window.A4PRINT_CONFIG = {
     else window.addEventListener('load', schedule, {once:true});
   };
 
-  const isAuthPage = /\/admin\/(login|register|pending|invite)\.html$/.test(location.pathname);
+  const isAuthPage = /\/admin\/(login|register|pending|invite|reset-password)\.html$/.test(location.pathname);
   const isAdmin = /\/admin\//.test(location.pathname) && !isAuthPage;
   const isChat = /\/admin\/messages\.html$/.test(location.pathname);
   const params = new URLSearchParams(location.search);
   const isEmbed = isChat && params.get('embed') === '1';
-  const isChatApp = isChat && (params.get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
+  const isChatApp = isChat && (params.get('app') === '1' || standalone);
+  const mobileContext = isAdmin && (params.get('mobile') === '1' || params.get('app') === '1' || (standalone && isMobile));
+
+  if (mobileContext) load('mobile-shell.js','20260904-1');
 
   if (isChatApp) {
     load('dialog-fixes.js');
