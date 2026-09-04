@@ -1,16 +1,16 @@
 {
   "name": "a4print-hub-api",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node src/gateway-users.js",
-    "dev": "node --watch src/gateway-users.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.1",
-    "express": "^5.1.0"
+    "@supabase/supabase-js": "2.57.4",
+    "cors": "2.8.5",
+    "dotenv": "17.2.2",
+    "express": "5.1.0",
+    "googleapis": "160.0.0",
+    "multer": "2.0.2"
   }
 }
