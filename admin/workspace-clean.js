@@ -6,7 +6,7 @@
   const css=document.createElement('style');
   css.id='a4-workspace-clean-style';
   css.textContent=`
-    /* One calm workspace: no floating service buttons over business content. */
+    /* Единое спокойное рабочее пространство без плавающих дублей. */
     .a4-theme-fab,.a4-help-btn,.a4-help-pop,.a4-layout-toolbar,.a4-chat-dashboard,.a4-chat-nav-link,#a4NotificationWrap{display:none!important}
 
     .sidebar{padding-top:12px!important}
@@ -17,7 +17,7 @@
     .sidebar .hub-logo,.sidebar .brand img{max-height:82px!important}
     .a4-sidebar-collapsed .a4-nav-section{display:none!important}
 
-    .main{padding-top:22px!important}
+    .main{padding-top:22px!important;min-width:0}
     .topbar{min-height:54px;margin-bottom:18px!important;align-items:center!important}
     .topbar h1{font-size:27px!important}
     .topbar p{margin-top:4px!important}
@@ -35,39 +35,61 @@
     #hubChatNotifyCenter.a4-top-notify #hubChatNotifyPanel{position:absolute!important;right:0!important;left:auto!important;top:48px!important;width:min(390px,calc(100vw - 28px))!important;max-height:min(68vh,520px)!important;border-radius:14px!important}
 
     .a4-theme-panel{right:18px!important;top:76px!important;bottom:auto!important;z-index:22000!important}
-
     .stats{gap:12px!important;margin-bottom:14px!important}
     .stats article,.panel{border-radius:15px!important;box-shadow:0 5px 18px rgba(15,23,42,.045)!important}
     .stats article{min-height:96px!important;padding:17px!important}
     .stats strong{font-size:28px!important;margin-top:12px!important}
     .grid{gap:14px!important}
-    .panel{padding:18px!important}
+    .panel{padding:18px!important;min-width:0;max-width:100%}
 
     .a4-mobile-menu{display:none!important}
     .a4-mobile-nav-shade{display:none}
 
-    @media(max-width:760px){
-      body{overflow-x:hidden}
-      .sidebar{width:min(86vw,300px)!important;transform:translateX(-102%);transition:transform .2s ease!important;z-index:30000!important;box-shadow:20px 0 55px rgba(15,23,42,.20)!important}
-      body.a4-mobile-nav-open .sidebar{transform:translateX(0)}
-      .main,.a4-sidebar-collapsed .main{margin-left:0!important;padding:12px 12px 28px!important;width:100%!important}
+    @media(max-width:900px){
+      html,body{max-width:100%;overflow-x:hidden}
+      body.a4-sidebar-collapsed .sidebar,.sidebar{width:min(88vw,320px)!important;transform:translateX(-102%);transition:transform .2s ease!important;z-index:30000!important;box-shadow:20px 0 55px rgba(15,23,42,.20)!important;padding-left:12px!important;padding-right:12px!important}
+      body.a4-mobile-nav-open .sidebar,body.a4-sidebar-collapsed.a4-mobile-nav-open .sidebar{transform:translateX(0)}
+      .main,.a4-sidebar-collapsed .main{margin-left:0!important;padding:12px 12px 28px!important;width:100%!important;max-width:100%!important;min-width:0!important}
       .a4-mobile-menu{display:grid!important;flex:0 0 40px}
       .a4-mobile-nav-shade{position:fixed;inset:0;z-index:29990;background:rgba(15,23,42,.38);backdrop-filter:blur(2px)}
       body.a4-mobile-nav-open .a4-mobile-nav-shade{display:block}
-      .topbar{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important;min-height:48px!important;margin-bottom:12px!important}
+      .a4-sidebar-head{display:none!important}
+      .sidebar nav{width:100%!important}
+      .sidebar nav a,.a4-sidebar-collapsed .sidebar nav a{justify-content:flex-start!important;gap:10px!important;padding:10px 11px!important;width:100%!important}
+      .sidebar .a4-nav-label,.a4-sidebar-collapsed .sidebar .a4-nav-label{display:block!important;visibility:visible!important;opacity:1!important;flex:1 1 auto!important;white-space:normal!important}
+      .sidebar .a4-nav-icon,.a4-sidebar-collapsed .sidebar .a4-nav-icon{width:24px!important;height:24px!important;flex:0 0 24px!important}
+      .sidebar .a4-nav-icon svg,.a4-sidebar-collapsed .sidebar .a4-nav-icon svg{width:20px!important;height:20px!important}
+      .sidebar a b,.a4-sidebar-collapsed .sidebar a b{display:inline-flex!important;margin-left:auto!important}
+      .sidebar .hub-logo-wrap,.sidebar .brand,.a4-sidebar-collapsed .sidebar .hub-logo-wrap,.a4-sidebar-collapsed .sidebar .brand{min-height:74px!important;margin:0 0 10px!important;padding:6px!important;border-radius:14px!important}
+      .sidebar .hub-logo,.sidebar .brand img,.a4-sidebar-collapsed .sidebar .hub-logo,.a4-sidebar-collapsed .sidebar .brand img{max-width:150px!important;width:auto!important;height:62px!important;max-height:62px!important}
+
+      .topbar{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important;min-height:48px!important;margin-bottom:12px!important;width:100%!important}
       .topbar>div:first-of-type{min-width:0;flex:1}
       .topbar h1{font-size:21px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .topbar p{display:none!important}
       .topbar .user{display:none!important}
-      .a4-workspace-actions{margin-left:0}
+      .a4-workspace-actions{margin-left:0;flex:0 0 auto}
       #hubChatNotifyCenter.a4-top-notify #hubChatNotifyPanel{position:fixed!important;left:10px!important;right:10px!important;top:64px!important;width:auto!important;max-height:72dvh!important}
-      .a4-more-menu{position:fixed;right:10px;top:64px;width:min(270px,calc(100vw - 20px))}
+      .a4-more-menu{position:fixed;right:10px;top:64px;width:min(270px,calc(100vw - 20px));max-height:calc(100dvh - 74px);overflow:auto}
+
       .stats{grid-template-columns:1fr 1fr!important;gap:8px!important}
       .stats article{min-height:82px!important;padding:13px!important}
       .stats span{font-size:11px!important}.stats strong{font-size:24px!important;margin-top:8px!important}
       .grid{grid-template-columns:1fr!important}
-      .panel{padding:14px!important;border-radius:13px!important}
+      .panel{padding:14px!important;border-radius:13px!important;max-width:100%!important;overflow-x:auto}
       .a4-theme-panel{left:10px!important;right:10px!important;top:64px!important;width:auto!important;max-height:78dvh;overflow:auto}
+
+      /* Формы и панели действий не выходят за экран телефона. */
+      input,select,textarea{max-width:100%}
+      .toolbar,.actions,.filters,.form-actions,.panel-head{flex-wrap:wrap!important;max-width:100%!important}
+      table{max-width:100%}
+    }
+
+    @media(max-width:520px){
+      .main,.a4-sidebar-collapsed .main{padding:10px 9px 24px!important}
+      .stats{grid-template-columns:1fr 1fr!important}
+      .topbar h1{font-size:19px!important}
+      .panel{padding:12px!important}
     }
   `;
   document.head.appendChild(css);
@@ -76,8 +98,8 @@
     const p=(href||'').split('?')[0].split('/').pop();
     if(['index.html','manager.html','orders.html','customers.html'].includes(p))return'Работа';
     if(['cuim-delivery.html','partners.html','requests.html','warehouse.html','production.html','messages.html'].includes(p))return'Операции';
-    if(['employees.html','staff-structure.html','documents.html','payments.html','reports.html'].includes(p))return'Управление';
-    if(['settings.html','help.html'].includes(p)||href?.startsWith('../'))return'Система';
+    if(['employees.html','staff-structure.html'].includes(p))return'Команда';
+    if(['documents.html','payments.html','reports.html','settings.html','help.html'].includes(p)||href?.startsWith('../'))return'Система';
     return'';
   };
 
@@ -122,17 +144,23 @@
       <a href="../index.html">▦ <span>Выбор системы</span></a>`;
     more.onclick=e=>{e.stopPropagation();menu.classList.toggle('open')};
     menu.onclick=e=>e.stopPropagation();
-    menu.querySelector('[data-a4-theme-open]').onclick=()=>{menu.classList.remove('open');document.querySelector('.a4-theme-fab')?.click()};
+    const themeButton=menu.querySelector('[data-a4-theme-open]');
+    if(themeButton)themeButton.onclick=()=>{menu.classList.remove('open');document.querySelector('.a4-theme-fab')?.click()};
     document.addEventListener('click',()=>menu.classList.remove('open'));
     actions.append(more,menu);top.appendChild(actions);return actions;
   }
 
   function mobileMenu(){
     const top=document.querySelector('.topbar'),sidebar=document.querySelector('.sidebar');if(!top||!sidebar)return;
+    if(window.matchMedia?.('(max-width:900px)').matches)document.body.classList.remove('a4-sidebar-collapsed');
     if(!top.querySelector('.a4-mobile-menu')){
       const b=document.createElement('button');b.type='button';b.className='a4-mobile-menu';b.title='Меню';b.setAttribute('aria-label','Открыть меню');b.textContent='☰';top.prepend(b);
-      const shade=document.createElement('div');shade.className='a4-mobile-nav-shade';document.body.appendChild(shade);
-      const close=()=>document.body.classList.remove('a4-mobile-nav-open');b.onclick=()=>document.body.classList.toggle('a4-mobile-nav-open');shade.onclick=close;sidebar.addEventListener('click',e=>{if(e.target.closest('a'))close()});
+      let shade=document.querySelector('.a4-mobile-nav-shade');if(!shade){shade=document.createElement('div');shade.className='a4-mobile-nav-shade';document.body.appendChild(shade)}
+      const close=()=>document.body.classList.remove('a4-mobile-nav-open');
+      b.onclick=()=>document.body.classList.toggle('a4-mobile-nav-open');
+      shade.onclick=close;
+      sidebar.addEventListener('click',e=>{if(e.target.closest('a'))close()});
+      window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:900px)').matches)close()},{passive:true});
     }
   }
 
