@@ -1,6 +1,6 @@
 (function(){
-  if(window.__A4PRINT_CHAT_NOTIFICATIONS_V3__)return;
-  window.__A4PRINT_CHAT_NOTIFICATIONS_V3__=true;
+  if(window.__A4PRINT_CHAT_NOTIFICATIONS_V4__)return;
+  window.__A4PRINT_CHAT_NOTIFICATIONS_V4__=true;
   window.__A4PRINT_CHAT_NOTIFICATIONS__=true;
 
   const BASE_TITLE=document.title;
@@ -12,8 +12,63 @@
   let soundEnabled=localStorage.getItem('a4_chat_sound_enabled')!=='0';
 
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const roomUrl=n=>`./messages.html?room=${encodeURIComponent(n?.entity_id||'')}&v=notify`;
   const panelOpen=()=>document.getElementById('hubChatNotifyPanel')?.style.display==='block';
+
+  function roomUrl(roomId='',messageId=''){
+    const q=new URLSearchParams();
+    if(roomId)q.set('room',roomId);
+    if(messageId)q.set('message',messageId);
+    q.set('v','notify4');
+    const here=new URLSearchParams(location.search);
+    if(here.get('app')==='1'||window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true)q.set('app','1');
+    if(here.get('embed')==='1')q.set('embed','1');
+    return `./messages.html?${q.toString()}`;
+  }
+
+  async function resolveMessageId(n){
+    if(!supabase||!n?.entity_id)return'';
+    try{
+      const{data,error}=await supabase.from('messages').select('id,body,created_at').eq('room_id',n.entity_id).is('deleted_at',null).order('created_at',{ascending:false}).limit(40);
+      if(error||!data?.length)return'';
+      const targetText=String(n.body||'').trim();
+      const targetTime=Date.parse(n.created_at||'')||0;
+      const textMatches=(data||[]).filter(m=>{
+        const body=String(m.body||'').trim();
+        if(!targetText)return true;
+        if(targetText==='Новое сообщение или вложение')return !body;
+        return body===targetText||body.slice(0,180)===targetText||body.startsWith(targetText);
+      });
+      const pool=textMatches.length?textMatches:data;
+      pool.sort((a,b)=>{
+        const da=targetTime?Math.abs((Date.parse(a.created_at)||0)-targetTime):0;
+        const db=targetTime?Math.abs((Date.parse(b.created_at)||0)-targetTime):0;
+        return da-db;
+      });
+      return pool[0]?.id||'';
+    }catch(e){console.warn('A4 message target resolve failed',e);return''}
+  }
+
+  async function notificationUrl(n){
+    const roomId=n?.entity_id||'';
+    if(!roomId)return roomUrl();
+    const messageId=await resolveMessageId(n);
+    return roomUrl(roomId,messageId);
+  }
+
+  async function openNotification(n){
+    if(!n)return;
+    try{if(n.id&&!String(n.id).startsWith('test-'))await supabase?.from('notifications').update({is_read:true}).eq('id',n.id)}catch{}
+    const panel=document.getElementById('hubChatNotifyPanel');if(panel)panel.style.display='none';
+    location.href=await notificationUrl(n);
+  }
+
+  function publishRows(rows){
+    window.__A4_CHAT_UNREAD_NOTIFICATIONS__=(rows||[]).slice();
+    window.dispatchEvent(new CustomEvent('a4:chat-unread',{detail:{rows:window.__A4_CHAT_UNREAD_NOTIFICATIONS__}}));
+  }
+
+  window.__A4_RESOLVE_CHAT_NOTIFICATION_URL__=notificationUrl;
+  window.__A4_OPEN_CHAT_NOTIFICATION__=openNotification;
 
   function ensureUi(){
     if(document.getElementById('hubChatNotifyBell'))return;
@@ -63,13 +118,13 @@
   function render(rows){
     const list=document.getElementById('hubChatNotifyList');if(!list)return;
     if(!rows.length){list.innerHTML='<div style="padding:22px;text-align:center;color:#94a3b8">Новых сообщений нет</div>';return}
-    list.innerHTML=rows.map(n=>`<button type="button" data-chat-notify-id="${esc(n.id)}" data-room-id="${esc(n.entity_id||'')}" style="display:block;width:100%;border:0;border-bottom:1px solid #eef2f7;background:#fff;padding:10px 7px;text-align:left;cursor:pointer;color:#0f172a"><strong style="display:block;font-size:13px;margin-bottom:3px">💬 ${esc(n.title||'Новое сообщение')}</strong><span style="display:block;font-size:12px;color:#475569;line-height:1.35">${esc(n.body||'Откройте чат')}</span><small style="display:block;color:#94a3b8;margin-top:4px">${new Date(n.created_at).toLocaleString('ru-RU')}</small></button>`).join('');
-    list.querySelectorAll('[data-chat-notify-id]').forEach(btn=>{btn.onclick=async()=>{const id=btn.dataset.chatNotifyId,roomId=btn.dataset.roomId||'';try{await supabase.from('notifications').update({is_read:true}).eq('id',id)}catch{}location.href=`./messages.html?room=${encodeURIComponent(roomId)}&v=notify`}})
+    list.innerHTML=rows.map(n=>`<button type="button" data-chat-notify-id="${esc(n.id)}" style="display:block;width:100%;border:0;border-bottom:1px solid #eef2f7;background:#fff;padding:10px 7px;text-align:left;cursor:pointer;color:#0f172a"><strong style="display:block;font-size:13px;margin-bottom:3px">💬 ${esc(n.title||'Новое сообщение')}</strong><span style="display:block;font-size:12px;color:#475569;line-height:1.35">${esc(n.body||'Откройте чат')}</span><small style="display:block;color:#94a3b8;margin-top:4px">${new Date(n.created_at).toLocaleString('ru-RU')}</small></button>`).join('');
+    list.querySelectorAll('[data-chat-notify-id]').forEach(btn=>{btn.onclick=async()=>{const n=rows.find(x=>String(x.id)===String(btn.dataset.chatNotifyId));if(n)await openNotification(n)}})
   }
 
   function toast(n){
     let host=document.getElementById('hubChatNotifyToastHost');if(!host){host=document.createElement('div');host.id='hubChatNotifyToastHost';host.style.cssText='position:fixed;right:76px;top:16px;z-index:2147483001;display:grid;gap:8px;max-width:min(360px,calc(100vw - 96px))';document.body.appendChild(host)}
-    const el=document.createElement('button');el.type='button';el.style.cssText='border:1px solid #93c5fd;background:#fff;border-radius:13px;padding:12px 14px;box-shadow:0 16px 44px rgba(15,23,42,.22);text-align:left;cursor:pointer;color:#0f172a;font:inherit';el.innerHTML=`<strong style="display:block;margin-bottom:4px">💬 ${esc(n.title||'Новое сообщение')}</strong><span style="font-size:12px;color:#475569;line-height:1.35">${esc(n.body||'Откройте чат')}</span>`;el.onclick=()=>{location.href=roomUrl(n)};host.appendChild(el);setTimeout(()=>el.remove(),8000)
+    const el=document.createElement('button');el.type='button';el.style.cssText='border:1px solid #93c5fd;background:#fff;border-radius:13px;padding:12px 14px;box-shadow:0 16px 44px rgba(15,23,42,.22);text-align:left;cursor:pointer;color:#0f172a;font:inherit';el.innerHTML=`<strong style="display:block;margin-bottom:4px">💬 ${esc(n.title||'Новое сообщение')}</strong><span style="font-size:12px;color:#475569;line-height:1.35">${esc(n.body||'Откройте чат')}</span>`;el.onclick=async()=>{el.disabled=true;try{await openNotification(n)}finally{el.remove()}};host.appendChild(el);setTimeout(()=>el.remove(),8000)
   }
   function announce(n){if(!n||seen.has(n.id))return;seen.add(n.id);toast(n);playSound()}
 
@@ -78,7 +133,7 @@
     try{
       const{data,error}=await supabase.from('notifications').select('id,title,body,type,entity_type,entity_id,is_read,created_at').eq('type','CHAT_MESSAGE').eq('is_read',false).order('created_at',{ascending:false}).limit(50);
       if(error)throw error;
-      const rows=data||[];rowsCache=rows;lastSyncAt=Date.now();setCount(rows.length);
+      const rows=data||[];rowsCache=rows;publishRows(rows);lastSyncAt=Date.now();setCount(rows.length);
       if(forceRender||panelOpen())render(rows);
       setStatus(`Онлайн · Push + резерв ${Math.round(POLL_MS/1000)} сек${soundEnabled?' · звук':''}`);
       if(firstSync){rows.forEach(n=>seen.add(n.id));firstSync=false;return}
@@ -101,7 +156,7 @@
     try{
       realtime=supabase.channel(`a4-notify-${profile.id}-${Date.now()}`)
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},payload=>{
-          const n=payload.new;if(n?.type==='CHAT_MESSAGE'&&!n?.is_read){announce(n);sync(false,panelOpen()).catch(()=>{})}
+          const n=payload.new;if(n?.type==='CHAT_MESSAGE'&&!n?.is_read){rowsCache=[n,...rowsCache.filter(x=>x.id!==n.id)].slice(0,50);publishRows(rowsCache);announce(n);sync(false,panelOpen()).catch(()=>{})}
         })
         .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},()=>sync(false,panelOpen()).catch(()=>{}))
         .subscribe(status=>{if(status==='SUBSCRIBED')setStatus(`Онлайн · Push + резерв ${Math.round(POLL_MS/1000)} сек${soundEnabled?' · звук':''}`)});
@@ -119,6 +174,7 @@
       pollTimer=setInterval(()=>{if(!document.hidden)sync(true,panelOpen()).catch(()=>setStatus('Связь восстанавливается…',true))},POLL_MS);
       window.addEventListener('focus',()=>{if(Date.now()-lastSyncAt>8000)sync(true,panelOpen()).catch(()=>{})});
       document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastSyncAt>8000)sync(true,panelOpen()).catch(()=>{})});
+      window.addEventListener('a4:notifications-changed',()=>sync(false,panelOpen()).catch(()=>{}));
     }catch(e){console.error('A4 notification center init failed',e);setError(e?.message||'Не удалось запустить уведомления')}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
