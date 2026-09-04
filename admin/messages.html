@@ -73,7 +73,7 @@
       const p=new URLSearchParams(location.search);
       const app=p.get('app')==='1'||p.get('embed')==='1'||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
       if(!app && innerWidth>900){setTimeout(()=>{const s=document.createElement('script');s.src='./navigation.js?v=20260904-10';document.body.appendChild(s)},800)}
-      if(p.get('room')){setTimeout(()=>{const s=document.createElement('script');s.src='./chat-room-router.js?v=20260904-3';document.body.appendChild(s)},700)}
+      if(p.get('room')){setTimeout(()=>{const s=document.createElement('script');s.src='./chat-room-router.js?v=20260904-4';document.body.appendChild(s)},700)}
     },{once:true});
   </script>
 </body>
