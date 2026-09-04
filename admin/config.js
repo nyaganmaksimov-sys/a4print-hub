@@ -9,11 +9,21 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-18') => {
+  const isMobile = window.matchMedia?.('(max-width:760px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+  const load = (file, version='20260904-19') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
     document.head.appendChild(s);
+  };
+  const background = fn => {
+    const schedule = () => {
+      const run = () => { try { fn(); } catch(e) { console.warn('A4 background module failed', e); } };
+      if ('requestIdleCallback' in window) requestIdleCallback(run, {timeout:isMobile ? 3200 : 1600});
+      else setTimeout(run, isMobile ? 1400 : 450);
+    };
+    if (document.readyState === 'complete') schedule();
+    else window.addEventListener('load', schedule, {once:true});
   };
 
   const isAuthPage = /\/admin\/(login|register|pending|invite)\.html$/.test(location.pathname);
@@ -23,22 +33,21 @@ window.A4PRINT_CONFIG = {
   const isEmbed = isChat && params.get('embed') === '1';
   const isChatApp = isChat && (params.get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
 
-  // Установленное приложение/встроенный чат — отдельный минимальный интерфейс.
+  // Установленное приложение/встроенный чат: сначала сам чат, фоновые сервисы потом.
   if (isChatApp) {
     load('dialog-fixes.js');
     load('ui-fixes.js');
     load('chat-app-mode.js','20260904-3');
     load('chat-ui-fixes.js','20260904-2');
-    if (isEmbed) {
-      load('chat-embed.js','20260904-2');
-    } else {
-      load('chat-notifications.js','20260904-4');
-      load('push-client.js','20260904-1');
-    }
+    if (isEmbed) load('chat-embed.js','20260904-3');
+    else background(() => {
+      load('chat-notifications.js','20260904-5');
+      load('push-client.js','20260904-2');
+    });
     return;
   }
 
-  // Страницы входа/регистрации/приглашения не должны грузить административную оболочку.
+  // Страницы входа/регистрации/приглашения не грузят административную оболочку.
   if (isAuthPage) return;
 
   load('theme.js');
@@ -52,16 +61,18 @@ window.A4PRINT_CONFIG = {
     load('chat-ui-fixes.js','20260904-2');
   }
 
-  // Один центр уведомлений для всей системы + настоящая Web Push подписка.
-  load('chat-notifications.js','20260904-4');
-  load('push-client.js','20260904-1');
+  // Навигация и рабочая оболочка важнее чата — запускаем их сразу.
   load('navigation.js','20260904-9');
   load('workspace-clean.js','20260904-1');
   load('nav-accordion.js','20260904-2');
 
-  // Свернутый чат доступен на любой рабочей странице, кроме самой страницы сообщений.
-  if (!isChat) load('chat-widget.js','20260904-1');
-
   if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-1');
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js');
+
+  // Уведомления, Push и мини-чат не блокируют первоначальную загрузку страницы.
+  background(() => {
+    load('chat-notifications.js','20260904-5');
+    load('push-client.js','20260904-2');
+    if (!isChat) load('chat-widget.js','20260904-2');
+  });
 })();
