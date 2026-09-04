@@ -5,13 +5,14 @@
   const small=window.matchMedia?.('(max-width:900px)').matches||/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent||'');
   const mobile=params.get('mobile')==='1'||params.get('app')==='1'||(standalone&&small);
   if(!mobile||!/\/admin\//.test(location.pathname))return;
+  const page=location.pathname.split('/').pop()||'';
   window.__A4_MOBILE_SHELL__=true;
   document.documentElement.classList.add('a4-mobile-shell');
+  if(page==='messages.html')document.documentElement.classList.add('a4-chat-app-mode');
 
   const css=document.createElement('link');
   css.rel='stylesheet';css.href='/admin/mobile-shell.css?v=20260904-1';document.head.appendChild(css);
 
-  const page=location.pathname.split('/').pop()||'';
   const active=page==='messages.html'?'chat':page==='customers.html'||page==='customer.html'?'customers':page==='orders.html'||page==='order.html'||page==='manager.html'?'orders':'more';
 
   function mobileUrl(raw){
@@ -49,7 +50,7 @@
     nav.className='a4-mobile-nav';
     nav.setAttribute('aria-label','Навигация A4PRINT HUB');
     nav.innerHTML=`
-      <a href="/mobile/" class="${active==='home'?'active':''}"><span class="a4m-icon">⌂</span><small>Главная</small></a>
+      <a href="/mobile/"><span class="a4m-icon">⌂</span><small>Главная</small></a>
       <a href="/admin/orders.html?mobile=1" class="${active==='orders'?'active':''}"><span class="a4m-icon">▣</span><small>Заказы</small></a>
       <a href="/admin/messages.html?app=1" class="${active==='chat'?'active':''}"><span class="a4m-icon">●</span><small>Чат</small></a>
       <a href="/admin/customers.html?mobile=1" class="${active==='customers'?'active':''}"><span class="a4m-icon">◉</span><small>Клиенты</small></a>
@@ -59,6 +60,7 @@
 
   function cleanDesktopArtifacts(){
     document.querySelectorAll('.sidebar').forEach(x=>x.setAttribute('aria-hidden','true'));
+    if(page==='messages.html')return;
     const top=document.querySelector('.topbar');
     if(top&&!top.querySelector('.a4-mobile-home')){
       const a=document.createElement('a');
@@ -69,12 +71,8 @@
   }
 
   function init(){
-    rewriteLinks();
-    cleanDesktopArtifacts();
-    installNav();
-    const observer=new MutationObserver(muts=>{
-      for(const m of muts){for(const n of m.addedNodes){if(n.nodeType===1)rewriteLinks(n)}}
-    });
+    rewriteLinks();cleanDesktopArtifacts();installNav();
+    const observer=new MutationObserver(muts=>{for(const m of muts){for(const n of m.addedNodes){if(n.nodeType===1)rewriteLinks(n)}}});
     observer.observe(document.body,{childList:true,subtree:true});
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
