@@ -71,19 +71,35 @@ async function initA4ChatNotifications(){
   const{data:{session}}=await supabase.auth.getSession();if(!session)return;
   const{data:profile}=await supabase.from('users').select('id').eq('auth_user_id',session.user.id).maybeSingle();if(!profile)return;
   const badge=document.getElementById('messageCount');
-  const refresh=async()=>{const{count,error}=await supabase.from('notifications').select('id',{count:'exact',head:true}).eq('type','CHAT_MESSAGE').eq('is_read',false);if(error)return;const n=Number(count||0);if(badge){badge.textContent=n>99?'99+':String(n);badge.style.display=n?'inline-flex':'none'}};
+  const seen=new Set();
+  const isCurrentRoom=n=>Boolean(window.__A4PRINT_CHAT_PAGE__&&document.body?.dataset?.chatRoomId&&n?.entity_id===document.body.dataset.chatRoomId);
+  const showCount=n=>{if(badge){badge.textContent=n>99?'99+':String(n);badge.style.display=n?'inline-flex':'none'}};
   const toast=n=>{
+    if(isCurrentRoom(n))return;
     let host=document.getElementById('a4MessageToastHost');
     if(!host){host=document.createElement('div');host.id='a4MessageToastHost';host.style.cssText='position:fixed;right:18px;top:18px;z-index:10050;display:grid;gap:10px;max-width:min(360px,calc(100vw - 36px))';document.body.appendChild(host)}
-    const el=document.createElement('button');el.type='button';el.style.cssText='border:1px solid #bfdbfe;background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 14px 40px rgba(15,23,42,.18);text-align:left;cursor:pointer;color:#0f172a;font:inherit';el.innerHTML=`<strong style="display:block;margin-bottom:4px">💬 ${escapeA4(n.title||'Новое сообщение')}</strong><span style="font-size:13px;color:#475569">${escapeA4(n.body||'Откройте чат')}</span>`;el.onclick=()=>{location.href='./messages.html'};host.appendChild(el);setTimeout(()=>el.remove(),7000);
+    const el=document.createElement('button');el.type='button';el.style.cssText='border:1px solid #bfdbfe;background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 14px 40px rgba(15,23,42,.18);text-align:left;cursor:pointer;color:#0f172a;font:inherit';el.innerHTML=`<strong style="display:block;margin-bottom:4px">💬 ${escapeA4(n.title||'Новое сообщение')}</strong><span style="font-size:13px;color:#475569">${escapeA4(n.body||'Откройте чат')}</span>`;el.onclick=()=>{location.href='./messages.html'};host.appendChild(el);setTimeout(()=>el.remove(),8000);
   };
-  const notifySystem=n=>{if(!('Notification'in window)||Notification.permission!=='granted'||!document.hidden)return;try{const x=new Notification(n.title||'A4PRINT HUB',{body:n.body||'Новое сообщение',tag:`a4-chat-${n.id}`});x.onclick=()=>{window.focus();location.href='./messages.html';x.close()}}catch{}};
-  await refresh();
-  window.addEventListener('a4:notifications-changed',refresh);
+  const notifySystem=n=>{
+    if(isCurrentRoom(n)||!('Notification'in window)||Notification.permission!=='granted')return;
+    try{const x=new Notification(n.title||'A4PRINT HUB',{body:n.body||'Новое сообщение',tag:`a4-chat-${n.id}`,renotify:true});x.onclick=()=>{window.focus();location.href='./messages.html';x.close()}}catch{}
+  };
+  const processNew=n=>{if(!n||n.type!=='CHAT_MESSAGE'||seen.has(n.id))return;seen.add(n.id);toast(n);notifySystem(n)};
+  const sync=async({announce=false}={})=>{
+    const{data,error}=await supabase.from('notifications').select('id,title,body,type,entity_type,entity_id,is_read,created_at').eq('type','CHAT_MESSAGE').eq('is_read',false).order('created_at',{ascending:false}).limit(100);
+    if(error)return;
+    const rows=data||[];showCount(rows.length);
+    if(announce)rows.slice().reverse().forEach(processNew);else rows.forEach(n=>seen.add(n.id));
+  };
+  await sync();
+  window.addEventListener('a4:notifications-changed',()=>sync().catch(()=>{}));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync({announce:true}).catch(()=>{})});
+  window.addEventListener('focus',()=>sync({announce:true}).catch(()=>{}));
   supabase.channel(`a4-chat-notifications-${profile.id}`)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},p=>{if(p.new?.type==='CHAT_MESSAGE'){refresh();toast(p.new);notifySystem(p.new)}})
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},()=>refresh())
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},p=>{if(p.new?.type==='CHAT_MESSAGE'){processNew(p.new);sync().catch(()=>{})}})
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:`user_id=eq.${profile.id}`},()=>sync().catch(()=>{}))
     .subscribe();
+  setInterval(()=>sync({announce:true}).catch(()=>{}),7000);
 }
 function escapeA4(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
