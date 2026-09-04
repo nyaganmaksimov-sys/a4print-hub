@@ -28,6 +28,7 @@
     .a4-sidebar-collapsed .a4-nav-group-head .chev,.a4-sidebar-collapsed .a4-nav-group-head:after{display:none}
     .a4-sidebar-collapsed .a4-nav-group-body{display:grid!important}
     @media(max-width:760px){
+      .sidebar{display:block!important}
       .a4-nav-group-head{font-size:11px;padding:11px 10px 8px}
       .a4-nav-group-body{gap:4px}
     }
