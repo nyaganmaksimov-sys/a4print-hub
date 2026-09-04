@@ -7,6 +7,17 @@ const $=id=>document.getElementById(id);
 let installPrompt=null;
 let authSettings=null;
 
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+async function withTimeout(promise,ms,message){
+  let timer;
+  try{
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message||'Превышено время ожидания.')),ms)})
+    ]);
+  }finally{clearTimeout(timer)}
+}
+
 function showMessage(text,type='info'){
   const el=$('message');
   el.textContent=text;
@@ -14,12 +25,31 @@ function showMessage(text,type='info'){
   el.hidden=false;
 }
 function clearMessage(){const el=$('message');el.hidden=true;el.textContent='';el.className='message'}
-function setLoading(on,text='Проверяем аккаунт…'){$('loading').hidden=!on;if(on)$('loading').querySelector('span').textContent=text}
+function setLoading(on,text='Проверяем аккаунт…'){
+  const el=$('loading');
+  if(!el)return;
+  el.hidden=!on;
+  if(on){const span=el.querySelector('span');if(span)span.textContent=text}
+}
 function providerName(p){if(p==='google')return'Google';if(p==='custom:yandex')return'Яндекс';if(p==='custom:mailru')return'Mail.ru';return p}
+function isStandalone(){return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true}
+function openChat(){location.replace('/admin/messages.html?app=1&v=pwa2')}
+function revealOpenChat(hint='✅ Аккаунт сотрудника активен. Можно открыть чат или установить приложение.'){
+  const btn=$('openChatBtn');
+  btn.hidden=false;
+  btn.onclick=openChat;
+  const hintEl=$('sessionHint');
+  hintEl.hidden=false;
+  hintEl.textContent=hint;
+}
+
 async function loadAuthSettings(){
   if(authSettings)return authSettings;
   try{
-    const r=await fetch(`${SUPABASE_URL}/auth/v1/settings`,{headers:{apikey:SUPABASE_KEY}});
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),4500);
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/settings`,{headers:{apikey:SUPABASE_KEY},signal:controller.signal});
+    clearTimeout(timer);
     authSettings=r.ok?await r.json():null;
   }catch{authSettings=null}
   return authSettings;
@@ -34,40 +64,62 @@ function providerEnabled(settings,provider){
   }
   return null;
 }
-function isStandalone(){return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true}
-function openChat(){location.replace('/admin/messages.html?app=1&v=pwa')}
-async function routeByProfile(autoOpen=true){
-  const {data,error}=await supabase.rpc('get_my_staff_profile');
+
+async function getSession(){
+  const result=await withTimeout(supabase.auth.getSession(),6000,'Не удалось быстро получить сессию.');
+  if(result?.error)throw result.error;
+  return result?.data?.session||null;
+}
+
+async function getStaffState(){
+  const session=await getSession();
+  if(!session)return{status:'SIGNED_OUT',session:null,user:null};
+  const query=supabase.from('users')
+    .select('id,full_name,email,is_active')
+    .eq('auth_user_id',session.user.id)
+    .maybeSingle();
+  const {data:user,error}=await withTimeout(query,7000,'Проверка профиля заняла слишком много времени.');
   if(error)throw error;
-  const st=data?.status;
-  if(st==='ACTIVE'){
-    $('openChatBtn').hidden=false;
-    $('openChatBtn').onclick=openChat;
-    $('sessionHint').hidden=false;
-    $('sessionHint').textContent='✅ Вы уже вошли в A4PRINT HUB. Можно открыть чат или установить приложение.';
-    if(autoOpen)openChat();
-    return;
+  if(user?.is_active===true)return{status:'ACTIVE',session,user};
+  if(user?.is_active===false)return{status:'DISABLED',session,user};
+  return{status:'UNREGISTERED',session,user:null};
+}
+
+async function routeByProfile(autoOpen=true){
+  const state=await getStaffState();
+  const hint=$('sessionHint');
+  if(state.status==='ACTIVE'){
+    revealOpenChat(`✅ ${state.user?.full_name||state.user?.email||'Сотрудник'} — вход выполнен. Можно открыть чат или установить приложение.`);
+    if(autoOpen){await delay(80);openChat()}
+    return state;
   }
   $('openChatBtn').hidden=true;
-  if(st==='PENDING'){
-    $('sessionHint').hidden=false;
-    $('sessionHint').innerHTML='⏳ Заявка сотрудника отправлена и ожидает одобрения администратора.';
-    return;
+  if(state.status==='DISABLED'){
+    hint.hidden=false;
+    hint.textContent='⛔ Учётная запись сотрудника отключена. Обратитесь к администратору HUB.';
+    return state;
   }
-  if(st==='REJECTED'){
-    $('sessionHint').hidden=false;
-    $('sessionHint').innerHTML='⚠️ Заявка сотрудника отклонена. Обратитесь к администратору HUB.';
-    return;
+  if(state.status==='UNREGISTERED'){
+    hint.hidden=false;
+    hint.innerHTML='👤 Аккаунт найден, но профиль сотрудника ещё не активирован. <a href="/admin/register.html?returnTo=%2Fchat%2F">Перейти к регистрации</a>';
+    return state;
   }
-  $('sessionHint').hidden=false;
-  $('sessionHint').innerHTML='👤 Аккаунт найден, но регистрация сотрудника не завершена. <a href="/admin/register.html?returnTo=%2Fchat%2F">Завершить регистрацию</a>';
+  hint.hidden=true;
+  return state;
 }
 
 async function refreshProviderButtons(){
   const settings=await loadAuthSettings();
   document.querySelectorAll('[data-provider]').forEach(btn=>{
     const p=btn.dataset.provider,enabled=providerEnabled(settings,p);
-    if(enabled===false){btn.disabled=true;btn.title=`${providerName(p)} пока не подключён в A4PRINT HUB`;btn.querySelector('span:last-child').textContent=`${providerName(p)} · не подключён`}
+    if(enabled===false){
+      btn.disabled=true;
+      btn.title=`${providerName(p)} пока не подключён в A4PRINT HUB`;
+      const label=btn.querySelector('span:last-child');
+      if(label)label.textContent=`${providerName(p)} · не подключён`;
+    }else{
+      btn.disabled=false;
+    }
   });
 }
 
@@ -84,7 +136,10 @@ for(const btn of document.querySelectorAll('[data-provider]')){
       redirect.searchParams.set('returnTo','/chat/?auth=1');
       const {error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:redirect.href}});
       if(error)throw error;
-    }catch(e){showMessage(e?.message||'Не удалось открыть авторизацию.','error');btn.disabled=false}
+    }catch(e){
+      showMessage(e?.message||'Не удалось открыть авторизацию.','error');
+      btn.disabled=false;
+    }
   });
 }
 
@@ -94,11 +149,13 @@ $('loginForm').addEventListener('submit',async e=>{
   if(!email||!password)return showMessage('Введите email и пароль.','error');
   $('loginBtn').disabled=true;setLoading(true,'Входим в A4PRINT Chat…');
   try{
-    const {error}=await supabase.auth.signInWithPassword({email,password});
+    const {error}=await withTimeout(supabase.auth.signInWithPassword({email,password}),10000,'Сервер входа не ответил вовремя.');
     if(error)throw error;
     await routeByProfile(true);
-  }catch(err){showMessage(err?.message||'Не удалось выполнить вход.','error')}
-  finally{$('loginBtn').disabled=false;setLoading(false)}
+  }catch(err){
+    showMessage(err?.message||'Не удалось выполнить вход.','error');
+    try{const session=await getSession();if(session)revealOpenChat('⚠️ Вход выполнен, но проверка профиля задержалась. Попробуйте открыть чат напрямую.')}catch{}
+  }finally{$('loginBtn').disabled=false;setLoading(false)}
 });
 
 $('togglePassword').onclick=()=>{
@@ -114,38 +171,61 @@ $('sendRecovery').onclick=async()=>{
   $('sendRecovery').disabled=true;
   try{
     const redirectTo=new URL('/admin/reset-password.html',location.origin).href;
-    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});
+    const {error}=await withTimeout(supabase.auth.resetPasswordForEmail(email,{redirectTo}),10000,'Сервер восстановления не ответил вовремя.');
     if(error)throw error;
     showMessage('Ссылка для смены пароля отправлена на почту.','success');$('recoverBox').hidden=true;
   }catch(e){showMessage(e?.message||'Не удалось отправить ссылку.','error')}
   finally{$('sendRecovery').disabled=false}
 };
 
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;if(!isStandalone())$('installBtn').hidden=false});
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();installPrompt=e;
+  if(!isStandalone())$('installBtn').hidden=false;
+});
 $('installBtn').onclick=async()=>{
-  if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').hidden=true;return}
+  if(installPrompt){
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt=null;
+    return;
+  }
   const isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   if(isiOS)$('iosInstall').hidden=false;
-  else showMessage('Откройте меню браузера и выберите «Установить приложение» или «Создать ярлык».','info');
+  else showMessage('В Chrome нажмите значок установки справа в адресной строке или меню ⋮ → «Установить A4PRINT HUB Chat».','info');
 };
 $('closeIosInstall').onclick=()=>{$('iosInstall').hidden=true};
-window.addEventListener('appinstalled',()=>{$('installBtn').hidden=true;showMessage('A4PRINT HUB Chat установлен.','success')});
+window.addEventListener('appinstalled',()=>{showMessage('A4PRINT HUB Chat установлен.','success')});
 
 async function init(){
-  if('serviceWorker' in navigator){navigator.serviceWorker.register('/a4print-chat-sw.js',{scope:'/'}).catch(e=>console.warn('PWA service worker',e))}
-  const standalone=isStandalone();
-  if(standalone)$('installBtn').hidden=true;
-  else if(/iphone|ipad|ipod/i.test(navigator.userAgent))$('installBtn').hidden=false;
-  await refreshProviderButtons();
-  const {data:{session}}=await supabase.auth.getSession();
-  if(session){
-    setLoading(true);
-    try{
-      const justAuthenticated=new URLSearchParams(location.search).get('auth')==='1';
-      await routeByProfile(standalone||justAuthenticated);
-    }catch(e){showMessage(e?.message||'Не удалось проверить доступ.','error')}
-    finally{setLoading(false)}
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/a4print-chat-sw.js?v=2',{scope:'/'}).then(r=>r.update()).catch(e=>console.warn('PWA service worker',e));
   }
+  const standalone=isStandalone();
+  $('installBtn').hidden=standalone;
+  refreshProviderButtons().catch(()=>{});
+
+  let session=null;
+  try{session=await getSession()}catch(e){
+    showMessage('Не удалось быстро проверить сохранённый вход. Можно войти заново ниже.','error');
+    setLoading(false);
+    return;
+  }
+  if(!session){setLoading(false);return}
+
+  setLoading(true);
+  try{
+    const justAuthenticated=new URLSearchParams(location.search).get('auth')==='1';
+    await routeByProfile(standalone||justAuthenticated);
+  }catch(e){
+    console.warn('A4 Chat profile check failed',e);
+    revealOpenChat('⚠️ Сессия найдена. Проверка профиля задержалась — можно открыть рабочий чат напрямую.');
+    showMessage(e?.message||'Не удалось проверить профиль сотрудника.','error');
+  }finally{setLoading(false)}
 }
 
-init();
+init().catch(e=>{
+  console.error(e);
+  setLoading(false);
+  showMessage('Не удалось запустить A4PRINT Chat. Обновите страницу или откройте рабочий чат.','error');
+  revealOpenChat('⚠️ Доступен прямой вход в рабочий чат.');
+});
