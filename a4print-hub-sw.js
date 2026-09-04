@@ -1,19 +1,18 @@
-const VERSION='a4print-hub-sw-1';
+const VERSION='a4print-hub-sw-2';
 
 self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
-  // Старые кеши PWA больше не используем: рабочие страницы всегда берём из сети.
   const names=await caches.keys();
   await Promise.all(names.filter(n=>/a4print|chat|hub/i.test(n)).map(n=>caches.delete(n)));
   await self.clients.claim();
 })()));
 
-// Не кешируем административные страницы и API. Это устраняет зависания на старых версиях.
+// HUB работает online-first без собственного кеша рабочих страниц.
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==self.location.origin)return;
-  event.respondWith(fetch(event.request).catch(()=>new Response('Сеть недоступна',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}})));
+  event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>new Response('Сеть недоступна',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}})));
 });
 
 self.addEventListener('push',event=>{
@@ -47,6 +46,4 @@ self.addEventListener('notificationclick',event=>{
   })());
 });
 
-self.addEventListener('message',event=>{
-  if(event.data==='SKIP_WAITING')self.skipWaiting();
-});
+self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting()});
