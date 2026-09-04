@@ -4,7 +4,7 @@
   "short_name": "A4 Chat",
   "description": "Внутренний мессенджер сотрудников A4PRINT HUB",
   "lang": "ru-RU",
-  "start_url": "/chat/start.html?installed=1",
+  "start_url": "/admin/messages.html?app=1&from=pwa&v=20260904-11",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
