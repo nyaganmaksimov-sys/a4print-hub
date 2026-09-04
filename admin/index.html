@@ -1,1 +1,142 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js?v=20260904-22"></script><style>.hub-logo-wrap{display:flex;align-items:center;justify-content:center;margin:16px 16px 10px;padding:12px 10px;min-height:185px;border-radius:20px;background:linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%);box-shadow:0 10px 28px rgba(0,0,0,.18)}.hub-logo{display:block;width:100%;max-width:270px;height:165px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(15,23,42,.14))}.hub-logo-fallback{display:none;color:#0f172a;text-align:center;font-weight:900;font-size:24px;line-height:1.05}.hub-logo-fallback small{display:block;color:#2563eb;font-size:14px;letter-spacing:.12em;margin-top:4px}</style></head><body><aside class="sidebar"><div class="hub-logo-wrap"><img id="hubLogo" class="hub-logo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="hub-logo-fallback">A4PRINT<small>HUB</small></div></div><nav><a class="active" href="./index.html">🏠 Главная</a><a href="./orders.html">🛒 Заказы <b id="orderCount">0</b></a><a href="./customers.html">👥 Клиенты</a><a href="./warehouse.html">📦 Склад</a><a href="./warehouse.html">🧾 Номенклатура</a><a href="./production.html">🏭 Производство</a><a href="./messages.html">💬 Сообщения</a><a href="./documents.html">📁 Документы</a><a href="./payments.html">💰 Оплаты</a><a href="./reports.html">📊 Отчёты</a><a href="./users.html">🔐 Пользователи</a><a href="./settings.html">⚙️ Настройки</a></nav></aside><main class="main"><header class="topbar"><div><h1>Панель управления</h1><p>Единая система А4-Принт и 3D-ARTPRINT</p></div><div class="user"><span id="userEmail">Загрузка...</span> <button id="logout" style="margin-left:8px">Выйти</button></div></header><section class="stats"><article><span>Новые заказы</span><strong id="newOrders">0</strong></article><article><span>В работе</span><strong id="activeOrders">0</strong></article><article><span>Готовы</span><strong id="readyOrders">0</strong></article><article><span>Низкий остаток</span><strong id="lowStock">0</strong></article></section><section class="grid"><article class="panel wide"><div class="panel-head"><h2>Последние заказы</h2><button id="refresh">Обновить</button></div><div id="orders" class="orders"><div class="empty">Загрузка...</div></div></article><article class="panel"><h2>Направления</h2><div class="units"><div><b>А4-Принт</b><span>Печать и услуги</span></div><div><b>3D-ARTPRINT</b><span>3D-печать и модели</span></div><div><b>Общий склад</b><span>Единые остатки</span></div></div></article></section></main><script type="module" src="./app.js"></script><script type="module">import {supabase} from './guard.js';const logo=document.getElementById('hubLogo');const cached=localStorage.getItem('a4print_hub_logo');if(cached)logo.src=cached;const {data:{session}}=await supabase.auth.getSession();if(session){document.getElementById('userEmail').textContent=session.user.email||'Сотрудник';const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();const saved=data?.value?.logo||'';if(saved){logo.style.display='block';logo.nextElementSibling.style.display='none';logo.src=saved;localStorage.setItem('a4print_hub_logo',saved)}else localStorage.removeItem('a4print_hub_logo')}document.getElementById('logout').onclick=async()=>{await supabase.auth.signOut();location.replace('./login.html')};</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>A4PRINT HUB — Панель управления</title>
+  <link rel="stylesheet" href="./styles.css?v=20260904-23">
+  <link rel="stylesheet" href="./dashboard.css?v=20260904-23">
+  <script src="./config.js?v=20260904-22"></script>
+</head>
+<body class="dashboard-home">
+  <aside class="sidebar">
+    <div class="hub-logo-wrap">
+      <img id="hubLogo" class="hub-logo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <div class="hub-logo-fallback">A4PRINT<small>HUB</small></div>
+    </div>
+    <nav>
+      <a class="active" href="./index.html">Главная</a>
+      <a href="./manager.html">Менеджер</a>
+      <a href="./orders.html">Заказы <b id="orderCount">0</b></a>
+      <a href="./customers.html">Клиенты</a>
+      <a href="./warehouse.html">Склад</a>
+      <a href="./production.html">Производство</a>
+      <a href="./messages.html">Сообщения</a>
+      <a href="./settings.html">Настройки</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>Панель управления</h1>
+        <p id="todayLabel">А4-Принт · 3D-ARTPRINT</p>
+      </div>
+      <div class="user">
+        <span id="userEmail">Загрузка...</span>
+        <button id="logout">Выйти</button>
+      </div>
+    </header>
+
+    <div class="dashboard-shell">
+      <section class="dashboard-actions" aria-label="Быстрые действия">
+        <div class="dashboard-search" id="dashboardSearchWrap">
+          <div class="dashboard-search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <input id="dashboardSearch" type="search" autocomplete="off" placeholder="Найти заказ, клиента, телефон или услугу">
+            <span class="dashboard-search-hint">↵</span>
+          </div>
+          <div id="dashboardSearchResults" class="dashboard-search-results"></div>
+        </div>
+        <div class="dashboard-quick">
+          <a class="primary" href="./manager.html">+ Новый заказ</a>
+          <a href="./customers.html">Клиенты</a>
+          <a href="./warehouse.html">Склад</a>
+          <a href="./production.html">Производство</a>
+        </div>
+      </section>
+
+      <section class="dash-kpis" aria-label="Сводка">
+        <a class="dash-kpi" href="./orders.html?status=NEW">
+          <span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6"></path></svg></span>
+          <span class="dash-kpi-copy"><span class="dash-kpi-label">Новые заказы</span><strong class="dash-kpi-value" id="newOrders">0</strong></span>
+        </a>
+        <a class="dash-kpi" data-tone="work" href="./orders.html?status=WORK">
+          <span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9h10v9M9 11V7h6v4"></path><path d="M10 15h4"></path></svg></span>
+          <span class="dash-kpi-copy"><span class="dash-kpi-label">В работе</span><strong class="dash-kpi-value" id="activeOrders">0</strong></span>
+        </a>
+        <a class="dash-kpi" data-tone="ready" href="./orders.html?status=READY">
+          <span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span>
+          <span class="dash-kpi-copy"><span class="dash-kpi-label">Готовы к выдаче</span><strong class="dash-kpi-value" id="readyOrders">0</strong></span>
+        </a>
+        <a class="dash-kpi" data-tone="stock" href="./warehouse.html">
+          <span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5v11H3z"></path><path d="M8 20v-7h8v7"></path></svg></span>
+          <span class="dash-kpi-copy"><span class="dash-kpi-label">Низкий остаток</span><strong class="dash-kpi-value" id="lowStock">0</strong></span>
+        </a>
+        <a class="dash-kpi" data-tone="money" href="./reports.html">
+          <span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"></path><path d="M8 12h8M12 9v6"></path></svg></span>
+          <span class="dash-kpi-copy"><span class="dash-kpi-label">Выручка сегодня</span><strong class="dash-kpi-value" id="revenueToday">0 ₽</strong></span>
+        </a>
+      </section>
+
+      <section class="dash-grid">
+        <article class="dash-card">
+          <div class="dash-card-head">
+            <div>
+              <h2>Последние заказы</h2>
+              <p>Свежие заказы А4-Принт и 3D-ARTPRINT</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="dash-updated" id="lastUpdated">обновление...</span>
+              <a href="./orders.html">Все заказы →</a>
+            </div>
+          </div>
+          <div class="dash-orders">
+            <div class="dash-order-header">
+              <span>Заказ</span><span>Клиент</span><span>Услуга</span><span>Направление</span><span>Сумма</span><span>Статус</span>
+            </div>
+            <div id="recentOrders"><div class="dash-empty">Загрузка заказов...</div></div>
+          </div>
+        </article>
+
+        <aside class="dash-card">
+          <div class="dash-card-head">
+            <div><h2>Требует внимания</h2><p>Что важно проверить сейчас</p></div>
+          </div>
+          <div id="attention" class="dash-attention-list"><div class="dash-empty">Загрузка...</div></div>
+        </aside>
+      </section>
+
+      <section class="dash-units" aria-label="Направления">
+        <a class="dash-unit-card" href="./orders.html?unit=A4_PRINT" data-unit="a4">
+          <span class="dash-unit-mark">A4</span>
+          <span class="dash-unit-card-copy"><b>А4-Принт</b><span>Печать, услуги и заказы направления</span></span>
+          <span class="dash-unit-metrics"><span><strong id="a4Active">0</strong><small>активных</small></span><span><strong id="a4Ready">0</strong><small>готово</small></span></span>
+        </a>
+        <a class="dash-unit-card" href="./orders.html?unit=3D_ARTPRINT" data-unit="3d">
+          <span class="dash-unit-mark">3D</span>
+          <span class="dash-unit-card-copy"><b>3D-ARTPRINT</b><span>3D-печать, модели и производство</span></span>
+          <span class="dash-unit-metrics"><span><strong id="d3Active">0</strong><small>активных</small></span><span><strong id="d3Ready">0</strong><small>готово</small></span></span>
+        </a>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="./app.js?v=20260904-23"></script>
+  <script type="module">
+    import {supabase} from './guard.js';
+    const logo=document.getElementById('hubLogo');
+    const cached=localStorage.getItem('a4print_hub_logo');
+    if(cached)logo.src=cached;
+    const {data:{session}}=await supabase.auth.getSession();
+    if(session){
+      document.getElementById('userEmail').textContent=session.user.email||'Сотрудник';
+      const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();
+      const saved=data?.value?.logo||'';
+      if(saved){logo.style.display='block';logo.nextElementSibling.style.display='none';logo.src=saved;localStorage.setItem('a4print_hub_logo',saved)}
+      else localStorage.removeItem('a4print_hub_logo');
+    }
+    document.getElementById('logout').onclick=async()=>{await supabase.auth.signOut();location.replace('./login.html')};
+  </script>
+</body>
+</html>
