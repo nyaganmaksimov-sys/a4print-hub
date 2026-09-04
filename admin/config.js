@@ -9,7 +9,7 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-13') => {
+  const load = (file, version='20260904-14') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -20,8 +20,7 @@ window.A4PRINT_CONFIG = {
   const isChat = /\/admin\/messages\.html$/.test(location.pathname);
   const isChatApp = isChat && (new URLSearchParams(location.search).get('app') === '1' || window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
 
-  // Установленное приложение чата запускаем минимальным набором скриптов —
-  // без боковой навигации, конструктора блоков и лишних плавающих кнопок.
+  // Установленное приложение чата — отдельный минимальный интерфейс.
   if (isChatApp) {
     load('dialog-fixes.js');
     load('ui-fixes.js');
@@ -41,11 +40,13 @@ window.A4PRINT_CONFIG = {
     load('chat-app-mode.js','20260904-3');
     load('chat-ui-fixes.js','20260904-2');
   }
-  load('navigation.js');
-  load('chat-launcher.js','20260904-2');
-  load('layout.js');
-  load('help-context.js');
+
+  // Один центр уведомлений для всей системы. Он ставит глобальный флаг
+  // до navigation.js, поэтому старый второй колокольчик не запускается.
   if (!/\/admin\/(login|register|pending)\.html$/.test(location.pathname)) load('chat-notifications.js','20260904-4');
+  load('navigation.js','20260904-9');
+  load('workspace-clean.js','20260904-1');
+
   if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-1');
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js');
 })();
