@@ -48,7 +48,7 @@
     if(targetRoom.is_group){
       const btn = await waitFor(()=>document.getElementById('generalRoom'));
       if(btn) btn.click();
-      await waitFor(()=>document.body.dataset.chatRoomId===roomId,true,10000);
+      await waitFor(()=>document.body.dataset.chatRoomId===roomId);
       await focusMessage();
       cleanUrl();
       return;
