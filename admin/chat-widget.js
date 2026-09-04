@@ -5,7 +5,7 @@
   window.__A4_CHAT_WIDGET__=true;
 
   const OPEN_KEY='a4_chat_widget_open_v1';
-  const isMobile=window.matchMedia?.('(max-width:760px)').matches||/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent||'');
+  const isMobile=window.matchMedia?.('(max-width:900px)').matches||/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent||'');
   let iframeLoaded=false;
 
   const style=document.createElement('style');
@@ -21,7 +21,7 @@
     .a4-chat-widget-head button,.a4-chat-widget-head a{width:32px;height:32px;border:0;border-radius:8px;background:rgba(255,255,255,.09);color:#fff;display:grid;place-items:center;cursor:pointer;text-decoration:none;font:800 16px/1 system-ui}
     #a4ChatWidgetFrame{width:100%;height:100%;flex:1;min-height:0;border:0;background:#fff}
     .a4-chat-widget-loading{display:grid;place-items:center;flex:1;color:#64748b;font-size:13px}
-    @media(max-width:760px){
+    @media(max-width:900px){
       #a4ChatWidget{right:10px;bottom:max(10px,env(safe-area-inset-bottom))}
       #a4ChatWidgetButton{width:50px;height:50px;border-radius:15px}
       #a4ChatWidgetPanel{position:fixed;left:6px;right:6px;top:6px;bottom:66px;width:auto;height:auto;max-height:none;border-radius:14px}
@@ -39,7 +39,7 @@
   function ensureFrame(){
     if(iframeLoaded)return;iframeLoaded=true;
     if(!document.getElementById('a4ChatWidgetLoading')){const l=document.createElement('div');l.id='a4ChatWidgetLoading';l.className='a4-chat-widget-loading';l.textContent='Открываем чат…';panel.appendChild(l)}
-    const frame=document.createElement('iframe');frame.id='a4ChatWidgetFrame';frame.title='A4PRINT HUB Chat';frame.loading='lazy';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.src='./messages.html?app=1&embed=1&v=widget2';frame.onload=()=>document.getElementById('a4ChatWidgetLoading')?.remove();panel.appendChild(frame);
+    const frame=document.createElement('iframe');frame.id='a4ChatWidgetFrame';frame.title='A4PRINT HUB Chat';frame.loading='lazy';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.src='./messages.html?app=1&embed=1&v=widget3';frame.onload=()=>document.getElementById('a4ChatWidgetLoading')?.remove();panel.appendChild(frame);
   }
   function releaseFrame(){
     if(!isMobile)return;
