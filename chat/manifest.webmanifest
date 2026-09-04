@@ -1,0 +1,23 @@
+{
+  "id": "/chat/",
+  "name": "A4PRINT HUB Chat",
+  "short_name": "A4 Chat",
+  "description": "Внутренний мессенджер сотрудников A4PRINT HUB",
+  "lang": "ru-RU",
+  "start_url": "/chat/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "categories": ["business", "productivity", "social"],
+  "icons": [
+    {"src":"/chat/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"},
+    {"src":"/admin/assets/a4print-hub-logo.png","sizes":"any","type":"image/png","purpose":"any"}
+  ],
+  "shortcuts": [
+    {"name":"Открыть чаты","short_name":"Чаты","url":"/admin/messages.html?app=1","icons":[{"src":"/chat/icon.svg","sizes":"any","type":"image/svg+xml"}]},
+    {"name":"Профиль сотрудника","short_name":"Профиль","url":"/admin/profile.html","icons":[{"src":"/chat/icon.svg","sizes":"any","type":"image/svg+xml"}]}
+  ]
+}
