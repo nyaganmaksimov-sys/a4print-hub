@@ -9,7 +9,7 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-16') => {
+  const load = (file, version='20260904-17') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -56,7 +56,7 @@ window.A4PRINT_CONFIG = {
   }
   load('navigation.js','20260904-9');
   load('workspace-clean.js','20260904-1');
-  load('nav-accordion.js','20260904-1');
+  load('nav-accordion.js','20260904-2');
 
   // Свернутый чат доступен на любой рабочей странице, кроме самой страницы сообщений.
   if (!isChat && !isAuthPage) load('chat-widget.js','20260904-1');
