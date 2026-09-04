@@ -19,9 +19,23 @@ function fileIcon(a){const t=(a.mime_type||'').toLowerCase(),n=(a.file_name||'')
 
 async function sessionHeaders(){const{data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('Сессия истекла. Войдите снова.');return{Authorization:`Bearer ${session.access_token}`,apikey:cfg.supabasePublishableKey||''}}
 function edgeUrl(q=''){return`${cfg.supabaseUrl}/functions/v1/chat-drive${q}`}
-async function edgeJson(url,opt={}){const headers=await sessionHeaders();const r=await fetch(url,{...opt,headers:{...headers,...(opt.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||'Ошибка Google Drive');return d}
+async function edgeJson(url,opt={}){const headers=await sessionHeaders();const r=await fetch(url,{...opt,headers:{...headers,...(opt.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||'Ошибка хранилища файлов');return d}
 
-async function loadDriveStatus(){try{const d=await edgeJson(edgeUrl('?action=status'));const el=$('driveStatus');if(d.connected){el.textContent='● Drive подключён';el.className='drive-state ok';el.title=d.google_email||'Google Drive подключён'}else if(d.configured){el.textContent='Drive: подключить';el.className='drive-state warn'}else{el.textContent='Drive: настройка';el.className='drive-state warn'}}catch(e){$('driveStatus').textContent='Drive недоступен';$('driveStatus').className='drive-state warn'}}
+async function loadDriveStatus(){try{const d=await edgeJson(edgeUrl('?action=status'));const el=$('driveStatus');if(d.connected){el.textContent='● Drive подключён';el.className='drive-state ok';el.title=d.google_email||'Google Drive подключён'}else{el.textContent='Файлы: HUB';el.className='drive-state ok';el.title='Файлы сохраняются в защищённом хранилище HUB. Google Drive можно подключить дополнительно.'}}catch(e){$('driveStatus').textContent='Файлы: HUB';$('driveStatus').className='drive-state ok';$('driveStatus').title='Используется защищённое хранилище HUB'}}
+
+async function markRoomRead(){
+  if(!profile||!room?.id)return;
+  const{error}=await supabase.from('notifications').update({is_read:true}).eq('type','CHAT_MESSAGE').eq('entity_type','chat_room').eq('entity_id',room.id).eq('is_read',false);
+  if(!error)window.dispatchEvent(new CustomEvent('a4:notifications-changed'));
+}
+
+function updateNotifButton(){
+  const el=$('notifBtn');if(!el)return;
+  if(!('Notification' in window)){el.textContent='🔕 Не поддерживается';el.className='off';el.disabled=true;return}
+  if(Notification.permission==='granted'){el.textContent='🔔 Уведомления включены';el.className='on';el.disabled=false}
+  else if(Notification.permission==='denied'){el.textContent='🔕 Уведомления запрещены';el.className='off';el.disabled=false}
+  else{el.textContent='🔔 Включить уведомления';el.className='';el.disabled=false}
+}
 
 async function loadStaff(){
   const {data,error}=await supabase.from('users').select('id,full_name,email,position,is_active').eq('is_active',true).neq('id',profile.id).order('full_name');
@@ -66,6 +80,7 @@ function syncActiveUi(){
 
 async function activateRoom(nextRoom,person=null){
   room=nextRoom;
+  document.body.dataset.chatRoomId=room.id;
   if(channel){await supabase.removeChannel(channel);channel=null}
   $('messages').innerHTML='<div class="empty-chat">Загрузка сообщений...</div>';
   if(person){
@@ -77,6 +92,7 @@ async function activateRoom(nextRoom,person=null){
   }
   syncActiveUi();
   await loadMessages();
+  await markRoomRead();
   subscribe();
   $('text').focus();
 }
@@ -112,7 +128,7 @@ async function loadMessages(){
 
 function attachmentHtml(a){return`<button type="button" class="attachment" data-download="${esc(a.id)}" data-name="${esc(a.file_name)}"><span class="attachment-icon">${fileIcon(a)}</span><span class="attachment-info"><span class="attachment-name">${esc(a.file_name)}</span><span class="attachment-size">${sizeFmt(a.file_size)} · скачать</span></span><span>⬇️</span></button>`}
 function render(rows){$('messages').innerHTML=rows.length?rows.map(m=>{const at=(m.message_attachments||[]).map(attachmentHtml).join('');return`<div class="msg ${m.sender_id===profile.id?'mine':''}"><div class="meta">${esc(m.users?.full_name||m.users?.email||'Сотрудник')} · ${fmt(m.created_at)}</div>${m.body?`<div class="body">${esc(m.body)}</div>`:''}${at?`<div class="attachments">${at}</div>`:''}</div>`}).join(''):'<div class="empty-chat">Сообщений пока нет. Напишите первым.</div>';document.querySelectorAll('[data-download]').forEach(b=>b.onclick=()=>downloadAttachment(b.dataset.download,b.dataset.name));$('messages').scrollTop=$('messages').scrollHeight}
-function subscribe(){if(channel)supabase.removeChannel(channel);channel=supabase.channel(`a4print-chat-${room.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},()=>setTimeout(()=>loadMessages().catch(showError),180)).on('postgres_changes',{event:'UPDATE',schema:'public',table:'message_attachments',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError)).subscribe()}
+function subscribe(){if(channel)supabase.removeChannel(channel);channel=supabase.channel(`a4print-chat-${room.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},()=>setTimeout(()=>loadMessages().then(markRoomRead).catch(showError),180)).on('postgres_changes',{event:'UPDATE',schema:'public',table:'message_attachments',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError)).subscribe()}
 function showError(e){console.error(e);$('messages').insertAdjacentHTML('beforeend',`<div class="empty-chat" style="color:#b91c1c">${esc(e.message||'Ошибка чата')}</div>`)}
 
 function drawPending(){const el=$('pending');if(!pending.length){el.classList.remove('show');el.innerHTML='';return}el.classList.add('show');el.innerHTML=pending.map(x=>`<div class="pending-item ${x.status||''}"><span>${x.status==='uploading'?'⏳':x.status==='error'?'⚠️':fileIcon(x)}</span><span class="pending-name">${esc(x.file_name||x.name)}</span>${x.status==='uploading'?'':`<button type="button" class="pending-remove" data-remove="${esc(x.localId)}">×</button>`}</div>`).join('');el.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removePending(b.dataset.remove))}
@@ -126,9 +142,10 @@ $('fileInput').onchange=e=>addFiles(e.target.files);
 $('staffSearch').oninput=renderStaff;
 $('generalRoom').onclick=()=>openGeneral();
 $('recipientSelect').onchange=async e=>{const value=e.target.value;const ok=value==='general'?await openGeneral():await openDirect(value);if(!ok)e.target.value=activeKey};
+$('notifBtn').onclick=async()=>{if(!('Notification'in window))return alert('Этот браузер не поддерживает системные уведомления.');if(Notification.permission==='denied'){alert('Уведомления запрещены в настройках браузера. Разрешите уведомления для a4print-hub.ru.');return}if(Notification.permission!=='granted')await Notification.requestPermission();updateNotifButton()};
 $('composer').onsubmit=async e=>{e.preventDefault();if(!room||!profile)return;const body=$('text').value.trim(),ready=pending.filter(x=>x.id&&x.status!=='error');if(!body&&!ready.length)return;if(pending.some(x=>x.status==='uploading'))return alert('Дождитесь окончания загрузки файлов.');try{$('send').disabled=true;$('attachBtn').disabled=true;const{data:message,error}=await supabase.from('messages').insert({room_id:room.id,sender_id:profile.id,body}).select('id').single();if(error)throw error;if(ready.length){const{error:aErr}=await supabase.from('message_attachments').update({message_id:message.id}).in('id',ready.map(x=>x.id));if(aErr){await supabase.from('messages').delete().eq('id',message.id);throw aErr}}$('text').value='';pending=[];drawPending();await loadMessages()}catch(err){alert(err.message||'Не удалось отправить сообщение.')}finally{$('send').disabled=false;$('attachBtn').disabled=false;$('text').focus()}};
 $('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit()}});
-$('refresh').onclick=async()=>{try{await Promise.all([loadMessages(),loadDriveStatus(),loadStaff()])}catch(e){alert(e.message||'Не удалось обновить чат.')}};
+$('refresh').onclick=async()=>{try{await Promise.all([loadMessages(),loadDriveStatus(),loadStaff(),markRoomRead()])}catch(e){alert(e.message||'Не удалось обновить чат.')}};
 
 async function init(){
   const{data:{session}}=await supabase.auth.getSession();
@@ -137,6 +154,7 @@ async function init(){
   if(pErr)throw pErr;
   if(!p||p.is_active===false)throw new Error('Профиль сотрудника не найден или отключён.');
   profile=p;$('me').textContent=p.full_name||p.email;
+  updateNotifButton();
   const{data:r,error:rErr}=await supabase.from('chat_rooms').select('id,name,is_group').eq('name','Общий чат').limit(1).maybeSingle();
   if(rErr)throw rErr;
   if(!r){$('messages').innerHTML='<div class="empty-chat">Общий чат ещё не создан.</div>';return}
