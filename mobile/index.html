@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   <title>A4PRINT HUB</title>
-  <link rel="stylesheet" href="./styles.css?v=2">
+  <link rel="stylesheet" href="./styles.css?v=4">
   <style>
     .mobile-brand{display:flex;align-items:center;justify-content:center;gap:11px;margin:2px 0 24px;font-weight:900;font-size:19px;letter-spacing:-.02em}.mobile-brand-mark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:#111827;color:#fff;font-size:17px;box-shadow:0 8px 20px rgba(15,23,42,.15)}
     .social-auth{display:grid;gap:9px;margin:0 0 18px}.login-card .social-button{height:49px;background:#fff;color:#172033;border:1px solid #dbe1ea;box-shadow:none;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px}.login-card .social-button:active{background:#f8fafc}.social-icon{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:#f1f5f9;color:#0f172a;font-weight:950;font-size:12px}.provider-disabled{opacity:.62}.login-divider{display:flex;align-items:center;gap:10px;color:#94a3b8;font-size:11px;margin:0 0 16px}.login-divider:before,.login-divider:after{content:"";height:1px;background:#e5e7eb;flex:1}.home-notice{display:none;padding:11px 13px;border-radius:12px;background:#fff7ed;color:#9a3412;font-size:12px;border:1px solid #fed7aa}.home-notice.show{display:block}
+    .header-actions{display:flex;align-items:center;gap:8px}.updates-button{position:relative;width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#475569;text-decoration:none;display:grid;place-items:center;font-size:19px}.updates-badge{display:none;position:absolute;right:-4px;top:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;font-weight:900;place-items:center;border:2px solid #f5f7fb}.updates-badge.show{display:grid}.update-banner{display:none}.update-banner.show{display:block}.update-banner a{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:12px 13px;border-radius:14px;border:1px solid #bfdbfe;background:#eff6ff;text-decoration:none;color:#0f172a}.update-banner b{font-size:11px;color:#1d4ed8}.update-banner span{font-size:12px;font-weight:800}.update-banner em{font-size:10px;font-style:normal;color:#2563eb;font-weight:900}.account-nav-icon{position:relative;display:inline-grid;place-items:center}
   </style>
 </head>
 <body>
@@ -31,17 +32,21 @@
         <div id="loginError" class="error"></div>
         <button id="loginButton" type="submit">Войти</button>
       </form>
-      <a class="forgot" href="/admin/login.html">Забыли пароль?</a>
+      <a class="forgot" href="/admin/reset-password.html">Забыли пароль?</a>
     </div>
   </div>
 
   <div id="appView" class="screen app-screen hidden">
     <header class="app-header">
       <div><small>A4PRINT HUB</small><h1 id="hello">Главная</h1></div>
-      <button id="logout" class="icon-button" type="button" title="Выйти">⎋</button>
+      <div class="header-actions">
+        <a class="updates-button" href="/mobile/account.html#updates" title="Обновления">🔔<i class="updates-badge" data-updates-badge></i></a>
+        <button id="logout" class="icon-button" type="button" title="Выйти">⎋</button>
+      </div>
     </header>
 
     <main class="content">
+      <div data-update-banner class="update-banner"></div>
       <div id="homeNotice" class="home-notice"></div>
       <section class="metrics">
         <a href="/admin/orders.html?status=NEW&mobile=1"><span>Новые</span><strong id="newOrders">0</strong></a>
@@ -62,10 +67,11 @@
       <a href="/admin/orders.html?mobile=1"><span>▣</span><small>Заказы</small></a>
       <a href="/admin/messages.html?app=1"><span>●</span><small>Чат</small></a>
       <a href="/admin/customers.html?mobile=1"><span>◉</span><small>Клиенты</small></a>
-      <a href="/admin/index.html?mobile=1"><span>•••</span><small>Ещё</small></a>
+      <a href="/mobile/account.html"><span class="account-nav-icon">☻<i class="updates-badge" data-updates-badge></i></span><small>Аккаунт</small></a>
     </nav>
   </div>
 
-  <script type="module" src="./app-v3.js?v=1"></script>
+  <script type="module" src="./app-v3.js?v=3"></script>
+  <script type="module" src="./updates-client.js?v=1"></script>
 </body>
 </html>
