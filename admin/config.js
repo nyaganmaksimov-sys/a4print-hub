@@ -9,7 +9,7 @@ window.A4PRINT_CONFIG = {
 
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
-  const load = (file, version='20260904-6') => {
+  const load = (file, version='20260904-7') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
@@ -25,5 +25,6 @@ window.A4PRINT_CONFIG = {
   load('navigation.js');
   load('layout.js');
   load('help-context.js');
+  if (!/\/admin\/(login|register|pending)\.html$/.test(location.pathname)) load('chat-notifications.js','20260904-1');
   if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js');
 })();
