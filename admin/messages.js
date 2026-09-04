@@ -12,6 +12,7 @@ let channel = null;
 let pending = [];
 let staff = [];
 let activeKey = 'general';
+let currentMessages = [];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const initials = n => (String(n || '?').trim().split(/\s+/).slice(0,2).map(x => x[0] || '').join('').toUpperCase() || '?');
@@ -153,14 +154,92 @@ async function openDirect(userId){
 
 async function loadMessages(){
   if(!room)return;
-  const{data,error}=await supabase.from('messages').select('id,body,created_at,sender_id,users:sender_id(full_name,email),message_attachments(id,file_name,mime_type,file_size,created_at)').eq('room_id',room.id).is('deleted_at',null).order('created_at',{ascending:true}).limit(300);
+  const{data,error}=await supabase.from('messages').select('id,body,created_at,edited_at,sender_id,users:sender_id(full_name,email),message_attachments(id,file_name,mime_type,file_size,created_at)').eq('room_id',room.id).is('deleted_at',null).order('created_at',{ascending:true}).limit(300);
   if(error)throw error;
-  render(data||[]);
+  let hidden=[];
+  if((data||[]).length){
+    const{data:h,error:hErr}=await supabase.from('message_user_hidden').select('message_id').in('message_id',(data||[]).map(x=>x.id));
+    if(hErr)throw hErr;
+    hidden=h||[];
+  }
+  const hiddenIds=new Set(hidden.map(x=>x.message_id));
+  currentMessages=(data||[]).filter(x=>!hiddenIds.has(x.id));
+  render(currentMessages);
 }
 
 function attachmentHtml(a){return`<button type="button" class="attachment" data-download="${esc(a.id)}" data-name="${esc(a.file_name)}"><span class="attachment-icon">${fileIcon(a)}</span><span class="attachment-info"><span class="attachment-name">${esc(a.file_name)}</span><span class="attachment-size">${sizeFmt(a.file_size)} · скачать</span></span><span>⬇️</span></button>`}
-function render(rows){$('messages').innerHTML=rows.length?rows.map(m=>{const at=(m.message_attachments||[]).map(attachmentHtml).join('');return`<div class="msg ${m.sender_id===profile.id?'mine':''}"><div class="meta">${esc(m.users?.full_name||m.users?.email||'Сотрудник')} · ${fmt(m.created_at)}</div>${m.body?`<div class="body">${esc(m.body)}</div>`:''}${at?`<div class="attachments">${at}</div>`:''}</div>`}).join(''):'<div class="empty-chat">Сообщений пока нет. Напишите первым.</div>';document.querySelectorAll('[data-download]').forEach(b=>b.onclick=()=>downloadAttachment(b.dataset.download,b.dataset.name));$('messages').scrollTop=$('messages').scrollHeight}
-function subscribe(){if(channel)supabase.removeChannel(channel);channel=supabase.channel(`a4print-chat-${room.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},p=>{handleIncomingMessage(p.new);setTimeout(()=>loadMessages().then(()=>new Promise(r=>setTimeout(r,450))).then(markRoomRead).catch(showError),120)}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'message_attachments',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError)).subscribe()}
+
+function messageMenuHtml(m){
+  const own=m.sender_id===profile.id;
+  const btn='display:block;width:100%;border:0;background:#fff;padding:9px 11px;text-align:left;cursor:pointer;font:inherit;font-size:13px;color:#0f172a;border-radius:8px';
+  return `<button type="button" data-msg-menu="${esc(m.id)}" title="Действия" style="border:0;background:transparent;color:#64748b;cursor:pointer;font-size:20px;line-height:1;padding:2px 5px;border-radius:8px">⋮</button><div data-msg-actions="${esc(m.id)}" style="display:none;position:absolute;right:8px;top:34px;z-index:50;min-width:190px;background:#fff;border:1px solid #dbe2ea;border-radius:12px;padding:5px;box-shadow:0 14px 38px rgba(15,23,42,.18)">${own&&m.body?`<button type="button" data-msg-action="edit" data-msg-id="${esc(m.id)}" style="${btn}">✏️ Редактировать</button>`:''}<button type="button" data-msg-action="hide" data-msg-id="${esc(m.id)}" style="${btn}">🙈 Удалить у себя</button>${own?`<button type="button" data-msg-action="delete-all" data-msg-id="${esc(m.id)}" style="${btn};color:#b91c1c">🗑️ Удалить у всех</button>`:''}</div>`;
+}
+
+function closeMessageMenus(){document.querySelectorAll('[data-msg-actions]').forEach(x=>x.style.display='none')}
+
+function render(rows){
+  $('messages').innerHTML=rows.length?rows.map(m=>{const at=(m.message_attachments||[]).map(attachmentHtml).join('');return`<div class="msg ${m.sender_id===profile.id?'mine':''}" data-message-id="${esc(m.id)}" style="position:relative"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div class="meta" style="flex:1">${esc(m.users?.full_name||m.users?.email||'Сотрудник')} · ${fmt(m.created_at)}${m.edited_at?' · изменено':''}</div>${messageMenuHtml(m)}</div>${m.body?`<div class="body">${esc(m.body)}</div>`:''}${at?`<div class="attachments">${at}</div>`:''}</div>`}).join(''):'<div class="empty-chat">Сообщений пока нет. Напишите первым.</div>';
+  document.querySelectorAll('[data-download]').forEach(b=>b.onclick=()=>downloadAttachment(b.dataset.download,b.dataset.name));
+  document.querySelectorAll('[data-msg-menu]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.msgMenu,p=document.querySelector(`[data-msg-actions="${CSS.escape(id)}"]`),willOpen=p?.style.display==='none';closeMessageMenus();if(p&&willOpen)p.style.display='block'});
+  document.querySelectorAll('[data-msg-action]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMessageMenus();runMessageAction(b.dataset.msgAction,b.dataset.msgId)});
+  $('messages').scrollTop=$('messages').scrollHeight;
+}
+
+document.addEventListener('click',e=>{if(!e.target.closest('[data-msg-actions],[data-msg-menu]'))closeMessageMenus()});
+
+function friendlyMessageError(err){
+  const s=String(err?.message||err||'');
+  if(s.includes('ONLY_OWN_MESSAGE'))return'Это действие доступно только для своих сообщений.';
+  if(s.includes('MESSAGE_EMPTY'))return'Сообщение не может быть пустым.';
+  if(s.includes('MESSAGE_TOO_LONG'))return'Сообщение слишком длинное.';
+  if(s.includes('MESSAGE_NOT_FOUND'))return'Сообщение уже удалено или не найдено.';
+  if(s.includes('ACCESS_DENIED'))return'Нет доступа к этому сообщению.';
+  return s||'Не удалось выполнить действие.';
+}
+
+async function runMessageAction(action,id){
+  const m=currentMessages.find(x=>x.id===id);if(!m)return;
+  if(action==='edit')return openEditDialog(m);
+  if(action==='hide'){
+    if(!confirm('Удалить это сообщение только у себя? У других участников оно останется.'))return;
+    const{error}=await supabase.rpc('hide_chat_message_for_me',{p_message_id:id});
+    if(error)return alert(friendlyMessageError(error));
+    await loadMessages();
+    return;
+  }
+  if(action==='delete-all'){
+    if(!confirm('Удалить сообщение у всех участников? Это действие скроет сообщение для всех.'))return;
+    const{error}=await supabase.rpc('delete_chat_message_for_all',{p_message_id:id});
+    if(error)return alert(friendlyMessageError(error));
+    await loadMessages();
+  }
+}
+
+function openEditDialog(message){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:2147482000;background:rgba(15,23,42,.42);display:grid;place-items:center;padding:20px';
+  overlay.innerHTML=`<div style="width:min(560px,100%);background:#fff;border-radius:18px;padding:18px;box-shadow:0 28px 80px rgba(15,23,42,.30)"><div style="font-weight:900;font-size:18px;margin-bottom:10px">Редактировать сообщение</div><textarea id="a4EditMessageText" maxlength="4000" style="width:100%;box-sizing:border-box;min-height:130px;resize:vertical;border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font:inherit"></textarea><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button type="button" data-edit-cancel style="border:1px solid #dbe2ea;background:#fff;border-radius:10px;padding:9px 13px;font:inherit;font-weight:800;cursor:pointer">Отмена</button><button type="button" data-edit-save style="border:0;background:#2563eb;color:#fff;border-radius:10px;padding:9px 14px;font:inherit;font-weight:800;cursor:pointer">Сохранить</button></div></div>`;
+  document.body.appendChild(overlay);
+  const text=overlay.querySelector('#a4EditMessageText');text.value=message.body||'';text.focus();text.setSelectionRange(text.value.length,text.value.length);
+  overlay.querySelector('[data-edit-cancel]').onclick=()=>overlay.remove();
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
+  overlay.querySelector('[data-edit-save]').onclick=async e=>{
+    const body=text.value.trim();if(!body)return alert('Сообщение не может быть пустым.');
+    e.currentTarget.disabled=true;
+    const{error}=await supabase.rpc('edit_chat_message',{p_message_id:message.id,p_body:body});
+    if(error){e.currentTarget.disabled=false;return alert(friendlyMessageError(error))}
+    overlay.remove();await loadMessages();
+  };
+}
+
+function subscribe(){
+  if(channel)supabase.removeChannel(channel);
+  channel=supabase.channel(`a4print-chat-${room.id}`)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},p=>{handleIncomingMessage(p.new);setTimeout(()=>loadMessages().then(()=>new Promise(r=>setTimeout(r,450))).then(markRoomRead).catch(showError),120)})
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError))
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'message_attachments',filter:`room_id=eq.${room.id}`},()=>loadMessages().catch(showError))
+    .subscribe();
+}
 function showError(e){console.error(e);$('messages').insertAdjacentHTML('beforeend',`<div class="empty-chat" style="color:#b91c1c">${esc(e.message||'Ошибка чата')}</div>`)}
 
 function drawPending(){const el=$('pending');if(!pending.length){el.classList.remove('show');el.innerHTML='';return}el.classList.add('show');el.innerHTML=pending.map(x=>`<div class="pending-item ${x.status||''}"><span>${x.status==='uploading'?'⏳':x.status==='error'?'⚠️':fileIcon(x)}</span><span class="pending-name">${esc(x.file_name||x.name)}</span>${x.status==='uploading'?'':`<button type="button" class="pending-remove" data-remove="${esc(x.localId)}">×</button>`}</div>`).join('');el.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removePending(b.dataset.remove))}
@@ -175,7 +254,7 @@ $('staffSearch').oninput=renderStaff;
 $('generalRoom').onclick=()=>openGeneral();
 $('recipientSelect').onchange=async e=>{const value=e.target.value;const ok=value==='general'?await openGeneral():await openDirect(value);if(!ok)e.target.value=activeKey};
 $('notifBtn').onclick=async()=>{if(!('Notification'in window))return alert('Этот браузер не поддерживает системные уведомления.');if(Notification.permission==='denied'){alert('Уведомления запрещены в настройках браузера. Разрешите уведомления для a4print-hub.ru.');return}if(Notification.permission!=='granted')await Notification.requestPermission();updateNotifButton();if(Notification.permission==='granted'){showIncomingToast('Тест уведомлений','Уведомления A4PRINT HUB работают.');notifyIncomingBrowser('A4PRINT HUB','Тестовое уведомление: всё работает.','test')}};
-$('composer').onsubmit=async e=>{e.preventDefault();if(!room||!profile)return;const body=$('text').value.trim(),ready=pending.filter(x=>x.id&&x.status!=='error');if(!body&&!ready.length)return;if(pending.some(x=>x.status==='uploading'))return alert('Дождитесь окончания загрузки файлов.');try{$('send').disabled=true;$('attachBtn').disabled=true;const{data:message,error}=await supabase.from('messages').insert({room_id:room.id,sender_id:profile.id,body}).select('id').single();if(error)throw error;if(ready.length){const{error:aErr}=await supabase.from('message_attachments').update({message_id:message.id}).in('id',ready.map(x=>x.id));if(aErr){await supabase.from('messages').delete().eq('id',message.id);throw aErr}}$('text').value='';pending=[];drawPending();await loadMessages()}catch(err){alert(err.message||'Не удалось отправить сообщение.')}finally{$('send').disabled=false;$('attachBtn').disabled=false;$('text').focus()}};
+$('composer').onsubmit=async e=>{e.preventDefault();if(!room||!profile)return;const body=$('text').value.trim(),ready=pending.filter(x=>x.id&&x.status!=='error');if(!body&&!ready.length)return;if(pending.some(x=>x.status==='uploading'))return alert('Дождитесь окончания загрузки файлов.');try{$('send').disabled=true;$('attachBtn').disabled=true;const{data:message,error}=await supabase.from('messages').insert({room_id:room.id,sender_id:profile.id,body}).select('id').single();if(error)throw error;if(ready.length){const{error:aErr}=await supabase.from('message_attachments').update({message_id:message.id}).in('id',ready.map(x=>x.id));if(aErr){await supabase.rpc('delete_chat_message_for_all',{p_message_id:message.id});throw aErr}}$('text').value='';pending=[];drawPending();await loadMessages()}catch(err){alert(err.message||'Не удалось отправить сообщение.')}finally{$('send').disabled=false;$('attachBtn').disabled=false;$('text').focus()}};
 $('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit()}});
 $('refresh').onclick=async()=>{try{await Promise.all([loadMessages(),loadDriveStatus(),loadStaff(),markRoomRead()])}catch(e){alert(e.message||'Не удалось обновить чат.')}};
 
