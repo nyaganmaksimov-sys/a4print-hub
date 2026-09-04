@@ -1,7 +1,6 @@
 (function(){
   if(window.__A4PRINT_CHAT_NOTIFICATIONS_V2__) return;
   window.__A4PRINT_CHAT_NOTIFICATIONS_V2__ = true;
-  // Disable the older notification initializer in navigation.js to avoid duplicates.
   window.__A4PRINT_CHAT_NOTIFICATIONS__ = true;
 
   const BASE_TITLE = document.title;
@@ -11,8 +10,11 @@
   let profile = null;
   let swRegistration = null;
   let pollTimer = null;
+  let audioCtx = null;
+  let soundEnabled = localStorage.getItem('a4_chat_sound_enabled') !== '0';
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const roomUrl = n => `./messages.html?room=${encodeURIComponent(n?.entity_id || '')}&v=notify`;
 
   function ensureUi(){
     if(document.getElementById('hubChatNotifyBell')) return;
@@ -23,10 +25,13 @@
       <button id="hubChatNotifyBell" type="button" title="Уведомления о сообщениях" style="position:relative;width:52px;height:52px;border:1px solid #cbd5e1;border-radius:16px;background:#fff;box-shadow:0 12px 36px rgba(15,23,42,.20);font-size:24px;cursor:pointer">🔔
         <b id="hubChatNotifyCount" style="display:none;position:absolute;right:-7px;top:-7px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:#ef4444;color:#fff;font:800 11px/22px Arial;text-align:center">0</b>
       </button>
-      <div id="hubChatNotifyPanel" style="display:none;position:absolute;right:0;top:60px;width:min(400px,calc(100vw - 32px));max-height:540px;overflow:auto;background:#fff;border:1px solid #dbe2ea;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.24);padding:12px">
+      <div id="hubChatNotifyPanel" style="display:none;position:absolute;right:0;top:60px;width:min(420px,calc(100vw - 32px));max-height:540px;overflow:auto;background:#fff;border:1px solid #dbe2ea;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.24);padding:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
           <div><strong style="font-size:16px">Уведомления</strong><div id="hubChatNotifyStatus" style="font-size:11px;color:#64748b;margin-top:2px">Подключение…</div></div>
-          <button id="hubChatNotifyTest" type="button" style="border:1px solid #dbe2ea;background:#f8fafc;border-radius:9px;padding:7px 9px;cursor:pointer;font:inherit;font-size:12px;font-weight:800">Тест</button>
+          <div style="display:flex;gap:6px">
+            <button id="hubChatNotifySound" type="button" style="border:1px solid #dbe2ea;background:#f8fafc;border-radius:9px;padding:7px 9px;cursor:pointer;font:inherit;font-size:12px;font-weight:800">🔊 Звук</button>
+            <button id="hubChatNotifyTest" type="button" style="border:1px solid #dbe2ea;background:#f8fafc;border-radius:9px;padding:7px 9px;cursor:pointer;font:inherit;font-size:12px;font-weight:800">Тест</button>
+          </div>
         </div>
         <div id="hubChatNotifyList"><div style="padding:22px;text-align:center;color:#94a3b8">Загрузка…</div></div>
       </div>`;
@@ -34,11 +39,60 @@
 
     const bell = document.getElementById('hubChatNotifyBell');
     const panel = document.getElementById('hubChatNotifyPanel');
-    bell.onclick = e => { e.stopPropagation(); panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; };
+    bell.onclick = e => { e.stopPropagation(); unlockAudio(); panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; };
     panel.onclick = e => e.stopPropagation();
     document.addEventListener('click', () => { panel.style.display = 'none'; });
     document.getElementById('hubChatNotifyTest').onclick = () => testNotification();
+    document.getElementById('hubChatNotifySound').onclick = () => toggleSound();
+    updateSoundButton();
   }
+
+  function updateSoundButton(){
+    const el = document.getElementById('hubChatNotifySound');
+    if(el) el.textContent = soundEnabled ? '🔊 Звук' : '🔇 Звук';
+  }
+
+  async function unlockAudio(){
+    if(!soundEnabled) return;
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      if(!audioCtx) audioCtx = new Ctx();
+      if(audioCtx.state === 'suspended') await audioCtx.resume();
+    }catch{}
+  }
+
+  function tone(freq, start, duration, gainValue){
+    if(!audioCtx || audioCtx.state !== 'running') return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(start); osc.stop(start + duration + 0.02);
+  }
+
+  async function playSound(){
+    if(!soundEnabled) return;
+    await unlockAudio();
+    if(!audioCtx || audioCtx.state !== 'running') return;
+    const t = audioCtx.currentTime + 0.01;
+    tone(880, t, 0.12, 0.12);
+    tone(1175, t + 0.14, 0.14, 0.10);
+  }
+
+  async function toggleSound(){
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('a4_chat_sound_enabled', soundEnabled ? '1' : '0');
+    updateSoundButton();
+    if(soundEnabled){ await unlockAudio(); await playSound(); }
+  }
+
+  document.addEventListener('pointerdown', () => unlockAudio(), {once:true, capture:true});
+  document.addEventListener('keydown', () => unlockAudio(), {once:true, capture:true});
 
   function setStatus(text, bad=false){
     const el = document.getElementById('hubChatNotifyStatus');
@@ -70,15 +124,17 @@
       return;
     }
     list.innerHTML = rows.map(n => `
-      <button type="button" data-chat-notify-id="${esc(n.id)}" style="display:block;width:100%;border:0;border-bottom:1px solid #eef2f7;background:#fff;padding:11px 8px;text-align:left;cursor:pointer;color:#0f172a">
+      <button type="button" data-chat-notify-id="${esc(n.id)}" data-room-id="${esc(n.entity_id || '')}" style="display:block;width:100%;border:0;border-bottom:1px solid #eef2f7;background:#fff;padding:11px 8px;text-align:left;cursor:pointer;color:#0f172a">
         <strong style="display:block;font-size:13px;margin-bottom:4px">💬 ${esc(n.title || 'Новое сообщение')}</strong>
         <span style="display:block;font-size:12px;color:#475569;line-height:1.4">${esc(n.body || 'Откройте чат')}</span>
         <small style="display:block;color:#94a3b8;margin-top:5px">${new Date(n.created_at).toLocaleString('ru-RU')}</small>
       </button>`).join('');
     list.querySelectorAll('[data-chat-notify-id]').forEach(btn => {
       btn.onclick = async () => {
-        try{ await supabase.from('notifications').update({is_read:true}).eq('id', btn.dataset.chatNotifyId); }catch{}
-        location.href = './messages.html?v=notify';
+        const id = btn.dataset.chatNotifyId;
+        const roomId = btn.dataset.roomId || '';
+        try{ await supabase.from('notifications').update({is_read:true}).eq('id', id); }catch{}
+        location.href = `./messages.html?room=${encodeURIComponent(roomId)}&v=notify`;
       };
     });
   }
@@ -95,17 +151,20 @@
     el.type = 'button';
     el.style.cssText = 'border:1px solid #60a5fa;background:#fff;border-radius:15px;padding:14px 16px;box-shadow:0 20px 55px rgba(15,23,42,.26);text-align:left;cursor:pointer;color:#0f172a;font:inherit';
     el.innerHTML = `<strong style="display:block;margin-bottom:5px">💬 ${esc(n.title || 'Новое сообщение')}</strong><span style="font-size:13px;color:#475569;line-height:1.4">${esc(n.body || 'Откройте чат')}</span>`;
-    el.onclick = () => { location.href = './messages.html?v=notify'; };
+    el.onclick = () => { location.href = roomUrl(n); };
     host.appendChild(el);
     setTimeout(() => el.remove(), 12000);
   }
 
   async function browserNotify(n){
     if(!('Notification' in window) || Notification.permission !== 'granted') return;
-    const options = { body:n.body || 'Новое сообщение', tag:`a4-hub-chat-${n.id}`, renotify:true, data:{url:'./messages.html?v=notify'} };
+    const options = { body:n.body || 'Новое сообщение', tag:`a4-hub-chat-${n.id}`, renotify:true, data:{url:roomUrl(n)} };
     try{
       if(swRegistration?.showNotification) await swRegistration.showNotification(n.title || 'A4PRINT HUB', options);
-      else new Notification(n.title || 'A4PRINT HUB', options);
+      else {
+        const x = new Notification(n.title || 'A4PRINT HUB', options);
+        x.onclick = () => { window.focus(); location.href = roomUrl(n); x.close(); };
+      }
     }catch(e){ console.warn('A4 system notification failed', e); }
   }
 
@@ -114,6 +173,7 @@
     seen.add(n.id);
     toast(n);
     browserNotify(n);
+    playSound();
   }
 
   async function sync(announceNew=true){
@@ -126,22 +186,24 @@
     const rows = data || [];
     setCount(rows.length);
     render(rows);
-    setStatus(`Работает · проверка каждые 2 сек${Notification.permission === 'granted' ? ' · браузер включён' : ''}`);
+    setStatus(`Работает · каждые 2 сек · ${soundEnabled ? 'звук включён' : 'звук выключен'}${Notification.permission === 'granted' ? ' · браузер включён' : ''}`);
     if(firstSync){ rows.forEach(n => seen.add(n.id)); firstSync = false; return; }
     if(announceNew) rows.slice().reverse().forEach(announce);
   }
 
   async function testNotification(){
     ensureUi();
-    const test = {id:`test-${Date.now()}`,title:'A4PRINT HUB',body:'Тест: уведомления внутри HUB работают'};
+    await unlockAudio();
+    const test = {id:`test-${Date.now()}`,title:'A4PRINT HUB',body:'Тест: уведомление и звук работают',entity_id:''};
     toast(test);
+    await playSound();
     if(!('Notification' in window)) return alert('Этот браузер не поддерживает системные уведомления.');
     if(Notification.permission === 'default') await Notification.requestPermission();
     if(Notification.permission === 'granted'){
       await browserNotify({...test, body:'Тест системного уведомления A4PRINT HUB'});
-      setStatus('Тест отправлен · браузерные уведомления разрешены');
+      setStatus(`Тест отправлен · ${soundEnabled ? 'звук включён' : 'звук выключен'} · браузер разрешён`);
     } else {
-      setStatus('Уведомления браузера запрещены, внутри HUB работают', true);
+      setStatus(`Браузерные уведомления запрещены · ${soundEnabled ? 'звук включён' : 'звук выключен'}`, true);
     }
   }
 
@@ -159,7 +221,7 @@
 
       if('serviceWorker' in navigator){
         try{
-          const reg = await navigator.serviceWorker.register('./notification-sw.js?v=20260904-2',{scope:'./'});
+          const reg = await navigator.serviceWorker.register('./notification-sw.js?v=20260904-3',{scope:'./'});
           swRegistration = await navigator.serviceWorker.ready || reg;
         }catch(e){ console.warn('A4 notification service worker failed', e); }
       }
