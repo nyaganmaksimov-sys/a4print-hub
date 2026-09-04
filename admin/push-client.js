@@ -78,11 +78,11 @@
 
   async function quietRestore(){
     if(!supported()||Notification.permission!=='granted')return;
-    let last=0;try{last=Number(localStorage.getItem(SYNC_KEY)||0)}catch{}
-    if(Date.now()-last<86400000)return;
     try{
       const r=await ensureRegistration();
       const sub=await r.pushManager.getSubscription();
+      let last=0;try{last=Number(localStorage.getItem(SYNC_KEY)||0)}catch{}
+      if(Date.now()-last<86400000)return;
       if(sub)await save(sub);
     }catch(e){console.warn('A4 push background sync failed',e)}
   }
