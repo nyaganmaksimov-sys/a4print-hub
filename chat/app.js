@@ -36,11 +36,18 @@ function providerEnabled(settings,provider){
 }
 function isStandalone(){return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true}
 function openChat(){location.replace('/admin/messages.html?app=1&v=pwa')}
-async function routeByProfile(){
+async function routeByProfile(autoOpen=true){
   const {data,error}=await supabase.rpc('get_my_staff_profile');
   if(error)throw error;
   const st=data?.status;
-  if(st==='ACTIVE'){openChat();return}
+  if(st==='ACTIVE'){
+    $('openChatBtn').hidden=false;
+    $('openChatBtn').onclick=openChat;
+    $('sessionHint').hidden=false;
+    $('sessionHint').textContent='✅ Вы уже вошли в A4PRINT HUB. Можно открыть чат или установить приложение.';
+    if(autoOpen)openChat();
+    return;
+  }
   $('openChatBtn').hidden=true;
   if(st==='PENDING'){
     $('sessionHint').hidden=false;
@@ -74,7 +81,7 @@ for(const btn of document.querySelectorAll('[data-provider]')){
       if(enabled===false)throw new Error(`${providerName(provider)} пока не подключён. Используйте другой способ входа.`);
       const redirect=new URL('/admin/login.html',location.origin);
       redirect.searchParams.set('oauth','1');
-      redirect.searchParams.set('returnTo','/chat/');
+      redirect.searchParams.set('returnTo','/chat/?auth=1');
       const {error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:redirect.href}});
       if(error)throw error;
     }catch(e){showMessage(e?.message||'Не удалось открыть авторизацию.','error');btn.disabled=false}
@@ -89,7 +96,7 @@ $('loginForm').addEventListener('submit',async e=>{
   try{
     const {error}=await supabase.auth.signInWithPassword({email,password});
     if(error)throw error;
-    await routeByProfile();
+    await routeByProfile(true);
   }catch(err){showMessage(err?.message||'Не удалось выполнить вход.','error')}
   finally{$('loginBtn').disabled=false;setLoading(false)}
 });
@@ -126,14 +133,17 @@ window.addEventListener('appinstalled',()=>{$('installBtn').hidden=true;showMess
 
 async function init(){
   if('serviceWorker' in navigator){navigator.serviceWorker.register('/a4print-chat-sw.js',{scope:'/'}).catch(e=>console.warn('PWA service worker',e))}
-  if(isStandalone())$('installBtn').hidden=true;
+  const standalone=isStandalone();
+  if(standalone)$('installBtn').hidden=true;
   else if(/iphone|ipad|ipod/i.test(navigator.userAgent))$('installBtn').hidden=false;
   await refreshProviderButtons();
   const {data:{session}}=await supabase.auth.getSession();
   if(session){
     setLoading(true);
-    try{await routeByProfile();$('openChatBtn').hidden=false;$('openChatBtn').onclick=openChat}
-    catch(e){showMessage(e?.message||'Не удалось проверить доступ.','error')}
+    try{
+      const justAuthenticated=new URLSearchParams(location.search).get('auth')==='1';
+      await routeByProfile(standalone||justAuthenticated);
+    }catch(e){showMessage(e?.message||'Не удалось проверить доступ.','error')}
     finally{setLoading(false)}
   }
 }
