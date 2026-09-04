@@ -1,0 +1,68 @@
+name: Check Mobile PWA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'admin/mobile-shell.*'
+      - 'admin/config.js'
+      - 'admin/guard.js'
+      - 'admin/chat-watchdog.js'
+      - 'admin/chat-modern.js'
+      - 'admin/messages.html'
+      - 'a4print-hub-sw.js'
+      - '.github/workflows/check-mobile-pwa.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check mobile/app-v3.js
+          node --check mobile/pwa.js
+          node --check mobile/updates-client.js
+          node --check admin/mobile-shell.js
+          node --check admin/chat-watchdog.js
+          node --check admin/chat-modern.js
+          node --check admin/guard.js
+          node --check a4print-hub-sw.js
+
+      - name: Validate JSON
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('mobile/manifest.webmanifest','utf8')); console.log('manifest ok')"
+          node -e "JSON.parse(require('fs').readFileSync('mobile/updates.json','utf8')); console.log('updates ok')"
+
+      - name: Verify mobile entrypoint
+        run: |
+          grep -q 'manifest.webmanifest' mobile/index.html
+          grep -q 'app-v3.js' mobile/index.html
+          grep -q 'pwa.js' mobile/index.html
+          grep -q '/admin/orders.html?status=NEW&mobile=1' mobile/index.html
+          grep -q '/admin/messages.html?app=1' mobile/index.html
+          grep -q '/admin/customers.html?mobile=1' mobile/index.html
+          grep -q '/mobile/account.html' mobile/index.html
+
+      - name: Verify core mobile admin pages
+        run: |
+          for f in admin/orders.html admin/order.html admin/customers.html admin/customer.html admin/manager.html; do
+            grep -q './config.js' "$f"
+            grep -q './guard.js' "$f"
+          done
+          grep -q 'mobile-shell.js' admin/config.js
+          grep -q 'mobile-shell.js' admin/chat-watchdog.js
+
+      - name: Verify background Push
+        run: |
+          grep -q "addEventListener('push'" a4print-hub-sw.js
+          grep -q 'pushManager.subscribe' mobile/pwa.js
+          grep -q 'push_subscriptions' mobile/pwa.js
+
+      - name: Mobile PWA smoke result
+        run: echo 'A4PRINT HUB mobile PWA smoke checks passed.'
