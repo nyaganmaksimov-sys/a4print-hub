@@ -1,4 +1,4 @@
-import { Capacitor } from 'https://cdn.jsdelivr.net/npm/@capacitor/core@7/+esm';
+import { Capacitor, CapacitorHttp } from 'https://cdn.jsdelivr.net/npm/@capacitor/core@7/+esm';
 import { App as NativeApp } from 'https://cdn.jsdelivr.net/npm/@capacitor/app@7/+esm';
 import { Browser as NativeBrowser } from 'https://cdn.jsdelivr.net/npm/@capacitor/browser@7/+esm';
 
@@ -10,7 +10,7 @@ const ACCESS_KEY='a4print_mobile_access';
 const REFRESH_KEY='a4print_mobile_refresh';
 const EXPIRES_KEY='a4print_mobile_expires';
 const $=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 const statusName={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Пауза',CANCELLED:'Отменён'};
 let oauthFinishing=false;
 
@@ -43,7 +43,7 @@ function friendlyError(ex,fallback='Не удалось выполнить оп�
   if(!msg)return fallback;
   if(/invalid login credentials|неверный email/i.test(msg))return 'Неверный email или пароль.';
   if(/email not confirmed/i.test(msg))return 'Email ещё не подтверждён.';
-  if(/failed to fetch|network|load failed|networkerror|abort/i.test(msg))return 'Не удалось связаться с A4PRINT HUB. Проверьте интернет и повторите попытку.';
+  if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с A4PRINT HUB. Повторите попытку через несколько секунд.';
   if(/timeout|время ожидания|слишком долго/i.test(msg))return 'Соединение устанавливается слишком долго. Повторите попытку.';
   return msg;
 }
@@ -61,14 +61,41 @@ function clearSession(){
 }
 function accessToken(){return localStorage.getItem(ACCESS_KEY)||''}
 
+function parseNativeData(raw){
+  if(raw==null)return {};
+  if(typeof raw==='object')return raw;
+  try{return JSON.parse(raw)}catch{return {message:String(raw)}}
+}
+
 async function api(path,{method='GET',body,token,timeout=35000}={}){
+  const url=API_BASE+path;
+  const headers={Accept:'application/json'};
+  if(body!==undefined)headers['Content-Type']='application/json';
+  if(token)headers.Authorization=`Bearer ${token}`;
+
+  if(IS_NATIVE&&CapacitorHttp?.request){
+    const response=await CapacitorHttp.request({
+      url,
+      method,
+      headers,
+      data:body,
+      connectTimeout:Math.min(timeout,20000),
+      readTimeout:timeout
+    });
+    const data=parseNativeData(response.data);
+    if(response.status<200||response.status>=300){
+      const e=new Error(data?.message||data?.error||`HTTP ${response.status}`);
+      e.status=response.status;
+      e.code=data?.error;
+      throw e;
+    }
+    return data;
+  }
+
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeout);
   try{
-    const headers={Accept:'application/json'};
-    if(body!==undefined)headers['Content-Type']='application/json';
-    if(token)headers.Authorization=`Bearer ${token}`;
-    const response=await fetch(API_BASE+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
+    const response=await fetch(url,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
     const text=await response.text();
     let data={};
     try{data=text?JSON.parse(text):{}}catch{data={message:text}}
@@ -94,7 +121,7 @@ async function refreshSession(){
 }
 
 async function bootstrap(){
-  let token=accessToken();
+  const token=accessToken();
   if(!token)return null;
   try{return await api('/api/v1/mobile/bootstrap',{token,timeout:35000})}
   catch(ex){
