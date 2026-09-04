@@ -11,7 +11,7 @@
   if(page==='messages.html')document.documentElement.classList.add('a4-chat-app-mode');
 
   const css=document.createElement('link');
-  css.rel='stylesheet';css.href='/admin/mobile-shell.css?v=20260904-1';document.head.appendChild(css);
+  css.rel='stylesheet';css.href='/admin/mobile-shell.css?v=20260904-2';document.head.appendChild(css);
 
   const active=page==='messages.html'?'chat':page==='customers.html'||page==='customer.html'?'customers':page==='orders.html'||page==='order.html'||page==='manager.html'?'orders':'more';
 
@@ -33,15 +33,17 @@
     }catch{return raw}
   }
 
+  function rewriteAnchor(a){
+    if(!a||a.dataset.a4MobileLink==='1')return;
+    const href=a.getAttribute('href');
+    if(!href||href.startsWith('#')||href.startsWith('mailto:')||href.startsWith('tel:')||href.startsWith('javascript:'))return;
+    const next=mobileUrl(href);
+    if(next!==href)a.setAttribute('href',next);
+    a.dataset.a4MobileLink='1';
+  }
   function rewriteLinks(root=document){
-    root.querySelectorAll?.('a[href]').forEach(a=>{
-      if(a.dataset.a4MobileLink==='1')return;
-      const href=a.getAttribute('href');
-      if(!href||href.startsWith('#')||href.startsWith('mailto:')||href.startsWith('tel:')||href.startsWith('javascript:'))return;
-      const next=mobileUrl(href);
-      if(next!==href)a.setAttribute('href',next);
-      a.dataset.a4MobileLink='1';
-    });
+    if(root?.matches?.('a[href]'))rewriteAnchor(root);
+    root.querySelectorAll?.('a[href]').forEach(rewriteAnchor);
   }
 
   function installNav(){
@@ -72,6 +74,12 @@
 
   function init(){
     rewriteLinks();cleanDesktopArtifacts();installNav();
+    document.addEventListener('click',e=>{
+      const a=e.target?.closest?.('a[href]');
+      if(!a||a.hasAttribute('download')||a.target==='_blank')return;
+      const href=a.getAttribute('href');if(!href)return;
+      const next=mobileUrl(href);if(next!==href)a.setAttribute('href',next);
+    },true);
     const observer=new MutationObserver(muts=>{for(const m of muts){for(const n of m.addedNodes){if(n.nodeType===1)rewriteLinks(n)}}});
     observer.observe(document.body,{childList:true,subtree:true});
   }
