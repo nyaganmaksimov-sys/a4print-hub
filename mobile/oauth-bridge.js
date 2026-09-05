@@ -21,7 +21,7 @@
     const provider=String(button.dataset.provider||'').trim();
     if(!provider)return;
     const target=safeTarget();
-    try{sessionStorage.setItem(RETURN_KEY,target)}catch{}
+    try{localStorage.setItem(RETURN_KEY,target);sessionStorage.setItem(RETURN_KEY,target)}catch{}
     button.disabled=true;
     button.dataset.oldHtml=button.innerHTML;
     button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
