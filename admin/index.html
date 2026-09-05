@@ -11,8 +11,8 @@
 <body class="dashboard-home">
   <aside class="sidebar">
     <div class="hub-logo-wrap">
-      <img id="hubLogo" class="hub-logo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-      <div class="hub-logo-fallback" style="display:none;color:#0f172a;text-align:center;font-weight:900;font-size:20px">A4PRINT <span style="color:#2563eb">HUB</span></div>
+      <img id="hubLogo" class="hub-logo" src="./assets/a4print-hub-logo-white.svg?v=20260905-1" alt="A4PRINT HUB" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <div class="hub-logo-fallback" style="display:none;color:#fff;text-align:center;font-weight:900;font-size:20px">A4PRINT <span style="color:#38bdf8">HUB</span></div>
     </div>
     <nav>
       <a class="active" href="./index.html">Главная</a>
@@ -119,57 +119,20 @@
               <h2>Последние заказы</h2>
               <p>Свежие заказы А4-Принт и 3D-ARTPRINT</p>
             </div>
-            <div style="display:flex;align-items:center;gap:12px">
-              <span class="dash-updated" id="lastUpdated">обновление...</span>
-              <a href="./orders.html">Все заказы →</a>
-            </div>
+            <a href="./orders.html">Все заказы →</a>
           </div>
-          <div class="dash-orders">
-            <div class="dash-order-header">
-              <span>Заказ</span><span>Клиент</span><span>Услуга</span><span>Направление</span><span>Сумма</span><span>Статус</span>
-            </div>
-            <div id="recentOrders"><div class="dash-empty">Загрузка заказов...</div></div>
-          </div>
+          <div id="recentOrders" class="dash-list"><div class="dash-empty">Загрузка...</div></div>
         </article>
-
-        <aside class="dash-card">
+        <article class="dash-card">
           <div class="dash-card-head">
-            <div><h2>Требует внимания</h2><p>Что важно проверить сейчас</p></div>
+            <div><h2>Производство</h2><p>Текущая загрузка</p></div>
+            <a href="./production.html">Открыть →</a>
           </div>
-          <div id="attention" class="dash-attention-list"><div class="dash-empty">Загрузка...</div></div>
-        </aside>
-      </section>
-
-      <section class="dash-units" aria-label="Направления">
-        <a class="dash-unit-card" href="./orders.html?unit=A4_PRINT" data-unit="a4">
-          <span class="dash-unit-mark">A4</span>
-          <span class="dash-unit-card-copy"><b>А4-Принт</b><span>Печать, услуги и заказы направления</span></span>
-          <span class="dash-unit-metrics"><span><strong id="a4Active">0</strong><small>активных</small></span><span><strong id="a4Ready">0</strong><small>готово</small></span></span>
-        </a>
-        <a class="dash-unit-card" href="./orders.html?unit=3D_ARTPRINT" data-unit="3d">
-          <span class="dash-unit-mark">3D</span>
-          <span class="dash-unit-card-copy"><b>3D-ARTPRINT</b><span>3D-печать, модели и производство</span></span>
-          <span class="dash-unit-metrics"><span><strong id="d3Active">0</strong><small>активных</small></span><span><strong id="d3Ready">0</strong><small>готово</small></span></span>
-        </a>
+          <div id="productionSummary" class="dash-list"><div class="dash-empty">Загрузка...</div></div>
+        </article>
       </section>
     </div>
   </main>
-
-  <script type="module" src="./app.js?v=20260904-23"></script>
-  <script type="module">
-    import {supabase} from './guard.js';
-    const logo=document.getElementById('hubLogo');
-    const cached=localStorage.getItem('a4print_hub_logo');
-    if(cached)logo.src=cached;
-    const {data:{session}}=await supabase.auth.getSession();
-    if(session){
-      document.getElementById('userEmail').textContent=session.user.email||'Сотрудник';
-      const{data}=await supabase.from('settings').select('value').eq('key','hub_branding').maybeSingle();
-      const saved=data?.value?.logo||'';
-      if(saved){logo.style.display='block';logo.nextElementSibling.style.display='none';logo.src=saved;localStorage.setItem('a4print_hub_logo',saved)}
-      else localStorage.removeItem('a4print_hub_logo');
-    }
-    document.getElementById('logout').onclick=async()=>{await supabase.auth.signOut();location.replace('./login.html')};
-  </script>
+  <script type="module" src="./app.js?v=20260905-1"></script>
 </body>
 </html>
