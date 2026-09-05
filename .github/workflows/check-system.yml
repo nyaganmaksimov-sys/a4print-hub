@@ -1,0 +1,141 @@
+name: Check A4PRINT HUB System
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - 'mobile/**'
+      - 'partner/**'
+      - 'pos/**'
+      - 'marketplace/**'
+      - 'api/**'
+      - 'a4print-hub-sw.js'
+      - 'index.html'
+      - '.github/workflows/check-system.yml'
+  schedule:
+    - cron: '17 3 * * *'
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify critical files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            index.html
+            admin/login.html admin/index.html admin/manager.html admin/orders.html admin/order.html
+            admin/customers.html admin/customer.html admin/partners.html admin/messages.html
+            admin/config.js admin/guard.js admin/navigation.js admin/manager-runtime.js admin/partners-runtime.js
+            mobile/index.html mobile/account.html mobile/manifest.webmanifest mobile/pwa.js
+            partner/login.html partner/index.html partner/crm.html
+            pos/login.html pos/index.html
+            a4print-hub-sw.js
+            api/package.json api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js
+          )
+          for f in "${files[@]}"; do
+            test -s "$f" || { echo "Missing or empty: $f"; exit 1; }
+          done
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts=(
+            admin/config.js admin/guard.js admin/navigation.js admin/app.js
+            admin/manager-runtime.js admin/partners-runtime.js
+            admin/chat-notifications.js admin/chat-room-router.js admin/chat-widget.js admin/push-client.js
+            mobile/app-v3.js mobile/pwa.js mobile/updates-client.js
+            a4print-hub-sw.js
+            api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/gateway.js
+          )
+          for f in "${scripts[@]}"; do
+            echo "checking $f"
+            node --check "$f"
+          done
+
+      - name: Validate PWA JSON
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('mobile/manifest.webmanifest','utf8')); console.log('manifest ok')"
+          node -e "JSON.parse(require('fs').readFileSync('mobile/updates.json','utf8')); console.log('updates ok')"
+
+      - name: Verify core wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'manager-runtime.js' admin/config.js
+          grep -q 'partners-runtime.js' admin/config.js
+          grep -q 'mobile-shell.js' admin/config.js
+          grep -q "addEventListener('push'" a4print-hub-sw.js
+          grep -q 'pushManager.subscribe' mobile/pwa.js
+          grep -q 'manifest.webmanifest' mobile/index.html
+          grep -q './config.js' admin/partners.html
+          grep -q './guard.js' admin/partners.html
+          grep -q './config.js' admin/manager.html
+          grep -q './guard.js' admin/manager.html
+
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait briefly for Pages deploy
+        run: sleep 25
+
+      - name: Check public pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_page() {
+            local url="$1"
+            echo "Checking $url"
+            code=$(curl -L --retry 5 --retry-delay 3 --retry-all-errors --max-time 25 -sS -o /tmp/page.html -w '%{http_code}' "$url")
+            echo "HTTP $code"
+            test "$code" = "200" || { cat /tmp/page.html || true; exit 1; }
+            test -s /tmp/page.html || { echo "Empty response"; exit 1; }
+          }
+          check_page 'https://a4print-hub.ru/'
+          check_page 'https://a4print-hub.ru/admin/login.html'
+          check_page 'https://a4print-hub.ru/admin/index.html'
+          check_page 'https://a4print-hub.ru/admin/manager.html'
+          check_page 'https://a4print-hub.ru/admin/orders.html'
+          check_page 'https://a4print-hub.ru/admin/customers.html'
+          check_page 'https://a4print-hub.ru/admin/partners.html'
+          check_page 'https://a4print-hub.ru/admin/messages.html'
+          check_page 'https://a4print-hub.ru/mobile/'
+          check_page 'https://a4print-hub.ru/partner/login.html'
+          check_page 'https://a4print-hub.ru/partner/index.html'
+          check_page 'https://a4print-hub.ru/pos/login.html'
+          check_page 'https://a4print-hub.ru/pos/index.html'
+          check_page 'https://a4print-hub.ru/marketplace/'
+
+      - name: Check backend health
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_json() {
+            local url="$1" marker="$2"
+            for attempt in $(seq 1 30); do
+              echo "Backend check $attempt/30: $url"
+              code=$(curl -L -sS --max-time 20 -o /tmp/health.json -w '%{http_code}' "$url" || true)
+              cat /tmp/health.json 2>/dev/null || true
+              echo
+              if [ "$code" = "200" ] && grep -q "$marker" /tmp/health.json; then
+                return 0
+              fi
+              sleep 8
+            done
+            echo "Backend health failed: $url"
+            exit 1
+          }
+          check_json 'https://a4print-hub-api.onrender.com/api/v1/health' '"success":true'
+          check_json 'https://a4print-hub-api.onrender.com/api/v1/mobile/health' '"mobileAuth":true'
+
+      - name: System smoke result
+        run: echo 'A4PRINT HUB full system smoke checks passed.'
