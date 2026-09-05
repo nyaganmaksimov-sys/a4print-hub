@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101828">
+  <meta name="color-scheme" content="light">
+  <title>A4PRINT KASSA 2.0</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=1">
+  <link rel="stylesheet" href="./styles.css?v=20260905-1">
+  <script src="../admin/config.js?v=20260905-6"></script>
+  <script src="../admin/vendor/supabase.js?v=20260905-netfix1"></script>
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <section id="authView" class="auth-view">
+    <div class="auth-card">
+      <div class="brand-row">
+        <img src="../admin/assets/a4print-hub-logo-white.svg" alt="A4PRINT HUB">
+        <div><b>A4PRINT KASSA</b><span>быстрая касса 2.0</span></div>
+      </div>
+      <div class="auth-copy">
+        <h1>Вход в кассу</h1>
+        <p>Каталог и чек работают локально. Интернет нужен только для синхронизации.</p>
+      </div>
+      <button id="googleLogin" class="btn google" type="button">Войти через Google</button>
+      <div class="or"><span>или по email</span></div>
+      <form id="loginForm">
+        <label>Email<input id="loginEmail" type="email" autocomplete="username" required placeholder="name@company.ru"></label>
+        <label>Пароль<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
+        <div id="loginError" class="form-error"></div>
+        <button id="loginSubmit" class="btn primary wide" type="submit">Войти</button>
+      </form>
+      <div class="auth-foot">A4-Принт · A4PRINT HUB</div>
+    </div>
+  </section>
+
+  <section id="appView" class="app-view" hidden>
+    <header class="topbar">
+      <div class="top-brand">
+        <img src="../admin/assets/a4print-hub-logo-white.svg" alt="A4PRINT">
+        <div><b>A4PRINT KASSA</b><span>2.0 · local-first</span></div>
+      </div>
+      <div class="top-search">
+        <span>⌕</span>
+        <input id="search" autocomplete="off" placeholder="Поиск, артикул или штрихкод" autofocus>
+        <kbd>F2</kbd>
+      </div>
+      <div class="top-status">
+        <button id="networkChip" class="status-chip" type="button"><i></i><span>Сеть</span></button>
+        <button id="queueChip" class="status-chip" type="button"><i></i><span>Очередь 0</span></button>
+        <button id="shiftChip" class="status-chip" type="button"><i></i><span>Смена</span></button>
+      </div>
+      <div class="operator-box">
+        <select id="operatorSelect" aria-label="Оператор"></select>
+        <button id="logout" class="icon-btn" title="Выйти" type="button">↪</button>
+      </div>
+    </header>
+
+    <div id="offlineBanner" class="offline-banner" hidden>
+      <b>Работа офлайн</b><span>Чеки сохраняются на этом компьютере и уйдут в МойСклад после восстановления связи.</span>
+    </div>
+
+    <main class="workspace">
+      <aside class="category-panel">
+        <div class="category-head">Категории</div>
+        <button class="category active" data-category="ALL"><span>▦</span>Все</button>
+        <button class="category" data-category="FAVORITES"><span>★</span>Избранное</button>
+        <div id="dynamicCategories" class="category-list"></div>
+        <div class="side-spacer"></div>
+        <button id="syncNow" class="side-action" type="button">↻ Синхронизировать</button>
+        <button id="openOldPos" class="side-action muted" type="button">Старая касса</button>
+      </aside>
+
+      <section class="catalog-panel">
+        <div class="catalog-toolbar">
+          <div>
+            <h1 id="catalogTitle">Все позиции</h1>
+            <span id="catalogMeta">Загрузка каталога…</span>
+          </div>
+          <div class="toolbar-actions">
+            <button id="toggleFavoritesOnly" class="btn light" type="button">★ Избранное</button>
+            <button id="refreshCatalog" class="btn light" type="button">Обновить каталог</button>
+          </div>
+        </div>
+        <div id="catalogGrid" class="catalog-grid">
+          <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+        </div>
+      </section>
+
+      <aside class="cart-panel">
+        <div class="cart-head">
+          <div><h2>Текущий чек</h2><span id="cartCount">0 позиций</span></div>
+          <button id="clearCart" class="link-btn" type="button">Очистить</button>
+        </div>
+        <div id="cartItems" class="cart-items">
+          <div class="empty-cart"><div>🧾</div><b>Чек пока пуст</b><span>Нажмите на товар или услугу слева</span></div>
+        </div>
+        <div class="cart-bottom">
+          <div class="customer-box">
+            <button id="customerToggle" class="customer-toggle" type="button"><span>Клиент</span><b id="customerName">Не выбран</b><i>›</i></button>
+            <div id="customerPanel" class="customer-panel" hidden>
+              <input id="customerSearch" autocomplete="off" placeholder="Имя, телефон или email">
+              <div id="customerResults" class="customer-results"></div>
+              <button id="clearCustomer" class="link-btn" type="button">Без клиента</button>
+            </div>
+          </div>
+
+          <div class="payment-tabs" role="group" aria-label="Способ оплаты">
+            <button class="pay-tab active" data-payment="Наличные" type="button">Наличные</button>
+            <button class="pay-tab" data-payment="Карта" type="button">Карта</button>
+            <button class="pay-tab" data-payment="СБП" type="button">СБП</button>
+          </div>
+          <select id="cashAccount" class="account-select" aria-label="Счёт"></select>
+          <div class="total-row"><span>Итого</span><strong id="cartTotal">0 ₽</strong></div>
+          <button id="payButton" class="pay-button" type="button" disabled><span>Оформить продажу</span><strong>0 ₽</strong></button>
+          <div class="bottom-info">
+            <span id="shiftInfo">Смена не открыта</span>
+            <button id="shiftButton" class="link-btn" type="button">Открыть смену</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <section id="queueDrawer" class="drawer" aria-hidden="true">
+      <div class="drawer-card">
+        <div class="drawer-head"><div><h2>Очередь синхронизации</h2><span>Чеки, сохранённые локально</span></div><button id="closeQueue" class="icon-btn" type="button">×</button></div>
+        <div id="queueList" class="queue-list"></div>
+        <div class="drawer-foot"><button id="retryQueue" class="btn primary" type="button">Повторить синхронизацию</button></div>
+      </div>
+    </section>
+  </section>
+
+  <script src="./db.js?v=20260905-1"></script>
+  <script src="./app.js?v=20260905-1"></script>
+</body>
+</html>
