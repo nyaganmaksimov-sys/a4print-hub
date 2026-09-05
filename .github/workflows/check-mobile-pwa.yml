@@ -11,6 +11,8 @@ on:
       - 'admin/mobile-auth-route.js'
       - 'admin/profile.html'
       - 'admin/profile.js'
+      - 'admin/manager.html'
+      - 'admin/manager-runtime.js'
       - 'admin/mobile-shell.*'
       - 'admin/config.js'
       - 'admin/guard.js'
@@ -38,6 +40,7 @@ jobs:
           node --check mobile/updates-client.js
           node --check admin/mobile-auth-route.js
           node --check admin/profile.js
+          node --check admin/manager-runtime.js
           node --check admin/mobile-shell.js
           node --check admin/chat-watchdog.js
           node --check admin/chat-modern.js
@@ -99,10 +102,14 @@ jobs:
 
       - name: Verify core mobile admin pages
         run: |
-          for f in admin/orders.html admin/order.html admin/customers.html admin/customer.html admin/manager.html; do
+          for f in admin/orders.html admin/order.html admin/customers.html admin/customer.html; do
             grep -q './config.js' "$f"
             grep -q './guard.js' "$f"
           done
+          grep -q './config.js?v=20260905-4' admin/manager.html
+          grep -q 'manager-runtime.js?v=20260905-4' admin/manager.html
+          grep -q 'a4print_mobile_access' admin/manager-runtime.js
+          ! grep -q "import {supabase} from './guard.js'" admin/manager.html
           grep -q 'mobile-shell.js' admin/config.js
           grep -q 'mobile-shell.js' admin/chat-watchdog.js
 
