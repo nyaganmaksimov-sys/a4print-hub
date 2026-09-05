@@ -45,6 +45,25 @@ function msDate(value=new Date()){
   const pad=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
+function normalizeMsMoment(value){
+  const m=String(value||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  return m?`${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`:null;
+}
+function addSecondsToMsMoment(value,seconds=1){
+  const s=normalizeMsMoment(value);
+  if(!s)return null;
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+  const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])+Number(seconds||0)));
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+function resolveRetailReturnMoment(templateMoment,demandMoment){
+  const source=normalizeMsMoment(demandMoment);
+  const suggested=normalizeMsMoment(templateMoment);
+  if(suggested&&(!source||suggested>source))return suggested;
+  if(source)return addSecondsToMsMoment(source,1);
+  return suggested||msDate();
+}
 export async function fetchAssortment(token){if(!token)throw new Error('MOYSKLAD_TOKEN is not configured');const rows=[];let url=`${BASE}/entity/assortment?limit=1000`;while(url){const data=await ms(token,url);rows.push(...(data.rows||[]));url=data.meta?.nextHref||null}return rows}
 export async function syncMoySkladCatalog({supabase,token,organizationId}){const sourceRows=await fetchAssortment(token);let created=0,updated=0;for(const row of sourceRows){const type=row.meta?.type;if(!['product','variant','service','bundle'].includes(type))continue;const payload={organization_id:organizationId,external_source:'MOYSKLAD',external_id:row.id,external_href:row.meta?.href||null,sku:sku(row),name:row.name||sku(row),item_type:itemType(type),article:row.article||null,barcode:row.barcodes?.[0]?.ean13||row.barcodes?.[0]?.ean8||row.barcodes?.[0]?.code128||null,unit:row.uom?.name||'шт',description:row.description||null,sale_price:salePrice(row),external_updated_at:row.updated||null,last_synced_at:new Date().toISOString(),is_active:row.archived!==true};const {data:existing,error:findError}=await supabase.from('catalog_items').select('id').eq('external_source','MOYSKLAD').eq('external_id',row.id).maybeSingle();if(findError)throw findError;if(existing){const {error}=await supabase.from('catalog_items').update(payload).eq('id',existing.id);if(error)throw error;updated++}else{const {error}=await supabase.from('catalog_items').insert(payload);if(error)throw error;created++}}return{received:sourceRows.length,created,updated}}
 export async function fetchMoySkladStock(token){const data=await ms(token,'/report/stock/all?limit=1000');const map={};for(const row of data.rows||[]){const id=row.meta?.href?.split('/').pop();if(id)map[id]=Number(row.stock??row.quantity??0)}return map}
@@ -69,6 +88,12 @@ export async function createRetailReturn({token,saleId,items,paymentMethod,opera
   if(!items?.length)throw new Error('Не выбраны позиции для возврата');
   const {store,organization,shift}=await getRetailContext(token);
   const demandHref=`${BASE}/entity/retaildemand/${saleId}`;
+  let sourceDemand=null;
+  try{
+    sourceDemand=await ms(token,demandHref);
+  }catch(e){
+    throw new Error(`Не удалось прочитать исходную продажу ${saleId}: ${e.message}`);
+  }
   let template=null;
   try{
     template=await ms(token,'/entity/retailsalesreturn/new',{method:'PUT',body:JSON.stringify({demand:{meta:{href:demandHref,type:'retaildemand',mediaType:'application/json'}}})});
@@ -81,19 +106,22 @@ export async function createRetailReturn({token,saleId,items,paymentMethod,opera
   });
   const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);
   const payment=String(paymentMethod||'Наличные').toLowerCase();
+  const returnMoment=resolveRetailReturnMoment(template?.moment,sourceDemand?.moment);
   const payload={
-    organization:{meta:template?.organization?.meta||organization.meta},
-    retailStore:{meta:store.meta},
+    organization:{meta:template?.organization?.meta||sourceDemand?.organization?.meta||organization.meta},
+    retailStore:{meta:template?.retailStore?.meta||sourceDemand?.retailStore?.meta||store.meta},
     retailShift:{meta:shift.meta},
     demand:{meta:{href:demandHref,type:'retaildemand',mediaType:'application/json'}},
     positions,
-    moment:msDate(),
+    moment:returnMoment,
     cashSum:payment.includes('налич')?total:0,
     noCashSum:(payment.includes('карт')||payment.includes('банк'))?total:0,
     qrSum:payment.includes('сбп')?total:0,
     description:`A4PRINT HUB · Возврат · Оператор: ${operatorName||'не указан'}${reason?` · Причина: ${reason}`:''}`
   };
   if(template?.store?.meta)payload.store={meta:template.store.meta};
+  else if(sourceDemand?.store?.meta)payload.store={meta:sourceDemand.store.meta};
   if(template?.agent?.meta)payload.agent={meta:template.agent.meta};
+  else if(sourceDemand?.agent?.meta)payload.agent={meta:sourceDemand.agent.meta};
   return ms(token,'/entity/retailsalesreturn',{method:'POST',body:JSON.stringify(payload)});
 }
