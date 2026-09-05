@@ -30,8 +30,9 @@
     const url=cfg.supabaseUrl||FALLBACK_URL,key=cfg.supabasePublishableKey||FALLBACK_KEY;
     pending=(async()=>{
       try{
-        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);
-        const r=await fetch(`${url}/rest/v1/rpc/get_public_auth_ui`,{
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
+        const transport=window.A4SupabaseFetch||fetch;
+        const r=await transport(`${url}/rest/v1/rpc/get_public_auth_ui`,{
           method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:'{}',signal:controller.signal
         });
         clearTimeout(timer);
