@@ -1,1 +1,92 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Мой кабинет — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script><style>.profile-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px}.avatar{width:82px;height:82px;border-radius:22px;background:#eff6ff;color:#1d4ed8;display:grid;place-items:center;font-size:28px;font-weight:900;margin-bottom:14px;overflow:hidden}.avatar img{width:100%;height:100%;object-fit:cover}.muted{color:#64748b}.roles{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.role{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:800}.field{display:grid;gap:6px;margin:12px 0}.field input{padding:11px 12px;border:1px solid #dbe2ea;border-radius:10px;font:inherit}.btn{border:0;border-radius:11px;padding:10px 14px;font:inherit;font-weight:800;cursor:pointer;background:#2563eb;color:#fff}.btn.secondary{background:#fff;color:#334155;border:1px solid #dbe2ea}.links{display:grid;gap:8px;margin-top:16px}.links a{padding:10px 12px;border:1px solid #e5e7eb;border-radius:11px;text-decoration:none;color:#334155;font-weight:700}.status{display:inline-block;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:900}.assignment{margin-top:14px;padding:12px;border-radius:13px;background:#f8fafc}.assignment b{display:block}.assignment span{display:block;margin-top:3px;color:#64748b;font-size:13px}.error,.success{display:none;margin-top:10px;font-size:13px}.error{color:#b91c1c}.success{color:#166534}@media(max-width:900px){.profile-grid{grid-template-columns:1fr}.sidebar{display:none}.main{margin-left:0!important}}</style></head><body><aside class="sidebar"><div class="brand"></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>Мой кабинет</h1><p>Профиль сотрудника и права доступа</p></div><div><button id="logout" class="btn secondary">Выйти</button></div></header><section class="profile-grid"><article class="card"><div id="avatar" class="avatar">A4</div><h2 id="name">Загрузка…</h2><div id="email" class="muted"></div><div style="margin-top:12px"><span class="status">Активен</span></div><div class="assignment"><b id="position">Должность не назначена</b><span id="department">Отдел не назначен</span></div><div id="roles" class="roles"></div><div class="links"><a href="./index.html">🏠 Главная HUB</a><a href="./messages.html">💬 Сообщения</a><a href="./documents.html">📁 Документы</a></div></article><article class="card"><h2>Личные данные</h2><form id="profileForm"><label class="field">ФИО<input id="fullName" required></label><label class="field">Телефон<input id="phone"></label><label class="field">Email<input id="profileEmail" disabled></label><label class="field">Способ входа<input id="provider" disabled></label><label class="field">Организация и отдел<input id="profileDepartment" disabled></label><label class="field">Должность<input id="profilePosition" disabled></label><button class="btn" id="save">Сохранить</button><div id="profileError" class="error"></div><div id="profileSuccess" class="success"></div></form><div id="passwordBlock" style="margin-top:24px;border-top:1px solid #eef2f7;padding-top:18px"><h3>Смена пароля</h3><label class="field">Новый пароль<input id="newPassword" type="password" minlength="6"></label><button class="btn secondary" id="changePassword" type="button">Изменить пароль</button><div id="passwordError" class="error"></div><div id="passwordSuccess" class="success"></div></div></article></section></main><script src="./navigation.js"></script><script type="module">import{createClient}from'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';const cfg=window.A4PRINT_CONFIG||{},supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey),$=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));let data=null;async function load(){const{data:{session}}=await supabase.auth.getSession();if(!session)return location.replace('./login.html');const r=await supabase.rpc('get_my_staff_profile');if(r.error)throw r.error;data=r.data;if(data.status!=='ACTIVE')return location.replace(data.status==='UNREGISTERED'?'./register.html':'./pending.html');const u=data.user||{},d=data.department||{},org=d.organization||{},departmentLabel=[org.name,d.name].filter(Boolean).join(' · ');$('name').textContent=u.full_name||'Сотрудник';$('email').textContent=u.email||session.user.email||'';$('position').textContent=u.position||'Должность не назначена';$('department').textContent=departmentLabel||'Отдел не назначен';$('fullName').value=u.full_name||'';$('phone').value=u.phone||'';$('profileEmail').value=u.email||session.user.email||'';$('provider').value=data.provider||'email';$('profileDepartment').value=departmentLabel||'Не назначен';$('profilePosition').value=u.position||'Не назначена';$('roles').innerHTML=(data.roles||[]).map(x=>`<span class="role">${esc(x.name)}</span>`).join('')||'<span class="muted">Роли не назначены</span>';const av=data.avatar_url;if(av)$('avatar').innerHTML=`<img src="${esc(av)}" alt="">`;else $('avatar').textContent=(u.full_name||'A4').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();$('passwordBlock').style.display=(data.provider==='email')?'block':'none'}$('profileForm').onsubmit=async e=>{e.preventDefault();$('profileError').style.display='none';$('profileSuccess').style.display='none';try{$('save').disabled=true;const{error}=await supabase.rpc('update_my_staff_profile',{p_full_name:$('fullName').value.trim(),p_phone:$('phone').value.trim()||null});if(error)throw error;$('profileSuccess').textContent='Данные сохранены.';$('profileSuccess').style.display='block';await load()}catch(e){$('profileError').textContent=e?.message||'Не удалось сохранить.';$('profileError').style.display='block'}finally{$('save').disabled=false}};$('changePassword').onclick=async()=>{const p=$('newPassword').value;$('passwordError').style.display='none';$('passwordSuccess').style.display='none';if(p.length<6){$('passwordError').textContent='Минимум 6 символов.';$('passwordError').style.display='block';return}try{const{error}=await supabase.auth.updateUser({password:p});if(error)throw error;$('newPassword').value='';$('passwordSuccess').textContent='Пароль изменён.';$('passwordSuccess').style.display='block'}catch(e){$('passwordError').textContent=e?.message||'Не удалось изменить пароль.';$('passwordError').style.display='block'}};$('logout').onclick=async()=>{await supabase.auth.signOut();location.replace('./login.html')};load().catch(e=>{document.querySelector('.profile-grid').innerHTML=`<div class="card" style="color:#b91c1c">${esc(e.message)}</div>`});</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Мой профиль — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./config.js"></script>
+  <style>
+    .profile-grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px}.profile-side{align-self:start;position:sticky;top:88px}.avatar-wrap{display:flex;align-items:flex-start;gap:15px}.avatar{width:96px;height:96px;border-radius:26px;background:#eff6ff;color:#1d4ed8;display:grid;place-items:center;font-size:30px;font-weight:950;overflow:hidden;box-shadow:inset 0 0 0 1px #dbeafe}.avatar img{width:100%;height:100%;object-fit:cover}.avatar-actions{display:grid;gap:8px;flex:1}.avatar-actions small{color:#64748b;font-size:11px;line-height:1.45}.muted{color:#64748b}.roles{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.role{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:800}.field{display:grid;gap:6px;margin:12px 0}.field input{padding:12px 13px;border:1px solid #dbe2ea;border-radius:11px;font:inherit;background:#fff;color:#172033}.field input:disabled{background:#f8fafc;color:#64748b}.btn{border:0;border-radius:11px;padding:11px 14px;font:inherit;font-weight:850;cursor:pointer;background:#2563eb;color:#fff}.btn:disabled{opacity:.6;cursor:wait}.btn.secondary{background:#fff;color:#334155;border:1px solid #dbe2ea}.btn.danger{background:#fff;color:#b91c1c;border:1px solid #fecaca}.btn.full{width:100%}.links{display:grid;gap:8px;margin-top:16px}.links a{padding:10px 12px;border:1px solid #e5e7eb;border-radius:11px;text-decoration:none;color:#334155;font-weight:700}.status{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:900}.assignment{margin-top:14px;padding:12px;border-radius:13px;background:#f8fafc}.assignment b{display:block}.assignment span{display:block;margin-top:3px;color:#64748b;font-size:13px}.profile-main{display:grid;gap:18px}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}.section-head h2,.section-head h3{margin:0}.section-head p{margin:5px 0 0;color:#64748b;font-size:12px;line-height:1.45}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.security-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.security-box{padding:16px;border:1px solid #e5e7eb;border-radius:15px;background:#f8fafc}.security-box h3{margin:0 0 5px}.security-box p{margin:0 0 10px;color:#64748b;font-size:12px;line-height:1.45}.profile-msg{margin-top:10px;padding:9px 11px;border-radius:10px;font-size:12px;font-weight:700}.profile-msg[hidden]{display:none}.profile-msg.ok{background:#ecfdf5;color:#166534}.profile-msg.err{background:#fff1f2;color:#be123c}.provider-note{margin:10px 0 0;color:#64748b;font-size:11px;line-height:1.45}.profile-fatal{color:#b91c1c}.mobile-profile-link{display:none}
+    @media(max-width:900px){.profile-grid{grid-template-columns:1fr}.profile-side{position:static}.sidebar{display:none}.main{margin-left:0!important}.two,.security-grid{grid-template-columns:1fr}.avatar-wrap{align-items:center}.avatar{width:82px;height:82px;border-radius:22px}.mobile-profile-link{display:block}}
+    @media(max-width:520px){.card{padding:16px;border-radius:16px}.avatar-wrap{align-items:flex-start}.avatar-actions .btn{padding:10px 9px;font-size:12px}.topbar{gap:8px}}
+  </style>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Мой профиль</h1><p>Личные данные, аватар и безопасность аккаунта</p></div>
+      <div><button id="logout" class="btn secondary">Выйти</button></div>
+    </header>
+
+    <section class="profile-grid">
+      <article class="card profile-side">
+        <div class="avatar-wrap">
+          <div id="avatar" class="avatar">A4</div>
+          <div class="avatar-actions">
+            <input id="avatarFile" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            <button id="chooseAvatar" class="btn" type="button">Сменить фото</button>
+            <button id="removeAvatar" class="btn danger" type="button" hidden>Удалить</button>
+            <small>JPG, PNG или WebP. Фото автоматически уменьшается перед загрузкой.</small>
+          </div>
+        </div>
+        <div id="avatarMsg" class="profile-msg" hidden></div>
+        <h2 id="name" style="margin-bottom:4px">Загрузка…</h2>
+        <div id="email" class="muted"></div>
+        <div style="margin-top:12px"><span class="status">● Активен</span></div>
+        <div class="assignment"><b id="position">Должность не назначена</b><span id="department">Отдел не назначен</span></div>
+        <div id="roles" class="roles"></div>
+        <div class="links">
+          <a href="./index.html">🏠 Главная HUB</a>
+          <a href="./messages.html">💬 Сообщения</a>
+          <a href="./documents.html">📁 Документы</a>
+          <a class="mobile-profile-link" href="/mobile/account.html">⚙ Аккаунт и уведомления</a>
+        </div>
+      </article>
+
+      <div class="profile-main">
+        <article class="card">
+          <div class="section-head"><div><h2>Личные данные</h2><p>Эти данные видят сотрудники HUB в рабочих разделах.</p></div></div>
+          <form id="profileForm">
+            <div class="two">
+              <label class="field">ФИО<input id="fullName" autocomplete="name" required></label>
+              <label class="field">Телефон<input id="phone" autocomplete="tel" inputmode="tel"></label>
+            </div>
+            <div class="two">
+              <label class="field">Email<input id="profileEmail" disabled></label>
+              <label class="field">Способ входа<input id="provider" disabled></label>
+              <label class="field">Организация и отдел<input id="profileDepartment" disabled></label>
+              <label class="field">Должность<input id="profilePosition" disabled></label>
+            </div>
+            <button class="btn" id="save" type="submit">Сохранить изменения</button>
+            <div id="profileMsg" class="profile-msg" hidden></div>
+          </form>
+        </article>
+
+        <article class="card">
+          <div class="section-head"><div><h2>Безопасность аккаунта</h2><p>Смена email и пароля доступна для аккаунтов с входом по email. Для Google данные входа управляются через Google.</p></div></div>
+          <div class="security-grid">
+            <section id="securityEmail" class="security-box">
+              <h3>Изменить email</h3><p>На новый адрес придёт письмо для подтверждения.</p>
+              <label class="field">Новый email<input id="newEmail" type="email" autocomplete="email" placeholder="new@email.ru"></label>
+              <button id="changeEmail" class="btn secondary" type="button">Изменить email</button>
+              <div id="emailMsg" class="profile-msg" hidden></div>
+            </section>
+            <section id="passwordBlock" class="security-box">
+              <h3>Изменить пароль</h3><p>Используйте не меньше 6 символов.</p>
+              <label class="field">Новый пароль<input id="newPassword" type="password" minlength="6" autocomplete="new-password"></label>
+              <button id="changePassword" class="btn secondary" type="button">Изменить пароль</button>
+              <div id="passwordMsg" class="profile-msg" hidden></div>
+            </section>
+          </div>
+          <p id="providerNote" class="provider-note"></p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="./navigation.js"></script>
+  <script src="./profile.js?v=20260905-1"></script>
+</body>
+</html>
