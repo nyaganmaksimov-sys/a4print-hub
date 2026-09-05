@@ -1,6 +1,7 @@
 import express from 'express';
 
 const BASE='https://api.moysklad.ru/api/remap/1.2';
+const BUILD='20260905-mslive3';
 const token=process.env.MOYSKLAD_TOKEN;
 
 async function ms(path){
@@ -9,7 +10,7 @@ async function ms(path){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
   try{
-    const r=await fetch(url,{signal:controller.signal,headers:{Authorization:`Bearer ${token}`,Accept:'application/json;charset=utf-8'}});
+    const r=await fetch(url,{signal:controller.signal,headers:{Authorization:`Bearer ${token}`,Accept:'application/json;charset=utf-8','Accept-Encoding':'gzip'}});
     if(!r.ok)throw new Error(`MoySklad HTTP ${r.status}: ${await r.text()}`);
     return r.status===204?null:r.json();
   }finally{clearTimeout(timer)}
@@ -18,7 +19,11 @@ async function ms(path){
 const cents=v=>Number(v||0)/100;
 const idOf=e=>e?.id||e?.meta?.href?.split('/').pop()||null;
 const typeOf=e=>String(e?.meta?.type||'').toLowerCase();
-const finite=(...values)=>{for(const value of values){const n=Number(value);if(Number.isFinite(n))return n}return 0};
+const timeOf=e=>{
+  const raw=e?.openDate||e?.moment||e?.created||e?.updated||'';
+  const d=new Date(String(raw).replace(' ','T'));
+  return Number.isFinite(d.getTime())?d.getTime():0;
+};
 
 async function mapLimit(items,limit,fn){
   const out=new Array(items.length);let cursor=0;
@@ -28,10 +33,24 @@ async function mapLimit(items,limit,fn){
   await Promise.all(workers);return out;
 }
 
+async function currentCashBalance(shift){
+  try{
+    const report=await ms('/report/money/bymoment');
+    const orgId=idOf(shift?.organization);
+    const rows=Array.isArray(report?.rows)?report.rows:[];
+    const exact=rows.find(row=>!row.account&&(!orgId||idOf(row.organization)===orgId));
+    const fallback=rows.find(row=>!row.account);
+    return cents((exact||fallback)?.balance||0);
+  }catch{
+    return 0;
+  }
+}
+
 async function liveShift(){
   const list=await ms('/entity/retailshift?limit=100&order=created,desc');
-  const open=(list?.rows||[]).find(x=>!x.closeDate)||null;
-  if(!open)return{shift:null,summary:null,store:null};
+  const openRows=(list?.rows||[]).filter(x=>!x.closeDate).sort((a,b)=>timeOf(b)-timeOf(a));
+  const open=openRows[0]||null;
+  if(!open)return{shift:null,summary:null,store:null,build:BUILD};
 
   const shift=await ms(`/entity/retailshift/${encodeURIComponent(idOf(open))}`);
   const storeHref=shift?.retailStore?.meta?.href||open?.retailStore?.meta?.href||null;
@@ -39,7 +58,7 @@ async function liveShift(){
   if(storeHref){try{store=await ms(storeHref)}catch{}}
 
   const refs=Array.isArray(shift?.operations)?shift.operations:[];
-  const operations=(await mapLimit(refs,8,async ref=>{
+  const operations=(await mapLimit(refs,5,async ref=>{
     const href=ref?.meta?.href;
     if(!href)return ref;
     try{return await ms(href)}catch{return ref}
@@ -75,16 +94,14 @@ async function liveShift(){
   d.revenue_cash=cents(shift?.proceedsCash);
   d.revenue_cashless=cents(shift?.proceedsNoCash);
   d.revenue_total=d.revenue_cash+d.revenue_cashless;
-
-  // MoySklad exposes the current cash-box amount differently across retail-store/shift API versions.
-  // Prefer the retail-store cash value when present, then the shift's receivedCash value.
-  d.cash_in_register=cents(finite(store?.cash,store?.state?.cash,shift?.cash,shift?.receivedCash));
   d.received_cash=cents(shift?.receivedCash);
   d.received_cashless=cents(shift?.receivedNoCash);
+  d.cash_in_register=await currentCashBalance(shift);
   d.source='MOYSKLAD_LIVE';
 
   const storeId=idOf(shift?.retailStore)||idOf(store);
   return{
+    build:BUILD,
     shift:{id:shift.id,name:shift.name,openDate:shift.moment||shift.openDate||shift.created,closeDate:shift.closeDate||null,updated:shift.updated||null},
     store:{id:storeId,name:store?.name||shift?.retailStore?.name||null},
     summary:d
@@ -92,7 +109,12 @@ async function liveShift(){
 }
 
 const originalGet=express.application.get;
+let markerAdded=false;
 express.application.get=function patchedGet(path,...handlers){
+  if(!markerAdded){
+    markerAdded=true;
+    originalGet.call(this,'/api/v1/pos/shift-live-build',(_req,res)=>res.json({success:true,shiftLive:BUILD}));
+  }
   if(path==='/api/v1/pos/shift'&&handlers.length){
     const index=handlers.length-1;
     handlers[index]=async function liveMoySkladShift(_req,res,next){
