@@ -11,6 +11,7 @@ on:
       - 'pos/**'
       - 'marketplace/**'
       - 'api/**'
+      - 'database/migrations/**'
       - 'a4print-hub-sw.js'
       - 'index.html'
       - '.github/workflows/check-system.yml'
@@ -39,6 +40,7 @@ jobs:
             pos/login.html pos/index.html
             a4print-hub-sw.js
             api/package.json api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js
+            database/migrations/100_system_e2e_self_test.sql
           )
           for f in "${files[@]}"; do
             test -s "$f" || { echo "Missing or empty: $f"; exit 1; }
@@ -80,6 +82,9 @@ jobs:
           grep -q './guard.js' admin/partners.html
           grep -q './config.js' admin/manager.html
           grep -q './guard.js' admin/manager.html
+          grep -q '/api/v1/system/health' api/src/mobile-proxy.js
+          grep -q 'run_system_e2e_self_test' database/migrations/100_system_e2e_self_test.sql
+          grep -q 'a4print-hub-system-e2e-daily' database/migrations/100_system_e2e_self_test.sql
 
   live-smoke:
     runs-on: ubuntu-latest
@@ -115,7 +120,7 @@ jobs:
           check_page 'https://a4print-hub.ru/pos/index.html'
           check_page 'https://a4print-hub.ru/marketplace/'
 
-      - name: Check backend health
+      - name: Check backend and E2E health
         shell: bash
         run: |
           set -euo pipefail
@@ -136,6 +141,7 @@ jobs:
           }
           check_json 'https://a4print-hub-api.onrender.com/api/v1/health' '"success":true'
           check_json 'https://a4print-hub-api.onrender.com/api/v1/mobile/health' '"mobileAuth":true'
+          check_json 'https://a4print-hub-api.onrender.com/api/v1/system/health' '"status":"PASS"'
 
       - name: System smoke result
-        run: echo 'A4PRINT HUB full system smoke checks passed.'
+        run: echo 'A4PRINT HUB full system and E2E health checks passed.'
