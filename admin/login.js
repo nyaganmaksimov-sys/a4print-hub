@@ -40,8 +40,8 @@ function rememberReturn(rt){try{if(rt)localStorage.setItem(RETURN_KEY,rt)}catch{
 function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
 
 (async()=>{
-  let createClient=window.supabase?.createClient;
-  if(!createClient){const mod=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');createClient=mod.createClient}
+  const createClient=window.supabase?.createClient;
+  if(!createClient)throw new Error('Локальный модуль авторизации не загрузился. Обновите страницу.');
   const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   window.__A4_AUTH_CLIENT__=supabase;
 
@@ -115,8 +115,6 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
   const rt=validReturn(q.get('returnTo'));if(rt)rememberReturn(rt);
   const autoProvider=q.get('startProvider');if(autoProvider){startOAuth(autoProvider);return}
 
-  // Supabase JS сам принимает OAuth callback из URL, сохраняет refresh token
-  // и дальше автоматически обновляет access token. Повторно OAuth не запускаем.
   const {data:{session},error:sessionError}=await supabase.auth.getSession();
   if(sessionError)showError(friendlyError(sessionError));
   if(session){
