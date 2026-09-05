@@ -42,6 +42,21 @@ const service = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
 
+app.get('/api/v1/health', (_req, res) => res.json({
+  success: true,
+  service: 'a4print-hub-api',
+  status: 'ok',
+  build: '20260905-pos-sale-v2',
+  databaseConfigured: Boolean(service),
+  moyskladConfigured: Boolean(process.env.MOYSKLAD_TOKEN),
+  capabilities: {
+    posSale: true,
+    posShift: true,
+    posReturns: true,
+    telegram: true
+  }
+}));
+
 app.get('/api/v1/mobile/health', (_req, res) => res.json({
   success: true,
   service: 'a4print-hub-mobile-api',
