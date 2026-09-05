@@ -62,7 +62,10 @@ window.A4PRINT_CONFIG = {
     return;
   }
 
-  if (isAuthPage) return;
+  if (isAuthPage) {
+    document.querySelectorAll('[data-provider="custom:yandex"],[data-provider="custom:mailru"]').forEach(el=>el.remove());
+    return;
+  }
 
   if (isPartners) load('partners-api-fallback.js','20260905-1');
   load('theme.js','20260905-1');
