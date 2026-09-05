@@ -33,6 +33,7 @@ window.A4PRINT_CONFIG = {
   const isAuthPage = /\/admin\/(login|register|pending|invite|reset-password)\.html$/.test(location.pathname);
   const isAdmin = /\/admin\//.test(location.pathname) && !isAuthPage;
   const isChat = /\/admin\/messages\.html$/.test(location.pathname);
+  const isManager = /\/admin\/manager\.html$/.test(location.pathname);
   const params = new URLSearchParams(location.search);
   const isEmbed = isChat && params.get('embed') === '1';
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
@@ -62,6 +63,7 @@ window.A4PRINT_CONFIG = {
 
   if (!isAdmin) return;
 
+  if (isManager) load('manager-runtime.js','20260905-1');
   load('navigation.js','20260904-10');
   load('workspace-clean.js','20260904-2');
   load('nav-accordion.js','20260904-3');
