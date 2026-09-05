@@ -60,6 +60,16 @@ jobs:
           grep -q 'signInWithOAuth' admin/login.js
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
+      - name: Verify Google auth provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY='sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu'
+          curl -fsS --max-time 20 -H "apikey: $KEY" 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/settings' -o /tmp/auth-settings.json
+          node -e "const s=JSON.parse(require('fs').readFileSync('/tmp/auth-settings.json','utf8')); if(s.external?.google!==true){console.error(s); process.exit(1)}; console.log('Google OAuth provider enabled')"
+          code=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Fa4print-hub.ru%2Fadmin%2Flogin.html%3Foauth%3D1%26returnTo%3D%252Fmobile%252F')
+          test "$code" = "302" || test "$code" = "303"
+
       - name: Verify core mobile admin pages
         run: |
           for f in admin/orders.html admin/order.html admin/customers.html admin/customer.html admin/manager.html; do
