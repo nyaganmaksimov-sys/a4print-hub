@@ -5,8 +5,9 @@ on:
     branches: [main]
     paths:
       - 'kassa/**'
-      - 'api/src/pos-shift-live-patch.js'
+      - 'api/src/moysklad.js'
       - 'api/src/boot.js'
+      - 'api/src/pos-build-marker.js'
       - '.github/workflows/check-kassa2.yml'
   workflow_dispatch:
 
@@ -28,8 +29,9 @@ jobs:
           node --check kassa/bootstrap.js
           node --check kassa/shift-operator.js
           node --check kassa/shift-live.js
-          node --check api/src/pos-shift-live-patch.js
+          node --check api/src/moysklad.js
           node --check api/src/boot.js
+          node --check api/src/pos-build-marker.js
       - name: Check Kassa shell
         run: |
           test -f kassa/index.html
@@ -51,8 +53,10 @@ jobs:
           grep -q "serviceWorker.register" kassa/app.js
           grep -q "client_operation_id" kassa/app.js
           grep -q 'shift-live.js' kassa/bootstrap.js
-          grep -q '20260905-mslive4' api/src/pos-shift-live-patch.js
-          grep -q '/report/money/bymoment' api/src/pos-shift-live-patch.js
+          grep -q '20260905-mslive5' api/src/moysklad.js
+          grep -q 'latestOpenShift' api/src/moysklad.js
+          grep -q 'moysklad-direct' api/src/pos-build-marker.js
+          ! grep -q 'pos-shift-live-patch.js' api/src/boot.js
       - name: Validate manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
 
@@ -60,22 +64,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Wait for Render live-shift build
+      - name: Wait for direct POS backend build
         shell: bash
         run: |
           set -euo pipefail
-          url='https://a4print-hub-api.onrender.com/api/v1/pos/shift-live-build'
-          marker='20260905-mslive4'
+          url='https://a4print-hub-api.onrender.com/api/v1/pos/build'
+          marker='20260905-mslive5'
           for attempt in $(seq 1 45); do
-            echo "Render live shift check $attempt/45"
+            echo "Render POS build check $attempt/45"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
             cat /tmp/live.json 2>/dev/null || true
             echo
-            if [ "$code" = "200" ] && grep -q "$marker" /tmp/live.json; then
-              echo 'Render is running the live MoySklad shift build.'
+            if [ "$code" = "200" ] && grep -q "$marker" /tmp/live.json && grep -q 'moysklad-direct' /tmp/live.json; then
+              echo 'Render is running the direct MoySklad shift backend.'
               exit 0
             fi
             sleep 8
           done
-          echo 'Render did not deploy the live MoySklad shift build in time.'
+          echo 'Render did not deploy the direct MoySklad shift backend in time.'
           exit 1
