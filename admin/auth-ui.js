@@ -48,7 +48,7 @@
     const key=provider==='email'?'email':providerKey(provider);
     return cfg?.[mode]?.[key]!==false;
   }
-  function setHidden(el,hidden){if(!el)return;el.hidden=!!hidden;el.style.display=hidden?'none':''}
+  function setHidden(el,hidden){if(!el)return;el.hidden=!!hidden;if(hidden)el.style.setProperty('display','none','important');else{el.style.removeProperty('display');if(el.matches?.('[data-provider]'))el.style.setProperty('display','flex','important')}}
   async function apply(mode,root=document){
     const cfg=await load();
     const section=cfg[mode]||DEFAULTS[mode];
