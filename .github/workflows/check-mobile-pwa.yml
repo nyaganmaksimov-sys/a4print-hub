@@ -99,13 +99,16 @@ jobs:
           grep -q 'signInWithPassword' admin/login.js
           grep -q 'signInWithOAuth' admin/login.js
           grep -q 'get_my_staff_profile' admin/login.js
+          grep -q '/api/v1/mobile/auth/password' admin/login.js
+          grep -q 'setSession' admin/login.js
           grep -q 'A4SupabaseFetch' admin/login.js
           grep -q 'A4SupabaseFetch' admin/guard.js
           grep -q 'A4SupabaseFetch' admin/config.js
           grep -q '/api/v1/supabase' admin/config.js
           grep -q "'/api/v1/supabase'" api/src/mobile-proxy.js
+          grep -q '/api/v1/mobile/auth/password' api/src/mobile-proxy.js
           grep -q 'vendor/supabase.js' admin/login.html
-          grep -q 'login.js?v=20260905-netfix1' admin/login.html
+          grep -q 'login.js?v=20260905-emailfix1' admin/login.html
           ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' admin/login.js
           ! grep -q 'sb-qgakliolffnwkymoqvzn-auth-token' admin/login.js
 
