@@ -1,0 +1,80 @@
+name: Check Support Center
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/support.html'
+      - 'admin/support.js'
+      - 'admin/support-access.js'
+      - 'admin/onboarding.js'
+      - 'admin/settings-collapsible.js'
+      - 'admin/config.js'
+      - 'admin/guard.js'
+      - 'admin/chat-watchdog.js'
+      - 'mobile/pwa.js'
+      - 'database/migrations/108_support_center_and_support_role.sql'
+      - 'database/migrations/109_isolate_support_from_internal_chat.sql'
+      - '.github/workflows/check-support.yml'
+
+jobs:
+  support-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify support files
+        run: |
+          set -euo pipefail
+          test -s admin/support.html
+          test -s admin/support.js
+          test -s admin/support-access.js
+          test -s admin/onboarding.js
+          test -s admin/settings-collapsible.js
+          test -s database/migrations/108_support_center_and_support_role.sql
+          test -s database/migrations/109_isolate_support_from_internal_chat.sql
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/support.js
+          node --check admin/support-access.js
+          node --check admin/onboarding.js
+          node --check admin/settings-collapsible.js
+          node --check admin/chat-watchdog.js
+          node --check mobile/pwa.js
+      - name: Verify wiring
+        run: |
+          set -euo pipefail
+          grep -q 'support.js' admin/support.html
+          grep -q 'open_support_ticket' admin/support.js
+          grep -q 'send_support_message' admin/support.js
+          grep -q "'SUPPORT'" database/migrations/108_support_center_and_support_role.sql
+          grep -q 'is_support_only' database/migrations/109_isolate_support_from_internal_chat.sql
+          grep -q 'support-access.js' admin/config.js
+          grep -q 'onboarding.js' admin/config.js
+          grep -q 'settings-collapsible.js' admin/config.js
+          grep -q 'support.html' admin/guard.js
+          grep -q 'Поддержка' admin/chat-watchdog.js
+          grep -q 'enforceSupportRole' mobile/pwa.js
+
+  support-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Pages deployment
+        run: sleep 35
+      - name: Check live support assets
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.html?check=${GITHUB_SHA}" || true)
+            js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.js?check=${GITHUB_SHA}" || true)
+            cfg=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/config.js?check=${GITHUB_SHA}" || true)
+            if echo "$page" | grep -q 'Чат-бот поддержки' && echo "$js" | grep -q 'open_support_ticket' && echo "$cfg" | grep -q 'settings-collapsible.js'; then
+              echo 'Support center, onboarding and collapsible settings are live.'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Support assets did not become live in time.'
+          exit 1
