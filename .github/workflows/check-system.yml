@@ -33,7 +33,7 @@ jobs:
             index.html
             admin/login.html admin/index.html admin/manager.html admin/orders.html admin/order.html
             admin/customers.html admin/customer.html admin/partners.html admin/messages.html
-            admin/config.js admin/guard.js admin/navigation.js admin/manager-runtime.js admin/partners-runtime.js
+            admin/config.js admin/guard.js admin/navigation.js admin/manager-runtime.js admin/partners-api-fallback.js
             mobile/index.html mobile/account.html mobile/manifest.webmanifest mobile/pwa.js
             partner/login.html partner/index.html partner/crm.html
             pos/login.html pos/index.html
@@ -50,7 +50,7 @@ jobs:
           set -euo pipefail
           scripts=(
             admin/config.js admin/guard.js admin/navigation.js admin/app.js
-            admin/manager-runtime.js admin/partners-runtime.js
+            admin/manager-runtime.js admin/partners-api-fallback.js
             admin/chat-notifications.js admin/chat-room-router.js admin/chat-widget.js admin/push-client.js
             mobile/app-v3.js mobile/pwa.js mobile/updates-client.js
             a4print-hub-sw.js
@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'manager-runtime.js' admin/config.js
-          grep -q 'partners-runtime.js' admin/config.js
+          grep -q 'partners-api-fallback.js' admin/config.js
           grep -q 'mobile-shell.js' admin/config.js
           grep -q "addEventListener('push'" a4print-hub-sw.js
           grep -q 'pushManager.subscribe' mobile/pwa.js
