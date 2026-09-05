@@ -13,6 +13,29 @@
     if(!sticky)notice.t=setTimeout(()=>n.style.display='none',3600);
   }
 
+  function authStorageKey(key){
+    const k=String(key||'');
+    return /^sb-.*-auth-token$/i.test(k)
+      || /^a4print_mobile_(access|refresh|expires)$/i.test(k)
+      || k==='a4print_auth_return_to';
+  }
+
+  function clearAuthStorage(store){
+    try{
+      const keys=[];
+      for(let i=0;i<store.length;i+=1)keys.push(store.key(i));
+      keys.filter(authStorageKey).forEach(key=>store.removeItem(key));
+    }catch(_){ }
+  }
+
+  function forceLogout(button){
+    if(button){button.disabled=true;button.textContent='Выходим…'}
+    clearAuthStorage(localStorage);
+    clearAuthStorage(sessionStorage);
+    try{window.name=''}catch(_){ }
+    location.replace(`./login.html?logout=1&ts=${Date.now()}`);
+  }
+
   function setBackendChip(state,text){
     let el=document.getElementById('posBackendState');
     const actions=document.querySelector('.top-actions');
@@ -57,6 +80,13 @@
   }
 
   document.addEventListener('click',e=>{
+    const logout=e.target?.closest?.('#logout');
+    if(logout){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      forceLogout(logout);
+      return;
+    }
     const pay=e.target?.closest?.('#pay');
     if(pay&&saleReady===false){
       e.preventDefault();e.stopImmediatePropagation();
