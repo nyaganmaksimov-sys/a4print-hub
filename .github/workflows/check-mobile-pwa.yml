@@ -42,6 +42,7 @@ jobs:
           node --check mobile/quick-menu.js
           node --check mobile/pwa.js
           node --check mobile/updates-client.js
+          node --check admin/login.js
           node --check admin/mobile-auth-route.js
           node --check admin/profile.js
           node --check admin/manager-runtime.js
@@ -88,6 +89,15 @@ jobs:
           grep -q 'access_token' mobile/app-v3.js
           grep -q 'grant_type=password' mobile/app-v3.js
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
+
+      - name: Verify hardened desktop login
+        run: |
+          grep -q 'auth/v1/token?grant_type=password' admin/login.js
+          grep -q 'auth/v1/authorize' admin/login.js
+          grep -q 'get_my_staff_profile' admin/login.js
+          grep -q 'sb-qgakliolffnwkymoqvzn-auth-token' admin/login.js
+          ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' admin/login.js
+          grep -q 'login.js?v=20260905-3' admin/login.html
 
       - name: Verify Google auth provider
         shell: bash
