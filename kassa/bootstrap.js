@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260905-boot1';
+  const VERSION='20260905-shiftlive1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -38,6 +38,7 @@
     await loadScript('./modules.js');
     await loadScript('./ui.js');
     await loadScript('./shift-operator.js');
+    await loadScript('./shift-live.js');
     window.__A4_KASSA_BOOT_OK__=true;
   }
 
