@@ -55,7 +55,7 @@ window.A4PRINT_CONFIG = {
   }
 
   if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260905-1');
-  if (mobileContext) load('mobile-shell.js','20260905-3');
+  if (mobileContext) load('mobile-shell.js','20260905-4');
 
   if (isChatApp) {
     load('dialog-fixes.js');
