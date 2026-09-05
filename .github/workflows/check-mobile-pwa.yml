@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      - 'admin/login.js'
       - 'admin/mobile-shell.*'
       - 'admin/config.js'
       - 'admin/guard.js'
@@ -25,6 +26,7 @@ jobs:
 
       - name: Check JavaScript syntax
         run: |
+          node --check mobile/oauth-bridge.js
           node --check mobile/app-v3.js
           node --check mobile/pwa.js
           node --check mobile/updates-client.js
@@ -42,12 +44,21 @@ jobs:
       - name: Verify mobile entrypoint
         run: |
           grep -q 'manifest.webmanifest' mobile/index.html
+          grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'app-v3.js' mobile/index.html
           grep -q 'pwa.js' mobile/index.html
           grep -q '/admin/orders.html?status=NEW&mobile=1' mobile/index.html
           grep -q '/admin/messages.html?app=1' mobile/index.html
           grep -q '/admin/customers.html?mobile=1' mobile/index.html
           grep -q '/mobile/account.html' mobile/index.html
+
+      - name: Verify mobile OAuth bridge
+        run: |
+          grep -q 'startProvider' mobile/oauth-bridge.js
+          grep -q "u.pathname.startsWith('/mobile/')" admin/login.js
+          grep -q 'startProvider' admin/login.js
+          grep -q 'signInWithOAuth' admin/login.js
+          ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
       - name: Verify core mobile admin pages
         run: |
