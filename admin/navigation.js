@@ -2,8 +2,27 @@ async function initA4Navigation(){
   if(window.__A4PRINT_NAV_READY__)return;
   window.__A4PRINT_NAV_READY__=true;
 
-  const sidebar=document.querySelector('.sidebar');
-  if(!sidebar)return;
+  const main=document.querySelector('.main');
+  let sidebar=document.querySelector('.sidebar');
+
+  // Единая оболочка для всех внутренних страниц. Некоторые старые карточки
+  // (например order.html) исторически не содержали sidebar в разметке.
+  if(!sidebar){
+    sidebar=document.createElement('aside');
+    sidebar.className='sidebar';
+    sidebar.setAttribute('aria-label','Навигация A4PRINT HUB');
+    sidebar.innerHTML='<div class="brand"></div><nav></nav>';
+    if(main)main.before(sidebar);else document.body.prepend(sidebar);
+  }
+  if(!sidebar.querySelector('.brand')){
+    const brand=document.createElement('div');brand.className='brand';sidebar.prepend(brand);
+  }
+  if(!sidebar.querySelector('nav'))sidebar.appendChild(document.createElement('nav'));
+
+  // У старых detail-страниц мог быть inline margin-left:0, который перекрывал
+  // общий layout. После появления sidebar всегда используем отступ из styles.css.
+  if(main)main.style.removeProperty('margin-left');
+  document.body.classList.add('a4-has-sidebar');
 
   const COLLAPSE_KEY='a4print_sidebar_collapsed_v1';
   const mobile=window.matchMedia?.('(max-width:900px)').matches;
@@ -40,23 +59,45 @@ async function initA4Navigation(){
   if(!head){head=document.createElement('div');head.className='a4-sidebar-head';sidebar.prepend(head)}
   head.innerHTML='';
   const toggle=document.createElement('button');
-  toggle.type='button';toggle.className='a4-sidebar-toggle';toggle.title='Свернуть/развернуть меню';toggle.innerHTML=`<span>${icons.menu}</span><small>Меню</small>`;head.appendChild(toggle);
+  toggle.type='button';
+  toggle.className='a4-sidebar-toggle';
+  toggle.title='Свернуть/развернуть меню';
+  toggle.innerHTML=`<span>${icons.menu}</span><small>Меню</small>`;
+  head.appendChild(toggle);
+
+  const updateToggleState=()=>{
+    const collapsed=document.body.classList.contains('a4-sidebar-collapsed');
+    toggle.setAttribute('aria-expanded',collapsed?'false':'true');
+    toggle.setAttribute('aria-label',collapsed?'Развернуть боковое меню':'Свернуть боковое меню');
+  };
+  updateToggleState();
+
   toggle.onclick=()=>{
-    if(window.matchMedia?.('(max-width:900px)').matches){document.body.classList.remove('a4-mobile-nav-open');return}
+    if(window.matchMedia?.('(max-width:900px)').matches){
+      document.body.classList.remove('a4-mobile-nav-open');
+      return;
+    }
     const next=!document.body.classList.contains('a4-sidebar-collapsed');
     document.body.classList.toggle('a4-sidebar-collapsed',next);
     try{localStorage.setItem(COLLAPSE_KEY,next?'1':'0')}catch{}
+    updateToggleState();
   };
 
   const brand=sidebar.querySelector('.brand');
   if(brand){
-    brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#fff;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#38bdf8">HUB</span></div>`;
+    brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#0f172a;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#2563eb">HUB</span></div>`;
     const img=document.getElementById('globalHubLogo'),fallback=document.getElementById('globalHubLogoFallback');
     if(img&&fallback)img.onerror=()=>{img.style.display='none';fallback.style.display='block'};
   }
 
   const nav=sidebar.querySelector('nav');if(!nav)return;
-  const path=location.pathname.split('/').pop()||'index.html';
+  const rawPath=location.pathname.split('/').pop()||'index.html';
+  const parentPage={
+    'order.html':'orders.html',
+    'customer.html':'customers.html',
+    'invoice.html':'documents.html'
+  };
+  const path=parentPage[rawPath]||rawPath;
   const items=[
     ['index.html','home','Главная'],
     ['manager.html','manager','Менеджер'],
