@@ -1,7 +1,7 @@
 import express from 'express';
 
 const BASE='https://api.moysklad.ru/api/remap/1.2';
-const BUILD='20260905-mslive3';
+const BUILD='20260905-mslive4';
 const token=process.env.MOYSKLAD_TOKEN;
 
 async function ms(path){
@@ -24,6 +24,13 @@ const timeOf=e=>{
   const d=new Date(String(raw).replace(' ','T'));
   return Number.isFinite(d.getTime())?d.getTime():0;
 };
+const firstFinite=(...values)=>{
+  for(const value of values){
+    const n=Number(value);
+    if(Number.isFinite(n))return n;
+  }
+  return null;
+};
 
 async function mapLimit(items,limit,fn){
   const out=new Array(items.length);let cursor=0;
@@ -33,17 +40,19 @@ async function mapLimit(items,limit,fn){
   await Promise.all(workers);return out;
 }
 
-async function currentCashBalance(shift){
+async function currentCashBalance(shift,store){
+  const direct=firstFinite(store?.cash,store?.state?.cash,shift?.cash);
+  if(direct!==null)return cents(direct);
   try{
     const report=await ms('/report/money/bymoment');
     const orgId=idOf(shift?.organization);
     const rows=Array.isArray(report?.rows)?report.rows:[];
     const exact=rows.find(row=>!row.account&&(!orgId||idOf(row.organization)===orgId));
     const fallback=rows.find(row=>!row.account);
-    return cents((exact||fallback)?.balance||0);
-  }catch{
-    return 0;
-  }
+    const balance=firstFinite((exact||fallback)?.balance);
+    if(balance!==null)return cents(balance);
+  }catch{}
+  return cents(firstFinite(shift?.receivedCash,0)||0);
 }
 
 async function liveShift(){
@@ -96,7 +105,7 @@ async function liveShift(){
   d.revenue_total=d.revenue_cash+d.revenue_cashless;
   d.received_cash=cents(shift?.receivedCash);
   d.received_cashless=cents(shift?.receivedNoCash);
-  d.cash_in_register=await currentCashBalance(shift);
+  d.cash_in_register=await currentCashBalance(shift,store);
   d.source='MOYSKLAD_LIVE';
 
   const storeId=idOf(shift?.retailStore)||idOf(store);
