@@ -1,13 +1,19 @@
 const config = window.A4PRINT_CONFIG || {};
 const url = config.supabaseUrl || 'https://qgakliolffnwkymoqvzn.supabase.co';
-const key = config.supabasePublishableKey || '';
+const key = config.supabasePublishableKey || 'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
 
 let createClient = window.supabase?.createClient;
 if (!createClient) {
   const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
   createClient = mod.createClient;
 }
-const supabase = createClient(url, key);
+const supabase = createClient(url, key, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
 const page = location.pathname.split('/').pop();
 const params = new URLSearchParams(location.search);
@@ -20,13 +26,42 @@ function mobileLogin(reason='session') {
   const ret = location.pathname + location.search + location.hash;
   location.replace(`/mobile/?login=1&reason=${encodeURIComponent(reason)}&return=${encodeURIComponent(ret)}`);
 }
+function login(reason='session') {
+  if (mobileContext) mobileLogin(reason);
+  else if (page === 'messages.html') location.replace('/chat/start.html?login=1');
+  else {
+    const ret = location.pathname + location.search + location.hash;
+    location.replace(`./login.html?returnTo=${encodeURIComponent(ret)}`);
+  }
+}
+
+async function currentSession() {
+  try {
+    let { data: { session }, error } = await supabase.auth.getSession();
+    if (error) console.warn('Auth session read failed', error);
+    if (!session) return null;
+
+    // getUser validates the JWT against Supabase. If the access token expired,
+    // the client can refresh it from the persisted refresh token automatically.
+    let userResult = await supabase.auth.getUser();
+    if (userResult.error && /expired|jwt|token/i.test(String(userResult.error.message || ''))) {
+      const refreshed = await supabase.auth.refreshSession();
+      if (refreshed.error || !refreshed.data.session) return null;
+      session = refreshed.data.session;
+      userResult = await supabase.auth.getUser();
+    }
+    if (userResult.error || !userResult.data.user) return null;
+    return session;
+  } catch (e) {
+    console.warn('Auth validation failed', e);
+    return null;
+  }
+}
 
 if (!publicPages.has(page)) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await currentSession();
   if (!session) {
-    if (mobileContext) mobileLogin('session');
-    else if (page === 'messages.html') location.replace('/chat/start.html?login=1');
-    else location.replace('./login.html');
+    login('session');
   } else {
     if (page !== 'profile.html' && page !== 'messages.html') {
       const { data, error } = await supabase.rpc('get_my_staff_profile');
