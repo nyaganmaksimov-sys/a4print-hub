@@ -20,6 +20,7 @@ jobs:
         run: |
           node --check kassa/app.js
           node --check kassa/modules.js
+          node --check kassa/ui.js
           node --check kassa/db.js
           node --check kassa/sw.js
       - name: Check Kassa shell
@@ -28,12 +29,15 @@ jobs:
           test -f kassa/styles.css
           test -f kassa/modules.css
           test -f kassa/modules.js
+          test -f kassa/ui.js
           test -f kassa/manifest.webmanifest
           grep -q 'A4PRINT KASSA' kassa/index.html
+          grep -q 'Отложенные чеки' kassa/index.html
           grep -q 'Возвраты' kassa/index.html
           grep -q 'Отчёты и статистика' kassa/index.html
           grep -q '/api/v1/pos/returns' kassa/modules.js
           grep -q 'pos_dashboard' kassa/modules.js
+          grep -q 'a4_kassa_catalog_mode' kassa/ui.js
           grep -q 'IndexedDB\|indexedDB' kassa/db.js
           grep -q "DB.put('queue'" kassa/app.js
           grep -q "syncQueue" kassa/app.js
