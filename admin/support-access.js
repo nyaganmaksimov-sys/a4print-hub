@@ -1,7 +1,11 @@
 (()=>{
   if(window.__A4_SUPPORT_ACCESS__)return;
   window.__A4_SUPPORT_ACCESS__=true;
-  const cfg=window.A4PRINT_CONFIG||{};
+  const baseCfg=window.A4PRINT_CONFIG||{};
+  const cfg={
+    supabaseUrl:baseCfg.supabaseUrl||'https://qgakliolffnwkymoqvzn.supabase.co',
+    supabasePublishableKey:baseCfg.supabasePublishableKey||'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu'
+  };
   const supportHref='./support.html';
 
   function authToken(){
@@ -18,7 +22,7 @@
 
   async function roles(){
     if(Array.isArray(window.__A4_CURRENT_ROLES__))return window.__A4_CURRENT_ROLES__;
-    const token=authToken();if(!token||!cfg.supabaseUrl||!cfg.supabasePublishableKey)return [];
+    const token=authToken();if(!token)return [];
     const r=await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/get_my_roles`,{method:'POST',headers:{apikey:cfg.supabasePublishableKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});
     if(!r.ok)return [];
     const d=await r.json().catch(()=>[]);return Array.isArray(d)?d:[];
@@ -54,6 +58,10 @@
     const rs=await roles().catch(()=>[]);
     const supportOnly=rs.includes('SUPPORT')&&!rs.includes('ADMIN');
     window.__A4_SUPPORT_ONLY__=supportOnly;
+    if(supportOnly&&/^\/mobile\/?(?:index\.html)?$/.test(location.pathname)){
+      location.replace('/admin/support.html?mobile=1');
+      return;
+    }
     let tries=0;
     const timer=setInterval(()=>{
       tries++;
