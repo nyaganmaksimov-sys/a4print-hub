@@ -73,6 +73,14 @@ async function operatorProfile(authUserId) {
   return data;
 }
 
+async function resolvePosOperator(req, requestedId) {
+  const own = await operatorProfile(req.authUser?.id);
+  if (!req.isAdmin || !requestedId || !supabase) return own;
+  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active').eq('id', requestedId).maybeSingle();
+  if (error) throw error;
+  return data?.is_active === false ? own : (data || own);
+}
+
 const cleanText = (value, max = 500) => String(value || '').trim().slice(0, max);
 const customerFields = 'id,full_name,company_name,email,phone,notes,created_at,updated_at';
 
@@ -123,18 +131,18 @@ app.get('/api/v1/pos/shift', requirePosUser, async (req, res, next) => {
 app.post('/api/v1/pos/shift/open', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
-    const profile = await operatorProfile(req.authUser.id);
+    const profile = await resolvePosOperator(req, cleanText(req.body?.operator_id, 80));
     const result = await openRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
-    res.json({ success: true, alreadyOpen: result.alreadyOpen, shift: { id: result.shift?.id, name: result.shift?.name, openDate: result.shift?.openDate || result.shift?.moment || result.shift?.created }, store: { id: result.store?.id, name: result.store?.name } });
+    res.json({ success: true, alreadyOpen: result.alreadyOpen, shift: { id: result.shift?.id, name: result.shift?.name, openDate: result.shift?.openDate || result.shift?.moment || result.shift?.created }, store: { id: result.store?.id, name: result.store?.name }, operator: { id: profile?.id || null, name: profile?.full_name || req.authUser.email } });
   } catch (e) { next(e); }
 });
 
 app.post('/api/v1/pos/shift/close', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
-    const profile = await operatorProfile(req.authUser.id);
+    const profile = await resolvePosOperator(req, cleanText(req.body?.operator_id, 80));
     const result = await closeRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
-    res.json({ success: true, shift: { id: result.shift?.id, name: result.shift?.name, closeDate: result.shift?.closeDate }, store: { id: result.store?.id, name: result.store?.name } });
+    res.json({ success: true, shift: { id: result.shift?.id, name: result.shift?.name, closeDate: result.shift?.closeDate }, store: { id: result.store?.id, name: result.store?.name }, operator: { id: profile?.id || null, name: profile?.full_name || req.authUser.email } });
   } catch (e) { next(e); }
 });
 
@@ -238,7 +246,7 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
         external_type: g.external_href?.split('/').slice(-2, -1)[0] || 'product'
       };
     });
-    const profile = await operatorProfile(req.authUser.id);
+    const profile = await resolvePosOperator(req, cleanText(input.operator_id, 80));
     if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
     const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
 
