@@ -1,0 +1,82 @@
+name: Check A4PRINT POS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'pos/**'
+      - 'api/src/server.js'
+      - 'api/src/moysklad.js'
+      - 'database/migrations/103_pos_shift_sales_analytics.sql'
+      - 'database/migrations/104_pos_rpc_and_cash_sync.sql'
+      - 'database/migrations/105_pos_operator_cash_account_read.sql'
+      - 'database/migrations/106_pos_dashboard_include_legacy_cash.sql'
+      - '.github/workflows/check-pos.yml'
+
+jobs:
+  pos-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify POS files
+        run: |
+          set -euo pipefail
+          test -s pos/index.html
+          test -s pos/login.html
+          test -s pos/app-v2.js
+          test -s pos/styles-v2.css
+          test -s pos/manifest.webmanifest
+          test -s pos/sw.js
+          test -s api/src/server.js
+          test -s api/src/moysklad.js
+      - name: Check JavaScript syntax
+        run: |
+          node --check pos/app-v2.js
+          node --check pos/sw.js
+          node --check api/src/server.js
+          node --check api/src/moysklad.js
+      - name: Validate manifest
+        run: node -e "JSON.parse(require('fs').readFileSync('pos/manifest.webmanifest','utf8')); console.log('POS manifest ok')"
+      - name: Verify POS v2 wiring
+        run: |
+          set -euo pipefail
+          grep -q 'app-v2.js' pos/index.html
+          grep -q 'manifest.webmanifest' pos/index.html
+          grep -q 'record_pos_sale' pos/app-v2.js
+          grep -q 'record_pos_shift' pos/app-v2.js
+          grep -q 'pos_dashboard' pos/app-v2.js
+          grep -q '/api/v1/integrations/moysklad/sync' pos/app-v2.js
+          grep -q '/api/v1/integrations/moysklad/stock' pos/app-v2.js
+          grep -q '/api/v1/pos/shift/open' pos/app-v2.js
+          grep -q '/api/v1/pos/shift/close' pos/app-v2.js
+          grep -q 'resolvePosOperator' api/src/server.js
+          grep -q 'createRetailSale' api/src/server.js
+          grep -q 'openRetailShift' api/src/server.js
+          grep -q 'closeRetailShift' api/src/server.js
+
+  pos-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Pages and API deployment
+        run: sleep 35
+      - name: Check live POS assets
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/index.html?poscheck=${GITHUB_SHA}" || true)
+            js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/app-v2.js?poscheck=${GITHUB_SHA}" || true)
+            manifest=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/manifest.webmanifest?poscheck=${GITHUB_SHA}" || true)
+            if echo "$page" | grep -q 'Отчёты и статистика' && echo "$js" | grep -q 'record_pos_sale' && echo "$manifest" | grep -q 'Касса A4-Принт'; then
+              echo 'POS v2 is live.'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'POS v2 did not become live in time.'
+          exit 1
+      - name: Check API health
+        run: |
+          curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors --max-time 25 https://a4print-hub-api.onrender.com/api/v1/health | grep -q '"success":true'
