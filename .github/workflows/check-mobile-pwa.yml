@@ -7,12 +7,15 @@ on:
     paths:
       - 'mobile/**'
       - 'admin/login.js'
+      - 'admin/profile.html'
+      - 'admin/profile.js'
       - 'admin/mobile-shell.*'
       - 'admin/config.js'
       - 'admin/guard.js'
       - 'admin/chat-watchdog.js'
       - 'admin/chat-modern.js'
       - 'admin/messages.html'
+      - 'database/migrations/101_staff_profile_avatar_self_service.sql'
       - 'a4print-hub-sw.js'
       - '.github/workflows/check-mobile-pwa.yml'
 
@@ -28,8 +31,10 @@ jobs:
         run: |
           node --check mobile/oauth-bridge.js
           node --check mobile/app-v3.js
+          node --check mobile/quick-menu.js
           node --check mobile/pwa.js
           node --check mobile/updates-client.js
+          node --check admin/profile.js
           node --check admin/mobile-shell.js
           node --check admin/chat-watchdog.js
           node --check admin/chat-modern.js
@@ -44,20 +49,23 @@ jobs:
       - name: Verify mobile entrypoint
         run: |
           grep -q 'manifest.webmanifest' mobile/index.html
-          grep -q 'oauth-bridge.js' mobile/index.html
+          grep -q 'oauth-bridge.js?v=5' mobile/index.html
           grep -q 'app-v3.js' mobile/index.html
+          grep -q 'quick-menu.js?v=2' mobile/index.html
           grep -q 'pwa.js' mobile/index.html
           grep -q '/admin/orders.html?status=NEW&mobile=1' mobile/index.html
           grep -q '/admin/messages.html?app=1' mobile/index.html
           grep -q '/admin/customers.html?mobile=1' mobile/index.html
           grep -q '/mobile/account.html' mobile/index.html
+          grep -q '/admin/profile.html?mobile=1' mobile/account.html
 
       - name: Verify mobile OAuth bridge
         run: |
-          grep -q 'startProvider' mobile/oauth-bridge.js
-          grep -q "u.pathname.startsWith('/mobile/')" admin/login.js
-          grep -q 'startProvider' admin/login.js
-          grep -q 'signInWithOAuth' admin/login.js
+          grep -q 'auth/v1/authorize' mobile/oauth-bridge.js
+          grep -q "new URL('/mobile/'" mobile/oauth-bridge.js
+          grep -q 'a4print_oauth_return_target' mobile/oauth-bridge.js
+          grep -q 'finishOAuth' mobile/app-v3.js
+          grep -q 'access_token' mobile/app-v3.js
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
       - name: Verify Google auth provider
@@ -67,8 +75,18 @@ jobs:
           KEY='sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu'
           curl -fsS --max-time 20 -H "apikey: $KEY" 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/settings' -o /tmp/auth-settings.json
           node -e "const s=JSON.parse(require('fs').readFileSync('/tmp/auth-settings.json','utf8')); if(s.external?.google!==true){console.error(s); process.exit(1)}; console.log('Google OAuth provider enabled')"
-          code=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Fa4print-hub.ru%2Fadmin%2Flogin.html%3Foauth%3D1%26returnTo%3D%252Fmobile%252F')
+          code=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Fa4print-hub.ru%2Fmobile%2F')
           test "$code" = "302" || test "$code" = "303"
+
+      - name: Verify self-service profile
+        run: |
+          grep -q 'staff-avatars' admin/profile.js
+          grep -q 'update_my_staff_profile' admin/profile.js
+          grep -q 'update_my_staff_avatar' admin/profile.js
+          grep -q 'changePassword' admin/profile.js
+          grep -q 'changeEmail' admin/profile.js
+          grep -q 'staff-avatars' database/migrations/101_staff_profile_avatar_self_service.sql
+          grep -q 'on_auth_user_email_updated' database/migrations/101_staff_profile_avatar_self_service.sql
 
       - name: Verify core mobile admin pages
         run: |
