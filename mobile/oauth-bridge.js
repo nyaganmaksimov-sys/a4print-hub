@@ -1,6 +1,7 @@
 (()=>{
   if(window.__A4_MOBILE_OAUTH_BRIDGE__)return;
   window.__A4_MOBILE_OAUTH_BRIDGE__=true;
+  const RETURN_KEY='a4print_auth_return_to';
 
   const safeTarget=()=>{
     const raw=new URLSearchParams(location.search).get('return')||'/mobile/';
@@ -19,11 +20,12 @@
     event.stopImmediatePropagation();
     const provider=String(button.dataset.provider||'').trim();
     if(!provider)return;
+    const target=safeTarget();
+    try{sessionStorage.setItem(RETURN_KEY,target)}catch{}
     button.disabled=true;
-    const old=button.innerHTML;
-    button.dataset.oldHtml=old;
+    button.dataset.oldHtml=button.innerHTML;
     button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
-    const q=new URLSearchParams({startProvider:provider,returnTo:safeTarget()});
+    const q=new URLSearchParams({startProvider:provider,returnTo:target});
     location.assign(`/admin/login.html?${q.toString()}`);
   },true);
 })();
