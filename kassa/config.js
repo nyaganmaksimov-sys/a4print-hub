@@ -16,3 +16,10 @@ window.A4SupabaseFetch=async function(input,init){
     }catch{throw directError}
   }
 };
+window.addEventListener('DOMContentLoaded',()=>{
+  if(document.querySelector('script[data-a4-operator-selector]'))return;
+  const s=document.createElement('script');
+  s.src='./shift-operator.js?v=20260905-operator1';
+  s.dataset.a4OperatorSelector='1';
+  document.body.appendChild(s);
+},{once:true});
