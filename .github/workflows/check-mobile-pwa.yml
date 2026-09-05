@@ -6,7 +6,9 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      - 'admin/login.html'
       - 'admin/login.js'
+      - 'admin/mobile-auth-route.js'
       - 'admin/profile.html'
       - 'admin/profile.js'
       - 'admin/mobile-shell.*'
@@ -34,6 +36,7 @@ jobs:
           node --check mobile/quick-menu.js
           node --check mobile/pwa.js
           node --check mobile/updates-client.js
+          node --check admin/mobile-auth-route.js
           node --check admin/profile.js
           node --check admin/mobile-shell.js
           node --check admin/chat-watchdog.js
@@ -59,11 +62,13 @@ jobs:
           grep -q '/mobile/account.html' mobile/index.html
           grep -q '/admin/profile.html?mobile=1' mobile/account.html
 
-      - name: Verify mobile OAuth bridge
+      - name: Verify mobile auth routing
         run: |
-          grep -q 'auth/v1/authorize' mobile/oauth-bridge.js
-          grep -q "new URL('/mobile/'" mobile/oauth-bridge.js
+          grep -q '/admin/login.html' mobile/oauth-bridge.js
+          grep -q 'startProvider' mobile/oauth-bridge.js
           grep -q 'a4print_oauth_return_target' mobile/oauth-bridge.js
+          grep -q "'/mobile/'" admin/mobile-auth-route.js
+          grep -q 'mobile-auth-route.js' admin/login.html
           grep -q 'finishOAuth' mobile/app-v3.js
           grep -q 'access_token' mobile/app-v3.js
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
