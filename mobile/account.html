@@ -10,7 +10,8 @@
   <title>Аккаунт — A4PRINT HUB</title>
   <link rel="manifest" href="./manifest.webmanifest?v=1">
   <link rel="icon" href="/admin/assets/a4print-hub-logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=5">
+  <link rel="stylesheet" href="./styles.css?v=6">
+  <link rel="stylesheet" href="./quick-menu.css?v=1">
   <style>
     .account-content{padding:16px 16px 110px;display:grid;gap:14px}.account-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:17px}.profile-row{display:flex;align-items:center;gap:13px}.profile-avatar{width:50px;height:50px;border-radius:15px;background:#0f172a;color:#fff;display:grid;place-items:center;font-weight:900}.profile-copy{min-width:0}.profile-copy b{display:block;font-size:16px}.profile-copy span{display:block;margin-top:3px;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.version-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.version-row span{color:var(--muted);font-size:12px}.version-row strong{font-size:14px}.section-title{margin:3px 2px 0;font-size:18px}.updates-list{display:grid;gap:12px}.update-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}.update-card.latest{border-color:#bfdbfe;box-shadow:0 8px 22px rgba(37,99,235,.08)}.update-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.update-head>div{display:flex;align-items:center;gap:9px}.update-head strong{font-size:13px}.update-head span{font-size:11px;color:var(--muted)}.update-head em{font-style:normal;font-size:10px;font-weight:900;color:#1d4ed8;background:#eff6ff;padding:5px 8px;border-radius:999px}.update-card h3{margin:13px 0 7px;font-size:16px}.update-card p{margin:0;color:#475569;font-size:12px;line-height:1.5}.update-card ul{margin:11px 0 0;padding-left:19px;color:#334155;font-size:12px;line-height:1.55}.account-actions{display:grid;gap:9px}.account-actions button,.account-actions a,.settings-actions button{min-height:48px;border-radius:14px;border:1px solid var(--line);background:#fff;color:#0f172a;text-decoration:none;font:800 13px/1 inherit;display:flex;align-items:center;justify-content:center}.account-actions .danger{color:#b91c1c}.back-button{width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#334155;font-size:20px}.updates-badge{display:none;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;font-weight:900;place-items:center}.updates-badge.show{display:grid}.settings-head{display:flex;align-items:flex-start;gap:12px}.settings-icon{width:42px;height:42px;border-radius:13px;background:#eff6ff;display:grid;place-items:center;font-size:20px}.settings-copy{flex:1}.settings-copy b{display:block;font-size:14px}.settings-copy p{margin:5px 0 0;color:#64748b;font-size:11px;line-height:1.45}.settings-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.settings-actions button{min-height:43px;background:#f8fafc}.push-state{display:inline-flex;margin-top:8px;padding:5px 8px;border-radius:999px;background:#fff7ed;color:#9a3412;font-size:10px;font-weight:900}.push-state[data-state="enabled"]{background:#ecfdf5;color:#15803d}.push-state[data-state="denied"]{background:#fef2f2;color:#b91c1c}@media(max-width:420px){.settings-actions{grid-template-columns:1fr}}
   </style>
@@ -20,12 +21,23 @@
     <header class="app-header">
       <button class="back-button" type="button" onclick="location.href='/mobile/'">‹</button>
       <div style="flex:1"><small>A4PRINT HUB</small><h1>Аккаунт</h1></div>
+      <button class="back-button" type="button" data-a4-quick-menu title="Быстрое меню">☰</button>
     </header>
 
     <main class="account-content">
       <section class="account-card profile-row">
         <div class="profile-avatar">A4</div>
         <div class="profile-copy"><b id="profileName">Сотрудник A4PRINT HUB</b><span id="profileEmail">Загрузка аккаунта…</span></div>
+      </section>
+
+      <section class="account-card">
+        <div class="settings-head">
+          <div class="settings-icon">☰</div>
+          <div class="settings-copy"><b>Моё быстрое меню</b><p>Выберите до 6 нужных разделов и расставьте их в удобном порядке. Настройка сохранится на этом устройстве.</p></div>
+        </div>
+        <div class="settings-actions" style="grid-template-columns:1fr">
+          <button type="button" data-a4-quick-menu>Настроить быстрое меню</button>
+        </div>
       </section>
 
       <section class="account-card">
@@ -46,14 +58,9 @@
       <section class="account-card">
         <div class="settings-head">
           <div class="settings-icon">📲</div>
-          <div class="settings-copy">
-            <b>Установить A4PRINT HUB</b>
-            <p data-install-state>Можно установить на главный экран без APK</p>
-          </div>
+          <div class="settings-copy"><b>Установить A4PRINT HUB</b><p data-install-state>Можно установить на главный экран без APK</p></div>
         </div>
-        <div class="settings-actions" style="grid-template-columns:1fr">
-          <button type="button" data-install-app>Установить A4PRINT HUB</button>
-        </div>
+        <div class="settings-actions" style="grid-template-columns:1fr"><button type="button" data-install-app>Установить A4PRINT HUB</button></div>
       </section>
 
       <section class="account-card version-row">
@@ -64,9 +71,7 @@
       <h2 class="section-title" id="updates">Что нового</h2>
       <div id="updatesList" class="updates-list"><div class="empty">Загрузка обновлений…</div></div>
 
-      <section class="account-actions">
-        <button id="logoutButton" class="danger" type="button">Выйти из аккаунта</button>
-      </section>
+      <section class="account-actions"><button id="logoutButton" class="danger" type="button">Выйти из аккаунта</button></section>
     </main>
 
     <nav class="bottom-nav">
@@ -74,7 +79,7 @@
       <a href="/admin/orders.html?mobile=1"><span>▣</span><small>Заказы</small></a>
       <a href="/admin/messages.html?app=1"><span>●</span><small>Чат</small></a>
       <a href="/admin/customers.html?mobile=1"><span>◉</span><small>Клиенты</small></a>
-      <a class="active" href="/mobile/account.html"><span style="position:relative">☻<i class="updates-badge" data-updates-badge></i></span><small>Аккаунт</small></a>
+      <button class="a4qm-nav-button active" type="button" data-a4-quick-menu><span>☰</span><small>Меню</small></button>
     </nav>
   </div>
 
@@ -83,20 +88,13 @@
       const project='qgakliolffnwkymoqvzn';
       const sessionKey=`sb-${project}-auth-token`;
       try{
-        const raw=localStorage.getItem(sessionKey);
-        const session=raw?JSON.parse(raw):null;
-        const user=session?.user||{};
-        const email=user.email||'';
-        const name=user.user_metadata?.full_name||user.user_metadata?.name||email||'Сотрудник A4PRINT HUB';
-        document.getElementById('profileName').textContent=name;
-        document.getElementById('profileEmail').textContent=email||'Аккаунт сотрудника';
+        const raw=localStorage.getItem(sessionKey);const session=raw?JSON.parse(raw):null;const user=session?.user||{};const email=user.email||'';const name=user.user_metadata?.full_name||user.user_metadata?.name||email||'Сотрудник A4PRINT HUB';
+        document.getElementById('profileName').textContent=name;document.getElementById('profileEmail').textContent=email||'Аккаунт сотрудника';
       }catch{document.getElementById('profileEmail').textContent='Аккаунт сотрудника'}
-      document.getElementById('logoutButton').onclick=()=>{
-        ['a4print_mobile_access','a4print_mobile_refresh','a4print_mobile_expires',sessionKey].forEach(k=>localStorage.removeItem(k));
-        location.replace('/mobile/');
-      };
+      document.getElementById('logoutButton').onclick=()=>{['a4print_mobile_access','a4print_mobile_refresh','a4print_mobile_expires',sessionKey].forEach(k=>localStorage.removeItem(k));location.replace('/mobile/')};
     })();
   </script>
+  <script src="./quick-menu.js?v=1"></script>
   <script type="module" src="./updates-client.js?v=1"></script>
   <script type="module" src="./pwa.js?v=1"></script>
 </body>
