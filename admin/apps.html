@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Приложения — A4PRINT HUB</title>
+<link rel="manifest" href="./manifest.webmanifest?v=1">
+<link rel="stylesheet" href="./styles.css?v=20260905-5">
+<script src="./config.js?v=20260905-7"></script>
+<style>
+.apps-wrap{padding:4px 0 28px}.apps-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}.apps-head h1{margin:0}.apps-head p{margin:5px 0 0;color:#64748b}.apps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.app-card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px;display:grid;gap:13px;box-shadow:0 8px 30px rgba(15,23,42,.04)}.app-top{display:flex;gap:12px;align-items:center}.app-icon{width:50px;height:50px;border-radius:15px;background:#eff6ff;color:#2563eb;display:grid;place-items:center;font-weight:900;font-size:18px}.app-card h3{margin:0}.app-card p{margin:3px 0 0;color:#64748b;font-size:13px;line-height:1.45}.app-actions{display:flex;gap:8px;flex-wrap:wrap}.app-btn{border:0;border-radius:11px;padding:10px 13px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.app-btn.primary{background:#2563eb;color:#fff}.app-btn.light{background:#f8fafc;border:1px solid #dbe3ee;color:#334155}.status{font-size:12px;color:#64748b}.status.ok{color:#15803d}.info{margin-top:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:14px;color:#1e3a8a;font-size:13px;line-height:1.55}@media(max-width:900px){.apps-head{flex-direction:column}.apps-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+<main class="main">
+  <div class="apps-wrap">
+    <div class="apps-head"><div><h1>Приложения A4PRINT HUB</h1><p>Установка рабочих кабинетов и кассы на компьютер.</p></div><a class="app-btn light" href="./index.html">← Панель управления</a></div>
+    <div class="apps-grid">
+      <article class="app-card"><div class="app-top"><div class="app-icon">HUB</div><div><h3>A4PRINT HUB</h3><p>Основная админка, менеджер, заказы, клиенты и производство.</p></div></div><div id="hubInstallStatus" class="status">Проверяем возможность установки…</div><div class="app-actions"><button id="hubInstall" class="app-btn primary">Установить на ПК</button><a class="app-btn light" href="./index.html">Открыть</a></div></article>
+      <article class="app-card"><div class="app-top"><div class="app-icon">POS</div><div><h3>Касса A4-Принт</h3><p>Продажи, смена, операторы, отчёты и синхронизация с МойСклад.</p></div></div><div class="status ok">Отдельное устанавливаемое приложение</div><div class="app-actions"><a class="app-btn primary" href="../pos/index.html?install=1">Установить кассу</a><a class="app-btn light" href="../pos/index.html">Открыть</a></div></article>
+      <article class="app-card"><div class="app-top"><div class="app-icon">CRM</div><div><h3>Кабинет партнёра</h3><p>Partner CRM: заказы, товары, цены, сообщения и доставка.</p></div></div><div class="status ok">PWA кабинет партнёра</div><div class="app-actions"><a class="app-btn primary" href="../partner/index.html?install=1">Перейти к установке</a><a class="app-btn light" href="../partner/index.html">Открыть</a></div></article>
+      <article class="app-card"><div class="app-top"><div class="app-icon">CHAT</div><div><h3>A4PRINT HUB Chat</h3><p>Внутренняя связь команды и push-уведомления.</p></div></div><div class="status ok">Отдельное приложение чата</div><div class="app-actions"><a class="app-btn primary" href="../chat/start.html?install=1">Перейти к установке</a><a class="app-btn light" href="./messages.html?app=1">Открыть</a></div></article>
+      <article class="app-card"><div class="app-top"><div class="app-icon">MOB</div><div><h3>Мобильный HUB</h3><p>Мобильная PWA для сотрудников на телефоне и планшете.</p></div></div><div class="status ok">Установка на Android/iOS через браузер</div><div class="app-actions"><a class="app-btn primary" href="../mobile/">Открыть мобильную версию</a></div></article>
+    </div>
+    <div class="info">На Windows лучше использовать Chrome или Edge. После установки каждый кабинет запускается отдельным окном как обычная программа, но данные остаются общими и продолжают синхронизироваться с A4PRINT HUB.</div>
+  </div>
+</main>
+<script>
+let deferredInstall=null;const btn=document.getElementById('hubInstall'),status=document.getElementById('hubInstallStatus');
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;status.textContent='Готово к установке';status.className='status ok';btn.disabled=false});
+window.addEventListener('appinstalled',()=>{deferredInstall=null;status.textContent='A4PRINT HUB установлен';status.className='status ok';btn.textContent='Установлено';btn.disabled=true});
+btn.onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}else{status.textContent='Если установка не появилась: меню Chrome/Edge → «Установить A4PRINT HUB» или «Создать ярлык».'}};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('../a4print-hub-sw.js',{scope:'../'}).catch(()=>{});
+</script>
+</body>
+</html>
