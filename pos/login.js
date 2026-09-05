@@ -1,7 +1,8 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const createClient=window.supabase?.createClient;
+if(!createClient)throw new Error('Локальный модуль авторизации не загрузился. Обновите страницу.');
 
 const cfg = window.A4PRINT_CONFIG || {};
-const supabase = createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
+const supabase = createClient(cfg.supabaseUrl, cfg.supabasePublishableKey, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const form = document.getElementById('form');
 const btn = document.getElementById('submit');
 const err = document.getElementById('error');
@@ -31,7 +32,6 @@ form.addEventListener('submit', async event => {
   btn.textContent = 'Входим...';
 
   try {
-    // Remove any stale token from the previous POS/HUB session before issuing a new one.
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -50,7 +50,7 @@ form.addEventListener('submit', async event => {
   } catch (error) {
     const message = String(error?.message || 'Не удалось войти');
     if (/jwt issued at future/i.test(message)) {
-      show('Сервер авторизации ещё не принял новый токен. Подождите 5–10 секунд и нажмите «Войти» ещё раз. Если ошибка повторяется, проверьте автоматическую синхронизацию даты и времени на компьютере.');
+      show('На этом компьютере неверно синхронизированы дата или время. Включите автоматическую дату, время и часовой пояс в Windows, затем повторите вход.');
     } else {
       show(message);
     }
