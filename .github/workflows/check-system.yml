@@ -74,13 +74,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'manager-runtime.js' admin/config.js
+          grep -q "manager-runtime.js','20260905-4'" admin/config.js
+          grep -q 'manager-runtime.js?v=20260905-4' admin/manager.html
+          grep -q 'managerStatus' admin/manager.html
+          grep -q 'a4print_mobile_access' admin/manager-runtime.js
+          grep -q 'rpc/has_role' admin/manager-runtime.js
+          grep -q 'grant_type=refresh_token' admin/manager-runtime.js
+          ! grep -q "import {supabase} from './guard.js'" admin/manager.html
           grep -q 'partners-api-fallback.js' admin/config.js
           grep -q 'mobile-shell.js' admin/config.js
           grep -q 'auth-ui.js' admin/config.js
           grep -q 'auth-settings.js' admin/config.js
           grep -q 'get_public_auth_ui' database/migrations/023_auth_ui_admin_settings.sql
-          grep -q 'oauth-bridge.js?v=5' mobile/index.html
+          grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'staff-avatars' admin/profile.js
           grep -q 'staff-avatars' database/migrations/101_staff_profile_avatar_self_service.sql
           grep -q "addEventListener('push'" a4print-hub-sw.js
@@ -88,8 +94,7 @@ jobs:
           grep -q 'manifest.webmanifest' mobile/index.html
           grep -q './config.js' admin/partners.html
           grep -q './guard.js' admin/partners.html
-          grep -q './config.js' admin/manager.html
-          grep -q './guard.js' admin/manager.html
+          grep -q './config.js?v=20260905-4' admin/manager.html
           grep -q '/api/v1/system/health' api/src/mobile-proxy.js
           grep -q 'run_system_e2e_self_test' database/migrations/100_system_e2e_self_test.sql
           grep -q 'a4print-hub-system-e2e-daily' database/migrations/100_system_e2e_self_test.sql
@@ -132,6 +137,7 @@ jobs:
           check_page 'https://a4print-hub.ru/pos/login.html'
           check_page 'https://a4print-hub.ru/pos/index.html'
           check_page 'https://a4print-hub.ru/marketplace/'
+          curl -fsSL --retry 5 --retry-delay 3 'https://a4print-hub.ru/admin/manager.html' | grep -q 'manager-runtime.js?v=20260905-4'
 
       - name: Check backend and E2E health
         shell: bash
