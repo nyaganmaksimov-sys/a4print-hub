@@ -1,5 +1,6 @@
 const preloads = [
-  '--import=./src/pos-operator-patch.js'
+  '--import=./src/pos-operator-patch.js',
+  '--import=./src/pos-build-marker.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
