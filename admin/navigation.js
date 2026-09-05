@@ -116,6 +116,7 @@ async function initA4Navigation(){
     ['documents.html','documents','Документы'],
     ['payments.html','payments','Оплаты'],
     ['reports.html','reports','Отчёты'],
+    ['apps.html','systems','Приложения'],
     ['settings.html','settings','Настройки'],
     ['help.html','help','Инструкция'],
     ['../index.html','systems','Выбор системы']
