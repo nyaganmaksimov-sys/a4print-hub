@@ -1,0 +1,15 @@
+{
+  "id": "/admin/",
+  "name": "A4PRINT HUB",
+  "short_name": "A4PRINT HUB",
+  "description": "Рабочая система A4-Принт и 3D-ARTPRINT",
+  "start_url": "/admin/index.html",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#ffffff",
+  "icons": [
+    {"src":"/admin/assets/a4print-hub-logo.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"/admin/assets/a4print-hub-logo.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
