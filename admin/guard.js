@@ -14,6 +14,7 @@ const params = new URLSearchParams(location.search);
 const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 const mobileContext = params.get('mobile') === '1' || params.get('app') === '1' || (standalone && window.matchMedia?.('(max-width:900px)').matches);
 const publicPages = new Set(['login.html','register.html','pending.html','reset-password.html']);
+const supportAllowedPages = new Set(['support.html','help.html','profile.html']);
 
 function mobileLogin(reason='session') {
   const ret = location.pathname + location.search + location.hash;
@@ -26,12 +27,28 @@ if (!publicPages.has(page)) {
     if (mobileContext) mobileLogin('session');
     else if (page === 'messages.html') location.replace('/chat/start.html?login=1');
     else location.replace('./login.html');
-  } else if (page !== 'profile.html' && page !== 'messages.html') {
-    const { data, error } = await supabase.rpc('get_my_staff_profile');
-    if (error || data?.status !== 'ACTIVE') {
-      if (mobileContext) mobileLogin(data?.status || 'access');
-      else if (data?.status === 'UNREGISTERED') location.replace('./register.html');
-      else location.replace('./pending.html');
+  } else {
+    if (page !== 'profile.html' && page !== 'messages.html') {
+      const { data, error } = await supabase.rpc('get_my_staff_profile');
+      if (error || data?.status !== 'ACTIVE') {
+        if (mobileContext) mobileLogin(data?.status || 'access');
+        else if (data?.status === 'UNREGISTERED') location.replace('./register.html');
+        else location.replace('./pending.html');
+      }
+    }
+
+    try {
+      const { data: roleData, error: roleError } = await supabase.rpc('get_my_roles');
+      if (!roleError && Array.isArray(roleData)) {
+        const supportOnly = roleData.includes('SUPPORT') && !roleData.includes('ADMIN');
+        window.__A4_SUPPORT_ONLY__ = supportOnly;
+        window.__A4_CURRENT_ROLES__ = roleData;
+        if (supportOnly && !supportAllowedPages.has(page)) {
+          location.replace(`/admin/support.html${mobileContext?'?mobile=1':''}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Support role check failed', e);
     }
   }
 }
