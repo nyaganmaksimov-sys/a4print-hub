@@ -6,6 +6,24 @@
   if(q.get('app')==='1'||standalone){
     const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260904-2';shell.async=false;document.head.appendChild(shell);
   }
+
+  function addSupportEntry(){
+    const general=document.getElementById('generalRoom');
+    if(!general||document.getElementById('supportRoomEntry'))return false;
+    const btn=document.createElement('button');
+    btn.id='supportRoomEntry';
+    btn.type='button';
+    btn.className='room-btn';
+    btn.style.marginTop='8px';
+    btn.innerHTML='<span style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>🛟 Поддержка</span><small style="font-size:9px;padding:3px 6px;border-radius:999px;background:#dcfce7;color:#166534">оператор</small></span>';
+    btn.title='База знаний, чат-бот и личный чат с оператором поддержки';
+    btn.onclick=()=>{location.href='/admin/support.html'+(q.get('app')==='1'?'?mobile=1':'')};
+    general.insertAdjacentElement('afterend',btn);
+    return true;
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addSupportEntry,{once:true});else addSupportEntry();
+  let supportTries=0;const supportTimer=setInterval(()=>{supportTries++;if(addSupportEntry()||supportTries>30)clearInterval(supportTimer)},150);
+
   let done=false;
   const $=id=>document.getElementById(id);
   function ready(){
