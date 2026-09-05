@@ -3,10 +3,6 @@
   window.__A4_MOBILE_OAUTH_BRIDGE__=true;
   const RETURN_KEY='a4print_auth_return_to';
   const OAUTH_TARGET_KEY='a4print_oauth_return_target';
-  const OAUTH_PROVIDER_KEY='a4print_oauth_provider';
-  const OAUTH_RETRY_KEY='a4print_oauth_retry';
-  const OAUTH_STARTED_KEY='a4print_oauth_started_at';
-  const SUPABASE_URL='https://qgakliolffnwkymoqvzn.supabase.co';
 
   const ensureAuthUI=()=>new Promise(resolve=>{
     if(window.A4AuthUI)return resolve(window.A4AuthUI);
@@ -25,13 +21,6 @@
     }catch{return '/mobile/'}
   };
 
-  const oauthUrl=provider=>{
-    const redirectTo=new URL('/mobile/',location.origin).href;
-    const q=new URLSearchParams({provider,redirect_to:redirectTo});
-    if(provider==='google')q.set('prompt','select_account');
-    return `${SUPABASE_URL}/auth/v1/authorize?${q.toString()}`;
-  };
-
   ensureAuthUI().then(ui=>ui?.apply?.('login')).catch(()=>{});
 
   document.addEventListener('click',async event=>{
@@ -42,17 +31,16 @@
     const ui=await ensureAuthUI();if(ui&&!(await ui.isEnabled('login',provider)))return;
     const target=safeTarget();
     try{
-      const last=Number(localStorage.getItem(OAUTH_STARTED_KEY)||0);
-      if(last&&Date.now()-last<1800)return;
       localStorage.setItem(RETURN_KEY,target);
       localStorage.setItem(OAUTH_TARGET_KEY,target);
-      localStorage.setItem(OAUTH_PROVIDER_KEY,provider);
-      localStorage.setItem(OAUTH_RETRY_KEY,'0');
-      localStorage.setItem(OAUTH_STARTED_KEY,String(Date.now()));
       sessionStorage.setItem(RETURN_KEY,target);
       sessionStorage.setItem(OAUTH_TARGET_KEY,target);
     }catch{}
-    button.disabled=true;button.dataset.oldHtml=button.innerHTML;button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
-    location.assign(oauthUrl(provider));
+    button.disabled=true;button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
+    const login=new URL('/admin/login.html',location.origin);
+    login.searchParams.set('startProvider',provider);
+    login.searchParams.set('returnTo',target);
+    login.searchParams.set('mobile','1');
+    location.assign(login.href);
   },true);
 })();
