@@ -29,7 +29,7 @@
       .a4-tour-backdrop{position:fixed;inset:0;z-index:20000;background:rgba(15,23,42,.58);display:grid;place-items:center;padding:20px;backdrop-filter:blur(4px)}
       .a4-tour-card{width:min(590px,100%);background:#fff;border-radius:24px;box-shadow:0 30px 90px rgba(15,23,42,.35);overflow:hidden}
       .a4-tour-progress{height:5px;background:#e2e8f0}.a4-tour-progress i{display:block;height:100%;background:#2563eb;transition:width .2s ease}
-      .a4-tour-body{padding:28px}.a4-tour-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:#eff6ff;font-size:30px;margin-bottom:18px}.a4-tour-body h2{margin:0 0 10px;font-size:24px;color:#0f172a}.a4-tour-body p{margin:0;color:#475569;line-height:1.65;font-size:15px}.a4-tour-count{margin-top:18px;color:#94a3b8;font-size:12px;font-weight:800}.a4-tour-actions{display:flex;justify-content:space-between;gap:10px;padding:0 28px 28px}.a4-tour-actions>div{display:flex;gap:8px}.a4-tour-actions button,.a4-tour-actions a{min-height:42px;border-radius:11px;padding:0 14px;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.a4-tour-secondary{border:1px solid #dbe2ea;background:#fff;color:#475569}.a4-tour-primary{border:0;background:#2563eb;color:#fff}.a4-tour-primary:disabled{opacity:.45}@media(max-width:600px){.a4-tour-backdrop{padding:12px}.a4-tour-body{padding:22px}.a4-tour-actions{padding:0 22px 22px;flex-direction:column-reverse}.a4-tour-actions>div{width:100%}.a4-tour-actions button,.a4-tour-actions a{flex:1}}
+      .a4-tour-body{padding:28px}.a4-tour-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:#eff6ff;font-size:30px;margin-bottom:18px}.a4-tour-body h2{margin:0 0 10px;font-size:24px;color:#0f172a}.a4-tour-body p{margin:0;color:#475569;line-height:1.65;font-size:15px}.a4-tour-count{margin-top:18px;color:#94a3b8;font-size:12px;font-weight:800}.a4-tour-actions{display:flex;justify-content:space-between;gap:10px;padding:0 28px 28px}.a4-tour-actions>div{display:flex;gap:8px}.a4-tour-actions button,.a4-tour-actions a{min-height:42px;border-radius:11px;padding:0 14px;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.a4-tour-secondary{border:1px solid #dbe2ea;background:#fff;color:#475569}.a4-tour-primary{border:0;background:#2563eb;color:#fff}.a4-tour-primary:disabled{opacity:.45}.a4-tour-launcher{margin-top:16px;border:0;border-radius:11px;background:#2563eb;color:#fff;padding:10px 14px;font:inherit;font-weight:800;cursor:pointer}@media(max-width:600px){.a4-tour-backdrop{padding:12px}.a4-tour-body{padding:22px}.a4-tour-actions{padding:0 22px 22px;flex-direction:column-reverse}.a4-tour-actions>div{width:100%}.a4-tour-actions button,.a4-tour-actions a{flex:1}}
     `;document.head.appendChild(s);
   }
   function render(){
@@ -44,7 +44,12 @@
     root.querySelector('[data-tour-skip]').onclick=()=>finish(true);root.querySelector('[data-tour-prev]').onclick=()=>{if(index>0){index--;render()}};root.querySelector('[data-tour-next]').onclick=()=>{if(index<slides.length-1){index++;render()}else finish(true)};render();
   }
   function maybe(){const id=currentUserId();if(!id&&!forced)return false;let done=false;try{done=localStorage.getItem(key())==='1'}catch{}if(forced||!done){index=0;open();return true}return false}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(maybe,700),{once:true});else setTimeout(maybe,700);
+  function injectHelpLauncher(){
+    if(!/\/admin\/help\.html$/.test(location.pathname))return;
+    const hero=document.querySelector('.hero');if(!hero||hero.querySelector('[data-a4-tour-launcher]'))return;
+    css();const b=document.createElement('button');b.type='button';b.className='a4-tour-launcher';b.dataset.a4TourLauncher='1';b.textContent='▶ Повторить обучение по системе';b.onclick=()=>{index=0;open()};hero.appendChild(b);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{injectHelpLauncher();setTimeout(maybe,700)},{once:true});else{injectHelpLauncher();setTimeout(maybe,700)}
   let checks=0;const wait=setInterval(()=>{checks++;if(maybe()||checks>25)clearInterval(wait)},1000);
   window.A4Onboarding={open:()=>{index=0;open()},reset:()=>{try{localStorage.removeItem(key())}catch{}}};
 })();
