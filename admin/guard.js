@@ -25,6 +25,7 @@ async function loadLocalSupabase() {
 
 const createClient = await loadLocalSupabase();
 const supabase = createClient(url, key, {
+  global: { fetch: window.A4SupabaseFetch || fetch },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
