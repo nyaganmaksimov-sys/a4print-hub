@@ -2,6 +2,11 @@
   if(window.__A4_MOBILE_OAUTH_BRIDGE__)return;
   window.__A4_MOBILE_OAUTH_BRIDGE__=true;
   const RETURN_KEY='a4print_auth_return_to';
+  const ENABLED_PROVIDERS=new Set(['google']);
+
+  document.querySelectorAll('[data-provider]').forEach(button=>{
+    if(!ENABLED_PROVIDERS.has(String(button.dataset.provider||'').trim()))button.remove();
+  });
 
   const safeTarget=()=>{
     const raw=new URLSearchParams(location.search).get('return')||'/mobile/';
@@ -19,12 +24,12 @@
     event.preventDefault();
     event.stopImmediatePropagation();
     const provider=String(button.dataset.provider||'').trim();
-    if(!provider)return;
+    if(!ENABLED_PROVIDERS.has(provider))return;
     const target=safeTarget();
     try{localStorage.setItem(RETURN_KEY,target);sessionStorage.setItem(RETURN_KEY,target)}catch{}
     button.disabled=true;
     button.dataset.oldHtml=button.innerHTML;
-    button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
+    button.textContent='Открываем Google…';
     const q=new URLSearchParams({startProvider:provider,returnTo:target});
     location.assign(`/admin/login.html?${q.toString()}`);
   },true);
