@@ -26,6 +26,35 @@ app.get('/api/v1/mobile/health', (_req, res) => res.json({
   databaseConfigured: Boolean(service)
 }));
 
+app.get('/api/v1/system/health', async (_req, res, next) => {
+  try {
+    if (!service) {
+      return res.status(503).json({ success: false, status: 'UNKNOWN', error: 'DATABASE_NOT_CONFIGURED' });
+    }
+    const { data, error } = await service
+      .from('system_self_test_runs')
+      .select('started_at,finished_at,status,details')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      return res.status(503).json({ success: false, status: 'UNKNOWN', error: 'NO_SYSTEM_SELF_TEST_RESULTS' });
+    }
+    const ageMs = Date.now() - new Date(data.finished_at || data.started_at).getTime();
+    const fresh = Number.isFinite(ageMs) && ageMs <= 36 * 60 * 60 * 1000;
+    const healthy = data.status === 'PASS' && fresh;
+    return res.status(healthy ? 200 : 503).json({
+      success: healthy,
+      status: data.status,
+      fresh,
+      started_at: data.started_at,
+      finished_at: data.finished_at,
+      details: data.details || {}
+    });
+  } catch (e) { next(e); }
+});
+
 function publicClient() {
   if (!supabaseUrl || !publishableKey) return null;
   return createClient(supabaseUrl, publishableKey, { auth: { autoRefreshToken: false, persistSession: false } });
