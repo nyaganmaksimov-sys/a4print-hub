@@ -89,6 +89,8 @@ window.A4PRINT_CONFIG = {
     load('settings-collapsible.js','20260905-1');
   }
   load('navigation.js','20260905-8');
+  load('support-access.js','20260905-1');
+  load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260904-2');
   load('nav-accordion.js','20260904-3');
   load('modern-ui.js','20260904-1');
