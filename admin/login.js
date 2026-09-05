@@ -1,6 +1,7 @@
 const config=window.A4PRINT_CONFIG||{};
 const SUPABASE_URL=config.supabaseUrl||'https://qgakliolffnwkymoqvzn.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY=config.supabasePublishableKey||'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
+const API_BASE=String(config.apiBaseUrl||'https://a4print-hub-api.onrender.com').replace(/\/$/,'');
 const RETURN_KEY='a4print_auth_return_to';
 
 const form=document.getElementById('form');
@@ -18,11 +19,11 @@ function resetRecoveryMessages(){recoveryError.style.display='none';recoverySucc
 function friendlyError(ex,fallback='Не удалось выполнить вход.'){
   const msg=String(ex?.message||ex||'').trim();
   if(!msg)return fallback;
-  if(/invalid login credentials|invalid_credentials/i.test(msg))return 'Неверный email или пароль.';
+  if(/invalid login credentials|invalid_credentials|неверный email или пароль/i.test(msg))return 'Неверный email или пароль.';
   if(/email not confirmed/i.test(msg))return 'Email ещё не подтверждён.';
   if(/provider.*not enabled|unsupported provider/i.test(msg))return 'Этот способ входа пока не подключён.';
   if(/oauth state not found|state.*expired/i.test(msg))return 'Сессия входа устарела. Нажмите кнопку входа ещё раз.';
-  if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с сервером входа даже через резервный канал. Повторите попытку через несколько секунд.';
+  if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с сервером входа. Повторите попытку через несколько секунд.';
   return msg;
 }
 function providerName(provider){if(provider==='google')return'Google';if(provider==='custom:yandex')return'Яндекс';if(provider==='custom:mailru')return'Mail.ru';return provider}
@@ -82,6 +83,49 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     }
   }
 
+  async function signInPassword(email,password){
+    let backendError=null;
+    if(API_BASE){
+      try{
+        const response=await fetch(`${API_BASE}/api/v1/mobile/auth/password`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body:JSON.stringify({email,password}),
+          cache:'no-store',
+          credentials:'omit'
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok||!payload?.success||!payload?.session?.access_token||!payload?.session?.refresh_token){
+          const err=new Error(payload?.message||payload?.error||`Сервер входа вернул ${response.status}`);
+          err.status=response.status;
+          if(response.status>=400&&response.status<500&&response.status!==408&&response.status!==429)throw err;
+          backendError=err;
+        }else{
+          const {data,error}=await supabase.auth.setSession({
+            access_token:payload.session.access_token,
+            refresh_token:payload.session.refresh_token
+          });
+          if(error)throw error;
+          if(!data?.session)throw new Error('Сервер не вернул сессию.');
+          return data.session;
+        }
+      }catch(e){
+        if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;
+        backendError=e;
+      }
+    }
+
+    try{
+      const {data,error}=await supabase.auth.signInWithPassword({email,password});
+      if(error)throw error;
+      if(!data?.session)throw new Error('Сервер не вернул сессию.');
+      return data.session;
+    }catch(directError){
+      if(backendError&&/invalid login credentials|неверный email или пароль/i.test(String(backendError?.message||'')))throw backendError;
+      throw directError||backendError||new Error('Не удалось выполнить вход.');
+    }
+  }
+
   document.getElementById('showRecovery').onclick=()=>{resetRecoveryMessages();recoveryEmail.value=document.getElementById('email').value.trim();recoveryBox.classList.add('open');recoveryEmail.focus()};
   document.getElementById('hideRecovery').onclick=()=>recoveryBox.classList.remove('open');
   sendRecovery.onclick=async()=>{
@@ -104,9 +148,7 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     try{
       const emailValue=document.getElementById('email').value.trim().toLowerCase();
       const password=document.getElementById('password').value;
-      const {data,error:signInError}=await supabase.auth.signInWithPassword({email:emailValue,password});
-      if(signInError)throw signInError;
-      if(!data?.session)throw new Error('Сервер не вернул сессию.');
+      await signInPassword(emailValue,password);
       submit.textContent='Проверяем доступ…';
       await routeByProfile();
     }catch(e){showError(friendlyError(e,'Не удалось выполнить вход.'))}
