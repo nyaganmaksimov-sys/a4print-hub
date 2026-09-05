@@ -6,6 +6,7 @@ const VAPID_PUBLIC='BBpMmH5lmF-yZc2BrS2DyJjyzLobGlIm7a8BXiMoOQi4R6au34K_WBkk34_5
 const PUSH_SYNC_KEY='a4_pwa_push_last_sync_v1';
 let deferredInstall=null;
 let swRegistration=null;
+let extrasLoaded=false;
 
 const q=(s,root=document)=>root.querySelector(s);
 const qa=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -166,10 +167,32 @@ function bindInstallUi(){
   updateInstallUi();
 }
 
+async function enforceSupportRole(){
+  const token=accessToken();if(!token)return false;
+  try{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_roles`,{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});
+    if(!r.ok)return false;
+    const roles=await r.json().catch(()=>[]);
+    const supportOnly=Array.isArray(roles)&&roles.includes('SUPPORT')&&!roles.includes('ADMIN');
+    if(supportOnly){location.replace('/admin/support.html?mobile=1');return true}
+  }catch(e){console.warn('Support role mobile check failed',e)}
+  return false;
+}
+
+function loadOnboarding(){
+  if(extrasLoaded)return;extrasLoaded=true;
+  const s=document.createElement('script');s.src='/admin/onboarding.js?v=20260905-1';s.async=false;document.head.appendChild(s);
+}
+
 function watchLogin(){
   const app=q('#appView');
   if(!app)return;
-  const run=()=>{if(!app.classList.contains('hidden'))quietRestorePush()};
+  const run=async()=>{
+    if(app.classList.contains('hidden'))return;
+    if(await enforceSupportRole())return;
+    quietRestorePush();
+    loadOnboarding();
+  };
   new MutationObserver(run).observe(app,{attributes:true,attributeFilter:['class']});
   run();
 }
