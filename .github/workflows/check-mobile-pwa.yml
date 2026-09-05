@@ -16,6 +16,7 @@ on:
       - 'admin/mobile-shell.*'
       - 'admin/config.js'
       - 'admin/guard.js'
+      - 'admin/auth-ui.js'
       - 'admin/chat-watchdog.js'
       - 'admin/chat-modern.js'
       - 'admin/messages.html'
@@ -23,6 +24,7 @@ on:
       - 'admin/support.js'
       - 'admin/support-access.js'
       - 'admin/onboarding.js'
+      - 'api/src/mobile-proxy.js'
       - 'database/migrations/101_staff_profile_avatar_self_service.sql'
       - 'a4print-hub-sw.js'
       - '.github/workflows/check-mobile-pwa.yml'
@@ -50,9 +52,11 @@ jobs:
           node --check admin/chat-watchdog.js
           node --check admin/chat-modern.js
           node --check admin/guard.js
+          node --check admin/auth-ui.js
           node --check admin/support.js
           node --check admin/support-access.js
           node --check admin/onboarding.js
+          node --check api/src/mobile-proxy.js
           node --check a4print-hub-sw.js
 
       - name: Validate JSON
@@ -90,14 +94,20 @@ jobs:
           grep -q 'grant_type=password' mobile/app-v3.js
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
-      - name: Verify hardened desktop login
+      - name: Verify resilient desktop login
         run: |
-          grep -q 'auth/v1/token?grant_type=password' admin/login.js
-          grep -q 'auth/v1/authorize' admin/login.js
+          grep -q 'signInWithPassword' admin/login.js
+          grep -q 'signInWithOAuth' admin/login.js
           grep -q 'get_my_staff_profile' admin/login.js
-          grep -q 'sb-qgakliolffnwkymoqvzn-auth-token' admin/login.js
+          grep -q 'A4SupabaseFetch' admin/login.js
+          grep -q 'A4SupabaseFetch' admin/guard.js
+          grep -q 'A4SupabaseFetch' admin/config.js
+          grep -q '/api/v1/supabase' admin/config.js
+          grep -q "'/api/v1/supabase'" api/src/mobile-proxy.js
+          grep -q 'vendor/supabase.js' admin/login.html
+          grep -q 'login.js?v=20260905-netfix1' admin/login.html
           ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' admin/login.js
-          grep -q 'login.js?v=20260905-3' admin/login.html
+          ! grep -q 'sb-qgakliolffnwkymoqvzn-auth-token' admin/login.js
 
       - name: Verify Google auth provider
         shell: bash
