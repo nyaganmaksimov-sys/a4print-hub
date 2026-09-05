@@ -30,12 +30,12 @@
     </nav>
     <div class="side-status">
       <div class="mini-card">
-        <div><span id="msDot" class="dot"></span><b id="msStatus">Проверка МойСклад…</b></div>
-        <div id="stockStamp" class="small muted" style="margin-top:6px">Остатки ещё не загружены</div>
+        <div><span id="msDot" class="dot"></span><b id="msStatusSide">Проверка МойСклад…</b></div>
+        <div id="stockStampSide" class="small muted" style="margin-top:6px">Остатки ещё не загружены</div>
       </div>
       <div class="mini-card">
         <div><span id="shiftDot" class="dot"></span><b id="shiftText">Проверка смены…</b></div>
-        <div id="shiftMeta" class="small muted" style="margin:6px 0 10px">МойСклад</div>
+        <div id="shiftMetaSide" class="small muted" style="margin:6px 0 10px">МойСклад</div>
         <button id="shiftBtn" class="btn success" style="width:100%">Открыть смену</button>
       </div>
       <div class="mini-card">
@@ -55,7 +55,7 @@
       <div class="top-actions">
         <label class="chip">Оператор <select id="operatorSelect" style="border:0;background:transparent;font-weight:800;max-width:190px"></select></label>
         <div class="chip"><span id="topShiftDot" class="dot"></span><b id="topShift">Смена</b></div>
-        <button id="installBtn" class="btn light">Установить на ПК</button>
+        <button id="installBtnTop" class="btn light">Установить на ПК</button>
       </div>
     </header>
 
@@ -100,27 +100,16 @@
 
     <section id="view-reports" class="view">
       <div class="report-toolbar">
-        <div>
-          <h2 style="margin:0 0 4px">Отчёты кассы</h2>
-          <div id="reportRange" class="muted small">Период</div>
-        </div>
+        <div><h2 style="margin:0 0 4px">Отчёты кассы</h2><div id="reportRange" class="muted small">Период</div></div>
         <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
           <select id="reportOperator" class="search" style="width:auto;min-width:180px"></select>
           <div class="periods">
-            <button class="period" data-period="shift">Смена</button>
-            <button class="period on" data-period="today">Сегодня</button>
-            <button class="period" data-period="7d">7 дней</button>
-            <button class="period" data-period="30d">30 дней</button>
-            <button class="period" data-period="year">Год</button>
+            <button class="period" data-period="shift">Смена</button><button class="period on" data-period="today">Сегодня</button><button class="period" data-period="7d">7 дней</button><button class="period" data-period="30d">30 дней</button><button class="period" data-period="year">Год</button>
           </div>
         </div>
       </div>
       <div class="stats-grid">
-        <div class="stat"><span>Выручка</span><strong id="statSales">0 ₽</strong></div>
-        <div class="stat"><span>Чеков</span><strong id="statCount">0</strong></div>
-        <div class="stat"><span>Средний чек</span><strong id="statAvg">0 ₽</strong></div>
-        <div class="stat"><span>Возвраты</span><strong id="statReturns">0 ₽</strong></div>
-        <div class="stat"><span>Итого после возвратов</span><strong id="statNet">0 ₽</strong></div>
+        <div class="stat"><span>Выручка</span><strong id="statSales">0 ₽</strong></div><div class="stat"><span>Чеков</span><strong id="statCount">0</strong></div><div class="stat"><span>Средний чек</span><strong id="statAvg">0 ₽</strong></div><div class="stat"><span>Возвраты</span><strong id="statReturns">0 ₽</strong></div><div class="stat"><span>Итого после возвратов</span><strong id="statNet">0 ₽</strong></div>
       </div>
       <div class="report-grid">
         <article class="report-card"><h3>Способы оплаты</h3><div id="paymentBars" class="bars"><div class="empty">Нет данных</div></div></article>
@@ -131,16 +120,16 @@
     </section>
 
     <section id="view-sync" class="view">
-      <div class="report-toolbar"><div><h2 style="margin:0 0 4px">МойСклад и синхронизация</h2><div class="muted small">Контроль каталога, остатков, смены и связи кассы</div></div><div style="display:flex;gap:8px"><button id="syncCatalog" class="btn primary">Синхронизировать каталог</button><button id="refreshStock" class="btn light" onclick="document.getElementById('refreshStock').click()">Обновить остатки</button></div></div>
+      <div class="report-toolbar"><div><h2 style="margin:0 0 4px">МойСклад и синхронизация</h2><div class="muted small">Контроль каталога, остатков, смены и связи кассы</div></div><div style="display:flex;gap:8px"><button id="syncCatalog" class="btn primary">Синхронизировать каталог</button><button id="refreshStockSync" class="btn light">Обновить остатки</button></div></div>
       <div class="sync-grid">
         <article class="sync-card"><h3>Каталог</h3><div class="sync-big" id="catalogActive">0</div><div class="muted small">активных позиций</div><div class="status-list"><div class="status-line"><span>Связано с МойСклад</span><b id="catalogLinked">0</b></div><div class="status-line"><span>Последняя синхронизация</span><b id="catalogLastSync">—</b></div></div></article>
-        <article class="sync-card"><h3>Остатки и соединение</h3><div class="status-list"><div class="status-line"><span>МойСклад API</span><b id="msStatus">Проверка…</b></div><div class="status-line"><span>Остатки</span><b id="stockStamp">—</b></div></div><p class="install-hint">После продажи чек создаётся в МойСклад, а локальная финансовая запись сохраняется в HUB по идентификатору документа МойСклад.</p></article>
-        <article class="sync-card"><h3>Розничная смена</h3><div class="status-list"><div class="status-line"><span>Состояние</span><b id="topShift">—</b></div><div class="status-line"><span>Точка</span><b id="shiftMeta">—</b></div></div><p class="install-hint">Открытие и закрытие смены выполняется непосредственно в МойСклад и фиксируется в A4PRINT HUB для отчётности.</p></article>
+        <article class="sync-card"><h3>Остатки и соединение</h3><div class="status-list"><div class="status-line"><span>МойСклад API</span><b id="msStatusSync">Проверка…</b></div><div class="status-line"><span>Остатки</span><b id="stockStampSync">—</b></div></div><p class="install-hint">После продажи чек создаётся в МойСклад, а локальная финансовая запись сохраняется в HUB по идентификатору документа МойСклад.</p></article>
+        <article class="sync-card"><h3>Розничная смена</h3><div class="status-list"><div class="status-line"><span>Состояние</span><b id="shiftStatusSync">—</b></div><div class="status-line"><span>Точка</span><b id="shiftMetaSync">—</b></div></div><p class="install-hint">Открытие и закрытие смены выполняется непосредственно в МойСклад и фиксируется в A4PRINT HUB для отчётности.</p></article>
       </div>
-      <article class="sync-card" style="margin-top:14px"><h3>Установка на компьютер</h3><p class="install-hint">Кассу можно установить как отдельное приложение Windows/macOS/Linux из Chrome или Edge. После установки она запускается отдельным окном и остаётся связанной с общей базой A4PRINT HUB и МойСклад.</p><button id="installBtn" class="btn primary">Установить кассу на ПК</button></article>
+      <article class="sync-card" style="margin-top:14px"><h3>Установка на компьютер</h3><p class="install-hint">Кассу можно установить как отдельное приложение Windows/macOS/Linux из Chrome или Edge. После установки она запускается отдельным окном и остаётся связанной с общей базой A4PRINT HUB и МойСклад.</p><button id="installBtnSync" class="btn primary">Установить кассу на ПК</button></article>
     </section>
   </main>
 </div>
-<script type="module" src="./app-v2.js?v=20260905-1"></script>
+<script type="module" src="./app-v2.js?v=20260905-2"></script>
 </body>
 </html>
