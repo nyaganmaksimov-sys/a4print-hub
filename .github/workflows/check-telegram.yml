@@ -1,0 +1,69 @@
+name: Check Telegram Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/settings.html'
+      - 'admin/telegram.html'
+      - 'admin/navigation.js'
+      - 'admin/index.html'
+      - 'admin/config.js'
+      - 'api/src/telegram.js'
+      - 'api/src/mobile-proxy.js'
+      - 'database/migrations/107_telegram_integration.sql'
+      - 'database/migrations/108_telegram_order_conversion.sql'
+      - '.github/workflows/check-telegram.yml'
+
+jobs:
+  telegram-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify files and syntax
+        run: |
+          set -euo pipefail
+          test -s admin/settings.html
+          test -s admin/telegram.html
+          test -s api/src/telegram.js
+          test -s api/src/mobile-proxy.js
+          node --check api/src/telegram.js
+          node --check api/src/mobile-proxy.js
+          grep -q '/api/v1/integrations/telegram/status' admin/settings.html
+          grep -q '/api/v1/integrations/telegram/messages' admin/telegram.html
+          grep -q 'telegram.html' admin/navigation.js
+          grep -q 'registerTelegramRoutes' api/src/mobile-proxy.js
+          grep -q 'create_order_from_telegram' api/src/telegram.js
+          grep -q 'telegram_integrations' database/migrations/107_telegram_integration.sql
+          grep -q 'create_order_from_telegram' database/migrations/108_telegram_order_conversion.sql
+
+  telegram-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Pages and API deployment
+        run: sleep 40
+      - name: Check live panel and API route
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            settings=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/settings.html?tgcheck=${GITHUB_SHA}" || true)
+            inbox=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/telegram.html?tgcheck=${GITHUB_SHA}" || true)
+            if echo "$settings" | grep -q 'Telegram' && echo "$inbox" | grep -q 'Входящие сообщения'; then
+              break
+            fi
+            if [ "$attempt" = "24" ]; then
+              echo 'Telegram admin UI did not become live in time.'
+              exit 1
+            fi
+            sleep 5
+          done
+
+          code=$(curl -sS -o /tmp/tg-status.json -w '%{http_code}' \
+            -H 'Origin: https://a4print-hub.ru' \
+            --retry 8 --retry-delay 5 --retry-all-errors --max-time 25 \
+            https://a4print-hub-api.onrender.com/api/v1/integrations/telegram/status)
+          cat /tmp/tg-status.json
+          test "$code" = "401"
