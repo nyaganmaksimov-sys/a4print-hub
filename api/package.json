@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node src/mobile-proxy.js"
+    "start": "node src/boot.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.4",
