@@ -9,6 +9,7 @@ function validReturn(raw){if(!raw)return null;try{const u=new URL(raw,location.o
 function safeReturnTo(){const q=new URLSearchParams(location.search).get('returnTo');if(validReturn(q))return validReturn(q);try{return validReturn(localStorage.getItem(RETURN_KEY))}catch{return null}}
 function rememberReturn(rt){try{if(rt)localStorage.setItem(RETURN_KEY,rt)}catch{}}
 function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
+async function uiEnabled(provider){try{return window.A4AuthUI?await window.A4AuthUI.isEnabled('login',provider):true}catch{return true}}
 async function loadAuthSettings(){if(authSettings)return authSettings;try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);const r=await fetch(`${SUPABASE_URL}/auth/v1/settings`,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY},signal:controller.signal});clearTimeout(timer);if(!r.ok)return null;authSettings=await r.json();return authSettings}catch{return null}}
 function providerEnabled(settings,provider){const ext=settings?.external;if(!ext||typeof ext!=='object')return null;if(Object.prototype.hasOwnProperty.call(ext,provider))return Boolean(ext[provider]);if(provider.startsWith('custom:')){const key=provider.slice(7);if(Object.prototype.hasOwnProperty.call(ext,key))return Boolean(ext[key])}return null}
 async function routeChatReturn(rt){
@@ -23,6 +24,7 @@ async function startOAuth(provider,button=null){
   error.style.display='none';if(button)button.disabled=true;
   try{
     if(!SUPABASE_PUBLISHABLE_KEY)throw new Error('Не задан Publishable Key Supabase.');
+    if(!(await uiEnabled(provider)))throw new Error(`${providerName(provider)} отключён администратором A4PRINT HUB.`);
     const settings=await loadAuthSettings(),enabled=providerEnabled(settings,provider);
     if(enabled===false)throw new Error(`${providerName(provider)} пока не подключён в настройках входа A4PRINT HUB. Используйте вход по email или обратитесь к администратору.`);
     const q=new URLSearchParams({oauth:'1'}),rt=safeReturnTo();if(rt){q.set('returnTo',rt);rememberReturn(rt)}
@@ -32,8 +34,9 @@ async function startOAuth(provider,button=null){
 }
 document.getElementById('showRecovery').onclick=()=>{resetRecoveryMessages();recoveryEmail.value=document.getElementById('email').value.trim();recoveryBox.classList.add('open');recoveryEmail.focus()};document.getElementById('hideRecovery').onclick=()=>recoveryBox.classList.remove('open');sendRecovery.onclick=async()=>{resetRecoveryMessages();const email=recoveryEmail.value.trim();if(!email){recoveryError.textContent='Введите email.';recoveryError.style.display='block';return}sendRecovery.disabled=true;try{const redirectTo=new URL('./reset-password.html',location.href).href;const{error:e}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});if(e)throw e;recoverySuccess.textContent='Ссылка отправлена. Откройте письмо и перейдите по ней.';recoverySuccess.style.display='block'}catch(e){recoveryError.textContent=e?.message||'Не удалось отправить письмо.';recoveryError.style.display='block'}finally{sendRecovery.disabled=false}};
 for(const b of document.querySelectorAll('[data-provider]'))b.onclick=()=>startOAuth(b.dataset.provider,b).catch(()=>{});
-form.addEventListener('submit',async event=>{event.preventDefault();error.style.display='none';submit.disabled=true;submit.textContent='Входим…';try{await supabase.auth.signOut({scope:'local'}).catch(()=>{});const{error:e}=await supabase.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(e)throw e;submit.textContent='Проверяем доступ…';await routeByProfile()}catch(e){showError(e?.message||'Не удалось выполнить вход.')}finally{submit.disabled=false;submit.textContent='Войти'}});
+form.addEventListener('submit',async event=>{event.preventDefault();error.style.display='none';submit.disabled=true;submit.textContent='Входим…';try{if(!(await uiEnabled('email')))throw new Error('Вход по email отключён администратором A4PRINT HUB.');await supabase.auth.signOut({scope:'local'}).catch(()=>{});const{error:e}=await supabase.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(e)throw e;submit.textContent='Проверяем доступ…';await routeByProfile()}catch(e){showError(e?.message||'Не удалось выполнить вход.')}finally{submit.disabled=false;submit.textContent='Войти'}});
 (async()=>{
+  window.A4AuthUI?.apply?.('login').catch(()=>{});
   const q=new URLSearchParams(location.search),autoProvider=q.get('startProvider'),rt=validReturn(q.get('returnTo'));if(rt)rememberReturn(rt);
   if(autoProvider){
     submit.disabled=true;submit.textContent=`Открываем ${providerName(autoProvider)}…`;
