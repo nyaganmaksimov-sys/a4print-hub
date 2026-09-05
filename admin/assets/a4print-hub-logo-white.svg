@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" role="img" aria-label="A4PRINT HUB">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#67e8f9"/>
+      <stop offset=".48" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#020617" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M110 275C95 170 160 75 280 48c132-29 251 25 318 119" fill="none" stroke="url(#blue)" stroke-width="15" stroke-linecap="round"/>
+    <path d="M255 451c112 38 243 5 313-82" fill="none" stroke="url(#blue)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M77 316L196 101h76l75 215h-77l-14-46H143l-25 46zm104-105h54l-21-74z" fill="#fff"/>
+    <path d="M322 245L459 101h77l-18 146h53l-10 68h-52l-7 62h-76l7-62H329zm77 2h43l9-77z" fill="url(#blue)"/>
+    <g transform="translate(500 143)">
+      <ellipse cx="91" cy="33" rx="82" ry="30" fill="#fff"/>
+      <path d="M9 33v62c0 17 37 30 82 30s82-13 82-30V33" fill="#fff" stroke="#cbd5e1" stroke-width="4"/>
+      <path d="M9 95v62c0 17 37 30 82 30s82-13 82-30V95" fill="#fff" stroke="#cbd5e1" stroke-width="4"/>
+      <circle cx="145" cy="72" r="9" fill="#38bdf8"/><circle cx="145" cy="134" r="9" fill="#38bdf8"/><circle cx="145" cy="176" r="9" fill="#38bdf8"/>
+    </g>
+  </g>
+  <text x="72" y="413" font-family="Arial,Helvetica,sans-serif" font-size="66" font-weight="900" fill="#fff">A4PRINT-<tspan fill="url(#blue)">HUB</tspan></text>
+  <text x="150" y="458" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" letter-spacing="5" fill="#e2e8f0">ДАННЫЕ <tspan fill="#38bdf8">•</tspan> ПРОЦЕССЫ <tspan fill="#38bdf8">•</tspan> РЕЗУЛЬТАТ</text>
+</svg>
