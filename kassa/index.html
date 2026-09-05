@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#101828">
+  <meta name="theme-color" content="#08aebb">
   <meta name="color-scheme" content="light">
-  <title>A4PRINT KASSA 2.0</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="./styles.css?v=20260905-2">
-  <link rel="stylesheet" href="./modules.css?v=20260905-1">
+  <title>A4PRINT KASSA 2.1</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=3">
+  <link rel="stylesheet" href="./styles.css?v=20260905-pos3">
+  <link rel="stylesheet" href="./modules.css?v=20260905-pos3">
   <style>[hidden]{display:none!important}</style>
   <script src="./config.js?v=20260905-1"></script>
   <script src="../admin/vendor/supabase.js?v=20260905-netfix1"></script>
@@ -18,14 +18,8 @@
 
   <section id="authView" class="auth-view">
     <div class="auth-card">
-      <div class="brand-row">
-        <img src="../admin/assets/a4print-hub-logo-white.svg" alt="A4PRINT HUB">
-        <div><b>A4PRINT KASSA</b><span>быстрая касса 2.0</span></div>
-      </div>
-      <div class="auth-copy">
-        <h1>Вход в кассу</h1>
-        <p>Каталог и чек работают локально. Интернет нужен только для синхронизации.</p>
-      </div>
+      <div class="brand-row"><div class="brand-mark">A4</div><div><b>A4PRINT KASSA</b><span>рабочее место кассира · 2.1</span></div></div>
+      <div class="auth-copy"><h1>Вход в кассу</h1><p>Продажи сохраняются локально и синхронизируются с A4PRINT HUB и МойСклад.</p></div>
       <button id="googleLogin" class="btn google" type="button">Войти через Google</button>
       <div class="or"><span>или по email</span></div>
       <form id="loginForm">
@@ -34,166 +28,94 @@
         <div id="loginError" class="form-error"></div>
         <button id="loginSubmit" class="btn primary wide" type="submit">Войти</button>
       </form>
-      <div class="auth-foot">A4-Принт · A4PRINT HUB</div>
+      <div class="auth-foot">А4-Принт · A4PRINT HUB</div>
     </div>
   </section>
 
   <section id="appView" class="app-view" hidden>
-    <header class="topbar">
-      <div class="top-brand">
-        <img src="../admin/assets/a4print-hub-logo-white.svg" alt="A4PRINT">
-        <div><b>A4PRINT KASSA</b><span>2.0 · local-first</span></div>
+    <aside id="mainNav" class="main-nav">
+      <div class="nav-brand"><b>A4PRINT</b><span>KASSA 2.1</span></div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-section="sale" type="button"><span class="nav-icon">▣</span><b>Продажа</b></button>
+        <button class="nav-item" data-section="returns" type="button"><span class="nav-icon">↩</span><b>Возвраты</b></button>
+        <button class="nav-item" data-section="reports" type="button"><span class="nav-icon">▥</span><b>Отчёты</b></button>
+        <button id="navShift" class="nav-item" type="button"><span class="nav-icon">▤</span><b>Смена</b></button>
+        <button id="navHistory" class="nav-item" type="button"><span class="nav-icon">◷</span><b>История</b></button>
+        <button id="navHeld" class="nav-item" type="button"><span class="nav-icon">▧</span><b>Отложенные чеки</b></button>
+        <button id="navSettings" class="nav-item" type="button"><span class="nav-icon">⚙</span><b>Настройки</b></button>
+        <button id="navHelp" class="nav-item" type="button"><span class="nav-icon">?</span><b>Помощь</b></button>
+      </nav>
+      <div class="nav-spacer"></div>
+      <button id="logout" class="nav-item nav-logout" type="button"><span class="nav-icon">⇥</span><b>Выход</b></button>
+      <div class="nav-user">
+        <div class="avatar">●</div><div><b id="uiCashierName">Кассир</b><span id="uiCashierRole">A4PRINT HUB</span></div>
       </div>
-      <div id="topSearch" class="top-search">
-        <span>⌕</span>
-        <input id="search" autocomplete="off" placeholder="Поиск, артикул или штрихкод" autofocus>
-        <kbd>F2</kbd>
-      </div>
-      <div class="top-status">
-        <button id="networkChip" class="status-chip" type="button"><i></i><span>Сеть</span></button>
-        <button id="queueChip" class="status-chip" type="button"><i></i><span>Очередь 0</span></button>
-        <button id="shiftChip" class="status-chip" type="button"><i></i><span>Смена</span></button>
-      </div>
-      <div class="operator-box">
-        <select id="operatorSelect" aria-label="Оператор"></select>
-        <button id="logout" class="icon-btn" title="Выйти" type="button">↪</button>
-      </div>
-    </header>
+      <button id="syncNow" class="nav-sync" type="button"><span>↻</span><div><b>Обновить данные</b><small id="uiSyncTime">ожидание синхронизации</small></div></button>
+      <button id="openOldPos" class="legacy-link" type="button">Открыть старую кассу</button>
+    </aside>
 
-    <div id="offlineBanner" class="offline-banner" hidden>
-      <b>Работа офлайн</b><span>Чеки сохраняются на этом компьютере и уйдут в МойСклад после восстановления связи.</span>
+    <div class="main-stage">
+      <header class="topbar">
+        <button id="menuToggle" class="hamburger" type="button" title="Свернуть меню">☰</button>
+        <div id="topSearch" class="top-search"><span>⌕</span><input id="search" autocomplete="off" placeholder="Поиск товаров по названию, коду или штрихкоду…" autofocus><button id="clearSearch" type="button">×</button><kbd>F2</kbd></div>
+        <button id="quickAdd" class="tool-button plus" type="button" title="Быстро найти позицию"><strong>＋</strong><small>Добавить</small></button>
+        <div class="view-switch" aria-label="Вид каталога"><button id="listView" class="active" type="button" title="Список">☷</button><button id="gridView" type="button" title="Плитка">▦</button></div>
+        <div class="header-brand"><b>A4PRINT</b><span>печатаем больше возможностей</span></div>
+      </header>
+
+      <div id="offlineBanner" class="offline-banner" hidden><b>Работа офлайн</b><span>Чеки сохраняются на этом компьютере и уйдут в МойСклад после восстановления связи.</span></div>
+
+      <main class="workspace">
+        <aside id="saleSidebar" class="category-panel">
+          <div class="category-head">Категории</div>
+          <button class="category active" data-category="ALL"><span>▰</span><b>Все</b></button>
+          <button class="category" data-category="FAVORITES"><span>★</span><b>Избранное</b></button>
+          <div id="dynamicCategories" class="category-list"></div>
+        </aside>
+
+        <section id="saleCatalog" class="catalog-panel">
+          <div class="catalog-toolbar"><div><h1 id="catalogTitle">Товары</h1><span id="catalogMeta">Загрузка каталога…</span></div><div class="toolbar-actions"><button id="toggleFavoritesOnly" class="btn light" type="button">★ Избранное</button><button id="refreshCatalog" class="btn light" type="button">Обновить</button></div></div>
+          <div id="catalogGrid" class="catalog-grid list-mode"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+        </section>
+
+        <aside id="saleCart" class="cart-panel">
+          <div class="cart-head"><div><h2>Чек</h2><span id="cartCount">0 позиций</span></div><div class="cart-head-actions"><button id="clearCart" class="link-btn" type="button">Очистить</button><span class="kebab">•••</span></div></div>
+          <div id="cartItems" class="cart-items"><div class="empty-cart"><div class="empty-arrow">←</div><b>Щёлкните по товару,<br>чтобы добавить его в чек</b></div></div>
+          <div class="cart-bottom">
+            <div class="customer-box"><button id="customerToggle" class="customer-toggle" type="button"><span>♙ Покупатель</span><b id="customerName">Не выбран</b><i>›</i></button><div id="customerPanel" class="customer-panel" hidden><input id="customerSearch" autocomplete="off" placeholder="Имя, телефон или email"><div id="customerResults" class="customer-results"></div><button id="clearCustomer" class="link-btn" type="button">Без покупателя</button></div></div>
+            <div class="cashier-strip"><span>▣ Кассир:</span><select id="operatorSelect" aria-label="Оператор"></select></div>
+            <div class="payment-tabs" role="group" aria-label="Способ оплаты"><button class="pay-tab active" data-payment="Наличные" type="button">▤ Наличные</button><button class="pay-tab" data-payment="Карта" type="button">▣ Карта</button><button class="pay-tab" data-payment="СБП" type="button">▷ СБП</button></div>
+            <select id="cashAccount" class="account-select" aria-label="Счёт"></select>
+            <div class="checkout-bar"><div class="total-row"><span>Итого:</span><strong id="cartTotal">0 ₽</strong></div><button id="payButton" class="pay-button" type="button" disabled><span>Оплатить</span><strong>0 ₽</strong><i>→</i></button></div>
+            <div class="bottom-info"><span id="shiftInfo">Смена не открыта</span><button id="shiftButton" class="link-btn" type="button">Открыть смену</button></div>
+          </div>
+        </aside>
+
+        <section id="returnsView" class="module-view" hidden>
+          <div class="module-toolbar"><div><h1>Возвраты</h1><p>Выберите исходную продажу и позиции для возврата</p></div><button id="refreshReturns" class="btn light" type="button">↻ Обновить</button></div>
+          <div class="returns-layout">
+            <article class="module-card returns-sales-card"><div class="card-head"><div><b>Последние продажи</b><span>Поиск чека для возврата</span></div></div><div class="module-search"><span>⌕</span><input id="returnsSearch" autocomplete="off" placeholder="Номер продажи, сумма или комментарий"></div><div id="returnsSales" class="returns-sales"><div class="module-empty">Загрузка продаж…</div></div></article>
+            <article class="module-card return-detail-card"><div class="card-head"><div><b>Возврат</b><span id="returnSaleLabel">Продажа не выбрана</span></div></div><div id="returnDetail" class="return-detail"><div class="module-empty">Выберите продажу слева</div></div></article>
+          </div>
+        </section>
+
+        <section id="reportsView" class="module-view" hidden>
+          <div class="module-toolbar reports-toolbar"><div><h1>Отчёты и статистика</h1><p id="reportRange">Текущий период</p></div><div class="report-controls"><div class="period-tabs"><button class="period-btn" data-report-period="shift" type="button">Смена</button><button class="period-btn active" data-report-period="today" type="button">Сегодня</button><button class="period-btn" data-report-period="7d" type="button">7 дней</button><button class="period-btn" data-report-period="30d" type="button">30 дней</button><button class="period-btn" data-report-period="year" type="button">Год</button></div><select id="reportOperator" class="module-select" aria-label="Оператор"></select></div></div>
+          <div class="report-scroll"><div class="stats-grid"><article class="stat-card"><span>Выручка</span><strong id="reportSalesTotal">0 ₽</strong></article><article class="stat-card"><span>Чеков</span><strong id="reportSalesCount">0</strong></article><article class="stat-card"><span>Средний чек</span><strong id="reportAvgCheck">0 ₽</strong></article><article class="stat-card return-stat"><span>Возвраты</span><strong id="reportReturnsTotal">0 ₽</strong><small id="reportReturnsCount">0 возвратов</small></article><article class="stat-card net-stat"><span>Итого после возвратов</span><strong id="reportNetTotal">0 ₽</strong></article></div><div class="report-grid"><article class="module-card report-card"><div class="card-head"><div><b>Способы оплаты</b><span>Распределение выручки</span></div></div><div id="reportPayments" class="bars"></div></article><article class="module-card report-card"><div class="card-head"><div><b>Продажи по операторам</b><span>Кто сколько провёл</span></div></div><div id="reportOperatorsBars" class="bars"></div></article><article class="module-card report-card"><div class="card-head"><div><b>Популярные позиции</b><span>По сумме продаж</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Позиция</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody id="reportTopItems"></tbody></table></div></article><article class="module-card report-card"><div class="card-head"><div><b>Последние чеки</b><span>Продажи за период</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Время</th><th>Оператор</th><th>Оплата</th><th>Сумма</th></tr></thead><tbody id="reportRecentSales"></tbody></table></div></article><article class="module-card report-card report-wide"><div class="card-head"><div><b>Последние возвраты</b><span>Документы возврата за период</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Время</th><th>Возврат</th><th>Продажа</th><th>Оператор</th><th>Причина</th><th>Оплата</th><th>Сумма</th></tr></thead><tbody id="reportRecentReturns"></tbody></table></div></article></div></div>
+        </section>
+      </main>
+
+      <footer class="statusbar"><div><i class="status-dot"></i><span id="footerShift">Смена</span><span class="sep">|</span><span>A4PRINT KASSA 2.1</span></div><div class="footer-status"><button id="networkChip" class="footer-chip" type="button"><i></i><span>Сеть</span></button><button id="queueChip" class="footer-chip" type="button"><i></i><span>Очередь 0</span></button><button id="shiftChip" class="footer-chip" type="button"><i></i><span>Смена</span></button></div></footer>
     </div>
 
-    <main class="workspace">
-      <aside class="category-panel">
-        <div class="module-nav">
-          <button class="section-btn active" data-section="sale" type="button"><span>▦</span>Продажа</button>
-          <button class="section-btn" data-section="returns" type="button"><span>↩</span>Возвраты</button>
-          <button class="section-btn" data-section="reports" type="button"><span>▥</span>Отчёты</button>
-        </div>
-        <div class="sidebar-divider"></div>
-        <div id="saleSidebar" class="sale-sidebar">
-          <div class="category-head">Категории</div>
-          <button class="category active" data-category="ALL"><span>▦</span>Все</button>
-          <button class="category" data-category="FAVORITES"><span>★</span>Избранное</button>
-          <div id="dynamicCategories" class="category-list"></div>
-          <div class="side-spacer"></div>
-          <button id="syncNow" class="side-action" type="button">↻ Синхронизировать</button>
-          <button id="openOldPos" class="side-action muted" type="button">Старая касса</button>
-        </div>
-      </aside>
+    <section id="queueDrawer" class="drawer" aria-hidden="true"><div class="drawer-card"><div class="drawer-head"><div><h2>Очередь синхронизации</h2><span>Чеки, сохранённые локально</span></div><button id="closeQueue" class="icon-btn" type="button">×</button></div><div id="queueList" class="queue-list"></div><div class="drawer-foot"><button id="retryQueue" class="btn primary" type="button">Повторить синхронизацию</button></div></div></section>
 
-      <section id="saleCatalog" class="catalog-panel">
-        <div class="catalog-toolbar">
-          <div>
-            <h1 id="catalogTitle">Все позиции</h1>
-            <span id="catalogMeta">Загрузка каталога…</span>
-          </div>
-          <div class="toolbar-actions">
-            <button id="toggleFavoritesOnly" class="btn light" type="button">★ Избранное</button>
-            <button id="refreshCatalog" class="btn light" type="button">Обновить каталог</button>
-          </div>
-        </div>
-        <div id="catalogGrid" class="catalog-grid">
-          <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
-        </div>
-      </section>
-
-      <aside id="saleCart" class="cart-panel">
-        <div class="cart-head">
-          <div><h2>Текущий чек</h2><span id="cartCount">0 позиций</span></div>
-          <button id="clearCart" class="link-btn" type="button">Очистить</button>
-        </div>
-        <div id="cartItems" class="cart-items">
-          <div class="empty-cart"><div>🧾</div><b>Чек пока пуст</b><span>Нажмите на товар или услугу слева</span></div>
-        </div>
-        <div class="cart-bottom">
-          <div class="customer-box">
-            <button id="customerToggle" class="customer-toggle" type="button"><span>Клиент</span><b id="customerName">Не выбран</b><i>›</i></button>
-            <div id="customerPanel" class="customer-panel" hidden>
-              <input id="customerSearch" autocomplete="off" placeholder="Имя, телефон или email">
-              <div id="customerResults" class="customer-results"></div>
-              <button id="clearCustomer" class="link-btn" type="button">Без клиента</button>
-            </div>
-          </div>
-
-          <div class="payment-tabs" role="group" aria-label="Способ оплаты">
-            <button class="pay-tab active" data-payment="Наличные" type="button">Наличные</button>
-            <button class="pay-tab" data-payment="Карта" type="button">Карта</button>
-            <button class="pay-tab" data-payment="СБП" type="button">СБП</button>
-          </div>
-          <select id="cashAccount" class="account-select" aria-label="Счёт"></select>
-          <div class="total-row"><span>Итого</span><strong id="cartTotal">0 ₽</strong></div>
-          <button id="payButton" class="pay-button" type="button" disabled><span>Оформить продажу</span><strong>0 ₽</strong></button>
-          <div class="bottom-info">
-            <span id="shiftInfo">Смена не открыта</span>
-            <button id="shiftButton" class="link-btn" type="button">Открыть смену</button>
-          </div>
-        </div>
-      </aside>
-
-      <section id="returnsView" class="module-view" hidden>
-        <div class="module-toolbar">
-          <div><h1>Возвраты</h1><p>Возврат по розничной продаже с созданием документа в МойСклад</p></div>
-          <button id="refreshReturns" class="btn light" type="button">Обновить</button>
-        </div>
-        <div class="returns-layout">
-          <article class="module-card returns-sales-card">
-            <div class="card-head"><div><b>Последние продажи</b><span>Выберите чек для возврата</span></div></div>
-            <div class="module-search"><span>⌕</span><input id="returnsSearch" autocomplete="off" placeholder="Номер продажи, сумма или комментарий"></div>
-            <div id="returnsSales" class="returns-sales"><div class="module-empty">Загрузка продаж…</div></div>
-          </article>
-          <article class="module-card return-detail-card">
-            <div class="card-head"><div><b>Позиции возврата</b><span id="returnSaleLabel">Продажа не выбрана</span></div></div>
-            <div id="returnDetail" class="return-detail"><div class="module-empty">Выберите продажу слева</div></div>
-          </article>
-        </div>
-      </section>
-
-      <section id="reportsView" class="module-view" hidden>
-        <div class="module-toolbar reports-toolbar">
-          <div><h1>Отчёты и статистика</h1><p id="reportRange">Текущий период</p></div>
-          <div class="report-controls">
-            <select id="reportOperator" class="module-select" aria-label="Оператор"></select>
-            <div class="period-tabs">
-              <button class="period-btn" data-report-period="shift" type="button">Смена</button>
-              <button class="period-btn active" data-report-period="today" type="button">Сегодня</button>
-              <button class="period-btn" data-report-period="7d" type="button">7 дней</button>
-              <button class="period-btn" data-report-period="30d" type="button">30 дней</button>
-              <button class="period-btn" data-report-period="year" type="button">Год</button>
-            </div>
-          </div>
-        </div>
-        <div class="report-scroll">
-          <div class="stats-grid">
-            <article class="stat-card"><span>Выручка</span><strong id="reportSalesTotal">0 ₽</strong></article>
-            <article class="stat-card"><span>Чеков</span><strong id="reportSalesCount">0</strong></article>
-            <article class="stat-card"><span>Средний чек</span><strong id="reportAvgCheck">0 ₽</strong></article>
-            <article class="stat-card return-stat"><span>Возвраты</span><strong id="reportReturnsTotal">0 ₽</strong><small id="reportReturnsCount">0 возвратов</small></article>
-            <article class="stat-card net-stat"><span>Итого после возвратов</span><strong id="reportNetTotal">0 ₽</strong></article>
-          </div>
-          <div class="report-grid">
-            <article class="module-card report-card"><div class="card-head"><div><b>Способы оплаты</b><span>Распределение выручки</span></div></div><div id="reportPayments" class="bars"></div></article>
-            <article class="module-card report-card"><div class="card-head"><div><b>Продажи по операторам</b><span>Кто сколько провёл</span></div></div><div id="reportOperatorsBars" class="bars"></div></article>
-            <article class="module-card report-card"><div class="card-head"><div><b>Популярные позиции</b><span>По сумме продаж</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Позиция</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody id="reportTopItems"></tbody></table></div></article>
-            <article class="module-card report-card"><div class="card-head"><div><b>Последние чеки</b><span>Продажи за период</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Время</th><th>Оператор</th><th>Оплата</th><th>Сумма</th></tr></thead><tbody id="reportRecentSales"></tbody></table></div></article>
-            <article class="module-card report-card report-wide"><div class="card-head"><div><b>Последние возвраты</b><span>Документы возврата за период</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Время</th><th>Возврат</th><th>Продажа</th><th>Оператор</th><th>Причина</th><th>Оплата</th><th>Сумма</th></tr></thead><tbody id="reportRecentReturns"></tbody></table></div></article>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <section id="queueDrawer" class="drawer" aria-hidden="true">
-      <div class="drawer-card">
-        <div class="drawer-head"><div><h2>Очередь синхронизации</h2><span>Чеки, сохранённые локально</span></div><button id="closeQueue" class="icon-btn" type="button">×</button></div>
-        <div id="queueList" class="queue-list"></div>
-        <div class="drawer-foot"><button id="retryQueue" class="btn primary" type="button">Повторить синхронизацию</button></div>
-      </div>
-    </section>
+    <section id="utilityDrawer" class="utility-drawer" aria-hidden="true"><div class="utility-card"><div class="utility-head"><div><h2 id="utilityTitle">Настройки</h2><span id="utilitySubtitle">A4PRINT KASSA</span></div><button id="closeUtility" class="icon-btn" type="button">×</button></div><div id="utilityBody" class="utility-body"></div></div></section>
   </section>
 
   <script src="./db.js?v=20260905-1"></script>
   <script src="./app.js?v=20260905-2"></script>
   <script src="./modules.js?v=20260905-1"></script>
+  <script src="./ui.js?v=20260905-pos3"></script>
 </body>
 </html>
