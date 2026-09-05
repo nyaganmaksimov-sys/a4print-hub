@@ -32,7 +32,12 @@ const corsOptions = {
     return callback(new Error(`CORS_ORIGIN_DENIED: ${origin}`));
   },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'X-Telegram-Bot-Api-Secret-Token'],
+  allowedHeaders: [
+    'Authorization', 'Content-Type', 'Accept', 'X-Telegram-Bot-Api-Secret-Token',
+    'apikey', 'x-client-info', 'prefer', 'accept-profile', 'content-profile',
+    'range', 'range-unit', 'x-supabase-api-version'
+  ],
+  exposedHeaders: ['content-range', 'preference-applied', 'location', 'www-authenticate'],
   maxAge: 86400
 };
 app.use(cors(corsOptions));
@@ -46,14 +51,15 @@ app.get('/api/v1/health', (_req, res) => res.json({
   success: true,
   service: 'a4print-hub-api',
   status: 'ok',
-  build: '20260905-pos-sale-v2',
+  build: '20260905-supabase-fallback-v1',
   databaseConfigured: Boolean(service),
   moyskladConfigured: Boolean(process.env.MOYSKLAD_TOKEN),
   capabilities: {
     posSale: true,
     posShift: true,
     posReturns: true,
-    telegram: true
+    telegram: true,
+    supabaseFallback: true
   }
 }));
 
@@ -224,6 +230,51 @@ app.get('/api/v1/mobile/bootstrap', async (req, res, next) => {
       },
       orders: orders || []
     });
+  } catch (e) { next(e); }
+});
+
+const proxyRequestHeaders = new Set([
+  'authorization', 'apikey', 'content-type', 'accept', 'prefer',
+  'accept-profile', 'content-profile', 'range', 'range-unit',
+  'x-client-info', 'x-supabase-api-version'
+]);
+const proxyResponseHeaders = new Set([
+  'content-type', 'content-range', 'preference-applied', 'location',
+  'www-authenticate', 'x-supabase-api-version'
+]);
+
+app.use('/api/v1/supabase', async (req, res, next) => {
+  try {
+    if (!supabaseUrl) return res.status(503).json({ success: false, error: 'SUPABASE_PROXY_NOT_CONFIGURED' });
+    const suffix = req.originalUrl.replace(/^\/api\/v1\/supabase/, '') || '/';
+    const upstream = new URL(suffix, supabaseUrl);
+    const expectedOrigin = new URL(supabaseUrl).origin;
+    if (upstream.origin !== expectedOrigin || !/^\/(auth|rest|functions)\/v1(?:\/|$)/.test(upstream.pathname)) {
+      return res.status(400).json({ success: false, error: 'SUPABASE_PROXY_PATH_DENIED' });
+    }
+
+    const headers = {};
+    for (const [name, value] of Object.entries(req.headers)) {
+      if (value != null && proxyRequestHeaders.has(name.toLowerCase())) headers[name] = value;
+    }
+    if (!headers.apikey && publishableKey) headers.apikey = publishableKey;
+
+    const method = req.method.toUpperCase();
+    const hasBody = !['GET', 'HEAD'].includes(method);
+    let body;
+    if (hasBody && req.body != null) {
+      if (Buffer.isBuffer(req.body) || typeof req.body === 'string') body = req.body;
+      else body = JSON.stringify(req.body);
+    }
+
+    const response = await fetch(upstream, { method, headers, body, redirect: 'manual' });
+    res.status(response.status);
+    response.headers.forEach((value, key) => {
+      if (proxyResponseHeaders.has(key.toLowerCase())) res.setHeader(key, value);
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    const payload = Buffer.from(await response.arrayBuffer());
+    res.send(payload);
   } catch (e) { next(e); }
 });
 
