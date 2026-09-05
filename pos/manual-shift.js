@@ -20,6 +20,25 @@
   function bodyOperator(init){
     try{const d=typeof init?.body==='string'?JSON.parse(init.body):init?.body;return String(d?.operator_id||'')}catch{return ''}
   }
+  function showWaitingState(data){
+    setTimeout(()=>{
+      const remote=data?.shift;
+      const dot=document.getElementById('shiftDot');
+      const topDot=document.getElementById('topShiftDot');
+      const btn=document.getElementById('shiftBtn');
+      if(dot)dot.className='dot';
+      if(topDot)topDot.className='dot';
+      const shiftText=document.getElementById('shiftText');
+      if(shiftText)shiftText.textContent='Смена не начата';
+      const top=document.getElementById('topShift');
+      if(top)top.textContent='Смена не начата';
+      const status=document.getElementById('shiftStatusSync');
+      if(status)status.textContent='Ожидает оператора';
+      const meta=document.getElementById('shiftMetaSide');
+      if(meta)meta.textContent=remote?`В МойСклад уже есть открытая смена · нажмите «Начать смену»`:'Нажмите «Открыть смену»';
+      if(btn){btn.textContent=remote?'Начать смену':'Открыть смену';btn.className='btn success';}
+    },0);
+  }
   async function rewriteShiftResponse(response){
     if(!response.ok)return response;
     const data=await response.clone().json().catch(()=>null);
@@ -28,6 +47,7 @@
     const operator=currentOperator();
     const active=Boolean(data.shift&&state?.shiftId===String(data.shift.id||'')&&state?.operatorId===String(operator||''));
     if(active)return response;
+    showWaitingState(data);
     const hidden={...data,shift:null,manualActivationRequired:Boolean(data.shift),availableShift:data.shift?{id:data.shift.id,name:data.shift.name,openDate:data.shift.openDate}:null};
     return new Response(JSON.stringify(hidden),{status:response.status,statusText:response.statusText,headers:new Headers(response.headers)});
   }
