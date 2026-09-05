@@ -8,6 +8,8 @@ on:
       - 'admin/support.html'
       - 'admin/support.js'
       - 'admin/support-access.js'
+      - 'admin/support-notifications.js'
+      - 'admin/support-employee-helper.js'
       - 'admin/onboarding.js'
       - 'admin/settings-collapsible.js'
       - 'admin/config.js'
@@ -16,6 +18,7 @@ on:
       - 'mobile/pwa.js'
       - 'database/migrations/108_support_center_and_support_role.sql'
       - 'database/migrations/109_isolate_support_from_internal_chat.sql'
+      - 'database/migrations/110_support_role_least_privilege.sql'
       - '.github/workflows/check-support.yml'
 
 jobs:
@@ -30,19 +33,24 @@ jobs:
           test -s admin/support.html
           test -s admin/support.js
           test -s admin/support-access.js
+          test -s admin/support-notifications.js
+          test -s admin/support-employee-helper.js
           test -s admin/onboarding.js
           test -s admin/settings-collapsible.js
           test -s database/migrations/108_support_center_and_support_role.sql
           test -s database/migrations/109_isolate_support_from_internal_chat.sql
+          test -s database/migrations/110_support_role_least_privilege.sql
       - name: Check JavaScript syntax
         run: |
           node --check admin/support.js
           node --check admin/support-access.js
+          node --check admin/support-notifications.js
+          node --check admin/support-employee-helper.js
           node --check admin/onboarding.js
           node --check admin/settings-collapsible.js
           node --check admin/chat-watchdog.js
           node --check mobile/pwa.js
-      - name: Verify wiring
+      - name: Verify wiring and isolation
         run: |
           set -euo pipefail
           grep -q 'support.js' admin/support.html
@@ -50,7 +58,11 @@ jobs:
           grep -q 'send_support_message' admin/support.js
           grep -q "'SUPPORT'" database/migrations/108_support_center_and_support_role.sql
           grep -q 'is_support_only' database/migrations/109_isolate_support_from_internal_chat.sql
+          grep -q 'create or replace function public.is_hub_staff' database/migrations/110_support_role_least_privilege.sql
+          grep -q 'users_support_ticket_read' database/migrations/110_support_role_least_privilege.sql
           grep -q 'support-access.js' admin/config.js
+          grep -q 'support-notifications.js' admin/config.js
+          grep -q 'support-employee-helper.js' admin/config.js
           grep -q 'onboarding.js' admin/config.js
           grep -q 'settings-collapsible.js' admin/config.js
           grep -q 'support.html' admin/guard.js
@@ -71,7 +83,7 @@ jobs:
             js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.js?check=${GITHUB_SHA}" || true)
             cfg=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/config.js?check=${GITHUB_SHA}" || true)
             if echo "$page" | grep -q 'Чат-бот поддержки' && echo "$js" | grep -q 'open_support_ticket' && echo "$cfg" | grep -q 'settings-collapsible.js'; then
-              echo 'Support center, onboarding and collapsible settings are live.'
+              echo 'Support center, onboarding, role isolation and collapsible settings are live.'
               exit 0
             fi
             sleep 5
