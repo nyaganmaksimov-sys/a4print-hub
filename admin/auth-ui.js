@@ -71,4 +71,13 @@
   }
   function invalidate(){cache=null;pending=null}
   window.A4AuthUI={DEFAULTS,load,isEnabled,apply,providerKey,invalidate};
+
+  const autoApply=()=>{
+    const p=location.pathname;
+    let mode=null;
+    if(/\/admin\/register\.html$/.test(p))mode='registration';
+    else if(/\/admin\/login\.html$/.test(p)||/\/chat\/start\.html$/.test(p)||/\/mobile\/$/.test(p))mode='login';
+    if(mode)apply(mode).catch(()=>{});
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',autoApply,{once:true});else autoApply();
 })();
