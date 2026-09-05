@@ -1,6 +1,6 @@
 // Server-side only. MOYSKLAD_TOKEN must never be exposed to admin/*.html or committed to git.
 const BASE = 'https://api.moysklad.ru/api/remap/1.2';
-const headers = token => ({ Authorization: `Bearer ${token}`, Accept: 'application/json;charset=utf-8', 'Content-Type': 'application/json' });
+const headers = token => ({ Authorization: `Bearer ${token}`, Accept: 'application/json;charset=utf-8', 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip' });
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -70,16 +70,176 @@ export async function fetchMoySkladStock(token){const data=await ms(token,'/repo
 
 function metaId(entity){return entity?.id||entity?.meta?.href?.split('/').pop()||null}
 function sameEntity(a,b){const ai=metaId(a),bi=metaId(b);return Boolean(ai&&bi&&ai===bi)}
-async function retailBaseContext(token){const [stores,orgs]=await Promise.all([ms(token,'/entity/retailstore?limit=100'),ms(token,'/entity/organization?limit=100')]);const store=stores.rows?.find(x=>!x.archived)||stores.rows?.[0];const organization=orgs.rows?.find(x=>!x.archived)||orgs.rows?.[0];if(!store)throw new Error('В МойСклад не найдена активная точка продаж');if(!organization)throw new Error('В МойСклад не найдено юрлицо');return{store,organization}}
-async function findOpenShift(token,store){const shifts=await ms(token,'/entity/retailshift?limit=100&order=created,desc');const rows=shifts.rows||[];return rows.find(x=>!x.closeDate&&sameEntity(x.retailStore,store))||rows.find(x=>!x.closeDate)||null}
+function cents(value){return Number(value||0)/100}
+function shiftTime(entity){
+  const raw=entity?.openDate||entity?.moment||entity?.created||entity?.updated||'';
+  const d=new Date(String(raw).replace(' ','T'));
+  return Number.isFinite(d.getTime())?d.getTime():0;
+}
 
-export async function getRetailShiftStatus(token){const {store,organization}=await retailBaseContext(token);const shift=await findOpenShift(token,store);return{store:{id:store.id,name:store.name},organization:{id:organization.id,name:organization.name},shift:shift?{id:shift.id,name:shift.name,openDate:shift.openDate||shift.moment||shift.created,closeDate:shift.closeDate||null}:null}}
+async function retailBaseContext(token){
+  const [stores,orgs]=await Promise.all([ms(token,'/entity/retailstore?limit=100'),ms(token,'/entity/organization?limit=100')]);
+  const store=stores.rows?.find(x=>!x.archived)||stores.rows?.[0];
+  const organization=orgs.rows?.find(x=>!x.archived)||orgs.rows?.[0];
+  if(!store)throw new Error('В МойСклад не найдена активная точка продаж');
+  if(!organization)throw new Error('В МойСклад не найдено юрлицо');
+  return{store,organization};
+}
 
-export async function openRetailShift(token,{operatorName}={}){const {store,organization}=await retailBaseContext(token);const current=await findOpenShift(token,store);if(current)return{alreadyOpen:true,shift:current,store,organization};const payload={organization:{meta:organization.meta},retailStore:{meta:store.meta},description:`Открыто из A4PRINT HUB${operatorName?` · ${operatorName}`:''}`};const shift=await ms(token,'/entity/retailshift',{method:'POST',body:JSON.stringify(payload)});return{alreadyOpen:false,shift,store,organization}}
+async function latestOpenShift(token){
+  const shifts=await ms(token,'/entity/retailshift?limit=100&order=created,desc');
+  const rows=(shifts.rows||[]).filter(x=>!x.closeDate).sort((a,b)=>shiftTime(b)-shiftTime(a));
+  if(!rows.length)return null;
+  const row=rows[0];
+  const id=metaId(row);
+  if(!id)return row;
+  try{return await ms(token,`/entity/retailshift/${encodeURIComponent(id)}`)}catch{return row}
+}
 
-export async function closeRetailShift(token,{operatorName}={}){const {store}=await retailBaseContext(token);const shift=await findOpenShift(token,store);if(!shift)throw new Error('Открытая смена не найдена');const id=metaId(shift);const closeDate=msDate();const updated=await ms(token,`/entity/retailshift/${id}`,{method:'PUT',body:JSON.stringify({closeDate,description:`Закрыто из A4PRINT HUB${operatorName?` · ${operatorName}`:''}`})});return{shift:updated||{...shift,closeDate},store}}
+async function fetchMetaEntity(token,entity){
+  const href=entity?.meta?.href;
+  if(!href)return entity||null;
+  try{return await ms(token,href)}catch{return entity||null}
+}
 
-export async function getRetailContext(token){const {store,organization}=await retailBaseContext(token);const shift=await findOpenShift(token,store);if(!shift)throw new Error('В МойСклад нет открытой розничной смены. Откройте смену в кассе и повторите оплату.');return{store,organization,shift}}
+async function contextFromShift(token,shift){
+  if(!shift)return null;
+  const [store,organization]=await Promise.all([
+    fetchMetaEntity(token,shift.retailStore),
+    fetchMetaEntity(token,shift.organization)
+  ]);
+  if(store&&organization)return{shift,store,organization};
+  const base=await retailBaseContext(token);
+  return{shift,store:store||base.store,organization:organization||base.organization};
+}
+
+async function loadShiftOperations(token,shift){
+  const embedded=Array.isArray(shift?.operations)?shift.operations:Array.isArray(shift?.operations?.rows)?shift.operations.rows:[];
+  if(embedded.length){
+    const out=[];
+    for(const ref of embedded){
+      const href=ref?.meta?.href;
+      if(!href){out.push(ref);continue}
+      try{out.push(await ms(token,href))}catch{out.push(ref)}
+    }
+    return out.filter(Boolean);
+  }
+
+  const href=shift?.meta?.href;
+  if(!href)return[];
+  const types=['retaildemand','retailsalesreturn','retaildrawercashin','retaildrawercashout'];
+  const out=[];
+  for(const type of types){
+    try{
+      const data=await ms(token,`/entity/${type}?limit=1000&filter=${encodeURIComponent(`retailShift=${href}`)}`);
+      out.push(...(data?.rows||[]));
+    }catch{}
+  }
+  return out;
+}
+
+function operationType(op){return String(op?.meta?.type||'').toLowerCase()}
+
+async function shiftCashBalance(token,shift,store){
+  const direct=[store?.cash,store?.cashBalance,store?.state?.cash,shift?.cash,shift?.cashBalance];
+  for(const value of direct){
+    const n=Number(value);
+    if(Number.isFinite(n))return cents(n);
+  }
+  try{
+    const report=await ms(token,'/report/money/bymoment');
+    const orgId=metaId(shift?.organization);
+    const rows=Array.isArray(report?.rows)?report.rows:[];
+    const exact=rows.find(row=>!row.account&&(!orgId||metaId(row.organization)===orgId));
+    const fallback=rows.find(row=>!row.account);
+    if(exact||fallback)return cents((exact||fallback).balance||0);
+  }catch{}
+  return cents(shift?.receivedCash||0);
+}
+
+async function summarizeShift(token,shift,store){
+  const operations=await loadShiftOperations(token,shift);
+  const d={sales_count:0,sales_total:0,sales_cash:0,sales_cashless:0,returns_count:0,returns_total:0,returns_cash:0,returns_cashless:0,deposits_count:0,deposits_total:0,payouts_count:0,payouts_total:0};
+  for(const op of operations){
+    const type=operationType(op);
+    if(type==='retaildemand'){
+      d.sales_count++;
+      d.sales_total+=cents(op.sum);
+      d.sales_cash+=cents(op.cashSum);
+      d.sales_cashless+=cents(Number(op.noCashSum||0)+Number(op.qrSum||0));
+    }else if(type==='retailsalesreturn'){
+      d.returns_count++;
+      d.returns_total+=cents(op.sum);
+      d.returns_cash+=cents(op.cashSum);
+      d.returns_cashless+=cents(Number(op.noCashSum||0)+Number(op.qrSum||0));
+    }else if(type==='retaildrawercashin'){
+      d.deposits_count++;
+      d.deposits_total+=cents(op.sum);
+    }else if(type==='retaildrawercashout'){
+      d.payouts_count++;
+      d.payouts_total+=cents(op.sum);
+    }
+  }
+  const hasProceedsCash=Number.isFinite(Number(shift?.proceedsCash));
+  const hasProceedsNoCash=Number.isFinite(Number(shift?.proceedsNoCash));
+  d.revenue_cash=hasProceedsCash?cents(shift.proceedsCash):Math.max(0,d.sales_cash-d.returns_cash);
+  d.revenue_cashless=hasProceedsNoCash?cents(shift.proceedsNoCash):Math.max(0,d.sales_cashless-d.returns_cashless);
+  d.revenue_total=d.revenue_cash+d.revenue_cashless;
+  d.received_cash=cents(shift?.receivedCash||0);
+  d.received_cashless=cents(shift?.receivedNoCash||0);
+  d.cash_in_register=await shiftCashBalance(token,shift,store);
+  d.source='MOYSKLAD_LIVE';
+  return d;
+}
+
+async function findOpenShift(token,store){
+  const shift=await latestOpenShift(token);
+  if(!shift)return null;
+  if(!store||sameEntity(shift.retailStore,store))return shift;
+  return shift;
+}
+
+export async function getRetailShiftStatus(token){
+  const current=await latestOpenShift(token);
+  if(!current){
+    const {store,organization}=await retailBaseContext(token);
+    return{build:'20260905-mslive5',store:{id:store.id,name:store.name},organization:{id:organization.id,name:organization.name},shift:null,summary:null};
+  }
+  const {shift,store,organization}=await contextFromShift(token,current);
+  const summary=await summarizeShift(token,shift,store);
+  return{
+    build:'20260905-mslive5',
+    store:{id:store?.id||metaId(shift.retailStore),name:store?.name||shift.retailStore?.name||null},
+    organization:{id:organization?.id||metaId(shift.organization),name:organization?.name||shift.organization?.name||null},
+    shift:{id:shift.id,name:shift.name,openDate:shift.openDate||shift.moment||shift.created,closeDate:shift.closeDate||null,updated:shift.updated||null},
+    summary
+  };
+}
+
+export async function openRetailShift(token,{operatorName}={}){
+  const current=await latestOpenShift(token);
+  if(current){const ctx=await contextFromShift(token,current);return{alreadyOpen:true,...ctx}}
+  const {store,organization}=await retailBaseContext(token);
+  const payload={organization:{meta:organization.meta},retailStore:{meta:store.meta},description:`Открыто из A4PRINT HUB${operatorName?` · ${operatorName}`:''}`};
+  const shift=await ms(token,'/entity/retailshift',{method:'POST',body:JSON.stringify(payload)});
+  return{alreadyOpen:false,shift,store,organization};
+}
+
+export async function closeRetailShift(token,{operatorName}={}){
+  const current=await latestOpenShift(token);
+  if(!current)throw new Error('Открытая смена не найдена');
+  const {shift,store}=await contextFromShift(token,current);
+  const id=metaId(shift);
+  const closeDate=msDate();
+  const updated=await ms(token,`/entity/retailshift/${id}`,{method:'PUT',body:JSON.stringify({closeDate,description:`Закрыто из A4PRINT HUB${operatorName?` · ${operatorName}`:''}`})});
+  return{shift:updated||{...shift,closeDate},store};
+}
+
+export async function getRetailContext(token){
+  const current=await latestOpenShift(token);
+  if(!current)throw new Error('В МойСклад нет открытой розничной смены. Откройте смену в кассе и повторите оплату.');
+  return contextFromShift(token,current);
+}
 
 export async function createRetailSale({token,items,paymentMethod,operatorName,customer}){if(!items?.length)throw new Error('Пустой чек');const {store,organization,shift}=await getRetailContext(token);const positions=items.map(x=>{if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}}});const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);const customerText=customer?` · Клиент: ${customer.name||'без имени'}${customer.phone?` ${customer.phone}`:''}${customer.company?` (${customer.company})`:''}`:'';const payload={organization:{meta:organization.meta},retailStore:{meta:store.meta},retailShift:{meta:shift.meta},positions,payedSum:total,description:`A4PRINT HUB · Оператор: ${operatorName||'не указан'}${customerText} · ${paymentMethod||'Оплата'}`};return ms(token,'/entity/retaildemand',{method:'POST',body:JSON.stringify(payload)})}
 
@@ -89,17 +249,9 @@ export async function createRetailReturn({token,saleId,items,paymentMethod,opera
   const {store,organization,shift}=await getRetailContext(token);
   const demandHref=`${BASE}/entity/retaildemand/${saleId}`;
   let sourceDemand=null;
-  try{
-    sourceDemand=await ms(token,demandHref);
-  }catch(e){
-    throw new Error(`Не удалось прочитать исходную продажу ${saleId}: ${e.message}`);
-  }
+  try{sourceDemand=await ms(token,demandHref)}catch(e){throw new Error(`Не удалось прочитать исходную продажу ${saleId}: ${e.message}`)}
   let template=null;
-  try{
-    template=await ms(token,'/entity/retailsalesreturn/new',{method:'PUT',body:JSON.stringify({demand:{meta:{href:demandHref,type:'retaildemand',mediaType:'application/json'}}})});
-  }catch(e){
-    throw new Error(`Не удалось подготовить возврат по продаже ${saleId}: ${e.message}`);
-  }
+  try{template=await ms(token,'/entity/retailsalesreturn/new',{method:'PUT',body:JSON.stringify({demand:{meta:{href:demandHref,type:'retaildemand',mediaType:'application/json'}}})})}catch(e){throw new Error(`Не удалось подготовить возврат по продаже ${saleId}: ${e.message}`)}
   const positions=items.map(x=>{
     if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);
     return {quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
