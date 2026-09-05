@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'kassa/**'
+      - 'api/src/pos-shift-live-patch.js'
+      - 'api/src/boot.js'
       - '.github/workflows/check-kassa2.yml'
   workflow_dispatch:
 
@@ -23,6 +25,11 @@ jobs:
           node --check kassa/ui.js
           node --check kassa/db.js
           node --check kassa/sw.js
+          node --check kassa/bootstrap.js
+          node --check kassa/shift-operator.js
+          node --check kassa/shift-live.js
+          node --check api/src/pos-shift-live-patch.js
+          node --check api/src/boot.js
       - name: Check Kassa shell
         run: |
           test -f kassa/index.html
@@ -43,5 +50,32 @@ jobs:
           grep -q "syncQueue" kassa/app.js
           grep -q "serviceWorker.register" kassa/app.js
           grep -q "client_operation_id" kassa/app.js
+          grep -q 'shift-live.js' kassa/bootstrap.js
+          grep -q '20260905-mslive3' api/src/pos-shift-live-patch.js
+          grep -q '/report/money/bymoment' api/src/pos-shift-live-patch.js
       - name: Validate manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
+
+  live-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for Render live-shift build
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://a4print-hub-api.onrender.com/api/v1/pos/shift-live-build'
+          marker='20260905-mslive3'
+          for attempt in $(seq 1 45); do
+            echo "Render live shift check $attempt/45"
+            code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
+            cat /tmp/live.json 2>/dev/null || true
+            echo
+            if [ "$code" = "200" ] && grep -q "$marker" /tmp/live.json; then
+              echo 'Render is running the live MoySklad shift build.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'Render did not deploy the live MoySklad shift build in time.'
+          exit 1
