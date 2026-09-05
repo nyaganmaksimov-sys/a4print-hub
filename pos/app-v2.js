@@ -1,0 +1,168 @@
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const cfg=window.A4PRINT_CONFIG||{};
+const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const rub=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
+const dt=v=>v?new Date(v).toLocaleString('ru-RU'):'—';
+const pct=(v,max)=>max>0?Math.max(4,Math.round(Number(v||0)/max*100)):0;
+
+let session=null,profile=null,isAdmin=false,isOperator=false,org=null,goods=[],accounts=[],operators=[],selectedOperatorId='',shift=null,stock={},cart=[],customer=null,type='ALL',installPrompt=null,reportPeriod='today',searchTimer=null;
+
+function note(text,error=false){const n=$('notice');n.textContent=text;n.className='notice'+(error?' error':'');n.style.display='block';clearTimeout(note.t);note.t=setTimeout(()=>n.style.display='none',3200)}
+async function api(path,opt={}){const r=await fetch((cfg.apiBaseUrl||'')+path,{...opt,headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',...(opt.headers||{})}});const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);return d}
+
+async function init(){
+  const s=await supabase.auth.getSession();session=s.data.session;
+  if(!session){location.replace('./login.html?next='+encodeURIComponent(location.pathname));return}
+  const [a,o,p]=await Promise.all([
+    supabase.rpc('has_role',{required_role:'ADMIN'}),
+    supabase.rpc('has_role',{required_role:'POS_OPERATOR'}),
+    supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id',session.user.id).maybeSingle()
+  ]);
+  isAdmin=!!a.data;isOperator=!!o.data;profile=p.data;
+  if(!isAdmin&&!isOperator){location.replace('./login.html');return}
+  if(profile?.is_active===false){await supabase.auth.signOut();location.replace('./login.html');return}
+  $('accountUser').textContent=profile?.full_name||session.user.email||'Сотрудник';
+  $('adminLinks').style.display=isAdmin?'grid':'none';
+  $('syncCatalog').style.display=isAdmin?'inline-flex':'none';
+  await loadCore();
+  bind();
+  showView('sale');
+  await Promise.allSettled([loadStock(),loadReport('today')]);
+}
+
+async function loadCore(){
+  const oo=await supabase.from('organizations').select('id,name').eq('code','A4PRINT').single();if(oo.error)throw oo.error;org=oo.data;
+  const [g,ac,op]=await Promise.all([
+    supabase.from('catalog_items').select('id,name,sku,article,barcode,item_type,category,unit,sale_price,external_id,external_source,last_synced_at').eq('organization_id',org.id).eq('is_active',true).order('name'),
+    supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',org.id).eq('is_active',true).order('name'),
+    supabase.rpc('get_pos_operators')
+  ]);
+  if(g.error)throw g.error;if(ac.error)throw ac.error;if(op.error)throw op.error;
+  goods=g.data||[];accounts=ac.data||[];operators=op.data||[];
+  selectedOperatorId=operators.find(x=>x.is_self)?.id||operators[0]?.id||profile?.id||'';
+  $('operatorSelect').innerHTML=operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}${x.is_self?' · вы':''}</option>`).join('');
+  $('operatorSelect').value=selectedOperatorId;
+  $('operatorSelect').disabled=!isAdmin||operators.length<2;
+  $('account').innerHTML=accounts.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  renderGoods();renderCart();
+  await loadShift();
+}
+
+async function loadShift(){
+  try{
+    const d=await api('/api/v1/pos/shift');shift=d.shift||null;
+    if(shift){
+      await supabase.rpc('record_pos_shift',{p_moysklad_shift_id:shift.id,p_moysklad_shift_name:shift.name||null,p_store_id:d.store?.id||null,p_store_name:d.store?.name||null,p_opened_at:shift.openDate||new Date().toISOString(),p_closed_at:shift.closeDate||null,p_status:shift.closeDate?'CLOSED':'OPEN',p_operator_id:selectedOperatorId||null});
+    }
+    $('shiftDot').className='dot '+(shift?'ok':'bad');
+    $('shiftText').textContent=shift?'Смена открыта':'Смена закрыта';
+    $('shiftMeta').textContent=shift?`${d.store?.name||'Точка'} · с ${dt(shift.openDate)}`:(d.store?.name||'МойСклад');
+    $('shiftBtn').textContent=shift?'Закрыть смену':'Открыть смену';
+    $('shiftBtn').className='btn '+(shift?'danger':'success');
+    $('topShift').textContent=shift?'Смена открыта':'Смена закрыта';
+    $('topShiftDot').className='dot '+(shift?'ok':'bad');
+    renderCart();
+  }catch(e){$('shiftDot').className='dot bad';$('shiftText').textContent='МойСклад недоступен';$('shiftMeta').textContent=e.message;$('topShift').textContent='Нет связи';$('topShiftDot').className='dot bad';note(e.message,true)}
+}
+
+async function toggleShift(){
+  $('shiftBtn').disabled=true;
+  try{
+    if(shift){
+      const d=await api('/api/v1/pos/shift/close',{method:'POST',body:JSON.stringify({operator_id:selectedOperatorId||null})});
+      await supabase.rpc('record_pos_shift',{p_moysklad_shift_id:d.shift?.id||shift.id,p_moysklad_shift_name:d.shift?.name||shift.name||null,p_store_id:d.store?.id||null,p_store_name:d.store?.name||null,p_opened_at:shift.openDate||new Date().toISOString(),p_closed_at:d.shift?.closeDate||new Date().toISOString(),p_status:'CLOSED',p_operator_id:selectedOperatorId||null});
+      note('Смена закрыта в МойСклад');
+    }else{
+      const d=await api('/api/v1/pos/shift/open',{method:'POST',body:JSON.stringify({operator_id:selectedOperatorId||null})});
+      await supabase.rpc('record_pos_shift',{p_moysklad_shift_id:d.shift?.id,p_moysklad_shift_name:d.shift?.name||null,p_store_id:d.store?.id||null,p_store_name:d.store?.name||null,p_opened_at:d.shift?.openDate||new Date().toISOString(),p_closed_at:null,p_status:'OPEN',p_operator_id:selectedOperatorId||null});
+      note(d.alreadyOpen?'Смена уже была открыта в МойСклад':'Смена открыта в МойСклад');
+    }
+    await loadShift();await loadReport(reportPeriod);
+  }catch(e){note(e.message,true)}finally{$('shiftBtn').disabled=false}
+}
+
+function renderGoods(){
+  const q=$('search').value.trim().toLowerCase();
+  const rows=goods.filter(g=>(type==='ALL'||g.item_type===type)&&`${g.name} ${g.sku||''} ${g.article||''} ${g.barcode||''} ${g.category||''}`.toLowerCase().includes(q));
+  $('goods').innerHTML=rows.map(g=>`<article class="good" data-good="${g.id}"><div><div class="name">${esc(g.name)}</div><div class="meta">${esc(g.article||g.sku||g.category||'')} ${stock[g.external_id]!=null?`· остаток ${stock[g.external_id]}`:''}</div></div><div class="price">${rub(g.sale_price)}</div></article>`).join('')||'<div class="empty">Ничего не найдено</div>';
+  document.querySelectorAll('[data-good]').forEach(x=>x.onclick=()=>add(x.dataset.good));
+}
+function add(id){const g=goods.find(x=>x.id===id);if(!g)return;const row=cart.find(x=>x.id===id);if(row)row.qty++;else cart.push({id:g.id,name:g.name,price:Number(g.sale_price||0),qty:1});renderCart()}
+function renderCart(){
+  const total=cart.reduce((s,x)=>s+x.price*x.qty,0),count=cart.reduce((s,x)=>s+x.qty,0),received=Number($('received')?.value||0);
+  $('cartCount').textContent=count+' поз.';$('total').textContent=rub(total);$('change').textContent=rub(Math.max(0,received-total));
+  $('pay').disabled=!cart.length||!shift||!accounts.length;$('pay').textContent=!shift?'Сначала откройте смену':`Оплатить ${rub(total)}`;
+  $('cart').innerHTML=cart.map((x,i)=>`<div class="cart-item"><div class="cart-line"><b>${esc(x.name)}</b><strong>${rub(x.price*x.qty)}</strong></div><div class="qty"><button data-minus="${i}">−</button><span>${x.qty}</span><button data-plus="${i}">+</button><button data-remove="${i}" style="margin-left:auto;width:auto;padding:0 8px;color:#dc2626">Удалить</button></div></div>`).join('')||'<div class="empty">Добавьте товары или услуги</div>';
+  document.querySelectorAll('[data-minus]').forEach(b=>b.onclick=()=>{const i=+b.dataset.minus;if(--cart[i].qty<1)cart.splice(i,1);renderCart()});
+  document.querySelectorAll('[data-plus]').forEach(b=>b.onclick=()=>{cart[+b.dataset.plus].qty++;renderCart()});
+  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{cart.splice(+b.dataset.remove,1);renderCart()});
+}
+
+async function pay(){
+  if(!cart.length||!shift)return;
+  const total=cart.reduce((s,x)=>s+x.price*x.qty,0),items=cart.map(x=>({...x}));
+  $('pay').disabled=true;$('pay').textContent='Проводим продажу…';
+  try{
+    const d=await api('/api/v1/pos/sale',{method:'POST',body:JSON.stringify({items,payment_method:$('method').value,customer_id:customer?.id||null,operator_id:selectedOperatorId||null})});
+    const recorded=await supabase.rpc('record_pos_sale',{p_moysklad_sale_id:d.moysklad?.id,p_moysklad_sale_name:d.moysklad?.name||null,p_moysklad_shift_id:shift.id,p_operator_id:selectedOperatorId||null,p_customer_id:customer?.id||null,p_cash_account_id:$('account').value,p_payment_method:$('method').value,p_total:Number(d.sum??total),p_items:items});
+    if(recorded.error)throw new Error('Продажа создана в МойСклад, но локальная запись не сохранилась: '+recorded.error.message);
+    note(`Продажа ${d.moysklad?.name||''} синхронизирована с МойСклад`);
+    cart=[];customer=null;$('clientName').value='';$('clientPhone').value='';$('clientComment').value='';$('clientSearch').value='';$('clientResults').innerHTML='';$('received').value='';renderCart();
+    await Promise.allSettled([loadStock(),loadReport(reportPeriod)]);
+  }catch(e){note(e.message,true)}finally{renderCart()}
+}
+
+async function searchClient(q){
+  if(q.trim().length<2){$('clientResults').innerHTML='';return}
+  try{const d=await api('/api/v1/pos/customers?q='+encodeURIComponent(q));$('clientResults').innerHTML=(d.customers||[]).slice(0,6).map(c=>`<button data-client="${c.id}"><b>${esc(c.full_name)}</b><div class="small muted">${esc(c.phone||c.email||'')}</div></button>`).join('');document.querySelectorAll('[data-client]').forEach(b=>b.onclick=()=>{customer=(d.customers||[]).find(x=>x.id===b.dataset.client);$('clientName').value=customer?.full_name||'';$('clientPhone').value=customer?.phone||'';$('clientResults').innerHTML='';note('Клиент выбран')})}catch(e){note(e.message,true)}
+}
+async function saveClient(){const name=$('clientName').value.trim();if(!name)return note('Укажите имя клиента',true);try{const d=await api('/api/v1/pos/customers',{method:'POST',body:JSON.stringify({id:customer?.id||null,full_name:name,phone:$('clientPhone').value.trim(),manager_comment:$('clientComment').value.trim()})});customer=d.customer;note('Клиент сохранён')}catch(e){note(e.message,true)}}
+
+async function loadStock(){
+  try{const d=await api('/api/v1/integrations/moysklad/stock');stock=d.stock||{};$('msDot').className='dot ok';$('msStatus').textContent='МойСклад подключён';$('stockStamp').textContent='Остатки обновлены '+new Date().toLocaleTimeString('ru-RU');renderGoods()}catch(e){$('msDot').className='dot bad';$('msStatus').textContent='Ошибка связи с МойСклад';$('stockStamp').textContent=e.message}
+}
+async function syncCatalog(){
+  if(!isAdmin)return;
+  $('syncCatalog').disabled=true;
+  try{const d=await api('/api/v1/integrations/moysklad/sync',{method:'POST',body:'{}'});note(`Каталог синхронизирован: ${d.received||0} получено, ${d.updated||0} обновлено, ${d.created||0} добавлено`);await loadCore();await loadStock();await loadReport(reportPeriod)}catch(e){note(e.message,true)}finally{$('syncCatalog').disabled=false}
+}
+
+function rangeFor(key){const now=new Date(),end=new Date(now.getTime()+1000);let start;if(key==='shift'&&shift?.openDate)start=new Date(shift.openDate);else if(key==='today'){start=new Date(now);start.setHours(0,0,0,0)}else if(key==='7d'){start=new Date(now);start.setDate(start.getDate()-7)}else if(key==='30d'){start=new Date(now);start.setDate(start.getDate()-30)}else{start=new Date(now);start.setFullYear(start.getFullYear()-1)}return{start,end}}
+async function loadReport(key=reportPeriod){
+  reportPeriod=key;document.querySelectorAll('[data-period]').forEach(b=>b.classList.toggle('on',b.dataset.period===key));
+  const {start,end}=rangeFor(key);$('reportRange').textContent=`${start.toLocaleDateString('ru-RU')} — ${end.toLocaleDateString('ru-RU')}`;
+  const r=await supabase.rpc('pos_dashboard',{p_from:start.toISOString(),p_to:end.toISOString(),p_operator_id:isAdmin&&$('reportOperator')?.value?$('reportOperator').value:null});
+  if(r.error){note(r.error.message,true);return}renderReport(r.data||{});
+}
+function renderReport(d){
+  $('statSales').textContent=rub(d.sales_total);$('statCount').textContent=Number(d.sales_count||0).toLocaleString('ru-RU');$('statAvg').textContent=rub(d.avg_check);$('statReturns').textContent=rub(d.returns_total);$('statNet').textContent=rub(d.net_total);
+  const pay=d.payment_methods||[],maxPay=Math.max(0,...pay.map(x=>Number(x.amount||0)));$('paymentBars').innerHTML=pay.map(x=>`<div class="bar-row"><span>${esc(x.name)}</span><div class="bar"><i style="width:${pct(x.amount,maxPay)}%"></i></div><b>${rub(x.amount)}</b></div>`).join('')||'<div class="empty">Продаж за период нет</div>';
+  const ops=d.operators||[],maxOps=Math.max(0,...ops.map(x=>Number(x.amount||0)));$('operatorBars').innerHTML=ops.map(x=>`<div class="bar-row"><span>${esc(x.name)}</span><div class="bar"><i style="width:${pct(x.amount,maxOps)}%"></i></div><b>${rub(x.amount)}</b></div>`).join('')||'<div class="empty">Нет данных</div>';
+  $('topItems').innerHTML=(d.top_items||[]).map(x=>`<tr><td>${esc(x.name)}</td><td>${Number(x.qty||0).toLocaleString('ru-RU')}</td><td><b>${rub(x.amount)}</b></td></tr>`).join('')||'<tr><td colspan="3" class="muted">Детальная статистика позиций начнёт накапливаться с новой версией кассы.</td></tr>';
+  $('recentSales').innerHTML=(d.recent_sales||[]).map(x=>`<tr><td>${dt(x.sold_at)}</td><td>${esc(x.operator||'—')}</td><td>${esc(x.payment_method||'—')}</td><td><b>${rub(x.total)}</b></td></tr>`).join('')||'<tr><td colspan="4" class="muted">Нет продаж</td></tr>';
+  const c=d.catalog||{};$('catalogActive').textContent=Number(c.active||0).toLocaleString('ru-RU');$('catalogLinked').textContent=Number(c.linked||0).toLocaleString('ru-RU');$('catalogLastSync').textContent=c.last_sync?dt(c.last_sync):'Нет данных';
+}
+
+function showView(name){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+name));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===name));const titles={sale:'Касса A4-Принт',reports:'Отчёты и статистика',sync:'Синхронизация'};$('pageTitle').textContent=titles[name]||'Касса';document.body.classList.remove('nav-open');if(name==='reports')loadReport(reportPeriod).catch(e=>note(e.message,true));if(name==='sync')Promise.allSettled([loadStock(),loadReport(reportPeriod)])}
+
+function bind(){
+  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+  document.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{type=b.dataset.type;document.querySelectorAll('[data-type]').forEach(x=>x.classList.toggle('on',x.dataset.type===type));renderGoods()});
+  document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>loadReport(b.dataset.period));
+  $('search').oninput=renderGoods;$('received').oninput=renderCart;$('clearCart').onclick=()=>{cart=[];renderCart()};$('pay').onclick=pay;$('shiftBtn').onclick=toggleShift;$('refreshStock').onclick=loadStock;$('syncCatalog').onclick=syncCatalog;
+  $('operatorSelect').onchange=async()=>{selectedOperatorId=$('operatorSelect').value;await loadShift();note('Рабочий оператор: '+($('operatorSelect').selectedOptions[0]?.textContent||''))};
+  $('reportOperator').innerHTML='<option value="">Все операторы</option>'+operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}</option>`).join('');$('reportOperator').style.display=isAdmin?'block':'none';$('reportOperator').onchange=()=>loadReport(reportPeriod);
+  $('clientSearch').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>searchClient($('clientSearch').value),220)};$('saveClient').onclick=saveClient;
+  $('logout').onclick=async()=>{await supabase.auth.signOut();location.replace('./login.html')};
+  $('mobileMenu').onclick=()=>document.body.classList.toggle('nav-open');
+  $('installBtn').onclick=async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').textContent='Установлено / доступно из меню браузера'}else note('Если кнопка установки не появилась, откройте меню браузера → «Установить приложение» или «Создать ярлык».')};
+}
+
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').disabled=false;$('installBtn').textContent='Установить кассу на ПК'});
+window.addEventListener('appinstalled',()=>{installPrompt=null;$('installBtn').textContent='Касса установлена';$('installBtn').disabled=true;note('Касса установлена на этот компьютер')});
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{}),{once:true});
+
+init().catch(e=>{console.error(e);note(e.message||'Ошибка запуска кассы',true)});
