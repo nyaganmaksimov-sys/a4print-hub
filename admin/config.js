@@ -42,6 +42,7 @@ window.A4PRINT_CONFIG = {
   const isManager = /\/admin\/manager\.html$/.test(location.pathname);
   const isPartners = /\/admin\/partners\.html$/.test(location.pathname);
   const isSettings = /\/admin\/settings\.html$/.test(location.pathname);
+  const isEmployees = /\/admin\/employees\.html$/.test(location.pathname);
   const params = new URLSearchParams(location.search);
   const isEmbed = isChat && params.get('embed') === '1';
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
@@ -95,7 +96,10 @@ window.A4PRINT_CONFIG = {
   load('nav-accordion.js','20260904-3');
   load('modern-ui.js','20260904-1');
 
-  if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-2');
+  if (isEmployees) {
+    load('employees-delete.js','20260904-2');
+    load('support-employee-helper.js','20260905-1');
+  }
   if (isPartners) load('partners-search.js','20260905-1');
 
   background(() => {
