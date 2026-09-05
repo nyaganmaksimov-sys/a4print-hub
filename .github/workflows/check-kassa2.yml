@@ -1,0 +1,36 @@
+name: Check Kassa 2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kassa/**'
+      - '.github/workflows/check-kassa2.yml'
+  workflow_dispatch:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check kassa/app.js
+          node --check kassa/db.js
+          node --check kassa/sw.js
+      - name: Check Kassa shell
+        run: |
+          test -f kassa/index.html
+          test -f kassa/styles.css
+          test -f kassa/manifest.webmanifest
+          grep -q 'A4PRINT KASSA' kassa/index.html
+          grep -q 'IndexedDB\|indexedDB' kassa/db.js
+          grep -q "DB.put('queue'" kassa/app.js
+          grep -q "syncQueue" kassa/app.js
+          grep -q "serviceWorker.register" kassa/app.js
+          grep -q "client_operation_id" kassa/app.js
+      - name: Validate manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
