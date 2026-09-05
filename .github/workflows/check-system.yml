@@ -32,16 +32,16 @@ jobs:
           set -euo pipefail
           files=(
             index.html
-            admin/login.html admin/register.html admin/index.html admin/manager.html admin/orders.html admin/order.html
+            admin/login.html admin/register.html admin/profile.html admin/index.html admin/manager.html admin/orders.html admin/order.html
             admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/settings.html
-            admin/config.js admin/guard.js admin/navigation.js admin/manager-runtime.js admin/partners-api-fallback.js
+            admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js
             admin/auth-ui.js admin/auth-settings.js
-            mobile/index.html mobile/account.html mobile/manifest.webmanifest mobile/pwa.js mobile/oauth-bridge.js
+            mobile/index.html mobile/account.html mobile/manifest.webmanifest mobile/pwa.js mobile/oauth-bridge.js mobile/quick-menu.js
             partner/login.html partner/index.html partner/crm.html
             pos/login.html pos/index.html
             a4print-hub-sw.js
             api/package.json api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js
-            database/migrations/100_system_e2e_self_test.sql database/migrations/023_auth_ui_admin_settings.sql
+            database/migrations/100_system_e2e_self_test.sql database/migrations/023_auth_ui_admin_settings.sql database/migrations/101_staff_profile_avatar_self_service.sql
           )
           for f in "${files[@]}"; do
             test -s "$f" || { echo "Missing or empty: $f"; exit 1; }
@@ -52,11 +52,11 @@ jobs:
         run: |
           set -euo pipefail
           scripts=(
-            admin/config.js admin/guard.js admin/navigation.js admin/app.js
+            admin/config.js admin/guard.js admin/navigation.js admin/app.js admin/profile.js
             admin/manager-runtime.js admin/partners-api-fallback.js admin/auth-ui.js admin/auth-settings.js
             admin/login.js admin/register.js
             admin/chat-notifications.js admin/chat-room-router.js admin/chat-widget.js admin/push-client.js
-            mobile/app-v3.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js
+            mobile/app-v3.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js mobile/quick-menu.js
             a4print-hub-sw.js
             api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/gateway.js
           )
@@ -80,7 +80,9 @@ jobs:
           grep -q 'auth-ui.js' admin/config.js
           grep -q 'auth-settings.js' admin/config.js
           grep -q 'get_public_auth_ui' database/migrations/023_auth_ui_admin_settings.sql
-          grep -q 'oauth-bridge.js?v=4' mobile/index.html
+          grep -q 'oauth-bridge.js?v=5' mobile/index.html
+          grep -q 'staff-avatars' admin/profile.js
+          grep -q 'staff-avatars' database/migrations/101_staff_profile_avatar_self_service.sql
           grep -q "addEventListener('push'" a4print-hub-sw.js
           grep -q 'pushManager.subscribe' mobile/pwa.js
           grep -q 'manifest.webmanifest' mobile/index.html
@@ -114,6 +116,7 @@ jobs:
           check_page 'https://a4print-hub.ru/'
           check_page 'https://a4print-hub.ru/admin/login.html'
           check_page 'https://a4print-hub.ru/admin/register.html'
+          check_page 'https://a4print-hub.ru/admin/profile.html'
           check_page 'https://a4print-hub.ru/admin/index.html'
           check_page 'https://a4print-hub.ru/admin/manager.html'
           check_page 'https://a4print-hub.ru/admin/orders.html'
@@ -122,6 +125,7 @@ jobs:
           check_page 'https://a4print-hub.ru/admin/messages.html'
           check_page 'https://a4print-hub.ru/admin/settings.html'
           check_page 'https://a4print-hub.ru/mobile/'
+          check_page 'https://a4print-hub.ru/mobile/account.html'
           check_page 'https://a4print-hub.ru/chat/start.html'
           check_page 'https://a4print-hub.ru/partner/login.html'
           check_page 'https://a4print-hub.ru/partner/index.html'
