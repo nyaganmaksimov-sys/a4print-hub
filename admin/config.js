@@ -34,6 +34,7 @@ window.A4PRINT_CONFIG = {
   const isAdmin = /\/admin\//.test(location.pathname) && !isAuthPage;
   const isChat = /\/admin\/messages\.html$/.test(location.pathname);
   const isManager = /\/admin\/manager\.html$/.test(location.pathname);
+  const isPartners = /\/admin\/partners\.html$/.test(location.pathname);
   const params = new URLSearchParams(location.search);
   const isEmbed = isChat && params.get('embed') === '1';
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
@@ -56,6 +57,7 @@ window.A4PRINT_CONFIG = {
 
   if (isAuthPage) return;
 
+  if (isPartners) load('partners-api-fallback.js','20260905-1');
   load('theme.js','20260905-1');
   load('ui-icons.js');
   load('dialog-fixes.js');
@@ -70,7 +72,7 @@ window.A4PRINT_CONFIG = {
   load('modern-ui.js','20260904-1');
 
   if (/\/admin\/employees\.html$/.test(location.pathname)) load('employees-delete.js','20260904-2');
-  if (/\/admin\/partners\.html$/.test(location.pathname)) load('partners-search.js','20260904-2');
+  if (isPartners) load('partners-search.js','20260905-1');
 
   background(() => {
     load('chat-notifications.js','20260904-7');
