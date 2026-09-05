@@ -13,11 +13,17 @@ window.A4PRINT_CONFIG = {
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
   window.__A4_MOBILE__ = !!isMobile;
 
-  const load = (file, version='20260904-23') => {
+  const load = (file, version='20260905-1') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
     document.head.appendChild(s);
+  };
+  const loadCss = (file, version='20260905-1') => {
+    const l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href=new URL(file,base).href+'?v='+version;
+    document.head.appendChild(l);
   };
 
   const background = fn => {
@@ -40,7 +46,8 @@ window.A4PRINT_CONFIG = {
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
   const mobileContext = isAdmin && (params.get('mobile') === '1' || params.get('app') === '1' || (standalone && isMobile));
 
-  if (mobileContext) load('mobile-shell.js','20260904-2');
+  if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260905-1');
+  if (mobileContext) load('mobile-shell.js','20260905-3');
 
   if (isChatApp) {
     load('dialog-fixes.js');
