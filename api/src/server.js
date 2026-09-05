@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
+import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -125,6 +125,47 @@ const msReady = res => {
   if (!process.env.MOYSKLAD_TOKEN) { res.status(503).json({ success: false, error: 'MOYSKLAD_NOT_CONFIGURED' }); return false; }
   return true;
 };
+
+function normalizeSaleItems(items = []) {
+  return (Array.isArray(items) ? items : []).map((x, index) => ({
+    id: cleanText(x?.key, 160) || `${x?.id || 'item'}:${index}`,
+    catalog_id: x?.id || null,
+    name: cleanText(x?.name, 300) || 'Позиция',
+    quantity: Math.max(0, Number(x?.qty || 0)),
+    price: Math.max(0, Number(x?.price || 0)),
+    discount: Math.max(0, Number(x?.discount || 0))
+  }));
+}
+
+async function getPosSaleWithReturns(id) {
+  const { data: sale, error } = await supabase
+    .from('pos_sales')
+    .select('id,organization_id,shift_session_id,moysklad_shift_id,moysklad_sale_id,moysklad_sale_name,operator_id,customer_id,cash_account_id,payment_method,total,items,sold_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!sale) return null;
+  const { data: returns, error: returnsError } = await supabase
+    .from('pos_returns')
+    .select('id,amount,items,returned_at,moysklad_return_id,moysklad_return_name')
+    .eq('pos_sale_id', sale.id)
+    .order('returned_at', { ascending: true });
+  if (returnsError) throw returnsError;
+  const returned = new Map();
+  for (const r of returns || []) {
+    for (const item of Array.isArray(r.items) ? r.items : []) {
+      const key = cleanText(item.position_id || item.id, 160);
+      if (key) returned.set(key, (returned.get(key) || 0) + Math.max(0, Number(item.qty || item.quantity || 0)));
+    }
+  }
+  const positions = normalizeSaleItems(sale.items).map(p => ({
+    ...p,
+    sold_quantity: p.quantity,
+    returned_quantity: returned.get(p.id) || 0,
+    quantity: Math.max(0, p.quantity - (returned.get(p.id) || 0))
+  }));
+  return { sale, returns: returns || [], positions };
+}
 
 app.post('/api/v1/integrations/moysklad/sync', requireAdmin, async (req, res, next) => {
   try {
@@ -296,6 +337,172 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
       moysklad: { id: sale.id, name: sale.name, href: sale.meta?.href },
       sum: Number(sale.sum || 0) / 100
     });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/v1/pos/returns/sales', requirePosUser, async (_req, res, next) => {
+  try {
+    if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
+    const { data: rows, error } = await supabase
+      .from('pos_sales')
+      .select('id,moysklad_sale_id,moysklad_sale_name,total,payment_method,sold_at,items')
+      .order('sold_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const ids = (rows || []).map(x => x.id);
+    let returnRows = [];
+    if (ids.length) {
+      const r = await supabase.from('pos_returns').select('pos_sale_id,amount,items').in('pos_sale_id', ids);
+      if (r.error) throw r.error;
+      returnRows = r.data || [];
+    }
+    const bySale = new Map();
+    for (const r of returnRows) {
+      const current = bySale.get(r.pos_sale_id) || { amount: 0, qty: 0 };
+      current.amount += Number(r.amount || 0);
+      current.qty += (Array.isArray(r.items) ? r.items : []).reduce((s, x) => s + Number(x.qty || x.quantity || 0), 0);
+      bySale.set(r.pos_sale_id, current);
+    }
+    const sales = (rows || []).map(x => {
+      const returned = bySale.get(x.id) || { amount: 0, qty: 0 };
+      const soldQty = normalizeSaleItems(x.items).reduce((s, p) => s + p.quantity, 0);
+      return {
+        id: x.id,
+        external_id: x.moysklad_sale_id,
+        name: x.moysklad_sale_name || x.moysklad_sale_id,
+        sum: Number(x.total || 0),
+        moment: x.sold_at,
+        description: `${x.payment_method || 'Оплата'}${returned.amount > 0 ? ` · возвращено ${returned.amount.toFixed(2)} ₽` : ''}`,
+        returnable: returned.qty < soldQty
+      };
+    });
+    res.json({ success: true, sales });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/v1/pos/returns/sales/:id', requirePosUser, async (req, res, next) => {
+  try {
+    const state = await getPosSaleWithReturns(req.params.id);
+    if (!state) return res.status(404).json({ success: false, error: 'SALE_NOT_FOUND', message: 'Продажа не найдена в кассе.' });
+    res.json({
+      success: true,
+      sale: {
+        id: state.sale.id,
+        external_id: state.sale.moysklad_sale_id,
+        name: state.sale.moysklad_sale_name || state.sale.moysklad_sale_id,
+        sum: Number(state.sale.total || 0),
+        moment: state.sale.sold_at,
+        payment_method: state.sale.payment_method,
+        positions: state.positions
+      }
+    });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
+  try {
+    if (!msReady(res)) return;
+    const saleId = cleanText(req.body?.sale_id, 80);
+    const reason = cleanText(req.body?.reason, 1200);
+    const paymentMethod = cleanText(req.body?.payment_method, 80) || 'Наличные';
+    const accountId = cleanText(req.body?.account_id, 80);
+    const requested = Array.isArray(req.body?.positions) ? req.body.positions : [];
+    if (!saleId || !requested.length) return res.status(400).json({ success: false, error: 'RETURN_POSITIONS_REQUIRED', message: 'Выберите позиции для возврата.' });
+    if (!reason) return res.status(400).json({ success: false, error: 'RETURN_REASON_REQUIRED', message: 'Укажите причину возврата.' });
+    if (!accountId) return res.status(400).json({ success: false, error: 'RETURN_ACCOUNT_REQUIRED', message: 'Выберите счёт возврата.' });
+
+    const state = await getPosSaleWithReturns(saleId);
+    if (!state) return res.status(404).json({ success: false, error: 'SALE_NOT_FOUND', message: 'Исходная продажа не найдена.' });
+    const { data: account, error: accountError } = await supabase.from('cash_accounts').select('id,organization_id,is_active').eq('id', accountId).maybeSingle();
+    if (accountError) throw accountError;
+    if (!account || !account.is_active || account.organization_id !== state.sale.organization_id) return res.status(400).json({ success: false, error: 'INVALID_RETURN_ACCOUNT', message: 'Счёт возврата недоступен.' });
+
+    const available = new Map(state.positions.map(p => [p.id, p]));
+    const selected = [];
+    for (const raw of requested) {
+      const id = cleanText(raw?.id, 160);
+      const qty = Number(raw?.quantity || 0);
+      const p = available.get(id);
+      if (!p || !(qty > 0)) continue;
+      if (qty > p.quantity + 1e-9) return res.status(400).json({ success: false, error: 'RETURN_QTY_EXCEEDS_AVAILABLE', message: `Нельзя вернуть больше доступного количества: ${p.name}.` });
+      selected.push({ ...p, qty });
+    }
+    if (!selected.length) return res.status(400).json({ success: false, error: 'RETURN_POSITIONS_REQUIRED', message: 'Нет доступных позиций для возврата.' });
+
+    const catalogIds = [...new Set(selected.map(x => x.catalog_id).filter(Boolean))];
+    const { data: catalog, error: catalogError } = await supabase.from('catalog_items').select('id,external_href,item_type').in('id', catalogIds);
+    if (catalogError) throw catalogError;
+    const catalogById = new Map((catalog || []).map(x => [x.id, x]));
+    const msItems = selected.map(x => {
+      const g = catalogById.get(x.catalog_id);
+      if (!g?.external_href) throw new Error(`Позиция «${x.name}» не связана с МойСклад.`);
+      return {
+        id: x.catalog_id,
+        name: x.name,
+        qty: x.qty,
+        price: x.price,
+        external_href: g.external_href,
+        external_type: g.external_href.split('/').slice(-2, -1)[0] || (g.item_type === 'SERVICE' ? 'service' : 'product')
+      };
+    });
+    const profile = await operatorProfile(req.authUser.id);
+    if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
+    const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
+
+    const ret = await createRetailReturn({
+      token: process.env.MOYSKLAD_TOKEN,
+      saleId: state.sale.moysklad_sale_id,
+      items: msItems,
+      paymentMethod,
+      operatorName,
+      reason
+    });
+    const amount = selected.reduce((s, x) => s + Number(x.price || 0) * Number(x.qty || 0) * (1 - Number(x.discount || 0) / 100), 0);
+    const returnShiftId = ret.retailShift?.id || ret.retailShift?.meta?.href?.split('/').pop() || null;
+    let shiftSessionId = null;
+    if (returnShiftId) {
+      const shiftRow = await supabase.from('pos_shift_sessions').select('id').eq('organization_id', state.sale.organization_id).eq('moysklad_shift_id', returnShiftId).order('opened_at', { ascending: false }).limit(1).maybeSingle();
+      if (shiftRow.error) throw shiftRow.error;
+      shiftSessionId = shiftRow.data?.id || null;
+    }
+    const savedItems = selected.map(x => ({ position_id: x.id, catalog_id: x.catalog_id, name: x.name, qty: x.qty, price: x.price }));
+    const { data: savedReturn, error: saveError } = await supabase.from('pos_returns').insert({
+      organization_id: state.sale.organization_id,
+      shift_session_id: shiftSessionId,
+      pos_sale_id: state.sale.id,
+      moysklad_return_id: ret.id,
+      moysklad_return_name: ret.name || null,
+      operator_id: profile?.id || null,
+      cash_account_id: account.id,
+      payment_method: paymentMethod,
+      amount,
+      items: savedItems,
+      reason,
+      returned_at: new Date().toISOString(),
+      sync_status: 'SYNCED'
+    }).select('id').single();
+    if (saveError) throw new Error(`Возврат создан в МойСклад, но не записан в HUB: ${saveError.message}`);
+
+    const category = await supabase.from('cash_categories').select('id').eq('organization_id', state.sale.organization_id).eq('direction', 'EXPENSE').eq('name', 'Возврат клиенту').maybeSingle();
+    if (category.error) throw category.error;
+    const cashPayload = {
+      organization_id: state.sale.organization_id,
+      cash_account_id: account.id,
+      category_id: category.data?.id || null,
+      customer_id: state.sale.customer_id || null,
+      direction: 'EXPENSE',
+      amount,
+      payment_method: paymentMethod,
+      description: `Возврат по продаже ${state.sale.moysklad_sale_name || state.sale.moysklad_sale_id} · ${reason}`,
+      transaction_date: new Date().toISOString().slice(0, 10),
+      created_by: profile?.id || null,
+      external_source: 'MOYSKLAD_POS_RETURN',
+      external_id: ret.id
+    };
+    const cash = await supabase.from('cash_transactions').upsert(cashPayload, { onConflict: 'organization_id,external_source,external_id,direction', ignoreDuplicates: true });
+    if (cash.error) console.warn('POS return cash sync warning:', cash.error.message);
+
+    res.status(201).json({ success: true, id: savedReturn.id, return: { id: ret.id, name: ret.name || ret.id }, amount });
   } catch (e) { next(e); }
 });
 
