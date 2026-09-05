@@ -7,7 +7,7 @@
     if(window.A4AuthUI)return resolve(window.A4AuthUI);
     const existing=document.querySelector('script[data-a4-auth-ui]');
     if(existing){existing.addEventListener('load',()=>resolve(window.A4AuthUI||null),{once:true});existing.addEventListener('error',()=>resolve(null),{once:true});return}
-    const s=document.createElement('script');s.src='/admin/auth-ui.js?v=20260905-2';s.dataset.a4AuthUi='1';s.onload=()=>resolve(window.A4AuthUI||null);s.onerror=()=>resolve(null);document.head.appendChild(s);
+    const s=document.createElement('script');s.src='/admin/auth-ui.js?v=20260905-3';s.dataset.a4AuthUi='1';s.onload=()=>resolve(window.A4AuthUI||null);s.onerror=()=>resolve(null);document.head.appendChild(s);
   });
 
   const safeTarget=()=>{
