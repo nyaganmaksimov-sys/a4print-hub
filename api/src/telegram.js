@@ -54,12 +54,6 @@ function publicBaseUrl() {
   return String(process.env.PUBLIC_API_BASE_URL || process.env.API_PUBLIC_URL || 'https://a4print-hub-api.onrender.com').replace(/\/+$/, '');
 }
 
-function telegramName(message) {
-  const from = message?.from || {};
-  const parts = [from.first_name, from.last_name].filter(Boolean);
-  return parts.join(' ').trim() || (from.username ? `@${from.username}` : `Telegram ${message?.chat?.id || ''}`.trim());
-}
-
 function messageKind(message) {
   if (message?.text) return 'text';
   if (message?.photo) return 'photo';
@@ -276,28 +270,12 @@ export function registerTelegramRoutes({ app, supabase, requireAdmin, serviceKey
 
   app.post('/api/v1/integrations/telegram/messages/:id/create-order', requireAdmin, async (req, res, next) => {
     try {
-      const { data: row, error } = await supabase.from('telegram_messages').select('*').eq('id', req.params.id).single();
-      if (error) throw error;
-      if (row.linked_order_id) return res.json({ success: true, order: { id: row.linked_order_id }, already_created: true });
-
       const businessUnit = String(req.body?.business_unit || 'A4_PRINT').toUpperCase() === '3D_ARTPRINT' ? '3D_ARTPRINT' : 'A4_PRINT';
-      const sender = [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || (row.username ? `@${row.username}` : `Telegram ${row.chat_id}`);
-      const commentParts = [
-        'Заявка из Telegram',
-        row.username ? `Telegram: @${row.username}` : `Telegram chat: ${row.chat_id}`,
-        row.message_text || ''
-      ].filter(Boolean);
-      const payload = {
-        business_unit: businessUnit,
-        total: 0,
-        source: 'TELEGRAM',
-        comment: commentParts.join('\n'),
-        customer: { full_name: sender, email: '', phone: '' },
-        items: []
-      };
-      const { data: order, error: orderError } = await supabase.rpc('create_order_from_api', { payload });
-      if (orderError) throw orderError;
-      await supabase.from('telegram_messages').update({ status: 'ORDER_CREATED', linked_order_id: order.id, updated_at: new Date().toISOString() }).eq('id', row.id);
+      const { data: order, error } = await supabase.rpc('create_order_from_telegram', {
+        p_message_id: req.params.id,
+        p_business_unit: businessUnit
+      });
+      if (error) throw error;
       res.json({ success: true, order });
     } catch (e) { next(e); }
   });
