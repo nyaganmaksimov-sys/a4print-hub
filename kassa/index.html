@@ -6,8 +6,9 @@
   <meta name="theme-color" content="#101828">
   <meta name="color-scheme" content="light">
   <title>A4PRINT KASSA 2.0</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=1">
-  <link rel="stylesheet" href="./styles.css?v=20260905-1">
+  <link rel="manifest" href="./manifest.webmanifest?v=2">
+  <link rel="stylesheet" href="./styles.css?v=20260905-2">
+  <link rel="stylesheet" href="./modules.css?v=20260905-1">
   <style>[hidden]{display:none!important}</style>
   <script src="./config.js?v=20260905-1"></script>
   <script src="../admin/vendor/supabase.js?v=20260905-netfix1"></script>
@@ -43,7 +44,7 @@
         <img src="../admin/assets/a4print-hub-logo-white.svg" alt="A4PRINT">
         <div><b>A4PRINT KASSA</b><span>2.0 · local-first</span></div>
       </div>
-      <div class="top-search">
+      <div id="topSearch" class="top-search">
         <span>⌕</span>
         <input id="search" autocomplete="off" placeholder="Поиск, артикул или штрихкод" autofocus>
         <kbd>F2</kbd>
@@ -65,16 +66,24 @@
 
     <main class="workspace">
       <aside class="category-panel">
-        <div class="category-head">Категории</div>
-        <button class="category active" data-category="ALL"><span>▦</span>Все</button>
-        <button class="category" data-category="FAVORITES"><span>★</span>Избранное</button>
-        <div id="dynamicCategories" class="category-list"></div>
-        <div class="side-spacer"></div>
-        <button id="syncNow" class="side-action" type="button">↻ Синхронизировать</button>
-        <button id="openOldPos" class="side-action muted" type="button">Старая касса</button>
+        <div class="module-nav">
+          <button class="section-btn active" data-section="sale" type="button"><span>▦</span>Продажа</button>
+          <button class="section-btn" data-section="returns" type="button"><span>↩</span>Возвраты</button>
+          <button class="section-btn" data-section="reports" type="button"><span>▥</span>Отчёты</button>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div id="saleSidebar" class="sale-sidebar">
+          <div class="category-head">Категории</div>
+          <button class="category active" data-category="ALL"><span>▦</span>Все</button>
+          <button class="category" data-category="FAVORITES"><span>★</span>Избранное</button>
+          <div id="dynamicCategories" class="category-list"></div>
+          <div class="side-spacer"></div>
+          <button id="syncNow" class="side-action" type="button">↻ Синхронизировать</button>
+          <button id="openOldPos" class="side-action muted" type="button">Старая касса</button>
+        </div>
       </aside>
 
-      <section class="catalog-panel">
+      <section id="saleCatalog" class="catalog-panel">
         <div class="catalog-toolbar">
           <div>
             <h1 id="catalogTitle">Все позиции</h1>
@@ -90,7 +99,7 @@
         </div>
       </section>
 
-      <aside class="cart-panel">
+      <aside id="saleCart" class="cart-panel">
         <div class="cart-head">
           <div><h2>Текущий чек</h2><span id="cartCount">0 позиций</span></div>
           <button id="clearCart" class="link-btn" type="button">Очистить</button>
@@ -122,6 +131,56 @@
           </div>
         </div>
       </aside>
+
+      <section id="returnsView" class="module-view" hidden>
+        <div class="module-toolbar">
+          <div><h1>Возвраты</h1><p>Возврат по розничной продаже с созданием документа в МойСклад</p></div>
+          <button id="refreshReturns" class="btn light" type="button">Обновить</button>
+        </div>
+        <div class="returns-layout">
+          <article class="module-card returns-sales-card">
+            <div class="card-head"><div><b>Последние продажи</b><span>Выберите чек для возврата</span></div></div>
+            <div class="module-search"><span>⌕</span><input id="returnsSearch" autocomplete="off" placeholder="Номер продажи, сумма или комментарий"></div>
+            <div id="returnsSales" class="returns-sales"><div class="module-empty">Загрузка продаж…</div></div>
+          </article>
+          <article class="module-card return-detail-card">
+            <div class="card-head"><div><b>Позиции возврата</b><span id="returnSaleLabel">Продажа не выбрана</span></div></div>
+            <div id="returnDetail" class="return-detail"><div class="module-empty">Выберите продажу слева</div></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="reportsView" class="module-view" hidden>
+        <div class="module-toolbar reports-toolbar">
+          <div><h1>Отчёты и статистика</h1><p id="reportRange">Текущий период</p></div>
+          <div class="report-controls">
+            <select id="reportOperator" class="module-select" aria-label="Оператор"></select>
+            <div class="period-tabs">
+              <button class="period-btn" data-report-period="shift" type="button">Смена</button>
+              <button class="period-btn active" data-report-period="today" type="button">Сегодня</button>
+              <button class="period-btn" data-report-period="7d" type="button">7 дней</button>
+              <button class="period-btn" data-report-period="30d" type="button">30 дней</button>
+              <button class="period-btn" data-report-period="year" type="button">Год</button>
+            </div>
+          </div>
+        </div>
+        <div class="report-scroll">
+          <div class="stats-grid">
+            <article class="stat-card"><span>Выручка</span><strong id="reportSalesTotal">0 ₽</strong></article>
+            <article class="stat-card"><span>Чеков</span><strong id="reportSalesCount">0</strong></article>
+            <article class="stat-card"><span>Средний чек</span><strong id="reportAvgCheck">0 ₽</strong></article>
+            <article class="stat-card return-stat"><span>Возвраты</span><strong id="reportReturnsTotal">0 ₽</strong><small id="reportReturnsCount">0 возвратов</small></article>
+            <article class="stat-card net-stat"><span>Итого после возвратов</span><strong id="reportNetTotal">0 ₽</strong></article>
+          </div>
+          <div class="report-grid">
+            <article class="module-card report-card"><div class="card-head"><div><b>Способы оплаты</b><span>Распределение выручки</span></div></div><div id="reportPayments" class="bars"></div></article>
+            <article class="module-card report-card"><div class="card-head"><div><b>Продажи по операторам</b><span>Кто сколько провёл</span></div></div><div id="reportOperatorsBars" class="bars"></div></article>
+            <article class="module-card report-card"><div class="card-head"><div><b>Популярные позиции</b><span>По сумме продаж</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Позиция</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody id="reportTopItems"></tbody></table></div></article>
+            <article class="module-card report-card"><div class="card-head"><div><b>Последние чеки</b><span>Продажи за период</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Время</th><th>Оператор</th><th>Оплата</th><th>Сумма</th></tr></thead><tbody id="reportRecentSales"></tbody></table></div></article>
+            <article class="module-card report-card report-wide"><div class="card-head"><div><b>Последние возвраты</b><span>Документы возврата за период</span></div></div><div class="table-wrap"><table class="module-table"><thead><tr><th>Время</th><th>Возврат</th><th>Продажа</th><th>Оператор</th><th>Причина</th><th>Оплата</th><th>Сумма</th></tr></thead><tbody id="reportRecentReturns"></tbody></table></div></article>
+          </div>
+        </div>
+      </section>
     </main>
 
     <section id="queueDrawer" class="drawer" aria-hidden="true">
@@ -134,6 +193,7 @@
   </section>
 
   <script src="./db.js?v=20260905-1"></script>
-  <script src="./app.js?v=20260905-1"></script>
+  <script src="./app.js?v=20260905-2"></script>
+  <script src="./modules.js?v=20260905-1"></script>
 </body>
 </html>
