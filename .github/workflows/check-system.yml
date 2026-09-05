@@ -137,7 +137,20 @@ jobs:
           check_page 'https://a4print-hub.ru/pos/login.html'
           check_page 'https://a4print-hub.ru/pos/index.html'
           check_page 'https://a4print-hub.ru/marketplace/'
-          curl -fsSL --retry 5 --retry-delay 3 'https://a4print-hub.ru/admin/manager.html' | grep -q 'manager-runtime.js?v=20260905-4'
+
+          marker='manager-runtime.js?v=20260905-4'
+          for attempt in $(seq 1 24); do
+            echo "Manager deploy marker check $attempt/24"
+            if curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/manager.html?smoke=${GITHUB_SHA}" | grep -q "$marker"; then
+              echo 'Manager deploy marker is live.'
+              break
+            fi
+            if [ "$attempt" = "24" ]; then
+              echo 'Manager deploy marker did not become live in time.'
+              exit 1
+            fi
+            sleep 5
+          done
 
       - name: Check backend and E2E health
         shell: bash
