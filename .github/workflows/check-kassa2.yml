@@ -51,7 +51,7 @@ jobs:
           grep -q "serviceWorker.register" kassa/app.js
           grep -q "client_operation_id" kassa/app.js
           grep -q 'shift-live.js' kassa/bootstrap.js
-          grep -q '20260905-mslive3' api/src/pos-shift-live-patch.js
+          grep -q '20260905-mslive4' api/src/pos-shift-live-patch.js
           grep -q '/report/money/bymoment' api/src/pos-shift-live-patch.js
       - name: Validate manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           url='https://a4print-hub-api.onrender.com/api/v1/pos/shift-live-build'
-          marker='20260905-mslive3'
+          marker='20260905-mslive4'
           for attempt in $(seq 1 45); do
             echo "Render live shift check $attempt/45"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
