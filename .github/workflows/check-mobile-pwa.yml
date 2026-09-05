@@ -52,7 +52,7 @@ jobs:
       - name: Verify mobile entrypoint
         run: |
           grep -q 'manifest.webmanifest' mobile/index.html
-          grep -q 'oauth-bridge.js?v=5' mobile/index.html
+          grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'app-v3.js' mobile/index.html
           grep -q 'quick-menu.js?v=2' mobile/index.html
           grep -q 'pwa.js' mobile/index.html
@@ -62,15 +62,19 @@ jobs:
           grep -q '/mobile/account.html' mobile/index.html
           grep -q '/admin/profile.html?mobile=1' mobile/account.html
 
-      - name: Verify mobile auth routing
+      - name: Verify direct mobile auth routing
         run: |
-          grep -q '/admin/login.html' mobile/oauth-bridge.js
-          grep -q 'startProvider' mobile/oauth-bridge.js
-          grep -q 'a4print_oauth_return_target' mobile/oauth-bridge.js
-          grep -q "'/mobile/'" admin/mobile-auth-route.js
+          grep -q 'auth/v1/authorize' mobile/oauth-bridge.js
+          grep -q "new URL('/mobile/'" mobile/oauth-bridge.js
+          grep -q 'redirect_to' mobile/oauth-bridge.js
+          ! grep -q "new URL('/admin/login.html'" mobile/oauth-bridge.js
+          grep -q 'startProvider' admin/mobile-auth-route.js
+          grep -q 'location.replace(auth.href)' admin/mobile-auth-route.js
+          grep -q "location.replace('/mobile/'" admin/mobile-auth-route.js
           grep -q 'mobile-auth-route.js' admin/login.html
           grep -q 'finishOAuth' mobile/app-v3.js
           grep -q 'access_token' mobile/app-v3.js
+          grep -q 'grant_type=password' mobile/app-v3.js
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
       - name: Verify Google auth provider
