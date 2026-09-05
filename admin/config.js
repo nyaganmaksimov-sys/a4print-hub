@@ -47,6 +47,13 @@ window.A4PRINT_CONFIG = {
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
   const mobileContext = isAdmin && (params.get('mobile') === '1' || params.get('app') === '1' || (standalone && isMobile));
 
+  if(isAdmin&&!document.querySelector('link[rel="manifest"]')){
+    const manifest=document.createElement('link');
+    manifest.rel='manifest';
+    manifest.href=new URL('manifest.webmanifest?v=1',base).href;
+    document.head.appendChild(manifest);
+  }
+
   if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260905-1');
   if (mobileContext) load('mobile-shell.js','20260905-3');
 
