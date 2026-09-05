@@ -14,7 +14,9 @@ async function initA4Navigation(){
     sidebar.innerHTML='<div class="brand"></div><nav></nav>';
     if(main)main.before(sidebar);else document.body.prepend(sidebar);
   }
-  if(!sidebar.querySelector('.brand')){
+  // На главной уже есть собственный hub-logo-wrap с настраиваемым логотипом.
+  // Не создаём второй блок brand, иначе в сайдбаре появляются два логотипа.
+  if(!sidebar.querySelector('.brand')&&!sidebar.querySelector('.hub-logo-wrap')){
     const brand=document.createElement('div');brand.className='brand';sidebar.prepend(brand);
   }
   if(!sidebar.querySelector('nav'))sidebar.appendChild(document.createElement('nav'));
