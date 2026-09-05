@@ -1,0 +1,19 @@
+{
+  "name": "A4PRINT KASSA 2.0",
+  "short_name": "A4 KASSA",
+  "description": "Быстрая local-first касса A4PRINT HUB",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef2f6",
+  "theme_color": "#101828",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "../admin/assets/a4print-hub-logo-white.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
