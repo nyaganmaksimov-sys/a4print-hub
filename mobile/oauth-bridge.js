@@ -2,6 +2,8 @@
   if(window.__A4_MOBILE_OAUTH_BRIDGE__)return;
   window.__A4_MOBILE_OAUTH_BRIDGE__=true;
   const RETURN_KEY='a4print_auth_return_to';
+  const OAUTH_TARGET_KEY='a4print_oauth_return_target';
+  const SUPABASE_URL='https://qgakliolffnwkymoqvzn.supabase.co';
 
   const ensureAuthUI=()=>new Promise(resolve=>{
     if(window.A4AuthUI)return resolve(window.A4AuthUI);
@@ -25,18 +27,14 @@
   document.addEventListener('click',async event=>{
     const button=event.target.closest?.('[data-provider]');
     if(!button)return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const provider=String(button.dataset.provider||'').trim();
-    if(!provider)return;
-    const ui=await ensureAuthUI();
-    if(ui&&!(await ui.isEnabled('login',provider)))return;
+    event.preventDefault();event.stopImmediatePropagation();
+    const provider=String(button.dataset.provider||'').trim();if(!provider)return;
+    const ui=await ensureAuthUI();if(ui&&!(await ui.isEnabled('login',provider)))return;
     const target=safeTarget();
-    try{localStorage.setItem(RETURN_KEY,target);sessionStorage.setItem(RETURN_KEY,target)}catch{}
-    button.disabled=true;
-    button.dataset.oldHtml=button.innerHTML;
-    button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
-    const q=new URLSearchParams({startProvider:provider,returnTo:target});
-    location.assign(`/admin/login.html?${q.toString()}`);
+    try{localStorage.setItem(RETURN_KEY,target);sessionStorage.setItem(RETURN_KEY,target);sessionStorage.setItem(OAUTH_TARGET_KEY,target)}catch{}
+    button.disabled=true;button.dataset.oldHtml=button.innerHTML;button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
+    const redirectTo=new URL('/mobile/',location.origin).href;
+    const q=new URLSearchParams({provider,redirect_to:redirectTo});
+    location.assign(`${SUPABASE_URL}/auth/v1/authorize?${q.toString()}`);
   },true);
 })();
