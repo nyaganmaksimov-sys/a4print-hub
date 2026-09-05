@@ -22,7 +22,7 @@ function friendlyError(ex,fallback='Не удалось выполнить вх�
   if(/email not confirmed/i.test(msg))return 'Email ещё не подтверждён.';
   if(/provider.*not enabled|unsupported provider/i.test(msg))return 'Этот способ входа пока не подключён.';
   if(/oauth state not found|state.*expired/i.test(msg))return 'Сессия входа устарела. Нажмите кнопку входа ещё раз.';
-  if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с сервером входа. Проверьте интернет и повторите попытку.';
+  if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с сервером входа даже через резервный канал. Повторите попытку через несколько секунд.';
   return msg;
 }
 function providerName(provider){if(provider==='google')return'Google';if(provider==='custom:yandex')return'Яндекс';if(provider==='custom:mailru')return'Mail.ru';return provider}
@@ -42,7 +42,10 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
 (async()=>{
   const createClient=window.supabase?.createClient;
   if(!createClient)throw new Error('Локальный модуль авторизации не загрузился. Обновите страницу.');
-  const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+    global:{fetch:window.A4SupabaseFetch||fetch},
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+  });
   window.__A4_AUTH_CLIENT__=supabase;
 
   async function routeByProfile(){
@@ -101,7 +104,7 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     try{
       const emailValue=document.getElementById('email').value.trim().toLowerCase();
       const password=document.getElementById('password').value;
-      const {data, error:signInError}=await supabase.auth.signInWithPassword({email:emailValue,password});
+      const {data,error:signInError}=await supabase.auth.signInWithPassword({email:emailValue,password});
       if(signInError)throw signInError;
       if(!data?.session)throw new Error('Сервер не вернул сессию.');
       submit.textContent='Проверяем доступ…';
