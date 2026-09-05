@@ -11,7 +11,7 @@
   if(page==='messages.html')document.documentElement.classList.add('a4-chat-app-mode');
 
   const css=document.createElement('link');
-  css.rel='stylesheet';css.href='/admin/mobile-shell.css?v=20260905-3';document.head.appendChild(css);
+  css.rel='stylesheet';css.href='/admin/mobile-shell.css?v=20260905-4';document.head.appendChild(css);
   const qcss=document.createElement('link');
   qcss.rel='stylesheet';qcss.href='/mobile/quick-menu.css?v=3';document.head.appendChild(qcss);
 
