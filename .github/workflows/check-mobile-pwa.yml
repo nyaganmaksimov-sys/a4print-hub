@@ -19,6 +19,10 @@ on:
       - 'admin/chat-watchdog.js'
       - 'admin/chat-modern.js'
       - 'admin/messages.html'
+      - 'admin/support.html'
+      - 'admin/support.js'
+      - 'admin/support-access.js'
+      - 'admin/onboarding.js'
       - 'database/migrations/101_staff_profile_avatar_self_service.sql'
       - 'a4print-hub-sw.js'
       - '.github/workflows/check-mobile-pwa.yml'
@@ -45,6 +49,9 @@ jobs:
           node --check admin/chat-watchdog.js
           node --check admin/chat-modern.js
           node --check admin/guard.js
+          node --check admin/support.js
+          node --check admin/support-access.js
+          node --check admin/onboarding.js
           node --check a4print-hub-sw.js
 
       - name: Validate JSON
@@ -57,13 +64,15 @@ jobs:
           grep -q 'manifest.webmanifest' mobile/index.html
           grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'app-v3.js' mobile/index.html
-          grep -q 'quick-menu.js?v=2' mobile/index.html
+          grep -q 'quick-menu.js' mobile/index.html
           grep -q 'pwa.js' mobile/index.html
           grep -q '/admin/orders.html?status=NEW&mobile=1' mobile/index.html
           grep -q '/admin/messages.html?app=1' mobile/index.html
           grep -q '/admin/customers.html?mobile=1' mobile/index.html
           grep -q '/mobile/account.html' mobile/index.html
           grep -q '/admin/profile.html?mobile=1' mobile/account.html
+          grep -q 'enforceSupportRole' mobile/pwa.js
+          grep -q '/admin/support.html?mobile=1' mobile/pwa.js
 
       - name: Verify direct mobile auth routing
         run: |
