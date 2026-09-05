@@ -19,6 +19,7 @@
     {id:'reports',icon:'⌁',label:'Отчёты',href:'/admin/reports.html?mobile=1'},
     {id:'employees',icon:'♙',label:'Сотрудники',href:'/admin/employees.html?mobile=1'},
     {id:'settings',icon:'⚙',label:'Настройки',href:'/admin/settings.html?mobile=1'},
+    {id:'profile',icon:'☺',label:'Мой профиль',href:'/admin/profile.html?mobile=1'},
     {id:'account',icon:'☻',label:'Аккаунт',href:'/mobile/account.html'}
   ];
   const byId=new Map(items.map(x=>[x.id,x]));
