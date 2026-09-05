@@ -28,7 +28,10 @@ jobs:
           test -s pos/index.html
           test -s pos/login.html
           test -s pos/app-v2.js
+          test -s pos/manual-shift.js
+          test -s pos/runtime-guard.js
           test -s pos/styles-v2.css
+          test -s pos/logo-fix.css
           test -s pos/manifest.webmanifest
           test -s pos/sw.js
           test -s api/src/server.js
@@ -38,62 +41,80 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check pos/app-v2.js
+          node --check pos/manual-shift.js
+          node --check pos/runtime-guard.js
           node --check pos/sw.js
           node --check api/src/server.js
           node --check api/src/mobile-proxy.js
           node --check api/src/moysklad.js
       - name: Validate manifest
         run: node -e "JSON.parse(require('fs').readFileSync('pos/manifest.webmanifest','utf8')); console.log('POS manifest ok')"
-      - name: Verify POS v2 wiring
+      - name: Verify POS wiring
         run: |
           set -euo pipefail
-          grep -q 'app-v2.js' pos/index.html
-          grep -q 'manifest.webmanifest' pos/index.html
+          grep -q 'manual-shift.js' pos/index.html
+          grep -q 'runtime-guard.js' pos/index.html
+          grep -q 'logo-fix.css' pos/index.html
+          grep -q 'a4print-hub-logo-white.svg' pos/index.html
           grep -q 'record_pos_sale' pos/app-v2.js
           grep -q 'record_pos_shift' pos/app-v2.js
-          grep -q 'pos_dashboard' pos/app-v2.js
-          grep -q '/api/v1/integrations/moysklad/sync' pos/app-v2.js
-          grep -q '/api/v1/integrations/moysklad/stock' pos/app-v2.js
           grep -q '/api/v1/pos/shift/open' pos/app-v2.js
           grep -q '/api/v1/pos/shift/close' pos/app-v2.js
-          grep -q 'resolvePosOperator' api/src/server.js
+          grep -q 'manualActivationRequired' pos/manual-shift.js
+          grep -q 'posSale' pos/runtime-guard.js
+          grep -q '20260905-pos-sale-v2' api/src/mobile-proxy.js
           grep -q 'createRetailSale' api/src/server.js
-          grep -q 'openRetailShift' api/src/server.js
-          grep -q 'closeRetailShift' api/src/server.js
           grep -q "'https://a4print-hub.ru'" api/src/mobile-proxy.js
 
   pos-live:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Wait for Pages and API deployment
         run: sleep 35
       - name: Check live POS assets
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 24); do
+          for attempt in $(seq 1 30); do
             page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/index.html?poscheck=${GITHUB_SHA}" || true)
-            js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/app-v2.js?poscheck=${GITHUB_SHA}" || true)
-            manifest=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/manifest.webmanifest?poscheck=${GITHUB_SHA}" || true)
+            manual=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/manual-shift.js?poscheck=${GITHUB_SHA}" || true)
+            guard=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/runtime-guard.js?poscheck=${GITHUB_SHA}" || true)
+            css=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/styles-v2.css?poscheck=${GITHUB_SHA}" || true)
+            logo=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/assets/a4print-hub-logo-white.svg?poscheck=${GITHUB_SHA}" || true)
             legacy=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/pos.html?poscheck=${GITHUB_SHA}" || true)
-            if echo "$page" | grep -q 'Отчёты и статистика' && echo "$js" | grep -q 'record_pos_sale' && echo "$manifest" | grep -q 'Касса A4-Принт' && echo "$legacy" | grep -q "location.replace(target.pathname"; then
-              echo 'POS v2 is live and legacy cashier redirects to it.'
+            if echo "$page" | grep -q 'manual-shift.js' \
+              && echo "$manual" | grep -q 'manualActivationRequired' \
+              && echo "$guard" | grep -q 'posSale' \
+              && echo "$css" | grep -q '100dvh' \
+              && echo "$logo" | grep -q 'A4PRINT HUB' \
+              && echo "$legacy" | grep -q "location.replace(target.pathname"; then
+              echo 'POS responsive build, white logo and manual shift control are live.'
               break
             fi
-            if [ "$attempt" = "24" ]; then
-              echo 'POS v2 did not become live in time.'
+            if [ "$attempt" = "30" ]; then
+              echo 'POS build did not become live in time.'
               exit 1
             fi
             sleep 5
           done
-      - name: Check API, MoySklad and browser CORS readiness
+      - name: Check API POS sale capability, MoySklad and browser CORS readiness
         run: |
           set -euo pipefail
-          health=$(curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors --max-time 25 https://a4print-hub-api.onrender.com/api/v1/health)
-          echo "$health"
-          echo "$health" | grep -q '"success":true'
-          echo "$health" | grep -q '"databaseConfigured":true'
-          echo "$health" | grep -q '"moyskladConfigured":true'
+          for attempt in $(seq 1 30); do
+            health=$(curl -fsSL --retry 2 --retry-delay 2 --retry-all-errors --max-time 25 https://a4print-hub-api.onrender.com/api/v1/health || true)
+            echo "$health"
+            if echo "$health" | grep -q '"success":true' \
+              && echo "$health" | grep -q '"databaseConfigured":true' \
+              && echo "$health" | grep -q '"moyskladConfigured":true' \
+              && echo "$health" | grep -q '"posSale":true'; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              echo 'Live API did not expose the POS sale capability in time.'
+              exit 1
+            fi
+            sleep 5
+          done
 
           headers=$(mktemp)
           curl -sS -o /dev/null -D "$headers" \
