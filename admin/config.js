@@ -7,6 +7,48 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
+window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
+  const cfg = window.A4PRINT_CONFIG || {};
+  let request;
+  try {
+    request = new Request(input, init);
+  } catch {
+    return fetch(input, init);
+  }
+
+  try {
+    return await fetch(request.clone());
+  } catch (directError) {
+    try {
+      const target = new URL(request.url);
+      const supabaseOrigin = new URL(cfg.supabaseUrl).origin;
+      const apiBase = String(cfg.apiBaseUrl || '').replace(/\/$/, '');
+      if (!apiBase || target.origin !== supabaseOrigin) throw directError;
+      if (!/^\/(auth|rest|functions)\/v1(?:\/|$)/.test(target.pathname)) throw directError;
+
+      const headers = new Headers(request.headers);
+      const method = request.method.toUpperCase();
+      const options = {
+        method,
+        headers,
+        cache: 'no-store',
+        credentials: 'omit',
+        redirect: 'follow'
+      };
+      if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
+
+      const proxyUrl = `${apiBase}/api/v1/supabase${target.pathname}${target.search}`;
+      const response = await fetch(proxyUrl, options);
+      window.dispatchEvent(new CustomEvent('a4:supabase-fallback', { detail: { path: target.pathname } }));
+      return response;
+    } catch (fallbackError) {
+      if (fallbackError === directError) throw directError;
+      console.warn('A4 Supabase fallback failed', fallbackError);
+      throw directError;
+    }
+  }
+};
+
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
   const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
@@ -73,7 +115,7 @@ window.A4PRINT_CONFIG = {
   }
 
   if (isAuthPage) {
-    load('auth-ui.js','20260905-3');
+    load('auth-ui.js','20260905-netfix1');
     return;
   }
 
