@@ -13,7 +13,7 @@
   const css=document.createElement('link');
   css.rel='stylesheet';css.href='/admin/mobile-shell.css?v=20260905-3';document.head.appendChild(css);
   const qcss=document.createElement('link');
-  qcss.rel='stylesheet';qcss.href='/mobile/quick-menu.css?v=1';document.head.appendChild(qcss);
+  qcss.rel='stylesheet';qcss.href='/mobile/quick-menu.css?v=3';document.head.appendChild(qcss);
 
   const active=page==='messages.html'?'chat':page==='customers.html'||page==='customer.html'?'customers':page==='orders.html'||page==='order.html'||page==='manager.html'?'orders':'more';
 
@@ -52,7 +52,7 @@
     if(window.A4QuickMenu)return;
     if(document.querySelector('script[data-a4-quick-menu-script]'))return;
     const s=document.createElement('script');
-    s.src='/mobile/quick-menu.js?v=1';
+    s.src='/mobile/quick-menu.js?v=3';
     s.defer=true;
     s.dataset.a4QuickMenuScript='1';
     document.head.appendChild(s);
@@ -84,7 +84,7 @@
     }
     if(top&&!top.querySelector('[data-a4-quick-menu]')){
       const b=document.createElement('button');
-      b.type='button';b.dataset.a4QuickMenu='';b.textContent='☰';b.title='Быстрое меню';
+      b.type='button';b.dataset.a4QuickMenu='';b.textContent='☰';b.title='Меню';
       b.style.cssText='display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:12px;background:#fff;color:#0f172a;border:1px solid #dbe3ee;font-weight:900;font-size:18px';
       top.appendChild(b);
     }
