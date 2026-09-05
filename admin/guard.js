@@ -2,11 +2,28 @@ const config = window.A4PRINT_CONFIG || {};
 const url = config.supabaseUrl || 'https://qgakliolffnwkymoqvzn.supabase.co';
 const key = config.supabasePublishableKey || 'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
 
-let createClient = window.supabase?.createClient;
-if (!createClient) {
-  const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-  createClient = mod.createClient;
+async function loadLocalSupabase() {
+  if (window.supabase?.createClient) return window.supabase.createClient;
+  await new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-a4-supabase-local]');
+    if (existing) {
+      if (window.supabase?.createClient) return resolve();
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', () => reject(new Error('Не удалось загрузить модуль авторизации.')), { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = '/admin/vendor/supabase.js?v=20260905-1';
+    script.dataset.a4SupabaseLocal = '1';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Не удалось загрузить модуль авторизации.'));
+    document.head.appendChild(script);
+  });
+  if (!window.supabase?.createClient) throw new Error('Модуль авторизации загружен некорректно.');
+  return window.supabase.createClient;
 }
+
+const createClient = await loadLocalSupabase();
 const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
@@ -41,8 +58,6 @@ async function currentSession() {
     if (error) console.warn('Auth session read failed', error);
     if (!session) return null;
 
-    // getUser validates the JWT against Supabase. If the access token expired,
-    // the client can refresh it from the persisted refresh token automatically.
     let userResult = await supabase.auth.getUser();
     if (userResult.error && /expired|jwt|token/i.test(String(userResult.error.message || ''))) {
       const refreshed = await supabase.auth.refreshSession();
