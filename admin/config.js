@@ -55,7 +55,7 @@ window.A4PRINT_CONFIG = {
 
   if (isAuthPage) return;
 
-  load('theme.js');
+  load('theme.js','20260905-1');
   load('ui-icons.js');
   load('dialog-fixes.js');
   load('ui-fixes.js');
