@@ -1,6 +1,6 @@
-const CACHE='a4print-kassa-v4';
+const CACHE='a4print-kassa-v5';
 const CORE=[
-  './','./index.html','./styles.css','./modules.css','./config.js','./db.js','./app.js','./modules.js','./ui.js','./manifest.webmanifest',
+  './','./index.html','./styles.css','./modules.css','./shift.css','./config.js','./db.js','./app.js','./modules.js','./ui.js','./manifest.webmanifest',
   '../admin/vendor/supabase.js','../admin/assets/a4print-hub-logo-white.svg'
 ];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})).then(()=>self.skipWaiting())));
