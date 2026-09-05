@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'pos/**'
+      - 'admin/pos.html'
       - 'api/src/server.js'
       - 'api/src/moysklad.js'
       - 'database/migrations/103_pos_shift_sales_analytics.sql'
@@ -31,6 +32,7 @@ jobs:
           test -s pos/sw.js
           test -s api/src/server.js
           test -s api/src/moysklad.js
+          grep -q "location.replace(target.pathname" admin/pos.html
       - name: Check JavaScript syntax
         run: |
           node --check pos/app-v2.js
@@ -69,14 +71,20 @@ jobs:
             page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/index.html?poscheck=${GITHUB_SHA}" || true)
             js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/app-v2.js?poscheck=${GITHUB_SHA}" || true)
             manifest=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/manifest.webmanifest?poscheck=${GITHUB_SHA}" || true)
-            if echo "$page" | grep -q 'Отчёты и статистика' && echo "$js" | grep -q 'record_pos_sale' && echo "$manifest" | grep -q 'Касса A4-Принт'; then
-              echo 'POS v2 is live.'
+            legacy=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/pos.html?poscheck=${GITHUB_SHA}" || true)
+            if echo "$page" | grep -q 'Отчёты и статистика' && echo "$js" | grep -q 'record_pos_sale' && echo "$manifest" | grep -q 'Касса A4-Принт' && echo "$legacy" | grep -q "location.replace(target.pathname"; then
+              echo 'POS v2 is live and legacy cashier redirects to it.'
               exit 0
             fi
             sleep 5
           done
           echo 'POS v2 did not become live in time.'
           exit 1
-      - name: Check API health
+      - name: Check API and MoySklad readiness
         run: |
-          curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors --max-time 25 https://a4print-hub-api.onrender.com/api/v1/health | grep -q '"success":true'
+          set -euo pipefail
+          health=$(curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors --max-time 25 https://a4print-hub-api.onrender.com/api/v1/health)
+          echo "$health"
+          echo "$health" | grep -q '"success":true'
+          echo "$health" | grep -q '"databaseConfigured":true'
+          echo "$health" | grep -q '"moyskladConfigured":true'
