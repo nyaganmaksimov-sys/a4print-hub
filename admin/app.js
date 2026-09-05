@@ -1,4 +1,4 @@
-import { supabase } from './guard.js';
+import { supabase } from './guard.js?v=20260905-netfix1';
 
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -30,254 +30,126 @@ function unitLabel(unit) {
   return 'Общий';
 }
 
-function unitClass(unit) {
-  if (unit === '3D_ARTPRINT') return 'unit-3d';
-  if (unit === 'A4_PRINT') return '';
-  return 'unit-common';
-}
-
-function customerName(order) {
-  const customer = order.customers || {};
-  return customer.full_name || customer.company_name || order.customer_name || order.client_name || 'Клиент не указан';
-}
-
-function customerMeta(order) {
-  const customer = order.customers || {};
-  return customer.phone || customer.email || customer.company_name || '';
-}
-
-function orderTitle(order) {
-  return order.model_name || order.source || (order.business_unit === '3D_ARTPRINT' ? '3D-заказ' : 'Печать / услуга');
-}
-
-function orderDate(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-}
-
-function localDateKey(value) {
-  const d = value instanceof Date ? value : new Date(value);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function setText(id, value) {
-  const el = $(id);
-  if (el) el.textContent = value;
-}
-
-function setOrderBadge(value) {
-  const apply = () => {
-    const badge = $('orderCount');
-    if (badge) badge.textContent = value;
-  };
-  apply();
-  setTimeout(apply, 350);
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
 function renderRecentOrders() {
   const root = $('recentOrders');
   if (!root) return;
-  const rows = state.orders.slice(0, 10);
-  root.innerHTML = rows.map((order) => `
-    <a class="dash-order-row" href="./order.html?id=${encodeURIComponent(order.id)}">
-      <span class="dash-order-number">№${esc(order.order_number ?? String(order.id || '').slice(0,8) || '—')}</span>
-      <span class="dash-order-customer"><b>${esc(customerName(order))}</b><small>${esc(customerMeta(order) || orderDate(order.created_at))}</small></span>
-      <span class="dash-order-service"><b>${esc(orderTitle(order))}</b><small>${esc(orderDate(order.created_at))}</small></span>
-      <span class="dash-unit ${unitClass(order.business_unit)}">${esc(unitLabel(order.business_unit))}</span>
-      <span class="dash-order-total">${money(order.total || order.total_amount)} ₽</span>
-      <span class="dash-status ${statusClass(order.status)}">${esc(statusNames[order.status] || order.status || '—')}</span>
-    </a>`).join('') || '<div class="dash-empty">Заказов пока нет</div>';
-}
-
-function attentionIcon(type) {
-  const icons = {
-    orders: '<svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6"></path></svg>',
-    ready: '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>',
-    stock: '<svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5v11H3z"></path><path d="M8 20v-7h8v7"></path></svg>',
-    work: '<svg viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9h10v9M9 11V7h6v4"></path></svg>'
-  };
-  return icons[type] || icons.orders;
-}
-
-function renderAttention(metrics) {
-  const root = $('attention');
-  if (!root) return;
-  const lowNames = state.lowItems.slice(0, 3).map((x) => x.name).filter(Boolean);
-  const items = [
-    {
-      href: './orders.html?status=NEW',
-      tone: metrics.newCount ? 'info' : 'good',
-      icon: 'orders',
-      title: metrics.newCount ? 'Новые заказы' : 'Новых заказов нет',
-      text: metrics.newCount ? 'Ждут обработки менеджером' : 'Входящие заказы обработаны',
-      count: metrics.newCount
-    },
-    {
-      href: './orders.html?status=READY',
-      tone: metrics.readyCount ? 'good' : 'info',
-      icon: 'ready',
-      title: 'Готово к выдаче',
-      text: metrics.readyCount ? 'Можно связаться с клиентами' : 'Сейчас готовых заказов нет',
-      count: metrics.readyCount
-    },
-    {
-      href: './warehouse.html',
-      tone: metrics.lowCount ? 'danger' : 'good',
-      icon: 'stock',
-      title: metrics.lowCount ? 'Заканчиваются материалы' : 'Остатки в норме',
-      text: metrics.lowCount ? (lowNames.join(', ') || 'Нужно проверить склад') : 'Критических остатков не найдено',
-      count: metrics.lowCount
-    },
-    {
-      href: './orders.html?status=WORK',
-      tone: metrics.workCount ? 'warn' : 'good',
-      icon: 'work',
-      title: 'Заказы в работе',
-      text: metrics.workCount ? 'Проверьте текущий прогресс' : 'Активных работ сейчас нет',
-      count: metrics.workCount
-    }
-  ];
-  root.innerHTML = items.map((item) => `
-    <a class="dash-attention-item ${item.tone}" href="${item.href}">
-      <span class="dash-attention-icon">${attentionIcon(item.icon)}</span>
-      <span class="dash-attention-copy"><b>${esc(item.title)}</b><span>${esc(item.text)}</span></span>
-      <span class="dash-attention-count">${item.count}</span>
-    </a>`).join('');
-}
-
-function renderSearch(query) {
-  const root = $('dashboardSearchResults');
-  if (!root) return;
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) {
-    root.classList.remove('open');
-    root.innerHTML = '';
+  if (!state.orders.length) {
+    root.innerHTML = '<div class="dash-empty">Пока нет заказов</div>';
     return;
   }
+  root.innerHTML = state.orders.slice(0, 8).map(order => {
+    const customer = order.customers?.company_name || order.customers?.full_name || 'Без клиента';
+    return `<a class="dash-row" href="./orders.html?open=${encodeURIComponent(order.id)}"><span class="dash-row-main"><b>${esc(order.order_number || 'Заказ')}</b><small>${esc(customer)} · ${esc(unitLabel(order.business_unit))}</small></span><span class="dash-row-side"><b>${money(order.total)} ₽</b><span class="dash-status ${statusClass(order.status)}">${esc(statusNames[order.status] || order.status || '—')}</span></span></a>`;
+  }).join('');
+}
 
-  const matches = state.orders.filter((order) => {
-    const customer = order.customers || {};
-    const haystack = [
-      order.order_number,
-      order.model_name,
-      order.source,
-      order.business_unit,
-      customer.full_name,
-      customer.company_name,
-      customer.phone,
-      customer.email,
-      order.customer_name,
-      order.client_name
-    ].filter(Boolean).join(' ').toLowerCase();
-    return haystack.includes(q);
-  }).slice(0, 7);
+function renderProductionSummary(rows) {
+  const root = $('productionSummary');
+  if (!root) return;
+  const groups = new Map();
+  for (const row of rows || []) {
+    const key = row.status || 'UNKNOWN';
+    groups.set(key, (groups.get(key) || 0) + 1);
+  }
+  const items = [
+    ['NEW','Ожидают запуска'],
+    ['IN_PROGRESS','Сейчас в работе'],
+    ['READY','Готовы'],
+    ['ON_HOLD','Приостановлены']
+  ];
+  root.innerHTML = items.map(([key,label]) => `<a class="dash-row" href="./production.html?status=${key}"><span class="dash-row-main"><b>${esc(label)}</b><small>Производственные задания</small></span><span class="dash-row-side"><b>${groups.get(key) || 0}</b></span></a>`).join('');
+}
 
-  const rows = matches.map((order) => `
-    <a class="dashboard-search-result" href="./order.html?id=${encodeURIComponent(order.id)}">
-      <span><b>Заказ №${esc(order.order_number ?? String(order.id || '').slice(0,8))} · ${esc(customerName(order))}</b><span>${esc(orderTitle(order))} · ${esc(unitLabel(order.business_unit))}</span></span>
-      <strong>${money(order.total || order.total_amount)} ₽</strong>
-    </a>`).join('');
+function updateKpis() {
+  const orders = state.orders;
+  if ($('newOrders')) $('newOrders').textContent = orders.filter(x => x.status === 'NEW').length;
+  if ($('activeOrders')) $('activeOrders').textContent = orders.filter(x => ['CONFIRMED','IN_PROGRESS'].includes(x.status)).length;
+  if ($('readyOrders')) $('readyOrders').textContent = orders.filter(x => x.status === 'READY').length;
+  if ($('lowStock')) $('lowStock').textContent = state.lowItems.length;
+}
 
-  root.innerHTML = (rows || '<div class="dashboard-search-empty">Среди загруженных заказов совпадений нет</div>') + `
-    <a class="dashboard-search-all" href="./orders.html?q=${encodeURIComponent(query)}"><span>Искать во всех заказах</span><span>→</span></a>`;
+function renderSearchResults(items) {
+  const root = $('dashboardSearchResults');
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = '<div class="dashboard-search-empty">Ничего не найдено</div>';
+    root.classList.add('open');
+    return;
+  }
+  root.innerHTML = items.map(item => {
+    const href = item.type === 'order' ? `./orders.html?open=${encodeURIComponent(item.id)}` : `./customers.html?open=${encodeURIComponent(item.id)}`;
+    return `<a href="${href}"><b>${esc(item.title)}</b><small>${esc(item.subtitle || '')}</small></a>`;
+  }).join('');
   root.classList.add('open');
 }
 
-function initSearch() {
-  const input = $('dashboardSearch');
-  const wrap = $('dashboardSearchWrap');
-  if (!input || !wrap) return;
-  input.addEventListener('input', () => renderSearch(input.value));
-  input.addEventListener('focus', () => { if (input.value.trim()) renderSearch(input.value); });
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && input.value.trim()) {
-      event.preventDefault();
-      location.href = `./orders.html?q=${encodeURIComponent(input.value.trim())}`;
-    }
-    if (event.key === 'Escape') $('dashboardSearchResults')?.classList.remove('open');
-  });
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('#dashboardSearchWrap')) $('dashboardSearchResults')?.classList.remove('open');
-  });
+async function searchDashboard(term) {
+  const q = String(term || '').trim();
+  if (q.length < 2) {
+    $('dashboardSearchResults')?.classList.remove('open');
+    return;
+  }
+  const safe = q.replace(/[,%()]/g, ' ');
+  const [orders, customers] = await Promise.all([
+    supabase.from('orders').select('id,order_number,status,total,customers(full_name,company_name)').or(`order_number.ilike.%${safe}%,model_name.ilike.%${safe}%`).limit(8),
+    supabase.from('customers').select('id,full_name,company_name,email,phone').or(`full_name.ilike.%${safe}%,company_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`).limit(8)
+  ]);
+  const result = [];
+  for (const x of orders.data || []) result.push({ type:'order', id:x.id, title:x.order_number || 'Заказ', subtitle:`${x.customers?.company_name || x.customers?.full_name || 'Без клиента'} · ${statusNames[x.status] || x.status || ''}` });
+  for (const x of customers.data || []) result.push({ type:'customer', id:x.id, title:x.company_name || x.full_name || 'Клиент', subtitle:[x.phone,x.email].filter(Boolean).join(' · ') });
+  renderSearchResults(result.slice(0, 12));
 }
 
 async function loadDashboard() {
-  const recent = $('recentOrders');
+  const [{ data: { user } }, ordersResult, lowResult, productionResult] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('orders').select('id,order_number,status,total,business_unit,created_at,customers(full_name,company_name)').order('created_at',{ascending:false}).limit(100),
+    supabase.from('inventory_items').select('id').lte('current_stock', 5).limit(100),
+    supabase.from('production_tasks').select('id,status').order('created_at',{ascending:false}).limit(200)
+  ]);
+  if ($('userEmail')) $('userEmail').textContent = user?.email || '';
+  state.orders = ordersResult.data || [];
+  state.lowItems = lowResult.data || [];
+  renderRecentOrders();
+  renderProductionSummary(productionResult.data || []);
+  updateKpis();
+
   try {
-    const [ordersResult, countResult, itemsResult, movesResult] = await Promise.all([
-      supabase.from('orders').select('*,customers(full_name,company_name,phone,email)').order('created_at', { ascending: false }).limit(200),
-      supabase.from('orders').select('id', { count: 'exact', head: true }),
-      supabase.from('catalog_items').select('id,name,sku,item_type,min_stock').eq('is_active', true),
-      supabase.from('inventory_transactions').select('catalog_item_id,transaction_type,quantity')
-    ]);
-
-    if (ordersResult.error) throw ordersResult.error;
-    state.orders = ordersResult.data || [];
-    setOrderBadge(countResult.error ? state.orders.length : (countResult.count ?? state.orders.length));
-
-    const qtyByItem = new Map();
-    if (!movesResult.error) {
-      for (const move of movesResult.data || []) {
-        const current = qtyByItem.get(move.catalog_item_id) || 0;
-        const quantity = Number(move.quantity || 0);
-        const positive = ['RECEIPT','TRANSFER_IN','PRODUCTION_IN','ADJUSTMENT'].includes(move.transaction_type);
-        qtyByItem.set(move.catalog_item_id, current + (positive ? quantity : -quantity));
-      }
-    }
-
-    state.lowItems = [];
-    if (!itemsResult.error && !movesResult.error) {
-      for (const item of itemsResult.data || []) {
-        const qty = qtyByItem.get(item.id) || 0;
-        const min = Number(item.min_stock || 0);
-        if (qty <= min) state.lowItems.push({ ...item, qty, min });
-      }
-    } else {
-      console.warn('Не удалось обновить складскую сводку', itemsResult.error || movesResult.error);
-    }
-
-    const orders = state.orders;
-    const newCount = orders.filter((x) => x.status === 'NEW').length;
-    const workCount = orders.filter((x) => ['CONFIRMED','IN_PROGRESS'].includes(x.status)).length;
-    const readyCount = orders.filter((x) => x.status === 'READY').length;
-    const lowCount = state.lowItems.length;
-    const today = localDateKey(new Date());
-    const revenue = orders
-      .filter((x) => x.status !== 'CANCELLED' && localDateKey(x.created_at) === today)
-      .reduce((sum, x) => sum + Number(x.total || x.total_amount || 0), 0);
-
-    setText('newOrders', newCount);
-    setText('activeOrders', workCount);
-    setText('readyOrders', readyCount);
-    setText('lowStock', lowCount);
-    setText('revenueToday', `${money(revenue)} ₽`);
-
-    const activeStatuses = ['NEW','CONFIRMED','IN_PROGRESS'];
-    const a4 = orders.filter((x) => x.business_unit === 'A4_PRINT');
-    const d3 = orders.filter((x) => x.business_unit === '3D_ARTPRINT');
-    setText('a4Active', a4.filter((x) => activeStatuses.includes(x.status)).length);
-    setText('a4Ready', a4.filter((x) => x.status === 'READY').length);
-    setText('d3Active', d3.filter((x) => activeStatuses.includes(x.status)).length);
-    setText('d3Ready', d3.filter((x) => x.status === 'READY').length);
-
-    renderRecentOrders();
-    renderAttention({ newCount, workCount, readyCount, lowCount });
-    setText('lastUpdated', `обновлено ${new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })}`);
-
-    const search = $('dashboardSearch');
-    if (search?.value.trim()) renderSearch(search.value);
-  } catch (error) {
-    console.error(error);
-    if (recent) recent.innerHTML = `<div class="dash-empty">Не удалось загрузить данные: ${esc(error.message)}</div>`;
-    const attention = $('attention');
-    if (attention) attention.innerHTML = '<div class="dash-empty">Сводка временно недоступна</div>';
-    setText('lastUpdated', 'ошибка обновления');
-  }
+    const start = new Date();
+    start.setHours(0,0,0,0);
+    const { data: sales } = await supabase.from('pos_sales').select('total,sold_at').gte('sold_at', start.toISOString());
+    const revenue = (sales || []).reduce((s,x) => s + Number(x.total || 0), 0);
+    if ($('revenueToday')) $('revenueToday').textContent = `${money(revenue)} ₽`;
+  } catch {}
 }
 
-const todayText = new Intl.DateTimeFormat('ru-RU', { weekday:'long', day:'numeric', month:'long' }).format(new Date());
-setText('todayLabel', `Сегодня, ${todayText} · А4-Принт + 3D-ARTPRINT`);
-initSearch();
-loadDashboard();
-setInterval(loadDashboard, 60000);
+$('logout')?.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  location.replace('./login.html');
+});
+
+const searchInput = $('dashboardSearch');
+let searchTimer = null;
+searchInput?.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => searchDashboard(searchInput.value).catch(() => {}), 220);
+});
+searchInput?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const first = $('dashboardSearchResults')?.querySelector('a');
+    if (first) { e.preventDefault(); first.click(); }
+  }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#dashboardSearchWrap')) $('dashboardSearchResults')?.classList.remove('open');
+});
+
+const now = new Date();
+if ($('todayLabel')) $('todayLabel').textContent = now.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+loadDashboard().catch(error => console.error('Dashboard load failed', error));
