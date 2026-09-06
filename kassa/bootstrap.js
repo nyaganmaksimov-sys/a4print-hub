@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260906-shiftmanual1';
+  const VERSION='20260906-shifttime1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
