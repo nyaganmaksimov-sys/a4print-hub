@@ -28,6 +28,7 @@ jobs:
           node --check kassa/db.js
           node --check kassa/sw.js
           node --check kassa/bootstrap.js
+          node --check kassa/shift-session-gate.js
           node --check kassa/shift-operator.js
           node --check kassa/shift-live.js
           node --check api/src/moysklad.js
@@ -41,6 +42,8 @@ jobs:
           test -f kassa/modules.css
           test -f kassa/modules.js
           test -f kassa/ui.js
+          test -f kassa/shift-layout-fix.css
+          test -f kassa/shift-session-gate.js
           test -f kassa/manifest.webmanifest
           grep -q 'A4PRINT KASSA' kassa/index.html
           grep -q 'Отложенные чеки' kassa/index.html
@@ -54,6 +57,10 @@ jobs:
           grep -q "syncQueue" kassa/app.js
           grep -q "serviceWorker.register" kassa/app.js
           grep -q "client_operation_id" kassa/app.js
+          grep -q 'shift-session-gate.js' kassa/bootstrap.js
+          grep -q 'shift-layout-fix.css' kassa/bootstrap.js
+          grep -q 'manualRequired' kassa/shift-session-gate.js
+          grep -q 'overflow-y:auto' kassa/shift-layout-fix.css
           grep -q 'shift-live.js' kassa/bootstrap.js
           grep -q 'latestOpenShift' api/src/moysklad.js
           grep -q 'moysklad-shift-sanity.js' api/src/boot.js
