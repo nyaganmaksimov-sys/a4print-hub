@@ -1,4 +1,4 @@
-const CACHE='a4print-kassa-v8';
+const CACHE='a4print-kassa-v9';
 const CORE=[
   './','./index.html','./styles.css','./modules.css','./shift.css','./config.js','./db.js','./bootstrap.js','./app.js','./modules.js','./ui.js','./shift-operator.js','./shift-live.js','./manifest.webmanifest',
   '../admin/vendor/supabase.js','../admin/assets/a4print-hub-logo-white.svg'
