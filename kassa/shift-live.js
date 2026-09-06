@@ -14,8 +14,13 @@
 
   function openedText(raw){
     const value=String(raw||'').trim();
-    const m=value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
-    const d=m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6]||0)):new Date(value);
+    if(!value)return'—';
+    let d;
+    if(/[zZ]$|[+-]\d{2}:?\d{2}$/.test(value))d=new Date(value);
+    else{
+      const m=value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+      d=m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6]||0)):new Date(value);
+    }
     if(Number.isNaN(d.getTime()))return raw||'—';
     const date=d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}).replace(' г.','');
     return `${date} г. в ${d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
@@ -33,8 +38,9 @@
   function apply(data){
     const shift=data?.shift,d=data?.summary;
     if(!shift||!d)return;
+    const manual=window.A4KassaShiftSession;
     set('shiftHeading',`Смена ${shift.name||''}`.trim());
-    set('shiftOpenedAt',openedText(shift.openDate));
+    set('shiftOpenedAt',openedText(manual?.openedAt||shift.openDate));
     set('shiftSalesCount',Number(d.sales_count||0).toLocaleString('ru-RU'));
     set('shiftSalesTotal',money(d.sales_total));
     set('shiftSalesCash',money(d.sales_cash));
@@ -52,7 +58,7 @@
     set('shiftRevenueCashless',money(d.revenue_cashless));
     set('shiftCashRegister',money(d.cash_in_register));
     const note=document.querySelector('.shift-note');
-    if(note)note.textContent='Данные получены напрямую из текущей смены МойСклад.';
+    if(note)note.textContent='Статистика из МойСклад · время открытия — из A4PRINT KASSA.';
     const wrap=$('shiftSummaryWrap');if(wrap)wrap.dataset.source='moysklad-live';
   }
 
