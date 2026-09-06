@@ -2,7 +2,7 @@
   'use strict';
   const originalFetch=window.fetch.bind(window);
   const DB=window.A4KassaDB;
-  const gate={active:false,remoteShift:null,ready:Promise.resolve()};
+  const gate={active:false,remoteShift:null,openedAt:null,ready:Promise.resolve()};
   if(DB?.setMeta)gate.ready=Promise.resolve(DB.setMeta('shift',null)).catch(()=>{});
   window.A4KassaShiftSession=gate;
 
@@ -35,13 +35,14 @@
         const data=await response.clone().json();
         gate.active=!!data?.shift;
         gate.remoteShift=data?.shift||null;
+        gate.openedAt=gate.active?new Date().toISOString():null;
       }else if(method==='POST'&&u.pathname.endsWith('/close')){
-        gate.active=false;gate.remoteShift=null;
+        gate.active=false;gate.remoteShift=null;gate.openedAt=null;
         await DB?.setMeta?.('shift',null);
       }else if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)&&gate.active){
         const data=await response.clone().json();
         gate.remoteShift=data?.shift||null;
-        if(!data?.shift)gate.active=false;
+        if(!data?.shift){gate.active=false;gate.openedAt=null}
       }
     }catch{}
     return response;
