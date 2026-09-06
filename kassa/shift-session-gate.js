@@ -18,6 +18,10 @@
     const headers=new Headers(source?.headers||{});headers.set('content-type','application/json; charset=utf-8');headers.delete('content-length');headers.delete('content-encoding');
     return new Response(JSON.stringify(body),{status:source?.status||200,statusText:source?.statusText||'OK',headers});
   }
+  function withManualOpenDate(data){
+    if(!data?.shift||!gate.openedAt)return data;
+    return {...data,shift:{...data.shift,moyskladOpenDate:data.shift.moyskladOpenDate||data.shift.openDate,openDate:gate.openedAt}};
+  }
 
   window.fetch=async function a4ManualShiftFetch(input,init={}){
     const u=posShiftUrl(input);const method=methodOf(input,init);
@@ -36,13 +40,18 @@
         gate.active=!!data?.shift;
         gate.remoteShift=data?.shift||null;
         gate.openedAt=gate.active?new Date().toISOString():null;
-      }else if(method==='POST'&&u.pathname.endsWith('/close')){
+        return jsonResponse(withManualOpenDate(data),response);
+      }
+      if(method==='POST'&&u.pathname.endsWith('/close')){
         gate.active=false;gate.remoteShift=null;gate.openedAt=null;
         await DB?.setMeta?.('shift',null);
-      }else if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)&&gate.active){
+        return response;
+      }
+      if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)&&gate.active){
         const data=await response.clone().json();
         gate.remoteShift=data?.shift||null;
-        if(!data?.shift){gate.active=false;gate.openedAt=null}
+        if(!data?.shift){gate.active=false;gate.openedAt=null;return response}
+        return jsonResponse(withManualOpenDate(data),response);
       }
     }catch{}
     return response;
