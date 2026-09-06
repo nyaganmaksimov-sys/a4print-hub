@@ -66,6 +66,8 @@ jobs:
           grep -q 'a4:kassa-shift' kassa/shift-session-gate.js
           grep -q 'overflow-y:auto' kassa/shift-layout-fix.css
           grep -q 'shift-live.js' kassa/bootstrap.js
+          ! grep -q 'MutationObserver' kassa/shift-state-sync.js
+          grep -q 'setInterval(sync,5000)' kassa/shift-state-sync.js
           grep -q 'latestOpenShift' api/src/moysklad.js
           grep -q 'moysklad-shift-sanity.js' api/src/boot.js
           grep -q 'Europe/Moscow' api/src/moysklad-shift-sanity.js
