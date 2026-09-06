@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260905-shiftlive1';
+  const VERSION='20260906-shiftmanual1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -12,6 +12,16 @@
       s.onload=()=>resolve();
       s.onerror=()=>reject(new Error(`Не загрузился модуль ${src}`));
       document.head.appendChild(s);
+    });
+  }
+
+  function loadStyle(src){
+    return new Promise((resolve,reject)=>{
+      const l=document.createElement('link');
+      const sep=src.includes('?')?'&':'?';
+      l.rel='stylesheet';l.href=`${src}${sep}boot=${VERSION}-${Date.now()}`;
+      l.onload=()=>resolve();l.onerror=()=>reject(new Error(`Не загрузился стиль ${src}`));
+      document.head.appendChild(l);
     });
   }
 
@@ -34,9 +44,12 @@
     if(!window.supabase?.createClient)throw new Error('модуль авторизации Supabase недоступен');
     if(!window.A4KassaDB)throw new Error('локальная база кассы недоступна');
 
+    await loadScript('./shift-session-gate.js');
+    await window.A4KassaShiftSession?.ready;
     await loadScript('./app.js');
     await loadScript('./modules.js');
     await loadScript('./ui.js');
+    await loadStyle('./shift-layout-fix.css');
     await loadScript('./shift-operator.js');
     await loadScript('./shift-live.js');
     window.__A4_KASSA_BOOT_OK__=true;
