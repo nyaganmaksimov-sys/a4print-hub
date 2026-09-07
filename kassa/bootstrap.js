@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-saleview1';
+  const VERSION='20260907-shiftpersist1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
