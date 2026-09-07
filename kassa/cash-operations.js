@@ -12,8 +12,10 @@
   const toast=(text,error=false)=>{const n=$('toast');if(!n)return;n.textContent=text;n.className='toast show'+(error?' error':'');clearTimeout(toast.t);toast.t=setTimeout(()=>n.className='toast',3500)};
 
   function currentCash(){
-    const raw=String($('shiftCashRegister')?.textContent||'0').replace(/\s/g,'').replace('₽','').replace(',','.');
-    const n=Number(raw);return Number.isFinite(n)?n:0;
+    const text=$('shiftCashRegister')?.textContent;
+    if(!text)return null;
+    const raw=String(text).replace(/\s/g,'').replace('₽','').replace(',','.');
+    const n=Number(raw);return Number.isFinite(n)?n:null;
   }
   function ensureStyles(){
     if($('cashOperationsStyle'))return;
@@ -30,7 +32,7 @@
   }
   function close(){const o=$('cashOpOverlay');if(o)o.remove()}
   async function token(){
-    let s=(await supabase.auth.getSession()).data?.session;
+    const s=(await supabase.auth.getSession()).data?.session;
     if(!s)throw new Error('Сессия завершена. Войдите снова.');
     return s.access_token;
   }
@@ -46,7 +48,7 @@
   function open(){
     close();ensureStyles();
     const available=currentCash();
-    const overlay=document.createElement('div');overlay.id='cashOpOverlay';overlay.className='cashop-overlay';overlay.innerHTML=`<div class="cashop-card" role="dialog" aria-modal="true" aria-labelledby="cashOpTitle"><div class="cashop-head"><div><h2 id="cashOpTitle">Изъятие денег</h2><p>Выплата будет создана в текущей смене МойСклад.</p></div><button class="cashop-close" type="button" aria-label="Закрыть">×</button></div><div class="cashop-body"><div class="cashop-balance"><span>Наличных сейчас</span><strong>${money(available)}</strong></div><label class="cashop-field"><span>Сумма изъятия</span><input id="cashOpAmount" inputmode="decimal" autocomplete="off" placeholder="0,00"></label><label class="cashop-field"><span>Причина / комментарий</span><textarea id="cashOpReason" placeholder="Например: инкассация, передано руководителю"></textarea></label><div id="cashOpError" class="cashop-error"></div></div><div class="cashop-actions"><button class="cashop-cancel" type="button">Отмена</button><button id="cashOpSubmit" class="cashop-submit" type="button">Изъять деньги</button></div></div>`;
+    const overlay=document.createElement('div');overlay.id='cashOpOverlay';overlay.className='cashop-overlay';overlay.innerHTML=`<div class="cashop-card" role="dialog" aria-modal="true" aria-labelledby="cashOpTitle"><div class="cashop-head"><div><h2 id="cashOpTitle">Изъятие денег</h2><p>Выплата будет создана в текущей смене МойСклад.</p></div><button class="cashop-close" type="button" aria-label="Закрыть">×</button></div><div class="cashop-body"><div class="cashop-balance"><span>Наличных сейчас</span><strong>${available===null?'—':money(available)}</strong></div><label class="cashop-field"><span>Сумма изъятия</span><input id="cashOpAmount" inputmode="decimal" autocomplete="off" placeholder="0,00"></label><label class="cashop-field"><span>Причина / комментарий</span><textarea id="cashOpReason" placeholder="Например: инкассация, передано руководителю"></textarea></label><div id="cashOpError" class="cashop-error"></div></div><div class="cashop-actions"><button class="cashop-cancel" type="button">Отмена</button><button id="cashOpSubmit" class="cashop-submit" type="button">Изъять деньги</button></div></div>`;
     document.body.append(overlay);
     overlay.querySelector('.cashop-close').onclick=close;overlay.querySelector('.cashop-cancel').onclick=close;overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
     const amount=$('cashOpAmount');amount.focus();
@@ -54,7 +56,8 @@
       const value=Number(String(amount.value||'').replace(/\s/g,'').replace(',','.'));
       const reason=String($('cashOpReason').value||'').trim();const err=$('cashOpError');err.textContent='';
       if(!Number.isFinite(value)||value<=0){err.textContent='Введите сумму больше нуля.';return}
-      if(available>0&&value>available){err.textContent=`В кассе сейчас ${money(available)}. Нельзя изъять больше.`;return}
+      if(available===null){err.textContent='Сначала обновите данные смены, чтобы проверить остаток наличных.';return}
+      if(value>available){err.textContent=`В кассе сейчас ${money(available)}. Нельзя изъять больше.`;return}
       const operator=$('operatorSelect')?.value||null;const btn=$('cashOpSubmit');btn.disabled=true;btn.textContent='Провожу…';
       try{
         const result=await api({amount:value,reason,operator_id:operator});
