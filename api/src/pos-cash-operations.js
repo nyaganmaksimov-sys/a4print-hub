@@ -1,7 +1,7 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { calculateCashBalance, idOf, msRequest } from './pos-cash-ledger.js';
 
-const MS_BASE='https://api.moysklad.ru/api/remap/1.2';
 const token=process.env.MOYSKLAD_TOKEN;
 const supabaseUrl=process.env.SUPABASE_URL;
 const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -9,31 +9,8 @@ const service=supabaseUrl&&serviceKey?createClient(supabaseUrl,serviceKey,{auth:
 const installed=Symbol.for('a4print.pos.cash.operations.installed');
 
 function clean(value,max=500){return String(value||'').trim().slice(0,max)}
-function idOf(entity){return entity?.id||entity?.meta?.href?.split('/').pop()||null}
-function firstFinite(...values){
-  for(const value of values){
-    if(value===null||value===undefined||value==='')continue;
-    const n=Number(value);if(Number.isFinite(n))return n;
-  }
-  return null;
-}
 function msDate(){
   return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date()).replace('T',' ');
-}
-async function ms(path,options={}){
-  if(!token)throw new Error('MOYSKLAD_NOT_CONFIGURED');
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),20000);
-  try{
-    const r=await fetch(path.startsWith('http')?path:MS_BASE+path,{
-      ...options,
-      signal:controller.signal,
-      headers:{Authorization:`Bearer ${token}`,Accept:'application/json;charset=utf-8','Content-Type':'application/json',...(options.headers||{})}
-    });
-    const text=await r.text();
-    if(!r.ok)throw new Error(`MoySklad HTTP ${r.status}: ${text}`);
-    return text?JSON.parse(text):null;
-  }finally{clearTimeout(timer)}
 }
 async function auth(req){
   if(!service)return{error:'DATABASE_NOT_CONFIGURED'};
@@ -58,32 +35,28 @@ async function selectedOperator(req,ctx){
   return data?.is_active===false?ctx.profile:(data||ctx.profile);
 }
 async function openShift(){
-  const list=await ms('/entity/retailshift?limit=100&order=created,desc');
+  const list=await msRequest(token,'/entity/retailshift?limit=100&order=created,desc');
   const rows=(list?.rows||[]).filter(x=>!x.closeDate);
   if(!rows.length)throw new Error('SHIFT_NOT_OPEN');
   const row=rows[0];
   const id=idOf(row);
-  return id?await ms(`/entity/retailshift/${encodeURIComponent(id)}`):row;
-}
-async function exactCashForShift(shift){
-  const href=shift?.retailStore?.meta?.href;
-  if(!href)throw new Error('CASH_BALANCE_UNAVAILABLE');
-  const store=await ms(href);
-  const raw=firstFinite(store?.cash,store?.state?.cash,shift?.cash);
-  if(raw===null)throw new Error('CASH_BALANCE_UNAVAILABLE');
-  return{cash:raw/100,store};
+  return id?await msRequest(token,`/entity/retailshift/${encodeURIComponent(id)}`):row;
 }
 async function createCashOut({amount,reason,operatorName}){
   const shift=await openShift();
   const shiftId=idOf(shift);
   if(!shiftId)throw new Error('SHIFT_NOT_OPEN');
-  const before=await exactCashForShift(shift);
-  if(amount>before.cash+0.0001){
+
+  const before=await calculateCashBalance({token,service});
+  if(before.requires_baseline)throw new Error('CASH_BASELINE_REQUIRED');
+  if(!before.available||!Number.isFinite(Number(before.cash)))throw new Error('CASH_BALANCE_UNAVAILABLE');
+  if(amount>Number(before.cash)+0.0001){
     const error=new Error('CASH_OUT_EXCEEDS_BALANCE');
-    error.cashBalance=before.cash;
+    error.cashBalance=Number(before.cash);
     throw error;
   }
-  const template=await ms('/entity/retaildrawercashout/new',{
+
+  const template=await msRequest(token,'/entity/retaildrawercashout/new',{
     method:'PUT',
     body:JSON.stringify({retailShift:{meta:shift.meta}})
   }).catch(()=>null);
@@ -98,10 +71,14 @@ async function createCashOut({amount,reason,operatorName}){
   if(!payload.organization?.meta)delete payload.organization;
   if(template?.agent?.meta)payload.agent={meta:template.agent.meta};
   if(template?.owner?.meta)payload.owner={meta:template.owner.meta};
-  const operation=await ms('/entity/retaildrawercashout',{method:'POST',body:JSON.stringify(payload)});
-  let after=null;
-  try{after=(await exactCashForShift(shift)).cash}catch{}
-  return{shift,operation,cashBefore:before.cash,cashAfter:Number.isFinite(after)?after:Math.max(0,before.cash-amount)};
+  const operation=await msRequest(token,'/entity/retaildrawercashout',{method:'POST',body:JSON.stringify(payload)});
+
+  let after=Number(before.cash)-amount;
+  try{
+    const refreshed=await calculateCashBalance({token,service});
+    if(refreshed.available&&Number.isFinite(Number(refreshed.cash)))after=Number(refreshed.cash);
+  }catch{}
+  return{shift,operation,cashBefore:Number(before.cash),cashAfter:after};
 }
 
 const originalListen=express.application.listen;
@@ -136,7 +113,8 @@ express.application.listen=function patchedCashOperationsListen(...args){
       }catch(error){
         const message=String(error?.message||error);
         if(message==='SHIFT_NOT_OPEN')return res.status(409).json({success:false,error:'SHIFT_NOT_OPEN',message:'Смена не открыта.'});
-        if(message==='CASH_BALANCE_UNAVAILABLE')return res.status(503).json({success:false,error:'CASH_BALANCE_UNAVAILABLE',message:'МойСклад не отдал текущий остаток наличных. Изъятие отменено для защиты кассы.'});
+        if(message==='CASH_BASELINE_REQUIRED')return res.status(409).json({success:false,error:'CASH_BASELINE_REQUIRED',message:'Сначала укажите фактический остаток наличных в Настройках кассы.'});
+        if(message==='CASH_BALANCE_UNAVAILABLE')return res.status(503).json({success:false,error:'CASH_BALANCE_UNAVAILABLE',message:'Не удалось проверить текущий остаток наличных. Изъятие отменено для защиты кассы.'});
         if(message==='CASH_OUT_EXCEEDS_BALANCE')return res.status(409).json({success:false,error:'CASH_OUT_EXCEEDS_BALANCE',cash_balance:Number(error.cashBalance||0),message:`В кассе сейчас ${Number(error.cashBalance||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽. Нельзя изъять больше.`});
         return next(error);
       }
