@@ -241,7 +241,29 @@ export async function getRetailContext(token){
   return contextFromShift(token,current);
 }
 
-export async function createRetailSale({token,items,paymentMethod,operatorName,customer}){if(!items?.length)throw new Error('Пустой чек');const {store,organization,shift}=await getRetailContext(token);const positions=items.map(x=>{if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}}});const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);const customerText=customer?` · Клиент: ${customer.name||'без имени'}${customer.phone?` ${customer.phone}`:''}${customer.company?` (${customer.company})`:''}`:'';const payload={organization:{meta:organization.meta},retailStore:{meta:store.meta},retailShift:{meta:shift.meta},positions,payedSum:total,description:`A4PRINT HUB · Оператор: ${operatorName||'не указан'}${customerText} · ${paymentMethod||'Оплата'}`};return ms(token,'/entity/retaildemand',{method:'POST',body:JSON.stringify(payload)})}
+export async function createRetailSale({token,items,paymentMethod,operatorName,customer}){
+  if(!items?.length)throw new Error('Пустой чек');
+  const {store,organization,shift}=await getRetailContext(token);
+  const positions=items.map(x=>{
+    if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);
+    return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
+  });
+  const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);
+  const customerText=customer?` · Клиент: ${customer.name||'без имени'}${customer.phone?` ${customer.phone}`:''}${customer.company?` (${customer.company})`:''}`:'';
+  const payment=String(paymentMethod||'Наличные').toLowerCase();
+  const payload={
+    organization:{meta:organization.meta},
+    retailStore:{meta:store.meta},
+    retailShift:{meta:shift.meta},
+    positions,
+    payedSum:total,
+    cashSum:payment.includes('налич')?total:0,
+    noCashSum:(payment.includes('карт')||payment.includes('банк'))?total:0,
+    qrSum:payment.includes('сбп')?total:0,
+    description:`A4PRINT HUB · Оператор: ${operatorName||'не указан'}${customerText} · ${paymentMethod||'Оплата'}`
+  };
+  return ms(token,'/entity/retaildemand',{method:'POST',body:JSON.stringify(payload)});
+}
 
 export async function createRetailReturn({token,saleId,items,paymentMethod,operatorName,reason}){
   if(!saleId)throw new Error('Не указана исходная продажа');
