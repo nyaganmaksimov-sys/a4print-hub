@@ -10,10 +10,13 @@ on:
       - 'api/src/server.js'
       - 'api/src/mobile-proxy.js'
       - 'api/src/moysklad.js'
+      - 'api/src/boot.js'
+      - 'api/src/pos-sale-idempotency.js'
       - 'database/migrations/103_pos_shift_sales_analytics.sql'
       - 'database/migrations/104_pos_rpc_and_cash_sync.sql'
       - 'database/migrations/105_pos_operator_cash_account_read.sql'
       - 'database/migrations/106_pos_dashboard_include_legacy_cash.sql'
+      - 'database/migrations/107_pos_sale_idempotency.sql'
       - '.github/workflows/check-pos.yml'
 
 jobs:
@@ -37,6 +40,8 @@ jobs:
           test -s api/src/server.js
           test -s api/src/mobile-proxy.js
           test -s api/src/moysklad.js
+          test -s api/src/pos-sale-idempotency.js
+          test -s database/migrations/107_pos_sale_idempotency.sql
           grep -q "location.replace(target.pathname" admin/pos.html
       - name: Check JavaScript syntax
         run: |
@@ -47,6 +52,7 @@ jobs:
           node --check api/src/server.js
           node --check api/src/mobile-proxy.js
           node --check api/src/moysklad.js
+          node --check api/src/pos-sale-idempotency.js
       - name: Validate manifest
         run: node -e "JSON.parse(require('fs').readFileSync('pos/manifest.webmanifest','utf8')); console.log('POS manifest ok')"
       - name: Verify POS wiring
@@ -62,9 +68,15 @@ jobs:
           grep -q '/api/v1/pos/shift/close' pos/app-v2.js
           grep -q 'manualActivationRequired' pos/manual-shift.js
           grep -q 'posSale' pos/runtime-guard.js
-          grep -q '20260905-pos-sale-v2' api/src/mobile-proxy.js
           grep -q 'createRetailSale' api/src/server.js
           grep -q "'https://a4print-hub.ru'" api/src/mobile-proxy.js
+          grep -q 'pos-sale-idempotency.js' api/src/boot.js
+          grep -q 'SALE_SYNC_IN_PROGRESS' api/src/pos-sale-idempotency.js
+          grep -q 'client_operation_id' api/src/pos-sale-idempotency.js
+          grep -q 'pos_sale_operations' database/migrations/107_pos_sale_idempotency.sql
+          grep -q 'cashSum' api/src/moysklad.js
+          grep -q 'noCashSum' api/src/moysklad.js
+          grep -q 'qrSum' api/src/moysklad.js
 
   pos-live:
     runs-on: ubuntu-latest
