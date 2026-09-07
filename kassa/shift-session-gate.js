@@ -2,8 +2,7 @@
   'use strict';
   const originalFetch=window.fetch.bind(window);
   const DB=window.A4KassaDB;
-  const gate={active:false,remoteShift:null,openedAt:null,ready:Promise.resolve()};
-  if(DB?.setMeta)gate.ready=Promise.resolve(DB.setMeta('shift',null)).catch(()=>{});
+  const gate={active:false,remoteShift:null,openedAt:null,ready:null};
   window.A4KassaShiftSession=gate;
 
   function posShiftUrl(input){
@@ -14,18 +13,36 @@
     }catch{return null}
   }
   function methodOf(input,init){return String(init?.method||input?.method||'GET').toUpperCase()}
+  function idOf(shift){return String(shift?.id||'').trim()}
+  function sameShift(a,b){const aa=idOf(a),bb=idOf(b);return !!aa&&aa===bb}
   function jsonResponse(body,source){
-    const headers=new Headers(source?.headers||{});headers.set('content-type','application/json; charset=utf-8');headers.delete('content-length');headers.delete('content-encoding');
+    const headers=new Headers(source?.headers||{});
+    headers.set('content-type','application/json; charset=utf-8');
+    headers.delete('content-length');headers.delete('content-encoding');
     return new Response(JSON.stringify(body),{status:source?.status||200,statusText:source?.statusText||'OK',headers});
   }
-  function withManualOpenDate(data){
-    if(!data?.shift||!gate.openedAt)return data;
-    return {...data,shift:{...data.shift,moyskladOpenDate:data.shift.moyskladOpenDate||data.shift.openDate,openDate:gate.openedAt}};
-  }
+  function closedResponse(source){return jsonResponse({success:true,shift:null,summary:null,manualRequired:true},source)}
   function emit(reason){
     const detail={active:!!gate.active,shift:gate.remoteShift?{...gate.remoteShift}:null,openedAt:gate.openedAt,reason};
     queueMicrotask(()=>window.dispatchEvent(new CustomEvent('a4:kassa-shift',{detail})));
   }
+  async function saveShift(shift,extra={}){
+    if(!DB?.setMeta)return;
+    if(!shift){await DB.setMeta('shift',null);return}
+    await DB.setMeta('shift',{...shift,...extra,checked_at:new Date().toISOString()});
+  }
+  async function restore(){
+    try{
+      const saved=await DB?.getMeta?.('shift',null);
+      if(saved?.id){
+        gate.active=true;
+        gate.remoteShift=saved;
+        gate.openedAt=saved.openDate||saved.openedAt||null;
+      }
+    }catch(error){console.warn('Shift session restore:',error)}
+  }
+  gate.ready=restore();
+
   async function liveStatus(openUrl,input,init){
     try{
       const statusUrl=new URL(openUrl.href);
@@ -41,8 +58,11 @@
     const u=posShiftUrl(input);const method=methodOf(input,init);
     if(!u)return originalFetch(input,init);
 
+    // A4PRINT KASSA never adopts somebody else's already-open MoySklad shift
+    // automatically. It restores only the shift that this workstation opened
+    // and persisted locally.
     if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)&&!gate.active){
-      return jsonResponse({success:true,shift:null,summary:null,manualRequired:true});
+      return closedResponse();
     }
 
     const response=await originalFetch(input,init);
@@ -52,26 +72,39 @@
       if(method==='POST'&&u.pathname.endsWith('/open')){
         let data=await response.clone().json();
         const live=await liveStatus(u,input,init);
-        if(live?.shift)data={...data,shift:live.shift,store:live.store||data.store,organization:live.organization||data.organization,summary:live.summary||data.summary};
+        if(live?.shift){
+          data={...data,shift:live.shift,store:live.store||data.store,organization:live.organization||data.organization,summary:live.summary||data.summary};
+        }
         gate.active=!!data?.shift;
         gate.remoteShift=data?.shift||null;
-        gate.openedAt=gate.active?new Date().toISOString():null;
+        gate.openedAt=data?.shift?.openDate||data?.shift?.moment||new Date().toISOString();
+        await saveShift(gate.remoteShift,{store:data?.store||null});
         emit('open');
-        return jsonResponse(withManualOpenDate(data),response);
+        return jsonResponse(data,response);
       }
+
       if(method==='POST'&&u.pathname.endsWith('/close')){
         gate.active=false;gate.remoteShift=null;gate.openedAt=null;
-        await DB?.setMeta?.('shift',null);
+        await saveShift(null);
         emit('close');
         return response;
       }
+
       if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)&&gate.active){
         const data=await response.clone().json();
-        gate.remoteShift=data?.shift||null;
-        if(!data?.shift){gate.active=false;gate.openedAt=null;emit('remote-closed');return response}
-        return jsonResponse(withManualOpenDate(data),response);
+        const liveShift=data?.shift||null;
+        if(!liveShift||!sameShift(liveShift,gate.remoteShift)){
+          gate.active=false;gate.remoteShift=null;gate.openedAt=null;
+          await saveShift(null);
+          emit('remote-closed');
+          return closedResponse(response);
+        }
+        gate.remoteShift=liveShift;
+        gate.openedAt=liveShift.openDate||gate.openedAt;
+        await saveShift(liveShift,{store:data?.store||null});
+        return response;
       }
-    }catch{}
+    }catch(error){console.warn('Shift session gate:',error)}
     return response;
   };
 })();
