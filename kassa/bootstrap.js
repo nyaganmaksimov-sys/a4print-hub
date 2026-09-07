@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260906-shiftloopfix1';
+  const VERSION='20260907-stability1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -44,6 +44,7 @@
     if(!window.supabase?.createClient)throw new Error('модуль авторизации Supabase недоступен');
     if(!window.A4KassaDB)throw new Error('локальная база кассы недоступна');
 
+    await loadScript('./network-safety.js');
     await loadScript('./shift-session-gate.js');
     await window.A4KassaShiftSession?.ready;
     await loadScript('./app.js');
