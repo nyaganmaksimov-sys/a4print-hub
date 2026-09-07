@@ -5,7 +5,8 @@ const preloads = [
   '--import=./src/moysklad-shift-sanity.js',
   '--import=./src/pos-shift-fresh-open.js',
   '--import=./src/moysklad-receipt-sync.js',
-  '--import=./src/pos-cash-operations.js'
+  '--import=./src/pos-cash-operations.js',
+  '--import=./src/pos-cash-balance.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
