@@ -14,7 +14,7 @@
       const u=new URL(raw,location.href);
       const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
       const isShift=/\/api\/v1\/pos\/shift(?:\/|$)/.test(u.pathname);
-      const isMoneyWrite=method==='POST'&&/\/api\/v1\/pos\/(?:sale|returns)(?:\/|$)/.test(u.pathname);
+      const isMoneyWrite=method==='POST'&&/\/api\/v1\/pos\/(?:sale|returns|cashout)(?:\/|$)/.test(u.pathname);
       const isShiftWrite=isShift&&method!=='GET'&&method!=='HEAD';
       return{
         timeout:isShiftWrite||isMoneyWrite?WRITE_TIMEOUT:isShift?SHIFT_READ_TIMEOUT:DEFAULT_TIMEOUT,
