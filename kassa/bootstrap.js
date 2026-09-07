@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-stability1';
+  const VERSION='20260907-shiftfresh1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -52,7 +52,6 @@
     await loadScript('./ui.js');
     await loadStyle('./shift-layout-fix.css');
     await loadScript('./shift-operator.js');
-    await loadScript('./shift-live.js');
     await loadScript('./shift-state-sync.js');
     window.__A4_KASSA_BOOT_OK__=true;
   }
