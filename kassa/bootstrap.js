@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-saleguard1';
+  const VERSION='20260907-salefinish1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -51,9 +51,11 @@
     await loadScript('./modules.js');
     await loadScript('./ui.js');
     await loadStyle('./shift-layout-fix.css');
+    await loadStyle('./sale-finish.css');
     await loadScript('./shift-operator.js');
     await loadScript('./shift-state-sync.js');
     await loadScript('./sale-submit-guard.js');
+    await loadScript('./sale-finish.js');
     await loadScript('./sale-view-fix.js');
     await loadScript('./startup-shift.js');
     window.__A4_KASSA_BOOT_OK__=true;
