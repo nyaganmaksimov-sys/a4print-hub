@@ -35,6 +35,7 @@ jobs:
           node --check kassa/shift-session-gate.js
           node --check kassa/shift-operator.js
           node --check kassa/shift-state-sync.js
+          node --check kassa/startup-shift.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
           node --check api/src/pos-shift-fresh-open.js
@@ -52,6 +53,7 @@ jobs:
           test -f kassa/shift-layout-fix.css
           test -f kassa/shift-session-gate.js
           test -f kassa/shift-state-sync.js
+          test -f kassa/startup-shift.js
           test -f kassa/manifest.webmanifest
           test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
@@ -71,10 +73,16 @@ jobs:
           grep -q 'network-safety.js' kassa/bootstrap.js
           grep -q 'network-safety.js' kassa/sw.js
           grep -q 'AbortController' kassa/network-safety.js
+          grep -q 'SHIFT_READ_TIMEOUT=20000' kassa/network-safety.js
           grep -q 'WRITE_TIMEOUT=45000' kassa/network-safety.js
+          grep -q 'overrideSignal:isShift||isMoneyWrite' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
           grep -q 'shift-state-sync.js' kassa/bootstrap.js
+          grep -q 'startup-shift.js' kassa/bootstrap.js
+          grep -q 'startup-shift.js' kassa/sw.js
+          grep -q 'nav.click()' kassa/startup-shift.js
+          grep -q 'app.hidden' kassa/startup-shift.js
           grep -q 'manualRequired' kassa/shift-session-gate.js
           grep -q 'a4:kassa-shift' kassa/shift-session-gate.js
           grep -q 'SHIFT_NOT_OPEN' kassa/shift-operator.js
