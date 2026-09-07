@@ -1,0 +1,61 @@
+name: Check Kassa History
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kassa/history-hub.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - 'database/migrations/108_pos_receipt_history.sql'
+      - '.github/workflows/check-kassa-history.yml'
+  workflow_dispatch:
+
+jobs:
+  history-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check history JavaScript
+        run: |
+          node --check kassa/history-hub.js
+          node --check kassa/bootstrap.js
+          node --check kassa/sw.js
+      - name: Verify HUB history wiring
+        run: |
+          set -euo pipefail
+          test -s kassa/history-hub.js
+          test -s database/migrations/108_pos_receipt_history.sql
+          grep -q 'get_pos_receipt_history' kassa/history-hub.js
+          grep -q 'Печать чека' kassa/history-hub.js
+          grep -q 'returned_total' kassa/history-hub.js
+          grep -q "loadScript('./history-hub.js')" kassa/bootstrap.js
+          grep -q './history-hub.js' kassa/sw.js
+          grep -q 'get_pos_receipt_history' database/migrations/108_pos_receipt_history.sql
+          grep -q "has_role('POS_OPERATOR')" database/migrations/108_pos_receipt_history.sql
+          grep -q 'security definer' database/migrations/108_pos_receipt_history.sql
+
+  history-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for Pages deployment
+        run: sleep 25
+      - name: Check live history module
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/history-hub.js?history=${GITHUB_SHA}" || true)
+            boot=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/bootstrap.js?history=${GITHUB_SHA}" || true)
+            if echo "$js" | grep -q 'get_pos_receipt_history' && echo "$js" | grep -q 'Печать чека' && echo "$boot" | grep -q 'history-hub.js'; then
+              echo 'Shared HUB receipt history is live.'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'History build did not become live in time.'
+          exit 1
