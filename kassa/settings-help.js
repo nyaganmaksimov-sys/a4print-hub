@@ -5,7 +5,12 @@
 
   const $=id=>document.getElementById(id);
   const DB=window.A4KassaDB;
-  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const cfg=window.A4PRINT_CONFIG||{};
+  const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
+  const createClient=window.supabase?.createClient;
+  const authClient=createClient?createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{global:{fetch:window.A4SupabaseFetch||fetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
+  const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₽';
 
   function installStyles(){
     if($('a4SettingsHelpStyle'))return;
@@ -13,7 +18,8 @@
       #utilityDrawer.a4-settings-mode .utility-card,#utilityDrawer.a4-help-mode .utility-card{width:min(760px,calc(100vw - 255px));max-width:none}
       #utilityDrawer.a4-settings-mode .utility-body,#utilityDrawer.a4-help-mode .utility-body{background:#f5f8fa;padding:18px 20px}
       .a4-sh-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.a4-sh-card{background:#fff;border:1px solid #dce5ed;border-radius:12px;padding:14px 16px}.a4-sh-card.wide{grid-column:1/-1}.a4-sh-card h3{margin:0 0 10px;font-size:16px}.a4-sh-card p{margin:0;color:#66758a;line-height:1.5}.a4-sh-list{display:grid;gap:8px}.a4-sh-row{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid #edf1f5;padding:7px 0}.a4-sh-row:last-child{border-bottom:0}.a4-sh-row span{color:#758399}.a4-sh-row strong{text-align:right}.a4-sh-ok{color:#067647}.a4-sh-warn{color:#b54708}.a4-sh-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}.a4-sh-btn{border:1px solid #d3dde7;background:#fff;border-radius:9px;padding:10px 13px;font-weight:750;cursor:pointer}.a4-sh-btn.primary{background:#0aaeba;border-color:#0aaeba;color:#fff}.a4-sh-btn:disabled{opacity:.5;cursor:not-allowed}.a4-help-steps{counter-reset:step;display:grid;gap:10px}.a4-help-step{position:relative;background:#fff;border:1px solid #dce5ed;border-radius:12px;padding:14px 16px 14px 54px;min-height:52px}.a4-help-step:before{counter-increment:step;content:counter(step);position:absolute;left:15px;top:13px;width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#e1f7f9;color:#087f89;font-weight:900}.a4-help-step b{display:block;margin-bottom:3px}.a4-help-step span{color:#66758a;line-height:1.45}.a4-key{display:inline-block;border:1px solid #ccd6df;border-bottom-width:2px;border-radius:5px;background:#fff;padding:2px 6px;font-weight:800;font-size:12px;color:#344054}
-      @media(max-width:900px){#utilityDrawer.a4-settings-mode .utility-card,#utilityDrawer.a4-help-mode .utility-card{width:100vw}.a4-sh-grid{grid-template-columns:1fr}.a4-sh-card.wide{grid-column:auto}}
+      .a4-cash-setup{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.75fr);gap:16px;align-items:start}.a4-cash-now{font-size:30px;font-weight:900;color:#10213a;margin:5px 0}.a4-cash-note{font-size:12px;color:#758399;line-height:1.4}.a4-cash-form{display:flex;gap:8px;align-items:end}.a4-cash-form label{flex:1;font-size:12px;color:#66758a;font-weight:700}.a4-cash-form input{display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid #cbd7e3;border-radius:9px;padding:10px 11px;font:inherit;background:#fff}.a4-cash-msg{margin-top:8px;font-size:12px;min-height:17px}.a4-cash-msg.error{color:#c62828}.a4-cash-msg.ok{color:#067647}
+      @media(max-width:900px){#utilityDrawer.a4-settings-mode .utility-card,#utilityDrawer.a4-help-mode .utility-card{width:100vw}.a4-sh-grid{grid-template-columns:1fr}.a4-sh-card.wide{grid-column:auto}.a4-cash-setup{grid-template-columns:1fr}}
     `;document.head.appendChild(st)
   }
 
@@ -46,6 +52,51 @@
     return /онлайн|готов|сеть/i.test(text)?'Сервер доступен':(text||'Интернет доступен');
   }
 
+  async function apiFetch(path,options={},retry=true){
+    if(!authClient||!API)throw new Error('API кассы недоступен');
+    let session=(await authClient.auth.getSession()).data?.session;
+    if(!session)throw new Error('Сессия завершена. Войдите снова.');
+    const run=async()=>{
+      const response=await fetch(`${API}${path}`,{...options,cache:'no-store',headers:{Authorization:`Bearer ${session.access_token}`,Accept:'application/json',...(options.headers||{})}});
+      if(response.status===401&&retry){
+        const refreshed=await authClient.auth.refreshSession();
+        if(refreshed.data?.session){session=refreshed.data.session;return apiFetch(path,options,false)}
+      }
+      const data=await response.json().catch(()=>({}));
+      return{response,data};
+    };
+    return run();
+  }
+
+  async function renderCashSetup(){
+    const card=$('a4CashSetup');if(!card)return;
+    card.innerHTML='<h3>Наличные в кассе</h3><p>Получаю состояние денежного ящика…</p>';
+    let data={};
+    try{({data}=await apiFetch(`/api/v1/pos/cash-balance?settings=${Date.now()}`))}catch(error){
+      card.innerHTML=`<h3>Наличные в кассе</h3><p class="a4-sh-warn">${esc(error?.message||error)}</p>`;return;
+    }
+    const available=Boolean(data?.available)&&Number.isFinite(Number(data?.cash));
+    const baseline=data?.baseline||null;
+    const source=String(data?.source||'');
+    const sourceText=source==='MOYSKLAD_LEDGER'?'МойСклад · пересчёт по кассовым операциям':source==='MANUAL_BASELINE'?'Контрольный остаток':'Требуется контрольный остаток';
+    card.innerHTML=`<h3>Наличные в кассе</h3><div class="a4-cash-setup"><div><div class="a4-cash-now">${available?money(data.cash):'—'}</div><div class="a4-cash-note">${esc(sourceText)}${baseline?.at?`<br>Контрольная точка: ${new Date(baseline.at).toLocaleString('ru-RU')}`:''}<br>После фиксации сумма автоматически меняется по наличным продажам, возвратам, внесениям и изъятиям МойСклад.</div></div><div><div class="a4-cash-form"><label>Фактически лежит в кассе<input id="a4CashBaselineAmount" inputmode="decimal" placeholder="0,00"></label><button id="a4CashBaselineSave" class="a4-sh-btn primary" type="button">${available?'Перефиксировать':'Зафиксировать'}</button></div><div id="a4CashBaselineMsg" class="a4-cash-msg ${data?.requires_baseline?'error':''}">${data?.requires_baseline?'Введите текущую сумму наличных один раз. Дальше касса будет считать автоматически.':''}</div></div></div>`;
+    const btn=$('a4CashBaselineSave');
+    btn?.addEventListener('click',async()=>{
+      const input=$('a4CashBaselineAmount');const msg=$('a4CashBaselineMsg');
+      const amount=Number(String(input?.value||'').replace(/\s/g,'').replace(',','.'));
+      msg.className='a4-cash-msg';msg.textContent='';
+      if(!Number.isFinite(amount)||amount<0){msg.classList.add('error');msg.textContent='Введите фактическую сумму наличных в кассе.';return}
+      btn.disabled=true;btn.textContent='Сохраняю…';
+      try{
+        const out=await apiFetch('/api/v1/pos/cash-balance/baseline',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount})});
+        if(!out.response.ok)throw new Error(out.data?.message||out.data?.error||`HTTP ${out.response.status}`);
+        msg.classList.add('ok');msg.textContent=`Контрольный остаток ${money(amount)} сохранён.`;
+        window.dispatchEvent(new CustomEvent('a4:kassa-cash-balance',{detail:{cash:amount,available:true,data:out.data}}));
+        setTimeout(()=>renderCashSetup(),650);
+      }catch(error){msg.classList.add('error');msg.textContent=String(error?.message||error);btn.disabled=false;btn.textContent=available?'Перефиксировать':'Зафиксировать'}
+    });
+  }
+
   async function showSettings(event){
     if(event){event.preventDefault();event.stopImmediatePropagation()}
     if(!openDrawer('settings','Настройки кассы','Рабочее место A4PRINT KASSA 2.1'))return;
@@ -67,6 +118,7 @@
         <div class="a4-sh-row"><span>Локальная история</span><strong>${st.receipts}</strong></div>
         <div class="a4-sh-row"><span>Вид каталога</span><strong>${catalogMode==='grid'?'Плитка':'Список'}</strong></div>
       </div></section>
+      <section id="a4CashSetup" class="a4-sh-card wide"><h3>Наличные в кассе</h3><p>Получаю состояние денежного ящика…</p></section>
       <section class="a4-sh-card wide"><h3>Синхронизация</h3><p>Безопасно обновляет каталог и отправляет отложенные чеки. Открытая смена и локальная очередь при этом не удаляются.</p><div class="a4-sh-actions"><button id="a4SetSync" class="a4-sh-btn primary">↻ Синхронизировать сейчас</button><button id="a4SetCatalog" class="a4-sh-btn">Обновить каталог</button><button id="a4SetQueue" class="a4-sh-btn" ${st.queue?'':'disabled'}>Открыть отложенные чеки</button></div></section>
       <section class="a4-sh-card wide"><h3>Отображение каталога</h3><div class="a4-sh-actions"><button id="a4SetList" class="a4-sh-btn ${catalogMode==='list'?'primary':''}">☷ Список</button><button id="a4SetGrid" class="a4-sh-btn ${catalogMode==='grid'?'primary':''}">▦ Плитка</button></div></section>
     </div>`;
@@ -75,6 +127,7 @@
     $('a4SetQueue')?.addEventListener('click',()=>{$('navHeld')?.click()});
     $('a4SetList')?.addEventListener('click',()=>{$('listView')?.click();setTimeout(()=>showSettings(),120)});
     $('a4SetGrid')?.addEventListener('click',()=>{$('gridView')?.click();setTimeout(()=>showSettings(),120)});
+    renderCashSetup().catch(()=>{});
   }
 
   function showHelp(event){
