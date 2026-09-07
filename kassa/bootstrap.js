@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-stabilityfinal1';
+  const VERSION='20260907-stabilityfinal2';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -67,6 +67,7 @@
     await loadScript('./network-safety.js');
     await loadScript('./shift-session-gate.js');
     await window.A4KassaShiftSession?.ready;
+    await loadScript('./sync-throttle.js');
     await loadScript('./app.js');
     await loadScript('./modules.js');
     await loadScript('./ui.js');
