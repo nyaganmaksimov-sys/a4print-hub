@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-returnfinish1';
+  const VERSION='20260907-heldreports1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -58,6 +58,7 @@
     await loadScript('./sale-finish.js');
     await loadScript('./return-finish.js');
     await loadScript('./history-hub.js');
+    await loadScript('./held-receipts.js');
     await loadScript('./sale-view-fix.js');
     await loadScript('./startup-shift.js');
     window.__A4_KASSA_BOOT_OK__=true;
