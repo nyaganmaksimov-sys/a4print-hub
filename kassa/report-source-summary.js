@@ -6,8 +6,11 @@
   const createClient=window.supabase?.createClient;if(!createClient)return;
   const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{global:{fetch:window.A4SupabaseFetch||fetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   const DB=window.A4KassaDB;
+  const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
   const $=id=>document.getElementById(id);
+  const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   let timer=null;
+  let liveTimer=null;
 
   async function range(){
     const active=document.querySelector('[data-report-period].active')?.dataset.reportPeriod||'today';
@@ -23,8 +26,65 @@
     return{start,end};
   }
 
+  function ensureCashCard(){
+    let card=$('reportCashRegisterCard');
+    if(card)return card;
+    const grid=$('reportSalesTotal')?.closest('.stats-grid');
+    if(!grid)return null;
+    card=document.createElement('article');
+    card.id='reportCashRegisterCard';
+    card.className='stat-card cash-stat';
+    card.innerHTML='<span>Наличные в кассе</span><strong id="reportCashRegister">—</strong><small id="reportCashRegisterNote">Текущая смена</small>';
+    grid.append(card);
+    return card;
+  }
+
+  async function accessToken(){
+    let r=await supabase.auth.getSession();
+    let session=r.data?.session||null;
+    if(!session)return null;
+    return session.access_token;
+  }
+
+  async function fetchShiftStatus(retry=true){
+    if(!API)return null;
+    let token=await accessToken();
+    if(!token)return null;
+    const response=await fetch(`${API}/api/v1/pos/shift?report_cash=${Date.now()}`,{
+      cache:'no-store',
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}
+    });
+    if(response.status===401&&retry){
+      const refreshed=await supabase.auth.refreshSession();
+      if(refreshed.data?.session)return fetchShiftStatus(false);
+    }
+    if(!response.ok)throw new Error(`HTTP ${response.status}`);
+    return response.json().catch(()=>null);
+  }
+
+  async function refreshCash(){
+    const card=ensureCashCard();if(!card)return;
+    const value=$('reportCashRegister'),note=$('reportCashRegisterNote');
+    try{
+      const status=await fetchShiftStatus();
+      if(!status?.shift){
+        value.textContent='0 ₽';
+        note.textContent='Смена не открыта';
+        return;
+      }
+      const cash=Number(status.summary?.cash_in_register||0);
+      value.textContent=money(cash);
+      note.textContent=`Смена ${status.shift?.name||''} · текущий остаток`.trim();
+    }catch{
+      value.textContent='—';
+      note.textContent='Не удалось получить остаток';
+    }
+  }
+
   async function refresh(){
     if($('reportsView')?.hidden)return;
+    ensureCashCard();
+    refreshCash().catch(()=>{});
     const r=await range();if(!r)return;
     const operator=$('reportOperator')&&!$('reportOperator').hidden&&$('reportOperator').value?$('reportOperator').value:null;
     const out=await supabase.rpc('pos_dashboard',{p_from:r.start.toISOString(),p_to:r.end.toISOString(),p_operator_id:operator});
@@ -36,7 +96,14 @@
     note.textContent=`A4PRINT KASSA: ${Number(d.sales_kassa_count||0).toLocaleString('ru-RU')} · из МойСклад: ${Number(d.sales_imported_count||0).toLocaleString('ru-RU')}`;
   }
 
-  function schedule(){clearTimeout(timer);timer=setTimeout(()=>refresh().catch(()=>{}),500)}
+  function schedule(){clearTimeout(timer);timer=setTimeout(()=>refresh().catch(()=>{}),350)}
+  function maintainLiveCash(){
+    clearInterval(liveTimer);
+    liveTimer=setInterval(()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})},15000);
+  }
   document.addEventListener('click',e=>{if(e.target?.closest?.('[data-section="reports"],[data-report-period]'))schedule()},true);
   document.addEventListener('change',e=>{if(e.target?.id==='reportOperator')schedule()},true);
+  window.addEventListener('a4:kassa-shift',()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureCashCard();maintainLiveCash()},{once:true});
+  else{ensureCashCard();maintainLiveCash()}
 })();
