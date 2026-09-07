@@ -1,6 +1,6 @@
-const CACHE='a4print-kassa-v29';
+const CACHE='a4print-kassa-v30';
 const CORE=[
-  './','./index.html','./styles.css','./modules.css','./shift.css','./shift-layout-fix.css','./sale-finish.css','./config.js','./db.js','./bootstrap.js','./network-safety.js','./shift-session-gate.js','./sync-throttle.js','./app.js','./modules.js','./ui.js','./shift-operator.js','./shift-state-sync.js','./sale-submit-guard.js','./sale-finish.js','./return-finish.js','./history-hub.js','./held-receipts.js','./report-source-summary.js','./settings-help.js','./sale-view-fix.js','./startup-shift.js','./runtime-stability.js','./manifest.webmanifest',
+  './','./index.html','./styles.css','./modules.css','./shift.css','./shift-layout-fix.css','./sale-finish.css','./config.js','./db.js','./bootstrap.js','./network-safety.js','./shift-session-gate.js','./sync-throttle.js','./app.js','./modules.js','./ui.js','./shift-operator.js','./shift-state-sync.js','./cash-operations.js','./sale-submit-guard.js','./sale-finish.js','./return-finish.js','./history-hub.js','./held-receipts.js','./report-source-summary.js','./settings-help.js','./sale-view-fix.js','./startup-shift.js','./runtime-stability.js','./manifest.webmanifest',
   '../admin/vendor/supabase.js','../admin/assets/a4print-hub-logo-white.svg'
 ];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})).then(()=>self.skipWaiting())));
