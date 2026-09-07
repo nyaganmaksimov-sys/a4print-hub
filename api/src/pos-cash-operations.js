@@ -10,6 +10,13 @@ const installed=Symbol.for('a4print.pos.cash.operations.installed');
 
 function clean(value,max=500){return String(value||'').trim().slice(0,max)}
 function idOf(entity){return entity?.id||entity?.meta?.href?.split('/').pop()||null}
+function firstFinite(...values){
+  for(const value of values){
+    if(value===null||value===undefined||value==='')continue;
+    const n=Number(value);if(Number.isFinite(n))return n;
+  }
+  return null;
+}
 function msDate(){
   return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date()).replace('T',' ');
 }
@@ -58,10 +65,24 @@ async function openShift(){
   const id=idOf(row);
   return id?await ms(`/entity/retailshift/${encodeURIComponent(id)}`):row;
 }
+async function exactCashForShift(shift){
+  const href=shift?.retailStore?.meta?.href;
+  if(!href)throw new Error('CASH_BALANCE_UNAVAILABLE');
+  const store=await ms(href);
+  const raw=firstFinite(store?.cash,store?.state?.cash,shift?.cash);
+  if(raw===null)throw new Error('CASH_BALANCE_UNAVAILABLE');
+  return{cash:raw/100,store};
+}
 async function createCashOut({amount,reason,operatorName}){
   const shift=await openShift();
   const shiftId=idOf(shift);
   if(!shiftId)throw new Error('SHIFT_NOT_OPEN');
+  const before=await exactCashForShift(shift);
+  if(amount>before.cash+0.0001){
+    const error=new Error('CASH_OUT_EXCEEDS_BALANCE');
+    error.cashBalance=before.cash;
+    throw error;
+  }
   const template=await ms('/entity/retaildrawercashout/new',{
     method:'PUT',
     body:JSON.stringify({retailShift:{meta:shift.meta}})
@@ -78,7 +99,9 @@ async function createCashOut({amount,reason,operatorName}){
   if(template?.agent?.meta)payload.agent={meta:template.agent.meta};
   if(template?.owner?.meta)payload.owner={meta:template.owner.meta};
   const operation=await ms('/entity/retaildrawercashout',{method:'POST',body:JSON.stringify(payload)});
-  return{shift,operation};
+  let after=null;
+  try{after=(await exactCashForShift(shift)).cash}catch{}
+  return{shift,operation,cashBefore:before.cash,cashAfter:Number.isFinite(after)?after:Math.max(0,before.cash-amount)};
 }
 
 const originalListen=express.application.listen;
@@ -109,10 +132,12 @@ express.application.listen=function patchedCashOperationsListen(...args){
             reason:reason||null
           },{onConflict:'moysklad_operation_id'});
         }
-        return res.json({success:true,operation:{id:opId,name:result.operation?.name||null,amount,reason:reason||null},shift:{id:shiftId,name:result.shift?.name||null}});
+        return res.json({success:true,operation:{id:opId,name:result.operation?.name||null,amount,reason:reason||null},shift:{id:shiftId,name:result.shift?.name||null},cash_before:result.cashBefore,cash_after:result.cashAfter});
       }catch(error){
         const message=String(error?.message||error);
         if(message==='SHIFT_NOT_OPEN')return res.status(409).json({success:false,error:'SHIFT_NOT_OPEN',message:'Смена не открыта.'});
+        if(message==='CASH_BALANCE_UNAVAILABLE')return res.status(503).json({success:false,error:'CASH_BALANCE_UNAVAILABLE',message:'МойСклад не отдал текущий остаток наличных. Изъятие отменено для защиты кассы.'});
+        if(message==='CASH_OUT_EXCEEDS_BALANCE')return res.status(409).json({success:false,error:'CASH_OUT_EXCEEDS_BALANCE',cash_balance:Number(error.cashBalance||0),message:`В кассе сейчас ${Number(error.cashBalance||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽. Нельзя изъять больше.`});
         return next(error);
       }
     });
