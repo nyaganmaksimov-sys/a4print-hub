@@ -7,6 +7,7 @@ on:
       - 'kassa/**'
       - 'api/src/moysklad.js'
       - 'api/src/moysklad-shift-sanity.js'
+      - 'api/src/pos-shift-fresh-open.js'
       - 'api/src/pos-sale-idempotency.js'
       - 'api/src/boot.js'
       - 'api/src/pos-build-marker.js'
@@ -33,10 +34,10 @@ jobs:
           node --check kassa/network-safety.js
           node --check kassa/shift-session-gate.js
           node --check kassa/shift-operator.js
-          node --check kassa/shift-live.js
           node --check kassa/shift-state-sync.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
+          node --check api/src/pos-shift-fresh-open.js
           node --check api/src/pos-sale-idempotency.js
           node --check api/src/boot.js
           node --check api/src/pos-build-marker.js
@@ -52,6 +53,7 @@ jobs:
           test -f kassa/shift-session-gate.js
           test -f kassa/shift-state-sync.js
           test -f kassa/manifest.webmanifest
+          test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
           test -f database/migrations/107_pos_sale_idempotency.sql
           grep -q 'A4PRINT KASSA' kassa/index.html
@@ -77,20 +79,25 @@ jobs:
           grep -q 'a4:kassa-shift' kassa/shift-session-gate.js
           grep -q 'SHIFT_NOT_OPEN' kassa/shift-operator.js
           grep -q 'overflow-y:auto' kassa/shift-layout-fix.css
-          grep -q 'shift-live.js' kassa/bootstrap.js
+          ! grep -q "loadScript('./shift-live.js')" kassa/bootstrap.js
+          grep -q 'status.summary' kassa/ui.js
+          ! grep -q "rpc('pos_shift_summary'" kassa/ui.js
+          grep -q '60000' kassa/ui.js
           ! grep -q 'MutationObserver' kassa/shift-state-sync.js
           grep -q 'setInterval(sync,5000)' kassa/shift-state-sync.js
           grep -q 'latestOpenShift' api/src/moysklad.js
           grep -q 'cashSum' api/src/moysklad.js
           grep -q 'noCashSum' api/src/moysklad.js
           grep -q 'qrSum' api/src/moysklad.js
+          grep -q 'pos-shift-fresh-open.js' api/src/boot.js
+          grep -q 'closeStaleOpenShift' api/src/pos-shift-fresh-open.js
           grep -q 'pos-sale-idempotency.js' api/src/boot.js
           grep -q 'SALE_SYNC_IN_PROGRESS' api/src/pos-sale-idempotency.js
           grep -q 'A4OP:' api/src/pos-sale-idempotency.js
           grep -q 'pos_sale_operations' database/migrations/107_pos_sale_idempotency.sql
           grep -q 'moysklad-shift-sanity.js' api/src/boot.js
           grep -q 'Europe/Moscow' api/src/moysklad-shift-sanity.js
-          grep -q '20260907-stability2' api/src/pos-build-marker.js
+          grep -q '20260907-shiftfresh1' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
           ! grep -q 'pos-shift-live-patch.js' api/src/boot.js
       - name: Validate manifest JSON
@@ -100,12 +107,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Wait for full POS stability build
+      - name: Wait for fresh shift build
         shell: bash
         run: |
           set -euo pipefail
           url='https://a4print-hub-api.onrender.com/api/v1/pos/build'
-          marker='20260907-stability2'
+          marker='20260907-shiftfresh1'
           for attempt in $(seq 1 45); do
             echo "Render POS build check $attempt/45"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
@@ -114,12 +121,14 @@ jobs:
             if [ "$code" = "200" ] \
               && grep -q "$marker" /tmp/live.json \
               && grep -q '"shiftSanity":true' /tmp/live.json \
+              && grep -q '"freshManualShift":true' /tmp/live.json \
+              && grep -q '"shiftIdSummary":true' /tmp/live.json \
               && grep -q '"paymentBreakdown":true' /tmp/live.json \
               && grep -q '"saleIdempotency":true' /tmp/live.json; then
-              echo 'Render is running the full POS stability build.'
+              echo 'Render is running the fresh manual shift build.'
               exit 0
             fi
             sleep 8
           done
-          echo 'Render did not deploy the full POS stability build in time.'
+          echo 'Render did not deploy the fresh shift build in time.'
           exit 1
