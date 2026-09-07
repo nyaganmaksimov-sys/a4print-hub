@@ -93,17 +93,28 @@
     });
   }
 
-  // Keep return attribution compatible with the existing backend without touching
-  // normal requests. This wrapper does no DOM work and cannot block the UI thread.
+  function jsonError(status,message,code){
+    return new Response(JSON.stringify({success:false,error:code,message}),{
+      status,
+      headers:{'content-type':'application/json; charset=utf-8'}
+    });
+  }
+
+  // Return attribution and manual-shift enforcement. Normal traffic is untouched.
   window.fetch=async function a4OperatorFetch(input,init){
     try{
       const url=new URL(input instanceof Request?input.url:String(input),location.href);
       const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
-      if(method==='POST'&&url.pathname==='/api/v1/pos/returns'&&typeof init?.body==='string'){
-        const data=JSON.parse(init.body);
-        const operatorId=selectedId();
-        if(operatorId&&!data.operator_id){
-          return nativeFetch(input,{...init,body:JSON.stringify({...data,operator_id:operatorId})});
+      if(method==='POST'&&url.pathname==='/api/v1/pos/returns'){
+        if(!window.A4KassaShiftSession?.active){
+          return jsonError(409,'Для возврата сначала откройте смену в A4PRINT KASSA.','SHIFT_NOT_OPEN');
+        }
+        if(typeof init?.body==='string'){
+          const data=JSON.parse(init.body);
+          const operatorId=selectedId();
+          if(operatorId&&!data.operator_id){
+            return nativeFetch(input,{...init,body:JSON.stringify({...data,operator_id:operatorId})});
+          }
         }
       }
     }catch{}
