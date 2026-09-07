@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-settingshelp1';
+  const VERSION='20260907-stabilityfinal1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -83,6 +83,7 @@
     await loadScript('./settings-help.js');
     await loadScript('./sale-view-fix.js');
     await loadScript('./startup-shift.js');
+    await loadScript('./runtime-stability.js');
     window.__A4_KASSA_BOOT_OK__=true;
   }
 
