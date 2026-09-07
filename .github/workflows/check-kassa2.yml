@@ -28,6 +28,7 @@ jobs:
           node --check kassa/db.js
           node --check kassa/sw.js
           node --check kassa/bootstrap.js
+          node --check kassa/network-safety.js
           node --check kassa/shift-session-gate.js
           node --check kassa/shift-operator.js
           node --check kassa/shift-live.js
@@ -43,6 +44,7 @@ jobs:
           test -f kassa/modules.css
           test -f kassa/modules.js
           test -f kassa/ui.js
+          test -f kassa/network-safety.js
           test -f kassa/shift-layout-fix.css
           test -f kassa/shift-session-gate.js
           test -f kassa/shift-state-sync.js
@@ -59,11 +61,15 @@ jobs:
           grep -q "syncQueue" kassa/app.js
           grep -q "serviceWorker.register" kassa/app.js
           grep -q "client_operation_id" kassa/app.js
+          grep -q 'network-safety.js' kassa/bootstrap.js
+          grep -q 'network-safety.js' kassa/sw.js
+          grep -q 'AbortController' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
           grep -q 'shift-state-sync.js' kassa/bootstrap.js
           grep -q 'manualRequired' kassa/shift-session-gate.js
           grep -q 'a4:kassa-shift' kassa/shift-session-gate.js
+          grep -q 'SHIFT_NOT_OPEN' kassa/shift-operator.js
           grep -q 'overflow-y:auto' kassa/shift-layout-fix.css
           grep -q 'shift-live.js' kassa/bootstrap.js
           ! grep -q 'MutationObserver' kassa/shift-state-sync.js
