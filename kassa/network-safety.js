@@ -4,14 +4,17 @@
   window.__A4_KASSA_NETWORK_SAFETY__=true;
 
   const nativeFetch=window.fetch.bind(window);
-  const DEFAULT_TIMEOUT=10000;
-  const SHORT_TIMEOUT=7000;
+  const DEFAULT_TIMEOUT=12000;
+  const SHIFT_TIMEOUT=8000;
+  const WRITE_TIMEOUT=45000;
 
-  function timeoutFor(input){
+  function timeoutFor(input,init={}){
     try{
       const raw=input instanceof Request?input.url:String(input||'');
       const u=new URL(raw,location.href);
-      if(/\/api\/v1\/pos\/shift(?:\/|$)/.test(u.pathname))return SHORT_TIMEOUT;
+      const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
+      if(method==='POST'&&/\/api\/v1\/pos\/(?:sale|returns)(?:\/|$)/.test(u.pathname))return WRITE_TIMEOUT;
+      if(/\/api\/v1\/pos\/shift(?:\/|$)/.test(u.pathname))return SHIFT_TIMEOUT;
       return DEFAULT_TIMEOUT;
     }catch{return DEFAULT_TIMEOUT}
   }
@@ -21,7 +24,7 @@
     if(existingSignal)return nativeFetch(input,init);
 
     const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),timeoutFor(input));
+    const timer=setTimeout(()=>controller.abort(),timeoutFor(input,init));
     return nativeFetch(input,{...init,signal:controller.signal}).finally(()=>clearTimeout(timer));
   };
 })();
