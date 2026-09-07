@@ -40,8 +40,8 @@
   }
 
   async function accessToken(){
-    let r=await supabase.auth.getSession();
-    let session=r.data?.session||null;
+    const r=await supabase.auth.getSession();
+    const session=r.data?.session||null;
     if(!session)return null;
     return session.access_token;
   }
@@ -104,6 +104,7 @@
   document.addEventListener('click',e=>{if(e.target?.closest?.('[data-section="reports"],[data-report-period]'))schedule()},true);
   document.addEventListener('change',e=>{if(e.target?.id==='reportOperator')schedule()},true);
   window.addEventListener('a4:kassa-shift',()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})});
+  window.addEventListener('a4:kassa-cash-operation',()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureCashCard();maintainLiveCash()},{once:true});
   else{ensureCashCard();maintainLiveCash()}
 })();
