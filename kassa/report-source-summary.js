@@ -34,7 +34,7 @@
     card=document.createElement('article');
     card.id='reportCashRegisterCard';
     card.className='stat-card cash-stat';
-    card.innerHTML='<span>Наличные в кассе</span><strong id="reportCashRegister">—</strong><small id="reportCashRegisterNote">Текущая смена</small>';
+    card.innerHTML='<span>Наличные в кассе</span><strong id="reportCashRegister">—</strong><small id="reportCashRegisterNote">МойСклад</small>';
     grid.append(card);
     return card;
   }
@@ -46,35 +46,36 @@
     return session.access_token;
   }
 
-  async function fetchShiftStatus(retry=true){
+  async function fetchCashBalance(retry=true){
     if(!API)return null;
     let token=await accessToken();
     if(!token)return null;
-    const response=await fetch(`${API}/api/v1/pos/shift?report_cash=${Date.now()}`,{
+    const response=await fetch(`${API}/api/v1/pos/cash-balance?report_cash=${Date.now()}`,{
       cache:'no-store',
       headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}
     });
     if(response.status===401&&retry){
       const refreshed=await supabase.auth.refreshSession();
-      if(refreshed.data?.session)return fetchShiftStatus(false);
+      if(refreshed.data?.session)return fetchCashBalance(false);
     }
-    if(!response.ok)throw new Error(`HTTP ${response.status}`);
-    return response.json().catch(()=>null);
+    const data=await response.json().catch(()=>null);
+    if(!response.ok)return data||{success:false};
+    return data;
   }
 
   async function refreshCash(){
     const card=ensureCashCard();if(!card)return;
     const value=$('reportCashRegister'),note=$('reportCashRegisterNote');
     try{
-      const status=await fetchShiftStatus();
-      if(!status?.shift){
-        value.textContent='0 ₽';
-        note.textContent='Смена не открыта';
+      const status=await fetchCashBalance();
+      const cash=Number(status?.cash);
+      if(status?.success&&status?.available&&Number.isFinite(cash)){
+        value.textContent=money(cash);
+        note.textContent=status?.shift?`Смена ${status.shift.name||''} · МойСклад`.trim():'МойСклад · смена не открыта';
         return;
       }
-      const cash=Number(status.summary?.cash_in_register||0);
-      value.textContent=money(cash);
-      note.textContent=`Смена ${status.shift?.name||''} · текущий остаток`.trim();
+      value.textContent='—';
+      note.textContent='Остаток МойСклад недоступен';
     }catch{
       value.textContent='—';
       note.textContent='Не удалось получить остаток';
@@ -105,6 +106,15 @@
   document.addEventListener('change',e=>{if(e.target?.id==='reportOperator')schedule()},true);
   window.addEventListener('a4:kassa-shift',()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})});
   window.addEventListener('a4:kassa-cash-operation',()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})});
+  window.addEventListener('a4:kassa-cash-balance',e=>{
+    if($('reportsView')?.hidden)return;
+    const cash=Number(e.detail?.cash);
+    if(e.detail?.available&&Number.isFinite(cash)){
+      const value=$('reportCashRegister'),note=$('reportCashRegisterNote');
+      if(value)value.textContent=money(cash);
+      if(note)note.textContent=e.detail?.data?.shift?`Смена ${e.detail.data.shift.name||''} · МойСклад`.trim():'МойСклад · смена не открыта';
+    }
+  });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureCashCard();maintainLiveCash()},{once:true});
   else{ensureCashCard();maintainLiveCash()}
 })();
