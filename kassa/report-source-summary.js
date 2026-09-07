@@ -59,27 +59,27 @@
       if(refreshed.data?.session)return fetchCashBalance(false);
     }
     const data=await response.json().catch(()=>null);
-    if(!response.ok)return data||{success:false};
-    return data;
+    return data||{success:false};
+  }
+
+  function applyCashState(status){
+    const value=$('reportCashRegister'),note=$('reportCashRegisterNote');
+    const cash=Number(status?.cash);
+    if(status?.success&&status?.available&&Number.isFinite(cash)){
+      value.textContent=money(cash);
+      if(status?.source==='MOYSKLAD_LEDGER')note.textContent=status?.shift?`МойСклад · по операциям · смена ${status.shift.name||''}`.trim():'МойСклад · по кассовым операциям';
+      else note.textContent=status?.shift?`Смена ${status.shift.name||''} · МойСклад`.trim():'МойСклад';
+      return;
+    }
+    value.textContent='—';
+    if(status?.requires_baseline||status?.source==='BASELINE_REQUIRED')note.textContent='Укажите фактический остаток в Настройках';
+    else note.textContent='Остаток МойСклад недоступен';
   }
 
   async function refreshCash(){
     const card=ensureCashCard();if(!card)return;
-    const value=$('reportCashRegister'),note=$('reportCashRegisterNote');
-    try{
-      const status=await fetchCashBalance();
-      const cash=Number(status?.cash);
-      if(status?.success&&status?.available&&Number.isFinite(cash)){
-        value.textContent=money(cash);
-        note.textContent=status?.shift?`Смена ${status.shift.name||''} · МойСклад`.trim():'МойСклад · смена не открыта';
-        return;
-      }
-      value.textContent='—';
-      note.textContent='Остаток МойСклад недоступен';
-    }catch{
-      value.textContent='—';
-      note.textContent='Не удалось получить остаток';
-    }
+    try{applyCashState(await fetchCashBalance())}
+    catch{applyCashState(null)}
   }
 
   async function refresh(){
@@ -108,12 +108,8 @@
   window.addEventListener('a4:kassa-cash-operation',()=>{if(!$('reportsView')?.hidden)refreshCash().catch(()=>{})});
   window.addEventListener('a4:kassa-cash-balance',e=>{
     if($('reportsView')?.hidden)return;
-    const cash=Number(e.detail?.cash);
-    if(e.detail?.available&&Number.isFinite(cash)){
-      const value=$('reportCashRegister'),note=$('reportCashRegisterNote');
-      if(value)value.textContent=money(cash);
-      if(note)note.textContent=e.detail?.data?.shift?`Смена ${e.detail.data.shift.name||''} · МойСклад`.trim():'МойСклад · смена не открыта';
-    }
+    const detail=e.detail||{};
+    applyCashState({success:Boolean(detail.available),available:Boolean(detail.available),cash:detail.cash,...(detail.data||{})});
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureCashCard();maintainLiveCash()},{once:true});
   else{ensureCashCard();maintainLiveCash()}
