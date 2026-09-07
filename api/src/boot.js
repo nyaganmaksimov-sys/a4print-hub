@@ -1,5 +1,6 @@
 const preloads = [
   '--import=./src/pos-operator-patch.js',
+  '--import=./src/pos-sale-idempotency.js',
   '--import=./src/pos-build-marker.js',
   '--import=./src/moysklad-shift-sanity.js'
 ];
