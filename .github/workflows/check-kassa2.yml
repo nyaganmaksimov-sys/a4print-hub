@@ -7,8 +7,10 @@ on:
       - 'kassa/**'
       - 'api/src/moysklad.js'
       - 'api/src/moysklad-shift-sanity.js'
+      - 'api/src/pos-sale-idempotency.js'
       - 'api/src/boot.js'
       - 'api/src/pos-build-marker.js'
+      - 'database/migrations/107_pos_sale_idempotency.sql'
       - '.github/workflows/check-kassa2.yml'
   workflow_dispatch:
 
@@ -35,6 +37,7 @@ jobs:
           node --check kassa/shift-state-sync.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
+          node --check api/src/pos-sale-idempotency.js
           node --check api/src/boot.js
           node --check api/src/pos-build-marker.js
       - name: Check Kassa shell
@@ -49,6 +52,8 @@ jobs:
           test -f kassa/shift-session-gate.js
           test -f kassa/shift-state-sync.js
           test -f kassa/manifest.webmanifest
+          test -f api/src/pos-sale-idempotency.js
+          test -f database/migrations/107_pos_sale_idempotency.sql
           grep -q 'A4PRINT KASSA' kassa/index.html
           grep -q 'Отложенные чеки' kassa/index.html
           grep -q 'Возвраты' kassa/index.html
@@ -58,12 +63,13 @@ jobs:
           grep -q 'a4_kassa_catalog_mode' kassa/ui.js
           grep -q 'IndexedDB\|indexedDB' kassa/db.js
           grep -q "DB.put('queue'" kassa/app.js
-          grep -q "syncQueue" kassa/app.js
-          grep -q "serviceWorker.register" kassa/app.js
-          grep -q "client_operation_id" kassa/app.js
+          grep -q 'syncQueue' kassa/app.js
+          grep -q 'serviceWorker.register' kassa/app.js
+          grep -q 'client_operation_id' kassa/app.js
           grep -q 'network-safety.js' kassa/bootstrap.js
           grep -q 'network-safety.js' kassa/sw.js
           grep -q 'AbortController' kassa/network-safety.js
+          grep -q 'WRITE_TIMEOUT=45000' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
           grep -q 'shift-state-sync.js' kassa/bootstrap.js
@@ -75,9 +81,16 @@ jobs:
           ! grep -q 'MutationObserver' kassa/shift-state-sync.js
           grep -q 'setInterval(sync,5000)' kassa/shift-state-sync.js
           grep -q 'latestOpenShift' api/src/moysklad.js
+          grep -q 'cashSum' api/src/moysklad.js
+          grep -q 'noCashSum' api/src/moysklad.js
+          grep -q 'qrSum' api/src/moysklad.js
+          grep -q 'pos-sale-idempotency.js' api/src/boot.js
+          grep -q 'SALE_SYNC_IN_PROGRESS' api/src/pos-sale-idempotency.js
+          grep -q 'A4OP:' api/src/pos-sale-idempotency.js
+          grep -q 'pos_sale_operations' database/migrations/107_pos_sale_idempotency.sql
           grep -q 'moysklad-shift-sanity.js' api/src/boot.js
           grep -q 'Europe/Moscow' api/src/moysklad-shift-sanity.js
-          grep -q '20260905-mslive6' api/src/pos-build-marker.js
+          grep -q '20260907-stability2' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
           ! grep -q 'pos-shift-live-patch.js' api/src/boot.js
       - name: Validate manifest JSON
@@ -87,22 +100,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Wait for POS shift sanity build
+      - name: Wait for full POS stability build
         shell: bash
         run: |
           set -euo pipefail
           url='https://a4print-hub-api.onrender.com/api/v1/pos/build'
-          marker='20260905-mslive6'
+          marker='20260907-stability2'
           for attempt in $(seq 1 45); do
             echo "Render POS build check $attempt/45"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
             cat /tmp/live.json 2>/dev/null || true
             echo
-            if [ "$code" = "200" ] && grep -q "$marker" /tmp/live.json && grep -q '"shiftSanity":true' /tmp/live.json; then
-              echo 'Render is running the MoySklad shift sanity build.'
+            if [ "$code" = "200" ] \
+              && grep -q "$marker" /tmp/live.json \
+              && grep -q '"shiftSanity":true' /tmp/live.json \
+              && grep -q '"paymentBreakdown":true' /tmp/live.json \
+              && grep -q '"saleIdempotency":true' /tmp/live.json; then
+              echo 'Render is running the full POS stability build.'
               exit 0
             fi
             sleep 8
           done
-          echo 'Render did not deploy the shift sanity build in time.'
+          echo 'Render did not deploy the full POS stability build in time.'
           exit 1
