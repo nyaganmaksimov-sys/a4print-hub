@@ -98,6 +98,52 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
 
   if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260905-1');
+
+  if(isAdmin){
+    const logoStyle=document.createElement('style');
+    logoStyle.id='a4-logo-transparent-fix';
+    logoStyle.textContent=`
+      .hub-logo-wrap,.brand{
+        background:transparent!important;
+        border:0!important;
+        box-shadow:none!important;
+        border-radius:0!important;
+        padding:0!important;
+        min-height:0!important;
+        margin:2px 8px 20px!important;
+      }
+      .hub-logo,.brand img{
+        width:100%!important;
+        max-width:190px!important;
+        height:auto!important;
+        max-height:132px!important;
+        object-fit:contain!important;
+        filter:none!important;
+      }
+      .a4-sidebar-collapsed .hub-logo-wrap,.a4-sidebar-collapsed .brand{
+        margin:4px 0 14px!important;
+        padding:0!important;
+        min-height:0!important;
+      }
+      .a4-sidebar-collapsed .hub-logo,.a4-sidebar-collapsed .brand img{
+        max-width:54px!important;
+        max-height:54px!important;
+        height:auto!important;
+      }
+    `;
+    document.head.appendChild(logoStyle);
+
+    const useTransparentLogo=()=>{
+      const logo=document.getElementById('hubLogo');
+      if(logo) logo.src=new URL('assets/logo_bd_transparent.svg?v=20260907-transparent2',base).href;
+      document.querySelectorAll('.brand img').forEach(img=>{
+        img.src=new URL('assets/logo_bd_transparent.svg?v=20260907-transparent2',base).href;
+      });
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',useTransparentLogo,{once:true});
+    else useTransparentLogo();
+  }
+
   if (mobileContext) load('mobile-shell.js','20260905-4');
 
   if (isChatApp) {
@@ -132,7 +178,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('auth-settings.js','20260905-2');
     load('settings-collapsible.js','20260905-1');
   }
-  load('navigation.js','20260905-8');
+  load('navigation.js','20260907-logo2');
   load('support-access.js','20260905-1');
   load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260904-2');
