@@ -89,7 +89,7 @@ async function initA4Navigation(){
 
   const brand=sidebar.querySelector('.brand');
   if(brand){
-    brand.innerHTML=`<img id="globalHubLogo" src="./assets/logo_bd_transparent.svg?v=20260830-4" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#0f172a;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#2563eb">HUB</span></div>`;
+    brand.innerHTML=`<img id="globalHubLogo" src="./assets/a4print-hub-logo.svg?v=20260907-logo-fix1" alt="A4PRINT HUB"><div id="globalHubLogoFallback" style="display:none;color:#0f172a;font-weight:900;font-size:20px;text-align:center">A4PRINT <span style="color:#2563eb">HUB</span></div>`;
     const img=document.getElementById('globalHubLogo'),fallback=document.getElementById('globalHubLogoFallback');
     if(img&&fallback)img.onerror=()=>{img.style.display='none';fallback.style.display='block'};
   }
