@@ -36,6 +36,15 @@ jobs:
           node --check kassa/shift-operator.js
           node --check kassa/shift-state-sync.js
           node --check kassa/startup-shift.js
+          node --check kassa/sale-submit-guard.js
+          node --check kassa/sale-finish.js
+          node --check kassa/return-finish.js
+          node --check kassa/history-hub.js
+          node --check kassa/held-receipts.js
+          node --check kassa/report-source-summary.js
+          node --check kassa/settings-help.js
+          node --check kassa/sale-view-fix.js
+          node --check kassa/runtime-stability.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
           node --check api/src/pos-shift-fresh-open.js
@@ -54,11 +63,14 @@ jobs:
           test -f kassa/shift-session-gate.js
           test -f kassa/shift-state-sync.js
           test -f kassa/startup-shift.js
+          test -f kassa/settings-help.js
+          test -f kassa/runtime-stability.js
           test -f kassa/manifest.webmanifest
           test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
           test -f database/migrations/107_pos_sale_idempotency.sql
           grep -q 'A4PRINT KASSA' kassa/index.html
+          grep -q 'A4PRINT KASSA 2.1' kassa/manifest.webmanifest
           grep -q 'Отложенные чеки' kassa/index.html
           grep -q 'Возвраты' kassa/index.html
           grep -q 'Отчёты и статистика' kassa/index.html
@@ -81,6 +93,10 @@ jobs:
           grep -q 'shift-state-sync.js' kassa/bootstrap.js
           grep -q 'startup-shift.js' kassa/bootstrap.js
           grep -q 'startup-shift.js' kassa/sw.js
+          grep -q 'runtime-stability.js' kassa/bootstrap.js
+          grep -q 'runtime-stability.js' kassa/sw.js
+          grep -q 'closeRouteOverlays' kassa/runtime-stability.js
+          grep -q 'local queue write failed' kassa/runtime-stability.js
           grep -q 'nav.click()' kassa/startup-shift.js
           grep -q 'app.hidden' kassa/startup-shift.js
           grep -q 'manualRequired' kassa/shift-session-gate.js
