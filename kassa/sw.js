@@ -1,6 +1,6 @@
-const CACHE='a4print-kassa-v21';
+const CACHE='a4print-kassa-v22';
 const CORE=[
-  './','./index.html','./styles.css','./modules.css','./shift.css','./shift-layout-fix.css','./config.js','./db.js','./bootstrap.js','./network-safety.js','./shift-session-gate.js','./app.js','./modules.js','./ui.js','./shift-operator.js','./shift-state-sync.js','./sale-submit-guard.js','./sale-view-fix.js','./startup-shift.js','./manifest.webmanifest',
+  './','./index.html','./styles.css','./modules.css','./shift.css','./shift-layout-fix.css','./sale-finish.css','./config.js','./db.js','./bootstrap.js','./network-safety.js','./shift-session-gate.js','./app.js','./modules.js','./ui.js','./shift-operator.js','./shift-state-sync.js','./sale-submit-guard.js','./sale-finish.js','./sale-view-fix.js','./startup-shift.js','./manifest.webmanifest',
   '../admin/vendor/supabase.js','../admin/assets/a4print-hub-logo-white.svg'
 ];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})).then(()=>self.skipWaiting())));
