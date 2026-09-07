@@ -23,15 +23,22 @@
     const style=document.createElement('style');
     style.id='a4HistoryHubStyle';
     style.textContent=`
-      .a4-history-shell{display:grid;grid-template-columns:minmax(300px,42%) minmax(360px,58%);gap:14px;min-height:520px}
-      .a4-history-left,.a4-history-detail{min-width:0}
-      .a4-history-search{display:flex;gap:8px;margin-bottom:12px}.a4-history-search input{width:100%;padding:12px 14px;border:1px solid #d6dfeb;border-radius:10px;font:inherit;outline:none}.a4-history-search input:focus{border-color:#10aeb9;box-shadow:0 0 0 3px rgba(16,174,185,.12)}
-      .a4-history-list{display:grid;gap:8px;max-height:62vh;overflow:auto;padding-right:3px}.a4-history-row{border:1px solid #dbe3ec;background:#fff;border-radius:11px;padding:12px;text-align:left;cursor:pointer;font:inherit;color:#10213a}.a4-history-row:hover,.a4-history-row.active{border-color:#10aeb9;background:#f1fcfd}.a4-history-row-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.a4-history-row small{display:block;color:#718097;margin-top:5px;line-height:1.35}.a4-history-return{color:#c33;font-weight:700}
-      .a4-history-detail{border:1px solid #dbe3ec;border-radius:12px;background:#fff;padding:16px;max-height:67vh;overflow:auto}.a4-history-empty{display:grid;place-items:center;min-height:320px;color:#7b899e;text-align:center}.a4-history-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid #e7ecf2;padding-bottom:13px;margin-bottom:13px}.a4-history-head h3{margin:0;font-size:22px}.a4-history-head p{margin:4px 0 0;color:#718097}.a4-history-total{font-size:24px;font-weight:800;white-space:nowrap}
-      .a4-history-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:#f7f9fc;border:1px solid #e4e9f0;border-radius:11px;padding:13px;margin-bottom:14px}.a4-history-meta span{display:block;font-size:12px;color:#8491a4;margin-bottom:3px}.a4-history-meta b{display:block;overflow-wrap:anywhere}
-      .a4-history-items{display:grid;gap:0;border-top:1px solid #e8edf3}.a4-history-item{display:flex;justify-content:space-between;gap:15px;padding:11px 0;border-bottom:1px solid #e8edf3}.a4-history-item div{min-width:0}.a4-history-item b{display:block}.a4-history-item small{color:#718097}.a4-history-item strong{white-space:nowrap}.a4-history-actions{display:flex;gap:10px;margin-top:15px}.a4-history-actions button{flex:1;padding:12px 14px;border-radius:10px;border:1px solid #d5dfea;background:#fff;font:inherit;font-weight:750;cursor:pointer}.a4-history-actions .primary{background:#10aeb9;color:#fff;border-color:#10aeb9}
-      .a4-history-summary{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:13px 0 0;font-size:18px}.a4-history-summary strong{font-size:24px}.a4-history-note{font-size:12px;color:#718097;margin-top:8px}
-      @media(max-width:900px){.a4-history-shell{grid-template-columns:1fr}.a4-history-list{max-height:38vh}.a4-history-detail{max-height:none}}
+      #utilityDrawer.a4-history-mode{background:rgba(18,31,45,.3)}
+      #utilityDrawer.a4-history-mode .utility-card{width:min(1280px,calc(100vw - 255px));max-width:none}
+      #utilityDrawer.a4-history-mode .utility-head{padding:16px 22px}
+      #utilityDrawer.a4-history-mode .utility-body{padding:16px 20px;overflow:hidden;background:#f5f8fa}
+      .a4-history-shell{display:grid;grid-template-columns:minmax(360px,38%) minmax(520px,62%);gap:16px;height:calc(100vh - 105px);min-height:0;width:100%;max-width:none}
+      .a4-history-left,.a4-history-detail{min-width:0;min-height:0}
+      .a4-history-left{display:flex;flex-direction:column}
+      .a4-history-search{display:flex;gap:8px;margin-bottom:12px;flex:0 0 auto}.a4-history-search input{width:100%;padding:12px 14px;border:1px solid #d6dfeb;border-radius:10px;font:inherit;outline:none;background:#fff}.a4-history-search input:focus{border-color:#10aeb9;box-shadow:0 0 0 3px rgba(16,174,185,.12)}.a4-history-search .utility-action{width:48px;min-width:48px;margin:0;text-align:center;border-radius:10px}
+      .a4-history-list{display:grid;align-content:start;gap:8px;overflow:auto;padding:0 4px 4px 0;min-height:0;flex:1}.a4-history-row{border:1px solid #dbe3ec;background:#fff;border-radius:11px;padding:13px 14px;text-align:left;cursor:pointer;font:inherit;color:#10213a;min-height:78px}.a4-history-row:hover,.a4-history-row.active{border-color:#10aeb9;background:#f1fcfd}.a4-history-row.active{box-shadow:inset 4px 0 0 #10aeb9}.a4-history-row-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.a4-history-row-top b{font-size:15px}.a4-history-row-top strong{font-size:16px;white-space:nowrap}.a4-history-row small{display:block;color:#718097;margin-top:5px;line-height:1.35}.a4-history-return{color:#c33!important;font-weight:700}
+      .a4-history-detail{border:1px solid #dbe3ec;border-radius:12px;background:#fff;padding:20px 22px;overflow:auto;height:100%}.a4-history-empty{display:grid;place-items:center;min-height:320px;color:#7b899e;text-align:center}.a4-history-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:1px solid #e7ecf2;padding-bottom:16px;margin-bottom:16px}.a4-history-head h3{margin:0;font-size:25px}.a4-history-head p{margin:5px 0 0;color:#718097}.a4-history-total{font-size:27px;font-weight:850;white-space:nowrap}
+      .a4-history-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px;background:#f7f9fc;border:1px solid #e4e9f0;border-radius:11px;padding:15px 16px;margin-bottom:16px}.a4-history-meta span{display:block;font-size:12px;color:#8491a4;margin-bottom:4px}.a4-history-meta b{display:block;overflow-wrap:anywhere;font-size:14px}
+      .a4-history-items{display:grid;gap:0;border-top:1px solid #e8edf3}.a4-history-item{display:flex;justify-content:space-between;gap:18px;padding:13px 2px;border-bottom:1px solid #e8edf3}.a4-history-item div{min-width:0}.a4-history-item b{display:block;font-size:14px}.a4-history-item small{color:#718097;display:block;margin-top:3px}.a4-history-item strong{white-space:nowrap;font-size:14px}.a4-history-actions{display:flex;gap:10px;margin-top:18px}.a4-history-actions button{flex:1;padding:13px 14px;border-radius:10px;border:1px solid #d5dfea;background:#fff;font:inherit;font-weight:750;cursor:pointer}.a4-history-actions .primary{background:#10aeb9;color:#fff;border-color:#10aeb9}
+      .a4-history-summary{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:15px 0 0;font-size:18px}.a4-history-summary strong{font-size:25px}.a4-history-note{font-size:12px;color:#718097;margin-top:10px}
+      @media(max-width:1180px){#utilityDrawer.a4-history-mode .utility-card{width:calc(100vw - 90px)}.a4-history-shell{grid-template-columns:minmax(320px,42%) minmax(430px,58%)}.a4-history-meta{grid-template-columns:1fr 1fr}}
+      @media(max-width:900px){#utilityDrawer.a4-history-mode .utility-card{width:100vw}.a4-history-shell{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 120px)}#utilityDrawer.a4-history-mode .utility-body{overflow:auto}.a4-history-list{max-height:42vh}.a4-history-detail{height:auto;min-height:420px}.a4-history-meta{grid-template-columns:1fr 1fr}}
+      @media(max-width:600px){.a4-history-meta{grid-template-columns:1fr}.a4-history-head{flex-direction:column}.a4-history-total{font-size:24px}}
       @media print{body>*{display:none!important}#a4HistoryPrint{display:block!important}}
     `;
     document.head.appendChild(style);
@@ -41,6 +48,7 @@
     installStyles();
     const drawer=$('utilityDrawer');
     if(!drawer)return false;
+    drawer.classList.add('a4-history-mode');
     $('utilityTitle').textContent='История чеков';
     $('utilitySubtitle').textContent='A4PRINT HUB · синхронизированные продажи';
     drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');
@@ -60,7 +68,7 @@
     const body=$('utilityBody');if(!body)return;
     const list=visibleRows();
     if(selected&&!rows.some(x=>String(x.id)===String(selected.id)))selected=null;
-    body.innerHTML=`<div class="a4-history-shell"><section class="a4-history-left"><div class="a4-history-search"><input id="a4HistorySearch" value="${esc(search)}" placeholder="Номер чека, покупатель, оператор, товар…"><button id="a4HistoryReload" class="utility-action" type="button" style="width:auto;white-space:nowrap">↻</button></div><div class="a4-history-list">${list.map(r=>`<button class="a4-history-row ${selected?.id===r.id?'active':''}" data-a4-history-id="${esc(r.id)}" type="button"><div class="a4-history-row-top"><b>Чек ${esc(r.sale_name||'—')}</b><strong>${money(r.total)}</strong></div><small>${dt(r.sold_at)} · ${esc(r.operator||'Оператор')} · ${esc(r.payment_method||'—')}</small>${Number(r.returned_total||0)>0?`<small class="a4-history-return">Возвращено: ${money(r.returned_total)}</small>`:''}</button>`).join('')||'<div class="a4-history-empty">Чеки не найдены</div>'}</div></section><section id="a4HistoryDetail" class="a4-history-detail">${detailHtml(selected)}</section></div>`;
+    body.innerHTML=`<div class="a4-history-shell"><section class="a4-history-left"><div class="a4-history-search"><input id="a4HistorySearch" value="${esc(search)}" placeholder="Номер чека, покупатель, оператор, товар…"><button id="a4HistoryReload" class="utility-action" type="button" title="Обновить историю">↻</button></div><div class="a4-history-list">${list.map(r=>`<button class="a4-history-row ${selected?.id===r.id?'active':''}" data-a4-history-id="${esc(r.id)}" type="button"><div class="a4-history-row-top"><b>Чек ${esc(r.sale_name||'—')}</b><strong>${money(r.total)}</strong></div><small>${dt(r.sold_at)} · ${esc(r.operator||'Оператор')} · ${esc(r.payment_method||'—')}</small>${Number(r.returned_total||0)>0?`<small class="a4-history-return">Возвращено: ${money(r.returned_total)}</small>`:''}</button>`).join('')||'<div class="a4-history-empty">Чеки не найдены</div>'}</div></section><section id="a4HistoryDetail" class="a4-history-detail">${detailHtml(selected)}</section></div>`;
     const input=$('a4HistorySearch');if(input){input.oninput=()=>{search=input.value;render()};setTimeout(()=>{if(document.activeElement?.id==='a4HistorySearch')input.focus()},0)}
     $('a4HistoryReload')?.addEventListener('click',()=>load(true));
     document.querySelectorAll('[data-a4-history-id]').forEach(b=>b.onclick=()=>{selected=rows.find(x=>String(x.id)===String(b.dataset.a4HistoryId))||null;render()});
@@ -101,6 +109,7 @@
   }
 
   document.addEventListener('click',event=>{
-    if(event.target?.closest?.('#navHistory'))openHistory(event);
+    if(event.target?.closest?.('#navHistory')){openHistory(event);return}
+    if(event.target?.closest?.('#navHeld,#navSettings,#navHelp'))$('utilityDrawer')?.classList.remove('a4-history-mode');
   },true);
 })();
