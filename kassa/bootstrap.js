@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-heldreports2';
+  const VERSION='20260907-settingshelp1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -25,6 +25,27 @@
     });
   }
 
+  async function ensureLocalDb(){
+    for(let attempt=1;attempt<=2;attempt++){
+      if(!window.A4KassaDB){
+        try{await loadScript(`./db.js?dbtry=${attempt}`)}catch(error){if(attempt===2)throw error}
+      }
+      if(window.A4KassaDB){
+        try{
+          await Promise.race([
+            window.A4KassaDB.open(),
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('таймаут открытия IndexedDB')),7000))
+          ]);
+          return;
+        }catch(error){
+          console.warn(`A4PRINT KASSA IndexedDB attempt ${attempt}:`,error);
+          if(attempt===2)throw new Error(`локальная база кассы недоступна: ${error?.message||error}`);
+        }
+      }
+    }
+    throw new Error('локальная база кассы недоступна');
+  }
+
   function showBootError(error){
     const text=String(error?.message||error||'Неизвестная ошибка запуска');
     const err=$('loginError');
@@ -40,9 +61,8 @@
   async function boot(){
     if(!window.A4PRINT_CONFIG)await loadScript('./config.js');
     if(!window.supabase?.createClient)await loadScript('../admin/vendor/supabase.js');
-    if(!window.A4KassaDB)await loadScript('./db.js');
+    await ensureLocalDb();
     if(!window.supabase?.createClient)throw new Error('модуль авторизации Supabase недоступен');
-    if(!window.A4KassaDB)throw new Error('локальная база кассы недоступна');
 
     await loadScript('./network-safety.js');
     await loadScript('./shift-session-gate.js');
@@ -60,6 +80,7 @@
     await loadScript('./history-hub.js');
     await loadScript('./held-receipts.js');
     await loadScript('./report-source-summary.js');
+    await loadScript('./settings-help.js');
     await loadScript('./sale-view-fix.js');
     await loadScript('./startup-shift.js');
     window.__A4_KASSA_BOOT_OK__=true;
