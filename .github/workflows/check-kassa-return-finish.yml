@@ -1,0 +1,45 @@
+name: Check Kassa Return Finish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kassa/return-finish.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - '.github/workflows/check-kassa-return-finish.yml'
+  workflow_dispatch:
+
+jobs:
+  return-finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check return completion module
+        run: |
+          set -euo pipefail
+          node --check kassa/return-finish.js
+          node --check kassa/bootstrap.js
+          node --check kassa/sw.js
+          grep -q '/api/v1/pos/returns' kassa/return-finish.js
+          grep -q 'Возврат проведён' kassa/return-finish.js
+          grep -q 'Печать возврата' kassa/return-finish.js
+          grep -q "loadScript('./return-finish.js')" kassa/bootstrap.js
+          grep -q './return-finish.js' kassa/sw.js
+      - name: Wait for Pages and check live module
+        run: |
+          sleep 25
+          for attempt in $(seq 1 30); do
+            js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/return-finish.js?ret=${GITHUB_SHA}" || true)
+            boot=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/bootstrap.js?ret=${GITHUB_SHA}" || true)
+            if echo "$js" | grep -q 'Возврат проведён' && echo "$boot" | grep -q 'return-finish.js'; then
+              echo 'Return completion receipt is live.'
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
