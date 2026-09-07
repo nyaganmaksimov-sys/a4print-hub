@@ -1,0 +1,41 @@
+name: Check Kassa Sale Flow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kassa/sale-finish.js'
+      - 'kassa/sale-finish.css'
+      - 'kassa/sale-submit-guard.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - '.github/workflows/check-kassa-sale-flow.yml'
+  workflow_dispatch:
+
+jobs:
+  sale-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check scripts and wiring
+        run: |
+          set -euo pipefail
+          node --check kassa/sale-finish.js
+          node --check kassa/sale-submit-guard.js
+          node --check kassa/bootstrap.js
+          node --check kassa/sw.js
+          test -s kassa/sale-finish.css
+          grep -q "loadScript('./sale-finish.js')" kassa/bootstrap.js
+          grep -q "loadStyle('./sale-finish.css')" kassa/bootstrap.js
+          grep -q "sale-finish.js" kassa/sw.js
+          grep -q "sale-finish.css" kassa/sw.js
+          grep -q "DB.put=async function" kassa/sale-finish.js
+          grep -q "name==='receipts'" kassa/sale-finish.js
+          grep -q "Печать чека" kassa/sale-finish.js
+          grep -q "Новый покупатель" kassa/sale-finish.js
+          grep -q "/api/v1/pos/customers" kassa/sale-finish.js
+          grep -q "A4_KASSA_SALE_SUBMIT_GUARD" kassa/sale-submit-guard.js
