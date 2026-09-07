@@ -33,6 +33,7 @@ jobs:
           node --check kassa/bootstrap.js
           node --check kassa/network-safety.js
           node --check kassa/shift-session-gate.js
+          node --check kassa/sync-throttle.js
           node --check kassa/shift-operator.js
           node --check kassa/shift-state-sync.js
           node --check kassa/startup-shift.js
@@ -61,6 +62,7 @@ jobs:
           test -f kassa/network-safety.js
           test -f kassa/shift-layout-fix.css
           test -f kassa/shift-session-gate.js
+          test -f kassa/sync-throttle.js
           test -f kassa/shift-state-sync.js
           test -f kassa/startup-shift.js
           test -f kassa/settings-help.js
@@ -90,6 +92,9 @@ jobs:
           grep -q 'overrideSignal:isShift||isMoneyWrite' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
+          grep -q 'sync-throttle.js' kassa/bootstrap.js
+          grep -q 'sync-throttle.js' kassa/sw.js
+          grep -q 'nextDelay=60000' kassa/sync-throttle.js
           grep -q 'shift-state-sync.js' kassa/bootstrap.js
           grep -q 'startup-shift.js' kassa/bootstrap.js
           grep -q 'startup-shift.js' kassa/sw.js
