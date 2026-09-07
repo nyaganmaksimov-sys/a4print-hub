@@ -9,9 +9,11 @@ on:
       - 'api/src/moysklad-shift-sanity.js'
       - 'api/src/pos-shift-fresh-open.js'
       - 'api/src/pos-sale-idempotency.js'
+      - 'api/src/pos-cash-operations.js'
       - 'api/src/boot.js'
       - 'api/src/pos-build-marker.js'
       - 'database/migrations/107_pos_sale_idempotency.sql'
+      - 'database/migrations/110_pos_cash_operations.sql'
       - '.github/workflows/check-kassa2.yml'
   workflow_dispatch:
 
@@ -36,6 +38,7 @@ jobs:
           node --check kassa/sync-throttle.js
           node --check kassa/shift-operator.js
           node --check kassa/shift-state-sync.js
+          node --check kassa/cash-operations.js
           node --check kassa/startup-shift.js
           node --check kassa/sale-submit-guard.js
           node --check kassa/sale-finish.js
@@ -50,6 +53,7 @@ jobs:
           node --check api/src/moysklad-shift-sanity.js
           node --check api/src/pos-shift-fresh-open.js
           node --check api/src/pos-sale-idempotency.js
+          node --check api/src/pos-cash-operations.js
           node --check api/src/boot.js
           node --check api/src/pos-build-marker.js
       - name: Check Kassa shell
@@ -64,13 +68,16 @@ jobs:
           test -f kassa/shift-session-gate.js
           test -f kassa/sync-throttle.js
           test -f kassa/shift-state-sync.js
+          test -f kassa/cash-operations.js
           test -f kassa/startup-shift.js
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
           test -f kassa/manifest.webmanifest
           test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
+          test -f api/src/pos-cash-operations.js
           test -f database/migrations/107_pos_sale_idempotency.sql
+          test -f database/migrations/110_pos_cash_operations.sql
           grep -q 'A4PRINT KASSA' kassa/index.html
           grep -q 'A4PRINT KASSA 2.1' kassa/manifest.webmanifest
           grep -q 'Отложенные чеки' kassa/index.html
@@ -89,6 +96,7 @@ jobs:
           grep -q 'AbortController' kassa/network-safety.js
           grep -q 'SHIFT_READ_TIMEOUT=20000' kassa/network-safety.js
           grep -q 'WRITE_TIMEOUT=45000' kassa/network-safety.js
+          grep -q 'sale|returns|cashout' kassa/network-safety.js
           grep -q 'overrideSignal:isShift||isMoneyWrite' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
@@ -96,6 +104,11 @@ jobs:
           grep -q 'sync-throttle.js' kassa/sw.js
           grep -q 'nextDelay=60000' kassa/sync-throttle.js
           grep -q 'shift-state-sync.js' kassa/bootstrap.js
+          grep -q 'cash-operations.js' kassa/bootstrap.js
+          grep -q 'cash-operations.js' kassa/sw.js
+          grep -q '/api/v1/pos/cashout' kassa/cash-operations.js
+          grep -q 'Изъять деньги' kassa/cash-operations.js
+          grep -q 'Наличные в кассе' kassa/report-source-summary.js
           grep -q 'startup-shift.js' kassa/bootstrap.js
           grep -q 'startup-shift.js' kassa/sw.js
           grep -q 'runtime-stability.js' kassa/bootstrap.js
@@ -124,9 +137,14 @@ jobs:
           grep -q 'SALE_SYNC_IN_PROGRESS' api/src/pos-sale-idempotency.js
           grep -q 'A4OP:' api/src/pos-sale-idempotency.js
           grep -q 'pos_sale_operations' database/migrations/107_pos_sale_idempotency.sql
+          grep -q 'pos-cash-operations.js' api/src/boot.js
+          grep -q '/api/v1/pos/cashout' api/src/pos-cash-operations.js
+          grep -q 'retaildrawercashout' api/src/pos-cash-operations.js
+          grep -q 'pos_cash_operations' database/migrations/110_pos_cash_operations.sql
           grep -q 'moysklad-shift-sanity.js' api/src/boot.js
           grep -q 'Europe/Moscow' api/src/moysklad-shift-sanity.js
-          grep -q '20260907-shiftfresh1' api/src/pos-build-marker.js
+          grep -q '20260907-cashops1' api/src/pos-build-marker.js
+          grep -q 'cashOperations:true' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
           ! grep -q 'pos-shift-live-patch.js' api/src/boot.js
       - name: Validate manifest JSON
@@ -136,12 +154,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Wait for fresh shift build
+      - name: Wait for cash operations build
         shell: bash
         run: |
           set -euo pipefail
           url='https://a4print-hub-api.onrender.com/api/v1/pos/build'
-          marker='20260907-shiftfresh1'
+          marker='20260907-cashops1'
           for attempt in $(seq 1 45); do
             echo "Render POS build check $attempt/45"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
@@ -153,11 +171,12 @@ jobs:
               && grep -q '"freshManualShift":true' /tmp/live.json \
               && grep -q '"shiftIdSummary":true' /tmp/live.json \
               && grep -q '"paymentBreakdown":true' /tmp/live.json \
-              && grep -q '"saleIdempotency":true' /tmp/live.json; then
-              echo 'Render is running the fresh manual shift build.'
+              && grep -q '"saleIdempotency":true' /tmp/live.json \
+              && grep -q '"cashOperations":true' /tmp/live.json; then
+              echo 'Render is running the cash operations build.'
               exit 0
             fi
             sleep 8
           done
-          echo 'Render did not deploy the fresh shift build in time.'
+          echo 'Render did not deploy the cash operations build in time.'
           exit 1
