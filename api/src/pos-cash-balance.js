@@ -18,6 +18,11 @@ function firstFinite(...values){
   }
   return null;
 }
+function timeOf(entity){
+  const raw=entity?.openDate||entity?.moment||entity?.created||entity?.updated||'';
+  const d=new Date(String(raw).replace(' ','T'));
+  return Number.isFinite(d.getTime())?d.getTime():0;
+}
 async function ms(path){
   if(!token)throw new Error('MOYSKLAD_NOT_CONFIGURED');
   const controller=new AbortController();
@@ -48,26 +53,47 @@ async function auth(req){
   return{user:data.user,profile};
 }
 async function exactCashBalance(){
-  const list=await ms('/entity/retailshift?limit=100&order=created,desc');
-  const open=(list?.rows||[]).find(x=>!x.closeDate)||null;
-  if(!open)return{shift:null,store:null,cash:0,available:true,source:'NO_OPEN_SHIFT'};
+  const [shiftList,storeList]=await Promise.all([
+    ms('/entity/retailshift?limit=100&order=created,desc'),
+    ms('/entity/retailstore?limit=100')
+  ]);
+
+  const openRows=(shiftList?.rows||[]).filter(x=>!x.closeDate).sort((a,b)=>timeOf(b)-timeOf(a));
+  const open=openRows[0]||null;
   const shiftId=idOf(open);
-  const shift=shiftId?await ms(`/entity/retailshift/${encodeURIComponent(shiftId)}`):open;
-  const storeHref=shift?.retailStore?.meta?.href||open?.retailStore?.meta?.href||null;
-  if(!storeHref)return{shift:{id:shiftId,name:shift?.name||open?.name||null},store:null,cash:null,available:false,source:'RETAIL_STORE_NOT_FOUND'};
-  const store=await ms(storeHref);
-  const raw=firstFinite(store?.cash,store?.state?.cash,shift?.cash);
-  if(raw===null){
-    return{
-      shift:{id:shiftId,name:shift?.name||open?.name||null},
-      store:{id:idOf(store)||idOf(shift?.retailStore),name:store?.name||shift?.retailStore?.name||null},
-      cash:null,available:false,source:'MOYSKLAD_CASH_UNAVAILABLE'
-    };
+  let shift=open;
+  if(shiftId){
+    try{shift=await ms(`/entity/retailshift/${encodeURIComponent(shiftId)}`)}catch{}
   }
+
+  const storeRows=storeList?.rows||[];
+  const shiftStoreId=idOf(shift?.retailStore)||idOf(open?.retailStore);
+  let storeRow=(shiftStoreId?storeRows.find(x=>idOf(x)===shiftStoreId):null)||storeRows.find(x=>x.archived!==true)||storeRows[0]||null;
+  const storeHref=shift?.retailStore?.meta?.href||open?.retailStore?.meta?.href||storeRow?.meta?.href||null;
+  let store=storeRow;
+  if(storeHref){
+    try{store=await ms(storeHref)}catch{}
+  }
+
+  const storeId=idOf(store)||idOf(storeRow)||shiftStoreId||null;
+  const storeInfo=storeId||store?.name||storeRow?.name?{id:storeId,name:store?.name||storeRow?.name||shift?.retailStore?.name||null}:null;
+  const shiftInfo=shiftId?{id:shiftId,name:shift?.name||open?.name||null}:null;
+
+  if(!store){
+    return{shift:shiftInfo,store:null,cash:null,available:false,source:'RETAIL_STORE_NOT_FOUND'};
+  }
+
+  const raw=firstFinite(store?.cash,store?.cashBalance,store?.state?.cash);
+  if(raw===null){
+    return{shift:shiftInfo,store:storeInfo,cash:null,available:false,source:'MOYSKLAD_CASH_UNAVAILABLE'};
+  }
+
   return{
-    shift:{id:shiftId,name:shift?.name||open?.name||null},
-    store:{id:idOf(store)||idOf(shift?.retailStore),name:store?.name||shift?.retailStore?.name||null},
-    cash:raw/100,available:true,source:'MOYSKLAD_RETAILSTORE_CASH'
+    shift:shiftInfo,
+    store:storeInfo,
+    cash:raw/100,
+    available:true,
+    source:'MOYSKLAD_RETAILSTORE_CASH'
   };
 }
 
