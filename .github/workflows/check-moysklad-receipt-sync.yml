@@ -1,0 +1,29 @@
+name: Check MoySklad Receipt Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/src/moysklad-receipt-sync.js'
+      - 'api/src/boot.js'
+      - '.github/workflows/check-moysklad-receipt-sync.yml'
+  workflow_dispatch:
+
+jobs:
+  receipt-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check receipt sync modules
+        run: |
+          set -euo pipefail
+          node --check api/src/moysklad-receipt-sync.js
+          node --check api/src/boot.js
+          grep -q 'moysklad-receipt-sync.js' api/src/boot.js
+          grep -q 'IMPORTED_MS' api/src/moysklad-receipt-sync.js
+          grep -q 'retaildemand' api/src/moysklad-receipt-sync.js
+          grep -q 'setInterval' api/src/moysklad-receipt-sync.js
