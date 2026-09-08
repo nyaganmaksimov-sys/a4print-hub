@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Склад и номенклатура — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20260908-warehouse3">
-  <link rel="stylesheet" href="./warehouse-modern.css?v=20260908-1">
-  <script src="./config.js?v=20260908-warehouse3"></script>
+  <link rel="stylesheet" href="./styles.css?v=20260908-warehouse4">
+  <link rel="stylesheet" href="./warehouse-modern.css?v=20260908-2">
+  <script src="./config.js?v=20260908-warehouse4"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
@@ -19,19 +19,23 @@
       </div>
       <div class="warehouse-top-actions">
         <span class="warehouse-sync-note" id="updatedAt">загрузка…</span>
-        <a href="./equipment.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 13px;border:1px solid #d7dee9;border-radius:10px;background:#fff;color:#334155;text-decoration:none;font-weight:800">Оборудование</a>
-        <button id="syncCatalog" type="button">↻ Синхронизировать МойСклад</button>
-        <button id="addItem" type="button">+ Новая позиция</button>
+        <button id="syncCatalog" type="button">↻ МойСклад</button>
+        <button id="addItem" type="button">+ Позиция</button>
         <button id="refresh" type="button">↻ Обновить</button>
       </div>
     </header>
 
     <div class="warehouse-shell">
+      <section class="warehouse-subnav" aria-label="Разделы складского учёта">
+        <a class="active" href="./warehouse.html">▣ Номенклатура</a>
+        <a href="./equipment.html">⚙ Оборудование и расходники</a>
+      </section>
+
       <section class="warehouse-stats" aria-label="Сводка склада">
         <article class="warehouse-stat"><span>Позиций каталога</span><strong id="itemsCount">0</strong><small>товары, материалы и услуги</small></article>
         <article class="warehouse-stat"><span>Связано с МойСклад</span><strong id="linkedCount">0</strong><small id="stockSource">проверка источника…</small></article>
         <article class="warehouse-stat"><span>Есть в наличии</span><strong id="availableCount">0</strong><small>позиции с положительным остатком</small></article>
-        <article class="warehouse-stat"><span>Низкий остаток</span><strong id="lowCount">0</strong><small>ниже или равен минимальному</small></article>
+        <article class="warehouse-stat"><span>Требуют внимания</span><strong id="lowCount">0</strong><small>нет в наличии или ниже настроенного минимума</small></article>
       </section>
 
       <section class="warehouse-panel">
@@ -39,9 +43,9 @@
           <input id="search" type="search" autocomplete="off" placeholder="Название, SKU, артикул, штрихкод или категория">
           <select id="type"><option value="">Все типы</option><option value="PRODUCT">Товары</option><option value="MATERIAL">Материалы</option><option value="SERVICE">Услуги</option><option value="FINISHED_PRODUCT">Готовая продукция</option><option value="MODEL_3D">3D-модели</option></select>
           <select id="source"><option value="">Все источники</option><option value="MS">МойСклад</option><option value="LOCAL">Локальные HUB</option></select>
-          <select id="stockFilter"><option value="">Все остатки</option><option value="positive">Есть в наличии</option><option value="low">Низкий остаток</option><option value="zero">Нет в наличии</option></select>
+          <select id="stockFilter"><option value="">Все остатки</option><option value="positive">Есть в наличии</option><option value="low">Требуют внимания</option><option value="zero">Нет в наличии</option></select>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 15px;border-bottom:1px solid #edf2f7;color:#64748b;font-size:11px"><span id="visibleCount">0 из 0</span><button id="clearFilters" type="button" style="min-height:32px;height:32px;padding:0 10px">Сбросить фильтры</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-bottom:1px solid #edf2f7;color:#64748b;font-size:10px"><span id="visibleCount">0 из 0</span><button id="clearFilters" type="button" style="min-height:30px;height:30px;padding:0 9px;font-size:10px">Сбросить</button></div>
         <div class="warehouse-list-head"><span>Позиция</span><span>Источник</span><span>Цена</span><span>Остаток</span><span style="text-align:right">Действия</span></div>
         <div id="list"><div class="warehouse-empty">Загрузка склада…</div></div>
       </section>
@@ -85,6 +89,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./warehouse-modern.js?v=20260908-1"></script>
+  <script type="module" src="./warehouse-modern.js?v=20260908-2"></script>
 </body>
 </html>
