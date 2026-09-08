@@ -8,8 +8,7 @@ const preloads = [
   '--import=./src/pos-cash-operations.js',
   '--import=./src/pos-cash-balance.js',
   '--import=./src/cbr-rates.js',
-  '--import=./src/partner-invites.js',
-  '--import=./src/partner-selftest.js'
+  '--import=./src/partner-invites.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
