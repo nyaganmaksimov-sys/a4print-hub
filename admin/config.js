@@ -105,6 +105,10 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     document.head.appendChild(manifest);
   }
 
+  if(isAdmin){
+    loadCss('button-system.css','20260908-1');
+  }
+
   if(isAdmin&&!mobileContext){
     loadCss('sidebar-light.css','20260908-2');
     loadCss('logo-clean.css','20260908-2');
