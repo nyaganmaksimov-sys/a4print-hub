@@ -1,1 +1,74 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Производство — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script></head><body><aside class="sidebar"><div class="brand"><span class="brand-mark">A4</span><div>A4PRINT<br><small>HUB</small></div></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>🏭 Производство</h1><p>Производственные задания</p></div><button id="refresh">Обновить</button></header><section class="stats"><article><span>Всего</span><strong id="all">0</strong></article><article><span>Новые</span><strong id="new">0</strong></article><article><span>В работе</span><strong id="work">0</strong></article><article><span>Готово</span><strong id="done">0</strong></article></section><section class="panel"><div id="list"><div class="empty">Загрузка...</div></div></section></main><script type="module">import{supabase}from'./guard.js';const $=id=>document.getElementById(id);async function load(){const{data,error}=await supabase.from('production_jobs').select('id,title,status,priority,planned_start,planned_end,created_at,orders(order_number)').order('created_at',{ascending:false});if(error){$('list').innerHTML=`<div class="empty">Ошибка: ${error.message}</div>`;return}const rows=data||[];$('all').textContent=rows.length;$('new').textContent=rows.filter(x=>x.status==='NEW'||x.status==='QUEUED').length;$('work').textContent=rows.filter(x=>x.status==='IN_PROGRESS'||x.status==='PAUSED').length;$('done').textContent=rows.filter(x=>x.status==='DONE').length;$('list').innerHTML=rows.map(x=>`<div style="padding:14px 0;border-bottom:1px solid #e5e7eb"><b>${x.title}</b><div style="color:#64748b;font-size:13px;margin-top:5px">${x.orders?.order_number?'Заказ №'+x.orders.order_number+' · ':''}${x.status} · приоритет ${x.priority??0}</div></div>`).join('')||'<div class="empty">Производственных заданий пока нет</div>'}$('refresh').onclick=load;load();</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Производство — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-production3">
+  <link rel="stylesheet" href="./production-modern.css?v=20260908-1">
+  <script src="./config.js?v=20260908-production3"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>Производство</h1>
+        <p>Очередь работ, сроки, исполнители и готовность заказов</p>
+      </div>
+      <div class="production-top-actions">
+        <span id="updatedAt" class="production-updated">загрузка…</span>
+        <button id="addJob" type="button">+ Новое задание</button>
+        <button id="refresh" type="button">↻ Обновить</button>
+      </div>
+    </header>
+
+    <div class="production-shell">
+      <section class="production-stats" aria-label="Сводка производства">
+        <article class="production-stat"><span>Всего заданий</span><strong id="all">0</strong></article>
+        <article class="production-stat"><span>В очереди</span><strong id="queue">0</strong></article>
+        <article class="production-stat"><span>В работе</span><strong id="work">0</strong></article>
+        <article class="production-stat overdue"><span>Просрочено</span><strong id="overdue">0</strong></article>
+        <article class="production-stat"><span>Готово</span><strong id="done">0</strong></article>
+      </section>
+
+      <section class="production-filterbar">
+        <input id="search" type="search" autocomplete="off" placeholder="Задание, заказ, услуга или исполнитель">
+        <select id="unit"><option value="">Все направления</option><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общие</option></select>
+        <select id="assignee"><option value="">Все исполнители</option></select>
+        <select id="priorityFilter"><option value="">Любой приоритет</option><option value="high">Высокий 70+</option><option value="normal">Обычный до 70</option></select>
+        <div class="production-count"><span id="visibleCount">0 из 0</span>&nbsp;·&nbsp;<button id="clearFilters" type="button" style="min-height:32px;height:32px;padding:0 9px">Сбросить</button></div>
+      </section>
+
+      <section class="production-board" aria-label="Доска производства">
+        <article class="production-column"><div class="production-column-head"><b>Очередь</b><span id="queueCount">0</span></div><div id="queueCol" class="production-column-body"><div class="production-empty">Загрузка…</div></div></article>
+        <article class="production-column"><div class="production-column-head"><b>В работе</b><span id="workCount">0</span></div><div id="workCol" class="production-column-body"><div class="production-empty">Загрузка…</div></div></article>
+        <article class="production-column"><div class="production-column-head"><b>Готово</b><span id="doneCount">0</span></div><div id="doneCol" class="production-column-body"><div class="production-empty">Загрузка…</div></div></article>
+      </section>
+
+      <details class="production-cancelled"><summary>Отменённые задания · <span id="cancelledCount">0</span></summary><div id="cancelledList" class="production-cancelled-list"></div></details>
+    </div>
+  </main>
+
+  <dialog id="jobDlg" class="production-modal">
+    <form id="jobForm">
+      <div class="production-modal-head"><div><h2 id="jobDlgTitle">Новое производственное задание</h2><p id="jobDlgText"></p></div><button id="closeJobDlg" class="production-modal-close" type="button">×</button></div>
+      <input id="jobId" type="hidden">
+      <div class="production-form">
+        <div class="production-field wide"><label>Заказ</label><select id="jobOrder"><option value="">Без привязки к заказу</option></select></div>
+        <div class="production-field wide"><label>Название задания</label><input id="jobTitle" maxlength="250" required placeholder="Например: печать тиража, ламинация, 3D-печать модели"></div>
+        <div class="production-field"><label>Исполнитель</label><select id="jobAssignee"><option value="">Не назначен</option></select></div>
+        <div class="production-field"><label>Приоритет 0–100</label><input id="jobPriority" type="number" min="0" max="100" value="50"></div>
+        <div class="production-field"><label>Плановый старт</label><input id="jobStart" type="datetime-local"></div>
+        <div class="production-field"><label>Срок готовности</label><input id="jobEnd" type="datetime-local"></div>
+        <div class="production-field wide"><label>Примечание</label><textarea id="jobNotes" rows="4" maxlength="3000" placeholder="Материал, оборудование, параметры, особые требования…"></textarea></div>
+      </div>
+      <div id="jobError" class="production-form-error"></div>
+      <div class="production-modal-actions"><button type="button" onclick="this.closest('dialog').close()">Отмена</button><button id="saveJob" type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./production-modern.js?v=20260908-1"></script>
+</body>
+</html>
