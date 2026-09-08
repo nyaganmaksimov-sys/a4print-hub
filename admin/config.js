@@ -109,7 +109,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     loadCss('button-system.css','20260908-1');
   }
   if(isPartners){
-    loadCss('partners-modern.css','20260908-1');
+    loadCss('partners-modern.css','20260908-2');
   }
 
   if(isAdmin&&!mobileContext){
@@ -217,7 +217,8 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
   if (isPartners) {
     load('partners-search.js','20260905-1');
-    load('partner-invites.js','20260908-1');
+    load('partner-invites.js','20260908-2');
+    load('partners-modern.js','20260908-1');
   }
 
   background(() => {
