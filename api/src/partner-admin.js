@@ -55,26 +55,17 @@ async function loadDetails(id){
   ]);
   for(const r of [usersRes,ordersRes,crmOrdersRes,servicesRes,servicesCountRes,activeServicesCountRes])if(r.error)throw r.error;
   if(customersRes.error)throw customersRes.error;
-  const users=usersRes.data||[];
-  const orders=ordersRes.data||[];
-  const crmOrders=crmOrdersRes.data||[];
-  const supplierServices=servicesRes.data||[];
-  const fromPartner=orders.filter(x=>x.partner_id===id);
-  const toPartner=orders.filter(x=>x.fulfillment_partner_id===id);
-  const crmSales=sum(crmOrders,'sale_total');
-  const crmPrepaid=sum(crmOrders,'prepaid');
+  const users=usersRes.data||[],orders=ordersRes.data||[],crmOrders=crmOrdersRes.data||[],supplierServices=servicesRes.data||[];
+  const fromPartner=orders.filter(x=>x.partner_id===id),toPartner=orders.filter(x=>x.fulfillment_partner_id===id);
+  const crmSales=sum(crmOrders,'sale_total'),crmPrepaid=sum(crmOrders,'prepaid');
   const crmReceivable=Number(crmOrders.reduce((a,x)=>a+Math.max(0,Number(x.sale_total||0)-Number(x.prepaid||0)),0).toFixed(2));
-  return{
-    partner,users,orders,crm_orders:crmOrders,supplier_services:supplierServices,
-    stats:{
-      users_count:users.length,active_users:users.filter(x=>x.is_active).length,
-      orders_from_partner:fromPartner.length,orders_to_partner:toPartner.length,
-      turnover_from_partner:sum(fromPartner,'total'),turnover_to_partner:sum(toPartner,'total'),
-      crm_orders_count:crmOrders.length,crm_sales:crmSales,crm_prepaid:crmPrepaid,crm_receivable:crmReceivable,
-      crm_customers_count:Number(customersRes.count||0),supplier_services_count:Number(servicesCountRes.count||0),
-      active_supplier_services:Number(activeServicesCountRes.count||0)
-    }
-  };
+  return{partner,users,orders,crm_orders:crmOrders,supplier_services:supplierServices,stats:{
+    users_count:users.length,active_users:users.filter(x=>x.is_active).length,
+    orders_from_partner:fromPartner.length,orders_to_partner:toPartner.length,
+    turnover_from_partner:sum(fromPartner,'total'),turnover_to_partner:sum(toPartner,'total'),
+    crm_orders_count:crmOrders.length,crm_sales:crmSales,crm_prepaid:crmPrepaid,crm_receivable:crmReceivable,
+    crm_customers_count:Number(customersRes.count||0),supplier_services_count:Number(servicesCountRes.count||0),active_supplier_services:Number(activeServicesCountRes.count||0)
+  }};
 }
 
 express.application.listen=function patchedPartnerAdminListen(...args){
@@ -82,8 +73,7 @@ express.application.listen=function patchedPartnerAdminListen(...args){
     this[installed]=true;
 
     this.get('/api/v1/partner-admin/:id',(req,res)=>admin(req,res,async()=>{
-      const id=clean(req.params.id,80);
-      const details=await loadDetails(id);
+      const details=await loadDetails(clean(req.params.id,80));
       if(!details)return res.status(404).json({success:false,error:'PARTNER_NOT_FOUND',message:'Партнёр не найден.'});
       return res.json({success:true,...details});
     }));
@@ -91,8 +81,7 @@ express.application.listen=function patchedPartnerAdminListen(...args){
     this.patch('/api/v1/partner-admin/:id',express.json(),(req,res)=>admin(req,res,async()=>{
       const id=clean(req.params.id,80);
       if(!await getPartner(id))return res.status(404).json({success:false,error:'PARTNER_NOT_FOUND',message:'Партнёр не найден.'});
-      const b=req.body||{};
-      const updates={updated_at:new Date().toISOString()};
+      const b=req.body||{},updates={updated_at:new Date().toISOString()};
       if(b.name!==undefined){updates.name=clean(b.name,220);if(!updates.name)return res.status(400).json({success:false,error:'PARTNER_NAME_REQUIRED',message:'Укажите название партнёра.'})}
       if(b.legal_name!==undefined)updates.legal_name=clean(b.legal_name,240)||null;
       if(b.tax_id!==undefined)updates.tax_id=clean(b.tax_id,30)||null;
@@ -108,6 +97,25 @@ express.application.listen=function patchedPartnerAdminListen(...args){
       const {data,error}=await service.from('partners').update(updates).eq('id',id).select('id,name,legal_name,tax_id,contact_name,email,phone,address,discount_percent,credit_limit,payment_terms_days,notes,is_active,created_at,updated_at,marketplace_public,marketplace_city,marketplace_address').single();
       if(error)throw error;
       return res.json({success:true,partner:data});
+    }));
+
+    this.post('/api/v1/partner-admin/:id/users',express.json(),(req,res)=>admin(req,res,async()=>{
+      const partnerId=clean(req.params.id,80),partner=await getPartner(partnerId);
+      if(!partner)return res.status(404).json({success:false,error:'PARTNER_NOT_FOUND',message:'Партнёр не найден.'});
+      const b=req.body||{},fullName=clean(b.full_name,200),email=clean(b.email,240).toLowerCase(),phone=clean(b.phone,80)||null,password=String(b.password||''),isAdmin=b.is_admin!==false;
+      if(!fullName||!email||password.length<8)return res.status(400).json({success:false,error:'INVALID_USER_DATA',message:'Укажите имя, email и пароль не короче 8 символов.'});
+      const {data:dup,error:dErr}=await service.from('partner_users').select('id').eq('email',email).maybeSingle();
+      if(dErr)throw dErr;
+      if(dup)return res.status(409).json({success:false,error:'EMAIL_ALREADY_REGISTERED',message:'Этот email уже используется в Partner CRM.'});
+      let authUserId=null;
+      try{
+        const {data:authData,error:authError}=await service.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:fullName,partner_portal:true,partner_id:partnerId}});
+        if(authError){const duplicate=/already|registered|exists|duplicate/i.test(String(authError.message||''));return res.status(duplicate?409:400).json({success:false,error:duplicate?'EMAIL_ALREADY_REGISTERED':'AUTH_CREATE_FAILED',message:duplicate?'Этот email уже зарегистрирован в системе.':authError.message})}
+        authUserId=authData.user.id;
+        const {data:user,error:userError}=await service.from('partner_users').insert({partner_id:partnerId,auth_user_id:authUserId,full_name:fullName,email,phone,is_admin:isAdmin,is_active:true}).select('id,partner_id,auth_user_id,full_name,email,phone,is_admin,is_active,created_at,updated_at').single();
+        if(userError)throw userError;
+        return res.status(201).json({success:true,user});
+      }catch(error){if(authUserId){try{await service.auth.admin.deleteUser(authUserId)}catch{}}throw error}
     }));
 
     this.patch('/api/v1/partner-admin/:partnerId/users/:userId',express.json(),(req,res)=>admin(req,res,async()=>{
