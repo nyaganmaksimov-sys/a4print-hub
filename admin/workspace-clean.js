@@ -23,6 +23,8 @@
     .topbar p{margin-top:4px!important}
     .a4-workspace-actions{margin-left:auto;display:flex;align-items:center;gap:8px;position:relative;flex:0 0 auto}
     .a4-workspace-actions>.user{margin:0!important}
+    .a4-profile-trigger{cursor:pointer!important;text-decoration:none!important;color:inherit!important;border-radius:9px;padding:6px 8px!important;transition:background .16s ease,color .16s ease;display:inline-flex!important;align-items:center!important;gap:6px!important}
+    .a4-profile-trigger:hover{background:#f1f5f9!important;color:#2563eb!important}
     .a4-more-btn{width:40px;height:40px;border:1px solid #dbe2ea!important;background:#fff!important;color:#334155!important;border-radius:11px!important;display:grid!important;place-items:center!important;padding:0!important;font:900 20px/1 system-ui!important;cursor:pointer;box-shadow:none!important}
     .a4-mobile-menu{width:40px;height:40px;border:1px solid #dbe2ea!important;background:#fff!important;color:#334155!important;border-radius:11px!important;place-items:center!important;padding:0!important;font:900 20px/1 system-ui!important;cursor:pointer;box-shadow:none!important}
     .a4-more-menu{display:none;position:absolute;right:0;top:48px;z-index:21000;width:230px;background:#fff;border:1px solid #dbe2ea;border-radius:14px;padding:6px;box-shadow:0 20px 55px rgba(15,23,42,.18)}
@@ -118,6 +120,21 @@
     document.querySelectorAll('.a4-chat-dashboard,.a4-chat-nav-link,.a4-layout-toolbar,.a4-help-btn,.a4-help-pop,#a4NotificationWrap').forEach(x=>x.remove());
   }
 
+  function wireProfileTrigger(top){
+    if(!top)return;
+    const user=top.querySelector('.user');if(!user)return;
+    const target=user.querySelector('#userEmail')||[...user.children].find(el=>el.tagName!=='BUTTON'&&el.tagName!=='A');
+    if(!target||target.dataset.a4ProfileTrigger==='1')return;
+    target.dataset.a4ProfileTrigger='1';
+    target.classList.add('a4-profile-trigger');
+    target.setAttribute('role','link');
+    target.setAttribute('tabindex','0');
+    target.title='Открыть мой профиль';
+    const openProfile=()=>{location.href='./profile.html'};
+    target.addEventListener('click',openProfile);
+    target.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openProfile()}});
+  }
+
   function placeNotification(){
     const top=document.querySelector('.topbar');if(!top)return false;
     const actions=ensureTopActions(top);
@@ -128,12 +145,14 @@
   }
 
   function ensureTopActions(top){
-    let actions=top.querySelector('.a4-workspace-actions');if(actions)return actions;
+    let actions=top.querySelector('.a4-workspace-actions');
+    if(actions){wireProfileTrigger(top);return actions}
     actions=document.createElement('div');actions.className='a4-workspace-actions';
     const user=top.querySelector(':scope > .user');if(user)actions.appendChild(user);
     const more=document.createElement('button');more.type='button';more.className='a4-more-btn';more.title='Ещё';more.setAttribute('aria-label','Ещё');more.textContent='⋯';
     const menu=document.createElement('div');menu.className='a4-more-menu';
     menu.innerHTML=`
+      <a href="./profile.html">👤 <span>Мой профиль</span></a>
       <a href="./messages.html">💬 <span>Сообщения</span></a>
       <a href="/chat/start.html">📲 <span>Установить A4 Chat</span></a>
       <div class="a4-more-sep"></div>
@@ -147,7 +166,7 @@
     const themeButton=menu.querySelector('[data-a4-theme-open]');
     if(themeButton)themeButton.onclick=()=>{menu.classList.remove('open');document.querySelector('.a4-theme-fab')?.click()};
     document.addEventListener('click',()=>menu.classList.remove('open'));
-    actions.append(more,menu);top.appendChild(actions);return actions;
+    actions.append(more,menu);top.appendChild(actions);wireProfileTrigger(top);return actions;
   }
 
   let mobileWired=false;
@@ -194,7 +213,7 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-  const obs=new MutationObserver(()=>{removeClutter();groupNavigation();placeNotification()});
+  const obs=new MutationObserver(()=>{removeClutter();groupNavigation();const top=document.querySelector('.topbar');if(top)wireProfileTrigger(top);placeNotification()});
   const startObs=()=>document.body&&obs.observe(document.body,{childList:true,subtree:true});
   if(document.body)startObs();else document.addEventListener('DOMContentLoaded',startObs,{once:true});
 })();
