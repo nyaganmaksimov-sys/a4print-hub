@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260907-cashops1';
+  const VERSION='20260908-shiftprofile1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -73,8 +73,10 @@
     await loadScript('./ui.js');
     await loadStyle('./shift-layout-fix.css');
     await loadStyle('./sale-finish.css');
+    await loadStyle('./shift-profile.css');
     await loadScript('./shift-operator.js');
     await loadScript('./shift-state-sync.js');
+    await loadScript('./shift-profile.js');
     await loadScript('./cash-operations.js');
     await loadScript('./sale-submit-guard.js');
     await loadScript('./sale-finish.js');
