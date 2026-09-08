@@ -5,23 +5,41 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Мой профиль — A4PRINT HUB</title>
   <link rel="stylesheet" href="./styles.css">
-  <script src="./config.js"></script>
+  <script>
+    // Профиль — критичная системная страница. Его поля нельзя скрывать или
+    // сворачивать пользовательской раскладкой рабочего стола.
+    window.__A4_DISABLE_BLOCK_LAYOUT__=true;
+    try{
+      localStorage.removeItem('a4print:block-layout:v3:/admin/profile.html');
+      localStorage.removeItem('a4print-hub-layout:v1:/admin/profile.html');
+    }catch{}
+  </script>
+  <script src="./config.js?v=20260908-profile3"></script>
   <style>
-    .profile-grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px}.profile-side{align-self:start;position:sticky;top:88px}.avatar-wrap{display:flex;align-items:flex-start;gap:15px}.avatar{width:96px;height:96px;border-radius:26px;background:#eff6ff;color:#1d4ed8;display:grid;place-items:center;font-size:30px;font-weight:950;overflow:hidden;box-shadow:inset 0 0 0 1px #dbeafe}.avatar img{width:100%;height:100%;object-fit:cover}.avatar-actions{display:grid;gap:8px;flex:1}.avatar-actions small{color:#64748b;font-size:11px;line-height:1.45}.muted{color:#64748b}.roles{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.role{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:800}.field{display:grid;gap:6px;margin:12px 0}.field input{padding:12px 13px;border:1px solid #dbe2ea;border-radius:11px;font:inherit;background:#fff;color:#172033}.field input:disabled{background:#f8fafc;color:#64748b}.btn{border:0;border-radius:11px;padding:11px 14px;font:inherit;font-weight:850;cursor:pointer;background:#2563eb;color:#fff}.btn:disabled{opacity:.6;cursor:wait}.btn.secondary{background:#fff;color:#334155;border:1px solid #dbe2ea}.btn.danger{background:#fff;color:#b91c1c;border:1px solid #fecaca}.btn.full{width:100%}.links{display:grid;gap:8px;margin-top:16px}.links a{padding:10px 12px;border:1px solid #e5e7eb;border-radius:11px;text-decoration:none;color:#334155;font-weight:700}.status{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:900}.assignment{margin-top:14px;padding:12px;border-radius:13px;background:#f8fafc}.assignment b{display:block}.assignment span{display:block;margin-top:3px;color:#64748b;font-size:13px}.profile-main{display:grid;gap:18px}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}.section-head h2,.section-head h3{margin:0}.section-head p{margin:5px 0 0;color:#64748b;font-size:12px;line-height:1.45}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.security-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.security-box{padding:16px;border:1px solid #e5e7eb;border-radius:15px;background:#f8fafc}.security-box h3{margin:0 0 5px}.security-box p{margin:0 0 10px;color:#64748b;font-size:12px;line-height:1.45}.profile-msg{margin-top:10px;padding:9px 11px;border-radius:10px;font-size:12px;font-weight:700}.profile-msg[hidden]{display:none}.profile-msg.ok{background:#ecfdf5;color:#166534}.profile-msg.err{background:#fff1f2;color:#be123c}.provider-note{margin:10px 0 0;color:#64748b;font-size:11px;line-height:1.45}.profile-fatal{color:#b91c1c}.mobile-profile-link{display:none}
+    .profile-grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px}.profile-side{align-self:start;position:sticky;top:88px}.avatar-wrap{display:flex;align-items:flex-start;gap:15px}.avatar{width:96px;height:96px;border-radius:26px;background:#eff6ff;color:#1d4ed8;display:grid;place-items:center;font-size:30px;font-weight:950;overflow:hidden;box-shadow:inset 0 0 0 1px #dbeafe}.avatar img{width:100%;height:100%;object-fit:cover}.avatar-actions{display:grid;gap:8px;flex:1}.avatar-actions small{color:#64748b;font-size:11px;line-height:1.45}.muted{color:#64748b}.roles{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.role{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:800}.field{display:grid;gap:6px;margin:12px 0}.field input{padding:12px 13px;border:1px solid #dbe2ea;border-radius:11px;font:inherit;background:#fff;color:#172033}.field input:disabled{background:#f8fafc;color:#64748b}.field input:not(:disabled){box-shadow:0 0 0 1px rgba(37,99,235,.03)}.field input:not(:disabled):focus{border-color:#60a5fa!important;box-shadow:0 0 0 3px rgba(37,99,235,.10)!important}.btn{border:0;border-radius:11px;padding:11px 14px;font:inherit;font-weight:850;cursor:pointer;background:#2563eb;color:#fff}.btn:disabled{opacity:.6;cursor:wait}.btn.secondary{background:#fff;color:#334155;border:1px solid #dbe2ea}.btn.danger{background:#fff;color:#b91c1c;border:1px solid #fecaca}.btn.full{width:100%}.links{display:grid;gap:8px;margin-top:16px}.links a{padding:10px 12px;border:1px solid #e5e7eb;border-radius:11px;text-decoration:none;color:#334155;font-weight:700}.status{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:900}.assignment{margin-top:14px;padding:12px;border-radius:13px;background:#f8fafc}.assignment b{display:block}.assignment span{display:block;margin-top:3px;color:#64748b;font-size:13px}.profile-main{display:grid;gap:18px}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}.section-head h2,.section-head h3{margin:0}.section-head p{margin:5px 0 0;color:#64748b;font-size:12px;line-height:1.45}.editable-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#ecfdf5;color:#166534;font-size:11px;font-weight:850;white-space:nowrap}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.security-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.security-box{padding:16px;border:1px solid #e5e7eb;border-radius:15px;background:#f8fafc}.security-box h3{margin:0 0 5px}.security-box p{margin:0 0 10px;color:#64748b;font-size:12px;line-height:1.45}.profile-msg{margin-top:10px;padding:9px 11px;border-radius:10px;font-size:12px;font-weight:700}.profile-msg[hidden]{display:none}.profile-msg.ok{background:#ecfdf5;color:#166534}.profile-msg.err{background:#fff1f2;color:#be123c}.provider-note{margin:10px 0 0;color:#64748b;font-size:11px;line-height:1.45}.profile-fatal{color:#b91c1c}.mobile-profile-link{display:none}.profile-top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    /* Защита от старой сохранённой раскладки: настройки профиля всегда видимы. */
+    body.profile-page .a4-block-layout-toolbar,body.profile-page .a4-layout-toolbar{display:none!important}
+    body.profile-page .profile-grid .a4-block-controls,body.profile-page .profile-grid .a4-block-collapsed-bar,body.profile-page .profile-grid .a4-layout-handle{display:none!important}
+    body.profile-page .profile-grid .card.a4-layout-hidden{display:block!important}
+    body.profile-page .profile-grid .card.a4-layout-collapsed{min-height:0!important;height:auto!important;overflow:visible!important}
+    body.profile-page .profile-grid .card.a4-layout-collapsed>:not(.a4-block-controls):not(.a4-block-collapsed-bar){display:revert!important}
     @media(max-width:900px){.profile-grid{grid-template-columns:1fr}.profile-side{position:static}.sidebar{display:none}.main{margin-left:0!important}.two,.security-grid{grid-template-columns:1fr}.avatar-wrap{align-items:center}.avatar{width:82px;height:82px;border-radius:22px}.mobile-profile-link{display:block}}
-    @media(max-width:520px){.card{padding:16px;border-radius:16px}.avatar-wrap{align-items:flex-start}.avatar-actions .btn{padding:10px 9px;font-size:12px}.topbar{gap:8px}}
+    @media(max-width:520px){.card{padding:16px;border-radius:16px}.avatar-wrap{align-items:flex-start}.avatar-actions .btn{padding:10px 9px;font-size:12px}.topbar{gap:8px}.profile-top-actions{gap:5px}.profile-top-actions .btn{padding:9px 10px}}
   </style>
 </head>
-<body>
+<body class="profile-page">
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
     <header class="topbar">
       <div><h1>Мой профиль</h1><p>Личные данные, аватар и безопасность аккаунта</p></div>
-      <div><button id="logout" class="btn secondary">Выйти</button></div>
+      <div class="profile-top-actions">
+        <button id="editProfile" class="btn" type="button">Редактировать профиль</button>
+        <button id="logout" class="btn secondary" type="button">Выйти</button>
+      </div>
     </header>
 
-    <section class="profile-grid">
-      <article class="card profile-side">
+    <section class="profile-grid" data-a4-layout-fixed="1">
+      <article class="card profile-side" data-a4-layout-fixed="1">
         <div class="avatar-wrap">
           <div id="avatar" class="avatar">A4</div>
           <div class="avatar-actions">
@@ -45,9 +63,12 @@
         </div>
       </article>
 
-      <div class="profile-main">
-        <article class="card">
-          <div class="section-head"><div><h2>Личные данные</h2><p>Эти данные видят сотрудники HUB в рабочих разделах.</p></div></div>
+      <div class="profile-main" data-a4-layout-fixed="1">
+        <article id="personalDataCard" class="card" data-a4-layout-fixed="1">
+          <div class="section-head">
+            <div><h2>Личные данные</h2><p>ФИО и телефон можно менять самостоятельно. Данные сразу используются в HUB и KASSA.</p></div>
+            <span class="editable-badge">● Можно редактировать</span>
+          </div>
           <form id="profileForm">
             <div class="two">
               <label class="field">ФИО<input id="fullName" autocomplete="name" required></label>
@@ -59,12 +80,12 @@
               <label class="field">Организация и отдел<input id="profileDepartment" disabled></label>
               <label class="field">Должность<input id="profilePosition" disabled></label>
             </div>
-            <button class="btn" id="save" type="submit">Сохранить изменения</button>
+            <button class="btn" id="save" type="submit">Сохранить профиль</button>
             <div id="profileMsg" class="profile-msg" hidden></div>
           </form>
         </article>
 
-        <article class="card">
+        <article class="card" data-a4-layout-fixed="1">
           <div class="section-head"><div><h2>Безопасность аккаунта</h2><p>Смена email и пароля доступна для аккаунтов с входом по email. Для Google данные входа управляются через Google.</p></div></div>
           <div class="security-grid">
             <section id="securityEmail" class="security-box">
@@ -86,7 +107,28 @@
     </section>
   </main>
 
-  <script src="./navigation.js"></script>
-  <script src="./profile.js?v=20260905-1"></script>
+  <script src="./navigation.js?v=20260908-profile3"></script>
+  <script src="./profile.js?v=20260908-profile3"></script>
+  <script>
+    (()=>{
+      const ensureEditable=()=>{
+        const full=document.getElementById('fullName');
+        const phone=document.getElementById('phone');
+        if(full){full.disabled=false;full.readOnly=false}
+        if(phone){phone.disabled=false;phone.readOnly=false}
+        document.querySelectorAll('.profile-grid .a4-layout-hidden').forEach(el=>el.classList.remove('a4-layout-hidden'));
+        document.querySelectorAll('.profile-grid .a4-layout-collapsed').forEach(el=>el.classList.remove('a4-layout-collapsed'));
+      };
+      const openEditor=()=>{
+        ensureEditable();
+        document.getElementById('personalDataCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+        setTimeout(()=>document.getElementById('fullName')?.focus(),220);
+      };
+      document.getElementById('editProfile')?.addEventListener('click',openEditor);
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureEditable,{once:true});else ensureEditable();
+      setTimeout(ensureEditable,700);
+      setTimeout(ensureEditable,1800);
+    })();
+  </script>
 </body>
 </html>
