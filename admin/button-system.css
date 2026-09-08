@@ -1,0 +1,163 @@
+/* Unified compact button system for A4PRINT HUB admin pages */
+:root{
+  --a4-btn-h:34px;
+  --a4-btn-radius:9px;
+  --a4-btn-border:#d8e1ec;
+  --a4-btn-text:#334155;
+  --a4-btn-bg:#fff;
+  --a4-btn-hover:#f8fbff;
+  --a4-btn-blue:#2563eb;
+  --a4-btn-blue-hover:#1d4ed8;
+  --a4-btn-danger:#dc2626;
+  --a4-btn-danger-hover:#b91c1c;
+}
+
+/* Normal action buttons inside the working area. Sidebar/chat floating controls are excluded. */
+html body .main button:not(.a4-sidebar-toggle):not(.a4-theme-fab):not(.a4-chat-fab),
+html body .main input[type="button"],
+html body .main input[type="reset"],
+html body .main input[type="submit"]{
+  min-height:var(--a4-btn-h)!important;
+  height:auto!important;
+  padding:7px 12px!important;
+  border:1px solid var(--a4-btn-border)!important;
+  border-radius:var(--a4-btn-radius)!important;
+  background:var(--a4-btn-bg)!important;
+  color:var(--a4-btn-text)!important;
+  box-shadow:0 1px 2px rgba(15,23,42,.035)!important;
+  font-family:inherit!important;
+  font-size:13px!important;
+  font-weight:700!important;
+  line-height:1.15!important;
+  letter-spacing:0!important;
+  cursor:pointer!important;
+  transition:background .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease!important;
+}
+
+html body .main button:not(.a4-sidebar-toggle):not(.a4-theme-fab):not(.a4-chat-fab):hover,
+html body .main input[type="button"]:hover,
+html body .main input[type="reset"]:hover{
+  background:var(--a4-btn-hover)!important;
+  border-color:#b9c7d8!important;
+  color:#0f172a!important;
+  box-shadow:0 3px 8px rgba(15,23,42,.055)!important;
+}
+
+html body .main button:not(.a4-sidebar-toggle):not(.a4-theme-fab):not(.a4-chat-fab):active,
+html body .main input[type="button"]:active,
+html body .main input[type="reset"]:active,
+html body .main input[type="submit"]:active{
+  transform:translateY(1px)!important;
+  box-shadow:0 1px 2px rgba(15,23,42,.035)!important;
+}
+
+html body .main button:focus-visible,
+html body .main input[type="button"]:focus-visible,
+html body .main input[type="reset"]:focus-visible,
+html body .main input[type="submit"]:focus-visible{
+  outline:0!important;
+  box-shadow:0 0 0 3px rgba(37,99,235,.13)!important;
+  border-color:#93b4f5!important;
+}
+
+/* Primary actions: save/create/send/submit or explicitly marked primary. */
+html body .main button.primary,
+html body .main button.btn-primary,
+html body .main button[data-variant="primary"],
+html body .main input[type="submit"],
+html body .main form button[type="submit"]{
+  background:var(--a4-btn-blue)!important;
+  border-color:var(--a4-btn-blue)!important;
+  color:#fff!important;
+  box-shadow:0 3px 9px rgba(37,99,235,.15)!important;
+}
+
+html body .main button.primary:hover,
+html body .main button.btn-primary:hover,
+html body .main button[data-variant="primary"]:hover,
+html body .main input[type="submit"]:hover,
+html body .main form button[type="submit"]:hover{
+  background:var(--a4-btn-blue-hover)!important;
+  border-color:var(--a4-btn-blue-hover)!important;
+  color:#fff!important;
+}
+
+/* Destructive actions. */
+html body .main button.danger,
+html body .main button.btn-danger,
+html body .main button[data-variant="danger"],
+html body .main button[id*="delete" i],
+html body .main button[id*="remove" i]{
+  background:#fff!important;
+  border-color:#fecaca!important;
+  color:var(--a4-btn-danger)!important;
+}
+html body .main button.danger:hover,
+html body .main button.btn-danger:hover,
+html body .main button[data-variant="danger"]:hover,
+html body .main button[id*="delete" i]:hover,
+html body .main button[id*="remove" i]:hover{
+  background:#fef2f2!important;
+  border-color:#fca5a5!important;
+  color:var(--a4-btn-danger-hover)!important;
+}
+
+html body .main button:disabled,
+html body .main input[type="button"]:disabled,
+html body .main input[type="reset"]:disabled,
+html body .main input[type="submit"]:disabled{
+  opacity:.52!important;
+  cursor:not-allowed!important;
+  transform:none!important;
+  box-shadow:none!important;
+}
+
+/* Link-buttons used by the dashboard and toolbars. */
+html body .main .dashboard-quick a,
+html body .main a.btn,
+html body .main a.button,
+html body .main a.btn-secondary,
+html body .main a.btn-primary{
+  min-height:var(--a4-btn-h)!important;
+  padding:0 12px!important;
+  border-radius:var(--a4-btn-radius)!important;
+  font-size:13px!important;
+  font-weight:700!important;
+  box-shadow:0 1px 2px rgba(15,23,42,.035)!important;
+}
+html body .main .dashboard-quick a.primary,
+html body .main a.btn-primary{
+  background:var(--a4-btn-blue)!important;
+  border-color:var(--a4-btn-blue)!important;
+  color:#fff!important;
+  box-shadow:0 3px 9px rgba(37,99,235,.15)!important;
+}
+html body .main .dashboard-quick a.primary:hover,
+html body .main a.btn-primary:hover{
+  background:var(--a4-btn-blue-hover)!important;
+  border-color:var(--a4-btn-blue-hover)!important;
+}
+
+/* Compact square icon actions in headers. */
+html body .main .topbar button[aria-label],
+html body .main .topbar button.icon-button,
+html body .main button.icon-button{
+  width:36px!important;
+  min-width:36px!important;
+  height:36px!important;
+  min-height:36px!important;
+  padding:0!important;
+  display:inline-grid!important;
+  place-items:center!important;
+}
+
+@media(max-width:620px){
+  :root{--a4-btn-h:36px}
+  html body .main button:not(.a4-sidebar-toggle):not(.a4-theme-fab):not(.a4-chat-fab),
+  html body .main input[type="button"],
+  html body .main input[type="reset"],
+  html body .main input[type="submit"]{
+    font-size:13px!important;
+    padding:8px 11px!important;
+  }
+}
