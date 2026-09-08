@@ -37,8 +37,8 @@ function rowHtml(type, data){
     : 'возвратов нет';
   return `<a class="dash-attention-item ${data.returnCount ? 'warn' : 'good'}" href="../kassa/" data-payment-split="${type}">
     <span class="dash-attention-icon">${paymentIcon(type)}</span>
-    <span class="dash-attention-copy"><b>${isCash ? 'Наличными сегодня' : 'Картой сегодня'}</b><span>${esc(`${data.salesCount} продаж · ${returnText} · чистыми`)}</span></span>
-    <span class="dash-attention-count">${esc(`${money(net)} ₽`)}</span>
+    <span class="dash-attention-copy"><b>${isCash ? 'Оплата наличными' : 'Оплата картой'}</b><span>${esc(`${data.salesCount} продаж · ${returnText} · чистыми ${money(net)} ₽`)}</span></span>
+    <span class="dash-attention-count">${esc(`${money(data.salesTotal)} ₽`)}</span>
   </a>`;
 }
 
