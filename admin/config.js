@@ -191,7 +191,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     return;
   }
 
-  if (isPartners) load('partners-api-fallback.js','20260905-1');
   load('theme.js','20260905-1');
   load('ui-icons.js');
   load('dialog-fixes.js');
@@ -205,7 +204,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('settings-collapsible.js','20260905-1');
   }
   load('navigation.js','20260907-logo2');
-  load('support-access.js','20260908-fix1');
+  load('support-access.js','20260908-clean2');
   load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260908-profile1');
   load('topbar-modern.js','20260908-3');
