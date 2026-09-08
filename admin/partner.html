@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Карточка партнёра — A4PRINT HUB</title>
+<link rel="stylesheet" href="./styles.css?v=20260908-1">
+<link rel="stylesheet" href="./partner-card.css?v=20260908-1">
+<script src="./config.js?v=20260908-partner-card1"></script>
+</head>
+<body>
+<aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+<main class="main">
+<header class="topbar">
+  <div>
+    <a class="partner-back" href="./partners.html">← Назад к партнёрам</a>
+    <h1 id="pageTitle">Карточка партнёра</h1>
+    <p id="pageSubtitle">Компания, доступы, заказы и финансовые показатели</p>
+  </div>
+  <div><button id="refreshPartner" type="button">↻ Обновить</button></div>
+</header>
+
+<div id="loading" class="partner-loading">Загрузка данных партнёра…</div>
+<div id="error" class="partner-error" hidden><b>Не удалось открыть карточку.</b><div id="errorText" style="margin-top:6px"></div><div style="margin-top:12px"><a href="./partners.html">Вернуться к партнёрам</a></div></div>
+
+<section id="partnerContent" class="partner-page" hidden>
+  <article class="panel partner-hero" data-workspace-key="partner-summary">
+    <div class="partner-identity">
+      <div class="partner-avatar" id="partnerAvatar">П</div>
+      <div><h2 class="partner-name" id="partnerName">Партнёр</h2><div class="partner-meta" id="partnerMeta"></div></div>
+    </div>
+    <div class="partner-hero-actions"><span id="partnerState" class="state-pill">Активен</span><button id="togglePartner" type="button">Отключить доступ</button></div>
+  </article>
+
+  <section class="partner-kpis" aria-label="Показатели партнёра">
+    <article class="partner-kpi" id="kpiFromOrders" data-workspace-key="partner-kpi-from-orders"><div class="partner-kpi-label">Заказы к нам</div><div class="partner-kpi-value">0</div><div class="partner-kpi-note"></div></article>
+    <article class="partner-kpi" id="kpiFromTurnover" data-workspace-key="partner-kpi-from-turnover"><div class="partner-kpi-label">Оборот с нами</div><div class="partner-kpi-value">0 ₽</div><div class="partner-kpi-note"></div></article>
+    <article class="partner-kpi" id="kpiToOrders" data-workspace-key="partner-kpi-to-orders"><div class="partner-kpi-label">Наши заказы</div><div class="partner-kpi-value">0</div><div class="partner-kpi-note"></div></article>
+    <article class="partner-kpi" id="kpiToTurnover" data-workspace-key="partner-kpi-to-turnover"><div class="partner-kpi-label">Закупки</div><div class="partner-kpi-value">0 ₽</div><div class="partner-kpi-note"></div></article>
+    <article class="partner-kpi" id="kpiCrmSales" data-workspace-key="partner-kpi-crm-sales"><div class="partner-kpi-label">Partner CRM</div><div class="partner-kpi-value">0 ₽</div><div class="partner-kpi-note"></div></article>
+    <article class="partner-kpi" id="kpiCrmDebt" data-workspace-key="partner-kpi-crm-debt"><div class="partner-kpi-label">Дебиторка CRM</div><div class="partner-kpi-value">0 ₽</div><div class="partner-kpi-note"></div></article>
+  </section>
+
+  <section class="partner-detail-grid">
+    <article class="panel" data-workspace-key="partner-company">
+      <div class="panel-head"><div><h2>Компания и условия</h2><div class="panel-sub">Реквизиты, контакты и коммерческие условия работы с A4PRINT</div></div></div>
+      <form id="partnerForm" class="partner-form">
+        <label class="full">Название партнёра<input name="name" required maxlength="220"></label>
+        <label>Контактное лицо<input name="contact_name" maxlength="200"></label>
+        <label>Телефон<input name="phone" maxlength="80"></label>
+        <label>Email<input name="email" type="email" maxlength="240"></label>
+        <label>ИНН<input name="tax_id" maxlength="30"></label>
+        <label class="full">Юридическое название<input name="legal_name" maxlength="240"></label>
+        <label class="full">Адрес<input name="address" maxlength="500"></label>
+        <label>Скидка, %<input name="discount_percent" type="number" min="0" max="100" step="0.01"></label>
+        <label>Отсрочка, дней<input name="payment_terms_days" type="number" min="0" max="3650" step="1"></label>
+        <label>Кредитный лимит, ₽<input name="credit_limit" type="number" min="0" step="0.01"></label>
+        <label class="full">Примечание<textarea name="notes" maxlength="3000"></textarea></label>
+        <div class="partner-form-actions"><button id="savePartner" class="primary" type="submit">Сохранить изменения</button><span id="partnerFormStatus" class="form-status"></span></div>
+      </form>
+    </article>
+
+    <div class="two-stack">
+      <article class="panel" data-workspace-key="partner-users">
+        <div class="panel-head"><div><h2>Пользователи Partner CRM</h2><div class="panel-sub">Управление доступом сотрудников партнёра</div></div><span id="usersCount" class="mini-pill"></span></div>
+        <div id="partnerUsers" class="partner-users"><div class="empty-state">Загрузка…</div></div>
+      </article>
+
+      <article class="panel" data-workspace-key="partner-services">
+        <div class="panel-head"><div><h2>Прайс партнёра</h2><div class="panel-sub">Услуги, которые A4PRINT может заказывать у партнёра</div></div><span id="servicesCount" class="mini-pill"></span></div>
+        <div id="supplierServices" class="services-list"><div class="empty-state">Загрузка…</div></div>
+      </article>
+    </div>
+
+    <article class="panel section-wide" data-workspace-key="partner-orders">
+      <div class="panel-head">
+        <div><h2>История заказов</h2><div id="ordersPanelSub" class="panel-sub">Связанные заказы</div></div>
+        <div class="tabs"><button class="tab-btn active" type="button" data-order-mode="hub">A4PRINT ↔ Партнёр</button><button class="tab-btn" type="button" data-order-mode="crm">Partner CRM</button></div>
+      </div>
+      <div id="ordersTable"><div class="empty-state">Загрузка…</div></div>
+    </article>
+  </section>
+</section>
+</main>
+<script type="module" src="./partner-card.js?v=20260908-1"></script>
+</body>
+</html>
