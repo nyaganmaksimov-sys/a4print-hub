@@ -108,6 +108,9 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAdmin){
     loadCss('button-system.css','20260908-1');
   }
+  if(isPartners){
+    loadCss('partners-modern.css','20260908-1');
+  }
 
   if(isAdmin&&!mobileContext){
     loadCss('sidebar-light.css','20260908-2');
@@ -212,7 +215,10 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('employees-delete.js','20260904-2');
     load('support-employee-helper.js','20260905-1');
   }
-  if (isPartners) load('partners-search.js','20260905-1');
+  if (isPartners) {
+    load('partners-search.js','20260905-1');
+    load('partner-invites.js','20260908-1');
+  }
 
   background(() => {
     load('chat-notifications.js','20260904-7');
