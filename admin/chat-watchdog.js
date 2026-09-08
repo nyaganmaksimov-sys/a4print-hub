@@ -3,8 +3,9 @@
   window.__A4_CHAT_WATCHDOG__=true;
   const q=new URLSearchParams(location.search);
   const standalone=window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true;
-  if(q.get('app')==='1'||standalone){
-    const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260904-2';shell.async=false;document.head.appendChild(shell);
+  const embed=q.get('embed')==='1';
+  if(!embed&&(q.get('app')==='1'||standalone)){
+    const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260908-3';shell.async=false;document.head.appendChild(shell);
   }
 
   function addSupportEntry(){
