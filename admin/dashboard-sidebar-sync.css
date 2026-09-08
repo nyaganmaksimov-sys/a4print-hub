@@ -1,0 +1,38 @@
+/* Keep the dashboard sidebar visually identical to the shared manager/sidebar glass theme. */
+body.dashboard-home .sidebar,
+body.dashboard-home.a4-side-light .sidebar,
+body.dashboard-home.a4-side-glass .sidebar,
+body.dashboard-home.a4-side-flat .sidebar{
+  background:rgba(15,23,42,.76)!important;
+  -webkit-backdrop-filter:blur(20px) saturate(130%)!important;
+  backdrop-filter:blur(20px) saturate(130%)!important;
+  color:#fff!important;
+  border-right:1px solid rgba(255,255,255,.06)!important;
+  box-shadow:8px 0 26px rgba(15,23,42,.12)!important;
+}
+
+body.dashboard-home .sidebar a,
+body.dashboard-home.a4-side-light .sidebar a{
+  color:#d5dde9!important;
+}
+body.dashboard-home .sidebar a:hover,
+body.dashboard-home.a4-side-light .sidebar a:hover{
+  background:rgba(255,255,255,.07)!important;
+  color:#fff!important;
+}
+body.dashboard-home .sidebar a.active,
+body.dashboard-home.a4-side-light .sidebar a.active{
+  background:linear-gradient(90deg,rgba(37,99,235,.30),rgba(37,99,235,.10))!important;
+  color:#fff!important;
+  box-shadow:inset 3px 0 0 #60a5fa!important;
+}
+body.dashboard-home .a4-sidebar-toggle,
+body.dashboard-home.a4-side-light .a4-sidebar-toggle{
+  background:rgba(255,255,255,.08)!important;
+  color:#dbeafe!important;
+}
+body.dashboard-home .sidebar b,
+body.dashboard-home.a4-side-light .sidebar b{
+  background:rgba(255,255,255,.12)!important;
+  color:#fff!important;
+}
