@@ -1,51 +1,48 @@
 body:not(.a4-side-glass) .sidebar{background:#ffffff!important;color:#0f172a!important;border-right:1px solid #dbe3ee!important;box-shadow:8px 0 28px rgba(15,23,42,.05)!important}body:not(.a4-side-glass) .sidebar a{color:#475569!important}body:not(.a4-side-glass) .sidebar a:hover{background:#f1f5f9!important;color:#0f172a!important}body:not(.a4-side-glass) .sidebar a.active{background:#e8f0ff!important;color:#173b75!important;box-shadow:inset 3px 0 0 var(--a4-accent,#2563eb)!important}body:not(.a4-side-glass) .a4-sidebar-toggle{background:#f1f5f9!important;color:#334155!important}body:not(.a4-side-glass) .a4-sidebar-toggle:hover{background:#e2e8f0!important;color:#0f172a!important}body:not(.a4-side-glass) .sidebar b{background:#e2e8f0!important;color:#334155!important}.hub-logo-wrap,.brand{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;border-radius:0!important}.hub-logo,.brand img{filter:none!important}#globalHubLogoFallback,.hub-logo-fallback{color:#0f172a!important}body.a4-side-glass #globalHubLogoFallback,body.a4-side-glass .hub-logo-fallback{color:#fff!important}
 
-/* Desktop: sidebar collapse control lives on the physical edge of the panel. */
+/* Desktop keeps only the real sidebar collapse button. The separate mobile burger is hidden. */
 @media(min-width:901px){
-  .a4-sidebar-head{
-    position:fixed!important;
-    left:232px!important;
-    top:148px!important;
-    z-index:32000!important;
-    width:36px!important;
-    height:44px!important;
-    margin:0!important;
+  html body .a4-mobile-menu{display:none!important}
+  html body .a4-sidebar-head{
+    position:static!important;
+    left:auto!important;
+    top:auto!important;
+    z-index:auto!important;
+    width:auto!important;
+    height:auto!important;
+    margin-bottom:8px!important;
     padding:0!important;
-    display:block!important;
-    pointer-events:none!important;
-  }
-  .a4-sidebar-toggle{
+    display:flex!important;
+    justify-content:flex-end!important;
     pointer-events:auto!important;
-    width:36px!important;
-    height:44px!important;
-    min-width:36px!important;
-    min-height:44px!important;
-    padding:0!important;
+  }
+  html body .a4-sidebar-toggle{
+    position:static!important;
+    pointer-events:auto!important;
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    padding:8px 10px!important;
     margin:0!important;
-    display:grid!important;
-    place-items:center!important;
-    border:1px solid #cbd5e1!important;
-    border-left:0!important;
-    border-radius:0 11px 11px 0!important;
-    background:rgba(255,255,255,.96)!important;
-    color:#334155!important;
-    box-shadow:4px 5px 16px rgba(15,23,42,.10)!important;
-    backdrop-filter:blur(10px)!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:8px!important;
+    border:0!important;
+    border-radius:10px!important;
+    background:rgba(255,255,255,.07)!important;
+    color:#dbe7f7!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    transform:none!important;
   }
-  body.a4-side-glass .a4-sidebar-toggle{
-    background:rgba(71,85,105,.94)!important;
-    color:#f8fafc!important;
-    border-color:rgba(255,255,255,.18)!important;
-    box-shadow:4px 5px 16px rgba(15,23,42,.18)!important;
-  }
-  .a4-sidebar-toggle:hover{
-    transform:translateX(2px)!important;
-    background:#fff!important;
-    color:#1d4ed8!important;
-  }
-  .a4-sidebar-toggle small{display:none!important}
-  .a4-sidebar-toggle span{margin:0!important}
-  .a4-sidebar-toggle svg{width:18px!important;height:18px!important}
-
-  body.a4-sidebar-collapsed .a4-sidebar-head{left:60px!important}
+  html body.a4-side-glass .a4-sidebar-toggle{background:rgba(255,255,255,.07)!important;color:#dbe7f7!important}
+  html body .a4-sidebar-toggle:hover{background:rgba(255,255,255,.12)!important;color:#fff!important;transform:none!important}
+  html body .a4-sidebar-toggle small{display:inline!important}
+  html body .a4-sidebar-toggle span{margin:0!important}
+  html body .a4-sidebar-toggle svg{width:18px!important;height:18px!important}
+  html body.a4-sidebar-collapsed .a4-sidebar-head{position:static!important;justify-content:center!important}
+  html body.a4-sidebar-collapsed .a4-sidebar-toggle{width:44px!important;height:40px!important;padding:0!important}
+  html body.a4-sidebar-collapsed .a4-sidebar-toggle small{display:none!important}
 }
