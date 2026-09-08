@@ -15,8 +15,8 @@ if(!window.__A4_DASH_EQUIPMENT_WIDGET__){
     money:icon('<path d="M4 7h16v10H4z"/><path d="M8 12h8M12 9v6"/>')
   };
 
-  function row({tone='info',iconName='equipment',title,text,count}){
-    return `<a class="dash-attention-item ${tone}" href="./equipment.html"><span class="dash-attention-icon">${icons[iconName]||icons.equipment}</span><span class="dash-attention-copy"><b>${esc(title)}</b><span>${esc(text)}</span></span><span class="dash-attention-count">${esc(count)}</span></a>`;
+  function row({tone='info',iconName='equipment',title,text,count,attention=false}){
+    return `<a class="dash-attention-item ${tone}" href="./equipment.html"${attention?' data-equipment-attention="1"':''}><span class="dash-attention-icon">${icons[iconName]||icons.equipment}</span><span class="dash-attention-copy"><b>${esc(title)}</b><span>${esc(text)}</span></span><span class="dash-attention-count">${esc(count)}</span></a>`;
   }
 
   function ensureCard(){
@@ -38,14 +38,10 @@ if(!window.__A4_DASH_EQUIPMENT_WIDGET__){
     if(!root)return;
     root.querySelectorAll('[data-equipment-attention]').forEach(x=>x.remove());
     if(!overdue&&!soon&&!low)return;
-    const wrap=document.createElement('div');
-    wrap.dataset.equipmentAttention='1';
-    wrap.style.display='contents';
     const title=overdue?`Просрочено ТО: ${overdue}`:(soon?`Скоро ТО: ${soon}`:`Расходники оборудования: ${low}`);
     const text=overdue?'Есть оборудование с просроченной датой обслуживания':soon?'ТО требуется в ближайшие 14 дней':'Есть расходники ниже минимального запаса';
     const count=overdue||soon||low;
-    wrap.innerHTML=row({tone:overdue?'danger':'warn',iconName:overdue||soon?'service':'stock',title,text,count});
-    root.prepend(...wrap.children);
+    root.insertAdjacentHTML('afterbegin',row({tone:overdue?'danger':'warn',iconName:overdue||soon?'service':'stock',title,text,count,attention:true}));
   }
 
   async function load(){
