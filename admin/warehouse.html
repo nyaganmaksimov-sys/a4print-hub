@@ -45,7 +45,7 @@
           <select id="source"><option value="">Все источники</option><option value="MS">МойСклад</option><option value="LOCAL">Локальные HUB</option></select>
           <select id="stockFilter"><option value="">Все остатки</option><option value="positive">Есть в наличии</option><option value="low">Требуют внимания</option><option value="zero">Нет в наличии</option></select>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-bottom:1px solid #edf2f7;color:#64748b;font-size:10px"><span id="visibleCount">0 из 0</span><button id="clearFilters" type="button" style="min-height:30px;height:30px;padding:0 9px;font-size:10px">Сбросить</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-bottom:1px solid #edf2f7;color:#64748b;font-size:10px;flex-wrap:wrap"><span id="visibleCount">0 из 0</span><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><a href="./equipment.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:30px;height:30px;padding:0 10px;border-radius:8px;background:#eaf2ff;color:#1d4ed8;text-decoration:none;font-weight:850">⚙ Оборудование</a><button id="clearFilters" type="button" style="min-height:30px;height:30px;padding:0 9px;font-size:10px">Сбросить</button></div></div>
         <div class="warehouse-list-head"><span>Позиция</span><span>Источник</span><span>Цена</span><span>Остаток</span><span style="text-align:right">Действия</span></div>
         <div id="list"><div class="warehouse-empty">Загрузка склада…</div></div>
       </section>
