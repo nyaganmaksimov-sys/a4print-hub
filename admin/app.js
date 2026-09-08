@@ -3,544 +3,116 @@ import { supabase } from './guard.js?v=20260905-netfix1';
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+const state = { orders: [], lowItems: [], production: [], pos: { shift:null, cash:null, health:null, sales:[], returns:[], operations:[], syncIssues:0 } };
+let dashboardLoading=false, dashboardReloadQueued=false, shiftActionBusy=false, syncBusy=false, realtimeChannel=null, realtimeTimer=null;
 
-const state = {
-  orders: [],
-  lowItems: [],
-  production: [],
-  pos: {
-    shift: null,
-    cash: null,
-    health: null,
-    sales: [],
-    returns: [],
-    syncIssues: 0
-  }
-};
+const statusNames={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён'};
 
-let dashboardLoading = false;
-let dashboardReloadQueued = false;
-let shiftActionBusy = false;
-let syncBusy = false;
-let realtimeReloadTimer = null;
-let realtimeChannel = null;
+function setText(id,value){const el=$(id);if(el)el.textContent=value}
+function statusClass(status){if(status==='NEW')return'status-new';if(['CONFIRMED','IN_PROGRESS'].includes(status))return'status-work';if(status==='READY')return'status-ready';if(status==='COMPLETED')return'status-completed';if(['ON_HOLD','CANCELLED'].includes(status))return'status-cancelled';return''}
+function unitLabel(unit){return unit==='3D_ARTPRINT'?'3D-ARTPRINT':unit==='A4_PRINT'?'А4-Принт':'Общий'}
+function unitClass(unit){return unit==='3D_ARTPRINT'?'unit-3d':unit==='A4_PRINT'?'':'unit-common'}
+function customerName(o){const c=o.customers||{};return c.full_name||c.company_name||o.customer_name||o.client_name||'Клиент не указан'}
+function customerMeta(o){const c=o.customers||{};return c.phone||c.email||c.company_name||''}
+function orderTitle(o){return o.model_name||o.source||(o.business_unit==='3D_ARTPRINT'?'3D-заказ':'Печать / услуга')}
+function orderDate(value){if(!value)return'';const d=new Date(value);if(Number.isNaN(d.getTime()))return'';return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' · '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}
+function dayStartIso(){const d=new Date();d.setHours(0,0,0,0);return d.toISOString()}
+function setOrderBadge(value){const apply=()=>{const badge=$('orderCount');if(badge)badge.textContent=value};apply();setTimeout(apply,400);setTimeout(apply,1200)}
 
-const statusNames = {
-  NEW: 'Новый',
-  CONFIRMED: 'Подтверждён',
-  IN_PROGRESS: 'В работе',
-  READY: 'Готов',
-  COMPLETED: 'Завершён',
-  ON_HOLD: 'Приостановлен',
-  CANCELLED: 'Отменён'
-};
-
-function statusClass(status) {
-  if (status === 'NEW') return 'status-new';
-  if (['CONFIRMED', 'IN_PROGRESS'].includes(status)) return 'status-work';
-  if (status === 'READY') return 'status-ready';
-  if (status === 'COMPLETED') return 'status-completed';
-  if (['ON_HOLD', 'CANCELLED'].includes(status)) return 'status-cancelled';
-  return '';
-}
-
-function unitLabel(unit) {
-  if (unit === '3D_ARTPRINT') return '3D-ARTPRINT';
-  if (unit === 'A4_PRINT') return 'А4-Принт';
-  return 'Общий';
-}
-
-function unitClass(unit) {
-  if (unit === '3D_ARTPRINT') return 'unit-3d';
-  if (unit === 'A4_PRINT') return '';
-  return 'unit-common';
-}
-
-function customerName(order) {
-  const customer = order.customers || {};
-  return customer.full_name || customer.company_name || order.customer_name || order.client_name || 'Клиент не указан';
-}
-
-function customerMeta(order) {
-  const customer = order.customers || {};
-  return customer.phone || customer.email || customer.company_name || '';
-}
-
-function orderTitle(order) {
-  return order.model_name || order.source || (order.business_unit === '3D_ARTPRINT' ? '3D-заказ' : 'Печать / услуга');
-}
-
-function orderDate(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-}
-
-function localDateKey(value) {
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function dayStartIso() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
-
-function setText(id, value) {
-  const el = $(id);
-  if (el) el.textContent = value;
-}
-
-function setOrderBadge(value) {
-  const apply = () => {
-    const badge = $('orderCount');
-    if (badge) badge.textContent = value;
-  };
-  apply();
-  setTimeout(apply, 350);
-}
-
-async function apiRequest(path, options = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error('Требуется повторный вход в HUB');
-
-  const base = String(window.A4PRINT_CONFIG?.apiBaseUrl || '').replace(/\/$/, '');
-  if (!base) throw new Error('API HUB не настроен');
-
-  const headers = new Headers(options.headers || {});
-  headers.set('Authorization', `Bearer ${session.access_token}`);
-  headers.set('Accept', 'application/json');
-  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-
-  const response = await fetch(`${base}${path}`, { ...options, headers, cache: 'no-store' });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.message || payload.error || `HTTP ${response.status}`);
-    error.status = response.status;
-    error.payload = payload;
-    throw error;
-  }
+async function apiRequest(path,options={}){
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session?.access_token)throw new Error('Требуется повторный вход в HUB');
+  const base=String(window.A4PRINT_CONFIG?.apiBaseUrl||'').replace(/\/$/,'');
+  if(!base)throw new Error('API HUB не настроен');
+  const headers=new Headers(options.headers||{});headers.set('Authorization',`Bearer ${session.access_token}`);headers.set('Accept','application/json');
+  if(options.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+  const response=await fetch(`${base}${path}`,{...options,headers,cache:'no-store'});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok){const error=new Error(payload.message||payload.error||`HTTP ${response.status}`);error.status=response.status;error.payload=payload;throw error}
   return payload;
 }
+async function apiHealth(){const base=String(window.A4PRINT_CONFIG?.apiBaseUrl||'').replace(/\/$/,'');if(!base)return null;const r=await fetch(`${base}/api/v1/health`,{cache:'no-store'});if(!r.ok)throw new Error(`API HTTP ${r.status}`);return r.json()}
 
-async function apiHealth() {
-  const base = String(window.A4PRINT_CONFIG?.apiBaseUrl || '').replace(/\/$/, '');
-  if (!base) return null;
-  const response = await fetch(`${base}/api/v1/health`, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`API HTTP ${response.status}`);
-  return response.json();
+async function initUser(){
+  try{
+    const {data:{user}}=await supabase.auth.getUser();
+    setText('userEmail',user?.email||'Пользователь HUB');
+  }catch{setText('userEmail','Пользователь HUB')}
+  const logout=$('logout');
+  if(logout&&!logout.dataset.bound){logout.dataset.bound='1';logout.addEventListener('click',async()=>{logout.disabled=true;logout.textContent='Выход...';try{await supabase.auth.signOut()}finally{location.replace('./login.html')}})}
 }
 
-function renderRecentOrders() {
-  const root = $('recentOrders');
-  if (!root) return;
-  const rows = state.orders.slice(0, 10);
-  root.innerHTML = rows.map((order) => `
-    <a class="dash-order-row" href="./order.html?id=${encodeURIComponent(order.id)}">
-      <span class="dash-order-number">№${esc(order.order_number ?? String(order.id || '').slice(0, 8) || '—')}</span>
-      <span class="dash-order-customer"><b>${esc(customerName(order))}</b><small>${esc(customerMeta(order) || orderDate(order.created_at))}</small></span>
-      <span class="dash-order-service"><b>${esc(orderTitle(order))}</b><small>${esc(orderDate(order.created_at))}</small></span>
-      <span class="dash-unit ${unitClass(order.business_unit)}">${esc(unitLabel(order.business_unit))}</span>
-      <span class="dash-order-total">${money(order.total || order.total_amount)} ₽</span>
-      <span class="dash-status ${statusClass(order.status)}">${esc(statusNames[order.status] || order.status || '—')}</span>
-    </a>`).join('') || '<div class="dash-empty">Заказов пока нет</div>';
+function attentionIcon(type){const icons={orders:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6"></path></svg>',ready:'<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>',stock:'<svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5v11H3z"></path><path d="M8 20v-7h8v7"></path></svg>',work:'<svg viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9h10v9M9 11V7h6v4"></path></svg>',cash:'<svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"></path><path d="M8 12h8M12 9v6"></path></svg>',sync:'<svg viewBox="0 0 24 24"><path d="M20 7h-5V2"></path><path d="M20 7a8 8 0 0 0-14-2"></path><path d="M4 17h5v5"></path><path d="M4 17a8 8 0 0 0 14 2"></path></svg>'};return icons[type]||icons.orders}
+function attentionRow({href='#',tone='info',icon='orders',title,text,count}){return`<a class="dash-attention-item ${tone}" href="${href}"><span class="dash-attention-icon">${attentionIcon(icon)}</span><span class="dash-attention-copy"><b>${esc(title)}</b><span>${esc(text)}</span></span><span class="dash-attention-count">${esc(count)}</span></a>`}
+
+function renderRecentOrders(){
+  const root=$('recentOrders');if(!root)return;const rows=state.orders.slice(0,10);
+  root.innerHTML=rows.map(o=>`<a class="dash-order-row" href="./order.html?id=${encodeURIComponent(o.id)}"><span class="dash-order-number">№${esc(o.order_number??String(o.id||'').slice(0,8)||'—')}</span><span class="dash-order-customer"><b>${esc(customerName(o))}</b><small>${esc(customerMeta(o)||orderDate(o.created_at))}</small></span><span class="dash-order-service"><b>${esc(orderTitle(o))}</b><small>${esc(orderDate(o.created_at))}</small></span><span class="dash-unit ${unitClass(o.business_unit)}">${esc(unitLabel(o.business_unit))}</span><span class="dash-order-total">${money(o.total||o.total_amount)} ₽</span><span class="dash-status ${statusClass(o.status)}">${esc(statusNames[o.status]||o.status||'—')}</span></a>`).join('')||'<div class="dash-empty">Заказов пока нет</div>';
+}
+function renderAttention(metrics){
+  const root=$('attention');if(!root)return;const lowNames=state.lowItems.slice(0,3).map(x=>x.name).filter(Boolean);
+  root.innerHTML=[
+    {href:'./orders.html?status=NEW',tone:metrics.newCount?'info':'good',icon:'orders',title:metrics.newCount?'Новые заказы':'Новых заказов нет',text:metrics.newCount?'Ждут обработки менеджером':'Входящие заказы обработаны',count:metrics.newCount},
+    {href:'./orders.html?status=READY',tone:metrics.readyCount?'good':'info',icon:'ready',title:'Готово к выдаче',text:metrics.readyCount?'Можно связаться с клиентами':'Сейчас готовых заказов нет',count:metrics.readyCount},
+    {href:'./warehouse.html',tone:metrics.lowCount?'danger':'good',icon:'stock',title:metrics.lowCount?'Заканчиваются материалы':'Остатки в норме',text:metrics.lowCount?(lowNames.join(', ')||'Нужно проверить склад'):'Критических остатков не найдено',count:metrics.lowCount},
+    {href:'./orders.html?status=WORK',tone:metrics.workCount?'warn':'good',icon:'work',title:'Заказы в работе',text:metrics.workCount?'Проверьте текущий прогресс':'Активных работ сейчас нет',count:metrics.workCount},
+    {href:'../kassa/',tone:metrics.syncIssues?'danger':'good',icon:'sync',title:metrics.syncIssues?'Есть ошибки синхронизации кассы':'Касса синхронизирована',text:metrics.syncIssues?'Проверьте проблемные продажи или возвраты':'Продажи и возвраты без предупреждений',count:metrics.syncIssues}
+  ].map(attentionRow).join('');
+}
+function renderProduction(){const root=$('productionSummary');if(!root)return;const rows=state.production,queued=rows.filter(x=>['NEW','QUEUED'].includes(x.status)).length,work=rows.filter(x=>['IN_PROGRESS','PAUSED'].includes(x.status)).length,done=rows.filter(x=>x.status==='DONE').length,latest=rows[0];root.innerHTML=[attentionRow({href:'./production.html',tone:queued?'info':'good',icon:'orders',title:'Новые задания',text:queued?'Ожидают запуска в производство':'Очередь свободна',count:queued}),attentionRow({href:'./production.html',tone:work?'warn':'good',icon:'work',title:'В производстве',text:work?'Активные или приостановленные задания':'Активных заданий нет',count:work}),attentionRow({href:'./production.html',tone:'good',icon:'ready',title:'Выполнено',text:latest?`Последнее: ${latest.title||'производственное задание'}`:'Производственных заданий пока нет',count:done}),attentionRow({href:'./production.html',tone:'info',icon:'sync',title:'Всего заданий',text:'Общая производственная очередь HUB',count:rows.length})].join('')}
+
+function cashStyles(){if($('dashCashStyles'))return;const s=document.createElement('style');s.id='dashCashStyles';s.textContent=`.dash-cash-btn{border:1px solid #dbe3ee!important;background:#fff!important;color:#172033!important}.dash-cash-btn.in{border-color:#bbf7d0!important;color:#166534!important}.dash-cash-btn.out{border-color:#fecaca!important;color:#991b1b!important}.dash-cash-journal{margin-top:14px;border-top:1px solid #e6ebf2;padding-top:12px}.dash-cash-journal h3{margin:0 0 10px;font-size:14px}.dash-cash-op{display:grid;grid-template-columns:90px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #edf1f5;font-size:13px}.dash-cash-op:last-child{border-bottom:0}.dash-cash-op b.in{color:#15803d}.dash-cash-op b.out{color:#b91c1c}.dash-cash-op small{display:block;color:#8492a6;margin-top:2px}.dash-money-overlay{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;padding:20px}.dash-money-card{width:min(480px,100%);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);padding:22px}.dash-money-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.dash-money-head h2{margin:0;font-size:22px}.dash-money-head p{margin:5px 0 0;color:#64748b}.dash-money-close{border:0;background:#f1f5f9;border-radius:9px;width:36px;height:36px;font-size:22px;cursor:pointer}.dash-money-balance{margin:18px 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:13px 14px;display:flex;justify-content:space-between}.dash-money-field{display:block;margin:13px 0}.dash-money-field span{display:block;font-weight:700;font-size:13px;margin-bottom:6px}.dash-money-field input,.dash-money-field textarea{width:100%;box-sizing:border-box;border:1px solid #d7dee9;border-radius:10px;padding:11px 12px;font:inherit}.dash-money-field textarea{min-height:78px;resize:vertical}.dash-money-error{min-height:20px;color:#b91c1c;font-size:13px}.dash-money-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}.dash-money-actions button{border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer}.dash-money-cancel{border:1px solid #d7dee9;background:#fff}.dash-money-submit{border:0;background:#2563eb;color:#fff}.dash-money-submit:disabled{opacity:.55;cursor:not-allowed}@media(max-width:640px){.dash-cash-op{grid-template-columns:72px 1fr}.dash-cash-op>strong{grid-column:2}.dash-money-card{padding:18px}}`;document.head.appendChild(s)}
+function ensureCashControls(){
+  cashStyles();const anchor=$('posShiftAction');const group=anchor?.parentElement;if(!group||$('cashInAction'))return;
+  const cashIn=document.createElement('a');cashIn.href='#';cashIn.id='cashInAction';cashIn.className='dash-cash-btn in';cashIn.textContent='+ Внести';
+  const cashOut=document.createElement('a');cashOut.href='#';cashOut.id='cashOutAction';cashOut.className='dash-cash-btn out';cashOut.textContent='− Изъять';
+  group.insertBefore(cashIn,anchor);group.insertBefore(cashOut,anchor);
+  cashIn.addEventListener('click',e=>{e.preventDefault();openCashDialog('CASH_IN')});cashOut.addEventListener('click',e=>{e.preventDefault();openCashDialog('CASH_OUT')});
+}
+function renderCashJournal(){
+  const root=$('posControlSummary');if(!root)return;let journal=$('cashJournal');if(!journal){journal=document.createElement('div');journal.id='cashJournal';journal.className='dash-cash-journal';root.insertAdjacentElement('afterend',journal)}
+  const rows=state.pos.operations||[];journal.innerHTML=`<h3>Последние движения наличных</h3>${rows.slice(0,8).map(op=>{const inOp=op.operation_type==='CASH_IN';const who=op.operator?.full_name||op.operator?.email||'оператор';return`<div class="dash-cash-op"><b class="${inOp?'in':'out'}">${inOp?'Внесение':'Изъятие'}</b><span>${esc(op.reason||'Без комментария')}<small>${esc(who)} · ${esc(orderDate(op.created_at))}</small></span><strong>${inOp?'+':'−'}${money(op.amount)} ₽</strong></div>`}).join('')||'<div class="dash-empty">Движений наличных пока нет</div>'}`;
+}
+function renderPos(){
+  const root=$('posControlSummary');if(!root)return;ensureCashControls();const shiftPayload=state.pos.shift,shift=shiftPayload?.shift||null,shiftOpen=Boolean(shift),summary=shiftPayload?.summary||null,cash=state.pos.cash,salesTotal=state.pos.sales.reduce((s,r)=>s+Number(r.total||0),0),returnsTotal=state.pos.returns.reduce((s,r)=>s+Number(r.amount||0),0),net=salesTotal-returnsTotal,syncIssues=state.pos.syncIssues,apiOk=state.pos.health?.success===true&&state.pos.health?.status==='ok',msOk=state.pos.health?.moyskladConfigured===true,cashAvailable=cash?.available===true&&Number.isFinite(Number(cash.cash));
+  root.innerHTML=[attentionRow({href:'../kassa/',tone:shiftOpen?'good':'warn',icon:'work',title:shiftOpen?'Смена открыта':'Смена закрыта',text:shiftOpen?`Смена №${shift.name||'—'} · открыта ${orderDate(shift.openDate)}`:'Открытой розничной смены сейчас нет',count:shiftOpen?'OPEN':'CLOSED'}),attentionRow({href:'../kassa/',tone:cashAvailable?'good':'warn',icon:'cash',title:'Наличные в кассе',text:cashAvailable?`Источник: ${cash.source==='MOYSKLAD_LEDGER'?'МойСклад ledger':(cash.source||'кассовый ledger')}`:(cash?.requires_baseline?'Нужно задать контрольный остаток':'Точный остаток временно недоступен'),count:cashAvailable?`${money(cash.cash)} ₽`:'—'}),attentionRow({href:'../kassa/',tone:'info',icon:'orders',title:'Продажи сегодня',text:`${state.pos.sales.length} операций · после возвратов ${money(net)} ₽`,count:`${money(salesTotal)} ₽`}),attentionRow({href:'../kassa/',tone:returnsTotal?'warn':'good',icon:'ready',title:'Возвраты сегодня',text:`${state.pos.returns.length} операций`,count:`${money(returnsTotal)} ₽`}),attentionRow({href:'../kassa/',tone:syncIssues||!apiOk||!msOk?'danger':'good',icon:'sync',title:syncIssues?'Синхронизация требует проверки':'Синхронизация работает',text:`${apiOk?'API онлайн':'API недоступен'} · ${msOk?'МойСклад подключён':'МойСклад не подтверждён'}${summary?` · ${summary.source||'live'}`:''}`,count:syncIssues?`${syncIssues} ошибок`:'OK'})].join('');
+  setText('revenueToday',`${money(net)} ₽`);const shiftAction=$('posShiftAction');if(shiftAction&&!shiftActionBusy)shiftAction.textContent=shiftOpen?'Закрыть смену':'Открыть смену';renderCashJournal();
+}
+async function openCashDialog(type){
+  const isOut=type==='CASH_OUT',shiftOpen=Boolean(state.pos.shift?.shift),cash=Number(state.pos.cash?.cash),cashKnown=state.pos.cash?.available===true&&Number.isFinite(cash);
+  if(!shiftOpen){window.alert('Для денежной операции сначала откройте кассовую смену.');return}
+  if(!cashKnown){window.alert('Точный остаток кассы сейчас недоступен. Денежная операция заблокирована для защиты кассы.');return}
+  document.querySelector('.dash-money-overlay')?.remove();const overlay=document.createElement('div');overlay.className='dash-money-overlay';overlay.innerHTML=`<div class="dash-money-card" role="dialog" aria-modal="true"><div class="dash-money-head"><div><h2>${isOut?'Изъятие денег':'Внесение денег'}</h2><p>Операция будет записана в текущую смену МойСклад и HUB.</p></div><button class="dash-money-close" type="button">×</button></div><div class="dash-money-balance"><span>Наличных сейчас</span><strong>${money(cash)} ₽</strong></div><label class="dash-money-field"><span>Сумма</span><input id="dashMoneyAmount" inputmode="decimal" autocomplete="off" placeholder="0,00"></label><label class="dash-money-field"><span>Причина / комментарий</span><textarea id="dashMoneyReason" placeholder="Например: инкассация, размен, внесение руководителем"></textarea></label><div id="dashMoneyError" class="dash-money-error"></div><div class="dash-money-actions"><button class="dash-money-cancel" type="button">Отмена</button><button id="dashMoneySubmit" class="dash-money-submit" type="button">${isOut?'Изъять':'Внести'}</button></div></div>`;document.body.appendChild(overlay);
+  const close=()=>overlay.remove();overlay.querySelector('.dash-money-close').onclick=close;overlay.querySelector('.dash-money-cancel').onclick=close;overlay.addEventListener('click',e=>{if(e.target===overlay)close()});const amount=$('dashMoneyAmount');amount.focus();
+  $('dashMoneySubmit').onclick=async()=>{const value=Number(String(amount.value||'').replace(/\s/g,'').replace(',','.')),reason=String($('dashMoneyReason').value||'').trim(),err=$('dashMoneyError'),btn=$('dashMoneySubmit');err.textContent='';if(!Number.isFinite(value)||value<=0){err.textContent='Введите сумму больше нуля.';return}if(isOut&&value>cash){err.textContent=`В кассе сейчас ${money(cash)} ₽. Нельзя изъять больше.`;return}btn.disabled=true;btn.textContent='Провожу...';try{const result=await apiRequest(`/api/v1/pos/${isOut?'cashout':'cashin'}`,{method:'POST',body:JSON.stringify({amount:value,reason})});close();if(result?.cash_after!=null)state.pos.cash={...(state.pos.cash||{}),available:true,cash:Number(result.cash_after)};await loadDashboard(true)}catch(error){btn.disabled=false;btn.textContent=isOut?'Изъять':'Внести';err.textContent=error.message}};
 }
 
-function attentionIcon(type) {
-  const icons = {
-    orders: '<svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6"></path></svg>',
-    ready: '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>',
-    stock: '<svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5v11H3z"></path><path d="M8 20v-7h8v7"></path></svg>',
-    work: '<svg viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9h10v9M9 11V7h6v4"></path></svg>',
-    cash: '<svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"></path><path d="M8 12h8M12 9v6"></path></svg>',
-    sync: '<svg viewBox="0 0 24 24"><path d="M20 7h-5V2"></path><path d="M20 7a8 8 0 0 0-14-2"></path><path d="M4 17h5v5"></path><path d="M4 17a8 8 0 0 0 14 2"></path></svg>'
-  };
-  return icons[type] || icons.orders;
+function renderSearch(query){const root=$('dashboardSearchResults');if(!root)return;const q=String(query||'').trim().toLowerCase();if(!q){root.classList.remove('open');root.innerHTML='';return}const matches=state.orders.filter(o=>{const c=o.customers||{};return[o.order_number,o.model_name,o.source,o.business_unit,c.full_name,c.company_name,c.phone,c.email,o.customer_name,o.client_name].filter(Boolean).join(' ').toLowerCase().includes(q)}).slice(0,7);root.innerHTML=(matches.map(o=>`<a class="dashboard-search-result" href="./order.html?id=${encodeURIComponent(o.id)}"><span><b>Заказ №${esc(o.order_number??String(o.id||'').slice(0,8))} · ${esc(customerName(o))}</b><span>${esc(orderTitle(o))} · ${esc(unitLabel(o.business_unit))}</span></span><strong>${money(o.total||o.total_amount)} ₽</strong></a>`).join('')||'<div class="dashboard-search-empty">Совпадений среди загруженных заказов нет</div>')+`<a class="dashboard-search-all" href="./orders.html?q=${encodeURIComponent(query)}"><span>Искать во всех заказах</span><span>→</span></a>`;root.classList.add('open')}
+function initSearch(){const input=$('dashboardSearch');if(!input)return;input.addEventListener('input',()=>renderSearch(input.value));input.addEventListener('focus',()=>{if(input.value.trim())renderSearch(input.value)});input.addEventListener('keydown',e=>{if(e.key==='Enter'&&input.value.trim()){e.preventDefault();location.href=`./orders.html?q=${encodeURIComponent(input.value.trim())}`}if(e.key==='Escape')$('dashboardSearchResults')?.classList.remove('open')});document.addEventListener('click',e=>{if(!e.target.closest('#dashboardSearchWrap'))$('dashboardSearchResults')?.classList.remove('open')})}
+function initControlActions(){
+  $('posShiftAction')?.addEventListener('click',async e=>{e.preventDefault();if(shiftActionBusy)return;const open=Boolean(state.pos.shift?.shift);if(!window.confirm(`Точно ${open?'закрыть текущую кассовую смену':'открыть новую кассовую смену'}? Изменение попадёт в KASSA и МойСклад.`))return;shiftActionBusy=true;const btn=$('posShiftAction');btn.textContent=open?'Закрываю...':'Открываю...';try{await apiRequest(`/api/v1/pos/shift/${open?'close':'open'}`,{method:'POST',body:'{}'});await loadDashboard(true)}catch(error){window.alert(`Не удалось изменить смену: ${error.message}`)}finally{shiftActionBusy=false;renderPos()}});
+  $('syncMoySklad')?.addEventListener('click',async e=>{e.preventDefault();if(syncBusy)return;syncBusy=true;const btn=$('syncMoySklad');btn.textContent='Обновляю каталог...';try{const result=await apiRequest('/api/v1/integrations/moysklad/sync',{method:'POST',body:'{}'});btn.textContent=result.updated||result.created?`Готово: ${Number(result.updated||0)+Number(result.created||0)}`:'Каталог обновлён';await loadDashboard(true)}catch(error){btn.textContent='Ошибка';window.alert(`Каталог МойСклад не обновлён: ${error.message}`)}finally{syncBusy=false;setTimeout(()=>{btn.textContent='Обновить каталог'},2500)}});
 }
 
-function attentionRow({ href = '#', tone = 'info', icon = 'orders', title, text, count, extraClass = '' }) {
-  return `
-    <a class="dash-attention-item ${tone} ${extraClass}" href="${href}">
-      <span class="dash-attention-icon">${attentionIcon(icon)}</span>
-      <span class="dash-attention-copy"><b>${esc(title)}</b><span>${esc(text)}</span></span>
-      <span class="dash-attention-count">${esc(count)}</span>
-    </a>`;
-}
-
-function renderAttention(metrics) {
-  const root = $('attention');
-  if (!root) return;
-  const lowNames = state.lowItems.slice(0, 3).map((x) => x.name).filter(Boolean);
-  const items = [
-    {
-      href: './orders.html?status=NEW',
-      tone: metrics.newCount ? 'info' : 'good',
-      icon: 'orders',
-      title: metrics.newCount ? 'Новые заказы' : 'Новых заказов нет',
-      text: metrics.newCount ? 'Ждут обработки менеджером' : 'Входящие заказы обработаны',
-      count: metrics.newCount
-    },
-    {
-      href: './orders.html?status=READY',
-      tone: metrics.readyCount ? 'good' : 'info',
-      icon: 'ready',
-      title: 'Готово к выдаче',
-      text: metrics.readyCount ? 'Можно связаться с клиентами' : 'Сейчас готовых заказов нет',
-      count: metrics.readyCount
-    },
-    {
-      href: './warehouse.html',
-      tone: metrics.lowCount ? 'danger' : 'good',
-      icon: 'stock',
-      title: metrics.lowCount ? 'Заканчиваются материалы' : 'Остатки в норме',
-      text: metrics.lowCount ? (lowNames.join(', ') || 'Нужно проверить склад') : 'Критических остатков не найдено',
-      count: metrics.lowCount
-    },
-    {
-      href: './orders.html?status=WORK',
-      tone: metrics.workCount ? 'warn' : 'good',
-      icon: 'work',
-      title: 'Заказы в работе',
-      text: metrics.workCount ? 'Проверьте текущий прогресс' : 'Активных работ сейчас нет',
-      count: metrics.workCount
-    },
-    {
-      href: '../kassa/',
-      tone: metrics.syncIssues ? 'danger' : 'good',
-      icon: 'sync',
-      title: metrics.syncIssues ? 'Есть ошибки синхронизации кассы' : 'Касса синхронизирована',
-      text: metrics.syncIssues ? 'Проверьте проблемные продажи или возвраты' : 'Продажи и возвраты без предупреждений',
-      count: metrics.syncIssues
-    }
-  ];
-  root.innerHTML = items.map(attentionRow).join('');
-}
-
-function renderPos() {
-  const root = $('posControlSummary');
-  if (!root) return;
-
-  const shiftPayload = state.pos.shift;
-  const shift = shiftPayload?.shift || null;
-  const shiftOpen = Boolean(shift);
-  const summary = shiftPayload?.summary || null;
-  const cash = state.pos.cash;
-  const salesTotal = state.pos.sales.reduce((sum, row) => sum + Number(row.total || 0), 0);
-  const returnsTotal = state.pos.returns.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  const net = salesTotal - returnsTotal;
-  const syncIssues = state.pos.syncIssues;
-  const apiOk = state.pos.health?.success === true && state.pos.health?.status === 'ok';
-  const msOk = state.pos.health?.moyskladConfigured === true;
-
-  const shiftText = shiftOpen
-    ? `Смена №${shift.name || '—'} · открыта ${orderDate(shift.openDate)}`
-    : 'Открытой розничной смены сейчас нет';
-  const cashAvailable = cash?.available === true && Number.isFinite(Number(cash.cash));
-  const cashText = cashAvailable
-    ? `Источник: ${cash.source === 'MOYSKLAD_LEDGER' ? 'МойСклад ledger' : (cash.source || 'кассовый ledger')}${cash.delta ? ` · изменение ${cash.delta > 0 ? '+' : ''}${money(cash.delta)} ₽` : ''}`
-    : (cash?.requires_baseline ? 'Нужно задать контрольный остаток в настройках KASSA' : 'Точный остаток временно недоступен');
-
-  root.innerHTML = [
-    attentionRow({ href: '../kassa/', tone: shiftOpen ? 'good' : 'warn', icon: 'work', title: shiftOpen ? 'Смена открыта' : 'Смена закрыта', text: shiftText, count: shiftOpen ? 'OPEN' : 'CLOSED' }),
-    attentionRow({ href: '../kassa/', tone: cashAvailable ? 'good' : 'warn', icon: 'cash', title: 'Наличные в кассе', text: cashText, count: cashAvailable ? `${money(cash.cash)} ₽` : '—' }),
-    attentionRow({ href: '../kassa/', tone: 'info', icon: 'orders', title: 'Продажи сегодня', text: `${state.pos.sales.length} операций · после возвратов ${money(net)} ₽`, count: `${money(salesTotal)} ₽` }),
-    attentionRow({ href: '../kassa/', tone: returnsTotal ? 'warn' : 'good', icon: 'ready', title: 'Возвраты сегодня', text: `${state.pos.returns.length} операций`, count: `${money(returnsTotal)} ₽` }),
-    attentionRow({ href: '../kassa/', tone: syncIssues || !apiOk || !msOk ? 'danger' : 'good', icon: 'sync', title: syncIssues ? 'Синхронизация требует проверки' : 'Синхронизация работает', text: `${apiOk ? 'API онлайн' : 'API недоступен'} · ${msOk ? 'МойСклад подключён' : 'МойСклад не подтверждён'}${summary ? ` · ${summary.source || 'live'}` : ''}`, count: syncIssues ? `${syncIssues} ошибок` : 'OK' })
-  ].join('');
-
-  setText('revenueToday', `${money(net)} ₽`);
-  const shiftAction = $('posShiftAction');
-  if (shiftAction && !shiftActionBusy) shiftAction.textContent = shiftOpen ? 'Закрыть смену' : 'Открыть смену';
-}
-
-function renderProduction() {
-  const root = $('productionSummary');
-  if (!root) return;
-  const rows = state.production;
-  const queued = rows.filter((x) => ['NEW', 'QUEUED'].includes(x.status)).length;
-  const work = rows.filter((x) => ['IN_PROGRESS', 'PAUSED'].includes(x.status)).length;
-  const done = rows.filter((x) => x.status === 'DONE').length;
-  const latest = rows[0];
-
-  root.innerHTML = [
-    attentionRow({ href: './production.html', tone: queued ? 'info' : 'good', icon: 'orders', title: 'Новые задания', text: queued ? 'Ожидают запуска в производство' : 'Очередь свободна', count: queued }),
-    attentionRow({ href: './production.html', tone: work ? 'warn' : 'good', icon: 'work', title: 'В производстве', text: work ? 'Активные или приостановленные задания' : 'Активных заданий нет', count: work }),
-    attentionRow({ href: './production.html', tone: 'good', icon: 'ready', title: 'Выполнено', text: latest ? `Последнее: ${latest.title || 'производственное задание'}` : 'Производственных заданий пока нет', count: done }),
-    attentionRow({ href: './production.html', tone: 'info', icon: 'sync', title: 'Всего заданий', text: 'Данные общей производственной очереди HUB', count: rows.length })
-  ].join('');
-}
-
-function renderSearch(query) {
-  const root = $('dashboardSearchResults');
-  if (!root) return;
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) {
-    root.classList.remove('open');
-    root.innerHTML = '';
-    return;
-  }
-
-  const matches = state.orders.filter((order) => {
-    const customer = order.customers || {};
-    const haystack = [
-      order.order_number,
-      order.model_name,
-      order.source,
-      order.business_unit,
-      customer.full_name,
-      customer.company_name,
-      customer.phone,
-      customer.email,
-      order.customer_name,
-      order.client_name
-    ].filter(Boolean).join(' ').toLowerCase();
-    return haystack.includes(q);
-  }).slice(0, 7);
-
-  const rows = matches.map((order) => `
-    <a class="dashboard-search-result" href="./order.html?id=${encodeURIComponent(order.id)}">
-      <span><b>Заказ №${esc(order.order_number ?? String(order.id || '').slice(0, 8))} · ${esc(customerName(order))}</b><span>${esc(orderTitle(order))} · ${esc(unitLabel(order.business_unit))}</span></span>
-      <strong>${money(order.total || order.total_amount)} ₽</strong>
-    </a>`).join('');
-
-  root.innerHTML = (rows || '<div class="dashboard-search-empty">Среди загруженных заказов совпадений нет</div>') + `
-    <a class="dashboard-search-all" href="./orders.html?q=${encodeURIComponent(query)}"><span>Искать во всех заказах</span><span>→</span></a>`;
-  root.classList.add('open');
-}
-
-function initSearch() {
-  const input = $('dashboardSearch');
-  const wrap = $('dashboardSearchWrap');
-  if (!input || !wrap) return;
-
-  input.addEventListener('input', () => renderSearch(input.value));
-  input.addEventListener('focus', () => { if (input.value.trim()) renderSearch(input.value); });
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && input.value.trim()) {
-      event.preventDefault();
-      location.href = `./orders.html?q=${encodeURIComponent(input.value.trim())}`;
-    }
-    if (event.key === 'Escape') $('dashboardSearchResults')?.classList.remove('open');
-  });
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('#dashboardSearchWrap')) $('dashboardSearchResults')?.classList.remove('open');
-  });
-}
-
-function initControlActions() {
-  $('posShiftAction')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    if (shiftActionBusy) return;
-
-    const open = Boolean(state.pos.shift?.shift);
-    const actionLabel = open ? 'закрыть текущую кассовую смену' : 'открыть новую кассовую смену';
-    if (!window.confirm(`Точно ${actionLabel}? Изменение будет выполнено в общей кассе и МойСклад.`)) return;
-
-    shiftActionBusy = true;
-    const button = $('posShiftAction');
-    if (button) button.textContent = open ? 'Закрываю...' : 'Открываю...';
-    try {
-      await apiRequest(`/api/v1/pos/shift/${open ? 'close' : 'open'}`, { method: 'POST', body: '{}' });
-      await loadDashboard(true);
-    } catch (error) {
-      console.error(error);
-      window.alert(`Не удалось изменить смену: ${error.message}`);
-    } finally {
-      shiftActionBusy = false;
-      renderPos();
-    }
-  });
-
-  $('syncMoySklad')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    if (syncBusy) return;
-
-    syncBusy = true;
-    const button = $('syncMoySklad');
-    if (button) button.textContent = 'Обновляю каталог...';
-    try {
-      const result = await apiRequest('/api/v1/integrations/moysklad/sync', { method: 'POST', body: '{}' });
-      const details = [
-        result.updated ? `обновлено ${result.updated}` : '',
-        result.created ? `добавлено ${result.created}` : ''
-      ].filter(Boolean).join(', ');
-      if (button) button.textContent = details ? `Готово: ${details}` : 'Каталог обновлён';
-      await loadDashboard(true);
-    } catch (error) {
-      console.error(error);
-      if (button) button.textContent = 'Ошибка обновления';
-      window.alert(`Каталог МойСклад не обновлён: ${error.message}`);
-    } finally {
-      syncBusy = false;
-      setTimeout(() => { if (button) button.textContent = 'Обновить каталог'; }, 2500);
-    }
-  });
-}
-
-function scheduleRealtimeReload() {
-  clearTimeout(realtimeReloadTimer);
-  realtimeReloadTimer = setTimeout(() => loadDashboard(true), 450);
-}
-
-function initRealtime() {
-  if (realtimeChannel) return;
-  realtimeChannel = supabase
-    .channel('admin-control-center-live')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, scheduleRealtimeReload)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_sales' }, scheduleRealtimeReload)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_returns' }, scheduleRealtimeReload)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_shift_sessions' }, scheduleRealtimeReload)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'production_jobs' }, scheduleRealtimeReload)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_transactions' }, scheduleRealtimeReload)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalog_items' }, scheduleRealtimeReload)
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') console.info('A4PRINT HUB realtime подключён');
-      if (['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) console.warn('A4PRINT HUB realtime:', status);
-    });
-
-  window.addEventListener('beforeunload', () => {
-    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-  }, { once: true });
-}
-
-async function loadDashboard(force = false) {
-  if (dashboardLoading) {
-    if (force) dashboardReloadQueued = true;
-    return;
-  }
-
-  dashboardLoading = true;
-  const recent = $('recentOrders');
-  const start = dayStartIso();
-
-  try {
-    const [
-      ordersResult,
-      countResult,
-      itemsResult,
-      movesResult,
-      productionResult,
-      posSalesResult,
-      posReturnsResult,
-      posSalesIssuesResult,
-      posReturnIssuesResult
-    ] = await Promise.all([
-      supabase.from('orders').select('*,customers(full_name,company_name,phone,email)').order('created_at', { ascending: false }).limit(200),
-      supabase.from('orders').select('id', { count: 'exact', head: true }),
-      supabase.from('catalog_items').select('id,name,sku,item_type,min_stock').eq('is_active', true),
-      supabase.from('inventory_transactions').select('catalog_item_id,transaction_type,quantity'),
-      supabase.from('production_jobs').select('id,title,status,priority,planned_start,planned_end,created_at').order('created_at', { ascending: false }).limit(200),
-      supabase.from('pos_sales').select('id,total,payment_method,sold_at,sync_status,sync_error').gte('sold_at', start).order('sold_at', { ascending: false }).limit(500),
-      supabase.from('pos_returns').select('id,amount,payment_method,returned_at,sync_status,sync_error').gte('returned_at', start).order('returned_at', { ascending: false }).limit(500),
-      supabase.from('pos_sales').select('id', { count: 'exact', head: true }).in('sync_status', ['FAILED', 'WARNING']),
-      supabase.from('pos_returns').select('id', { count: 'exact', head: true }).in('sync_status', ['FAILED', 'WARNING'])
+async function loadOrders(){let result=await supabase.from('orders').select('*,customers(full_name,company_name,phone,email)').order('created_at',{ascending:false}).limit(200);if(result.error){console.warn('Orders relation query failed, using fallback',result.error);result=await supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(200)}if(result.error)throw result.error;return result.data||[]}
+async function loadDashboard(force=false){
+  if(dashboardLoading){if(force)dashboardReloadQueued=true;return}dashboardLoading=true;setText('lastUpdated','обновление...');
+  try{
+    const start=dayStartIso();
+    const [ordersR,itemsR,movesR,productionR,salesR,returnsR,salesIssuesR,returnIssuesR]=await Promise.allSettled([
+      loadOrders(),supabase.from('catalog_items').select('id,name,sku,item_type,min_stock').eq('is_active',true),supabase.from('inventory_transactions').select('catalog_item_id,transaction_type,quantity'),supabase.from('production_jobs').select('id,title,status,priority,planned_start,planned_end,created_at').order('created_at',{ascending:false}).limit(200),supabase.from('pos_sales').select('id,total,payment_method,sold_at,sync_status,sync_error').gte('sold_at',start).order('sold_at',{ascending:false}).limit(500),supabase.from('pos_returns').select('id,amount,payment_method,returned_at,sync_status,sync_error').gte('returned_at',start).order('returned_at',{ascending:false}).limit(500),supabase.from('pos_sales').select('id',{count:'exact',head:true}).in('sync_status',['FAILED','WARNING']),supabase.from('pos_returns').select('id',{count:'exact',head:true}).in('sync_status',['FAILED','WARNING'])
     ]);
-
-    if (ordersResult.error) throw ordersResult.error;
-    state.orders = ordersResult.data || [];
-    setOrderBadge(countResult.error ? state.orders.length : (countResult.count ?? state.orders.length));
-
-    const qtyByItem = new Map();
-    if (!movesResult.error) {
-      for (const move of movesResult.data || []) {
-        const current = qtyByItem.get(move.catalog_item_id) || 0;
-        const quantity = Number(move.quantity || 0);
-        const positive = ['RECEIPT', 'TRANSFER_IN', 'PRODUCTION_IN', 'ADJUSTMENT'].includes(move.transaction_type);
-        qtyByItem.set(move.catalog_item_id, current + (positive ? quantity : -quantity));
-      }
-    }
-
-    state.lowItems = [];
-    if (!itemsResult.error && !movesResult.error) {
-      for (const item of itemsResult.data || []) {
-        const qty = qtyByItem.get(item.id) || 0;
-        const min = Number(item.min_stock || 0);
-        if (qty <= min) state.lowItems.push({ ...item, qty, min });
-      }
-    } else {
-      console.warn('Не удалось обновить складскую сводку', itemsResult.error || movesResult.error);
-    }
-
-    state.production = productionResult.error ? [] : (productionResult.data || []);
-    if (productionResult.error) console.warn('Не удалось обновить производство', productionResult.error);
-
-    state.pos.sales = posSalesResult.error ? [] : (posSalesResult.data || []);
-    state.pos.returns = posReturnsResult.error ? [] : (posReturnsResult.data || []);
-    if (posSalesResult.error) console.warn('Не удалось загрузить продажи кассы', posSalesResult.error);
-    if (posReturnsResult.error) console.warn('Не удалось загрузить возвраты кассы', posReturnsResult.error);
-
-    const todayIssueFallback = [...state.pos.sales, ...state.pos.returns]
-      .filter((row) => ['FAILED', 'WARNING'].includes(row.sync_status)).length;
-    if (!posSalesIssuesResult.error && !posReturnIssuesResult.error) {
-      state.pos.syncIssues = Number(posSalesIssuesResult.count || 0) + Number(posReturnIssuesResult.count || 0);
-    } else {
-      state.pos.syncIssues = todayIssueFallback;
-      console.warn('Не удалось получить полный счётчик ошибок синхронизации', posSalesIssuesResult.error || posReturnIssuesResult.error);
-    }
-
-    const orders = state.orders;
-    const newCount = orders.filter((x) => x.status === 'NEW').length;
-    const workCount = orders.filter((x) => ['CONFIRMED', 'IN_PROGRESS'].includes(x.status)).length;
-    const readyCount = orders.filter((x) => x.status === 'READY').length;
-    const lowCount = state.lowItems.length;
-
-    setText('newOrders', newCount);
-    setText('activeOrders', workCount);
-    setText('readyOrders', readyCount);
-    setText('lowStock', lowCount);
-
-    const activeStatuses = ['NEW', 'CONFIRMED', 'IN_PROGRESS'];
-    const a4 = orders.filter((x) => x.business_unit === 'A4_PRINT');
-    const d3 = orders.filter((x) => x.business_unit === '3D_ARTPRINT');
-    setText('a4Active', a4.filter((x) => activeStatuses.includes(x.status)).length);
-    setText('a4Ready', a4.filter((x) => x.status === 'READY').length);
-    setText('d3Active', d3.filter((x) => activeStatuses.includes(x.status)).length);
-    setText('d3Ready', d3.filter((x) => x.status === 'READY').length);
-
-    const [shiftResult, cashResult, healthResult] = await Promise.allSettled([
-      apiRequest('/api/v1/pos/shift'),
-      apiRequest('/api/v1/pos/cash-balance'),
-      apiHealth()
-    ]);
-
-    state.pos.shift = shiftResult.status === 'fulfilled' ? shiftResult.value : null;
-    state.pos.cash = cashResult.status === 'fulfilled' ? cashResult.value : (cashResult.reason?.payload || null);
-    state.pos.health = healthResult.status === 'fulfilled' ? healthResult.value : null;
-
-    if (shiftResult.status === 'rejected') console.warn('Статус смены недоступен', shiftResult.reason);
-    if (cashResult.status === 'rejected') console.warn('Точный остаток кассы недоступен', cashResult.reason);
-    if (healthResult.status === 'rejected') console.warn('API health недоступен', healthResult.reason);
-
-    renderRecentOrders();
-    renderAttention({ newCount, workCount, readyCount, lowCount, syncIssues: state.pos.syncIssues });
-    renderPos();
-    renderProduction();
-    setText('lastUpdated', `обновлено ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
-
-    const search = $('dashboardSearch');
-    if (search?.value.trim()) renderSearch(search.value);
-  } catch (error) {
-    console.error(error);
-    if (recent) recent.innerHTML = `<div class="dash-empty">Не удалось загрузить данные: ${esc(error.message)}</div>`;
-    const attention = $('attention');
-    if (attention) attention.innerHTML = '<div class="dash-empty">Сводка временно недоступна</div>';
-    setText('lastUpdated', 'ошибка обновления');
-  } finally {
-    dashboardLoading = false;
-    if (dashboardReloadQueued) {
-      dashboardReloadQueued = false;
-      setTimeout(() => loadDashboard(), 0);
-    }
-  }
+    if(ordersR.status==='rejected')throw ordersR.reason;state.orders=ordersR.value||[];setOrderBadge(state.orders.length);
+    const items=itemsR.status==='fulfilled'&&!itemsR.value.error?(itemsR.value.data||[]):[],moves=movesR.status==='fulfilled'&&!movesR.value.error?(movesR.value.data||[]):[];const qty=new Map();for(const move of moves){const current=qty.get(move.catalog_item_id)||0,q=Number(move.quantity||0),positive=['RECEIPT','TRANSFER_IN','PRODUCTION_IN','ADJUSTMENT'].includes(move.transaction_type);qty.set(move.catalog_item_id,current+(positive?q:-q))}state.lowItems=items.filter(item=>(qty.get(item.id)||0)<=Number(item.min_stock||0)).map(item=>({...item,qty:qty.get(item.id)||0}));
+    state.production=productionR.status==='fulfilled'&&!productionR.value.error?(productionR.value.data||[]):[];state.pos.sales=salesR.status==='fulfilled'&&!salesR.value.error?(salesR.value.data||[]):[];state.pos.returns=returnsR.status==='fulfilled'&&!returnsR.value.error?(returnsR.value.data||[]):[];
+    const sCount=salesIssuesR.status==='fulfilled'&&!salesIssuesR.value.error?Number(salesIssuesR.value.count||0):0,rCount=returnIssuesR.status==='fulfilled'&&!returnIssuesR.value.error?Number(returnIssuesR.value.count||0):0;state.pos.syncIssues=sCount+rCount;
+    const newCount=state.orders.filter(x=>x.status==='NEW').length,workCount=state.orders.filter(x=>['CONFIRMED','IN_PROGRESS'].includes(x.status)).length,readyCount=state.orders.filter(x=>x.status==='READY').length,lowCount=state.lowItems.length;setText('newOrders',newCount);setText('activeOrders',workCount);setText('readyOrders',readyCount);setText('lowStock',lowCount);
+    const activeStatuses=['NEW','CONFIRMED','IN_PROGRESS'],a4=state.orders.filter(x=>x.business_unit==='A4_PRINT'),d3=state.orders.filter(x=>x.business_unit==='3D_ARTPRINT');setText('a4Active',a4.filter(x=>activeStatuses.includes(x.status)).length);setText('a4Ready',a4.filter(x=>x.status==='READY').length);setText('d3Active',d3.filter(x=>activeStatuses.includes(x.status)).length);setText('d3Ready',d3.filter(x=>x.status==='READY').length);
+    const [shiftR,cashR,healthR,opsR]=await Promise.allSettled([apiRequest('/api/v1/pos/shift'),apiRequest('/api/v1/pos/cash-balance'),apiHealth(),apiRequest('/api/v1/pos/cash-operations?limit=20')]);state.pos.shift=shiftR.status==='fulfilled'?shiftR.value:null;state.pos.cash=cashR.status==='fulfilled'?cashR.value:(cashR.reason?.payload||null);state.pos.health=healthR.status==='fulfilled'?healthR.value:null;state.pos.operations=opsR.status==='fulfilled'?(opsR.value.operations||[]):[];
+    renderRecentOrders();renderAttention({newCount,workCount,readyCount,lowCount,syncIssues:state.pos.syncIssues});renderPos();renderProduction();setText('lastUpdated',`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`);const search=$('dashboardSearch');if(search?.value.trim())renderSearch(search.value);
+  }catch(error){console.error('Dashboard load failed',error);const recent=$('recentOrders');if(recent)recent.innerHTML=`<div class="dash-empty">Не удалось загрузить данные: ${esc(error.message||error)}</div>`;const attention=$('attention');if(attention)attention.innerHTML='<div class="dash-empty">Сводка временно недоступна</div>';setText('lastUpdated','ошибка обновления')}
+  finally{dashboardLoading=false;if(dashboardReloadQueued){dashboardReloadQueued=false;setTimeout(()=>loadDashboard(),0)}}
 }
+function initRealtime(){if(typeof supabase.channel!=='function')return;try{const reload=()=>{clearTimeout(realtimeTimer);realtimeTimer=setTimeout(()=>loadDashboard(true),500)};realtimeChannel=supabase.channel('admin-control-center-live-v2').on('postgres_changes',{event:'*',schema:'public',table:'orders'},reload).on('postgres_changes',{event:'*',schema:'public',table:'pos_sales'},reload).on('postgres_changes',{event:'*',schema:'public',table:'pos_returns'},reload).on('postgres_changes',{event:'*',schema:'public',table:'pos_shift_sessions'},reload).on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'inventory_transactions'},reload).on('postgres_changes',{event:'*',schema:'public',table:'catalog_items'},reload).subscribe();window.addEventListener('beforeunload',()=>{if(realtimeChannel)supabase.removeChannel(realtimeChannel)},{once:true})}catch(error){console.warn('Realtime unavailable, polling remains active',error)}}
 
-const todayText = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-setText('todayLabel', `Сегодня, ${todayText} · А4-Принт + 3D-ARTPRINT + KASSA`);
-initSearch();
-initControlActions();
-initRealtime();
-loadDashboard();
-setInterval(loadDashboard, 60000);
+const todayText=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());setText('todayLabel',`Сегодня, ${todayText} · А4-Принт + 3D-ARTPRINT + KASSA`);initUser();initSearch();initControlActions();loadDashboard().finally(initRealtime);setInterval(()=>loadDashboard(),60000);
