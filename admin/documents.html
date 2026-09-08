@@ -1,1 +1,61 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Документы — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script><style>.docs-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.docs-toolbar input,.docs-toolbar select{padding:11px;border:1px solid #e5e7eb;border-radius:9px}.docs-toolbar input{flex:1;min-width:220px}.doc-row{display:grid;grid-template-columns:150px 1fr 150px 150px;gap:14px;padding:14px 0;border-bottom:1px solid #e5e7eb;align-items:center}.doc-source{font-size:11px;padding:4px 7px;border-radius:999px;background:#eef2ff;color:#3730a3;width:max-content}.muted{color:#64748b;font-size:13px}@media(max-width:780px){.doc-row{grid-template-columns:1fr}.doc-row>*{min-width:0}}</style></head><body><aside class="sidebar"><div class="brand"></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>📁 Документы</h1><p>Договоры, счета, акты и документы клиентов</p></div><div><span id="userEmail"></span></div></header><section class="panel"><div class="docs-toolbar"><input id="search" placeholder="Поиск по номеру, названию или клиенту"><select id="status"><option value="">Все статусы</option><option>DRAFT</option><option>ISSUED</option><option>PAID</option><option>PENDING_APPROVAL</option><option>APPROVED</option><option>SIGNED</option><option>ACTIVE</option><option>ARCHIVED</option><option>CANCELLED</option></select><button id="refresh">Обновить</button></div><div id="documents"><div class="empty">Загрузка…</div></div></section></main><script type="module">import{supabase}from'./guard.js';const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const{data:{session}}=await supabase.auth.getSession();if(session)$('userEmail').textContent=session.user.email||'';let rows=[];async function load(){const [hub,client]=await Promise.all([supabase.from('documents').select('id,document_number,title,status,issue_date,created_at,metadata,customers(full_name,company_name)').order('created_at',{ascending:false}).limit(300),supabase.from('customer_documents').select('id,document_number,title,status,issue_date,created_at,amount,customer_id,customers(full_name,company_name)').order('created_at',{ascending:false}).limit(300)]);rows=[];if(!hub.error)rows.push(...(hub.data||[]).map(x=>({...x,source:'HUB',amount:x.metadata?.amount||0,customer:x.customers})));if(!client.error)rows.push(...(client.data||[]).map(x=>({...x,source:'Счёт клиента',customer:x.customers})));if(hub.error&&client.error){$('documents').innerHTML=`<div class="empty">Ошибка загрузки документов: ${esc(hub.error.message)} / ${esc(client.error.message)}</div>`;return}rows.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));render()}function render(){const q=$('search').value.trim().toLowerCase(),st=$('status').value;const list=rows.filter(x=>(!st||x.status===st)&&`${x.document_number||''} ${x.title||''} ${x.customer?.full_name||''} ${x.customer?.company_name||''}`.toLowerCase().includes(q));$('documents').innerHTML=list.map(x=>`<div class="doc-row"><div><b>${esc(x.document_number||'—')}</b><div class="doc-source">${esc(x.source)}</div></div><div><b>${esc(x.title||'Документ')}</b><div class="muted">${esc(x.customer?.company_name||x.customer?.full_name||'Клиент не указан')}${Number(x.amount||0)>0?' · '+Number(x.amount).toLocaleString('ru-RU')+' ₽':''}</div></div><span>${esc(x.status||'')}</span><span>${esc(x.issue_date||'')}</span></div>`).join('')||'<div class="empty">Документов нет</div>'}$('refresh').onclick=load;$('search').oninput=render;$('status').onchange=render;load();</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Документы — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-docs3">
+  <link rel="stylesheet" href="./crm-finance.css?v=20260908-1">
+  <script src="./config.js?v=20260908-docs3"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Документы</h1><p>Счета клиентов и внутренние документы HUB в едином журнале</p></div>
+      <div class="cf-actions"><span id="updatedAt" class="cf-updated">загрузка…</span><button id="refresh" type="button">↻ Обновить</button><button id="createInvoice" class="primary" type="button">+ Счёт</button></div>
+    </header>
+
+    <div class="cf-shell">
+      <section class="cf-kpis">
+        <article class="cf-kpi"><span>Документов</span><strong id="docsCount">0</strong><small>все источники</small></article>
+        <article class="cf-kpi"><span>Счетов клиентам</span><strong id="invoiceCount">0</strong><small>customer_documents</small></article>
+        <article class="cf-kpi"><span>Выставлено</span><strong id="issuedTotal">0 ₽</strong><small>сумма действующих счетов</small></article>
+        <article class="cf-kpi red"><span>Просрочено</span><strong id="overdueTotal">0 ₽</strong><small>неоплаченный остаток после срока</small></article>
+      </section>
+
+      <section class="cf-card">
+        <div class="cf-card-head"><div><h2>Журнал документов</h2><p>У счетов отображаются привязка к заказу, оплаченная сумма и реальный остаток</p></div></div>
+        <div class="cf-toolbar">
+          <input id="search" type="search" autocomplete="off" placeholder="Номер, название, клиент, заказ…">
+          <select id="sourceFilter"><option value="">Все источники</option><option value="INVOICE">Счета клиентам</option><option value="HUB">Документы HUB</option></select>
+          <select id="statusFilter"><option value="">Все статусы</option><option value="DRAFT">DRAFT</option><option value="ISSUED">ISSUED</option><option value="PAID">PAID</option><option value="PENDING_APPROVAL">PENDING_APPROVAL</option><option value="APPROVED">APPROVED</option><option value="SIGNED">SIGNED</option><option value="ACTIVE">ACTIVE</option><option value="EXPIRED">EXPIRED</option><option value="ARCHIVED">ARCHIVED</option><option value="CANCELLED">CANCELLED</option></select>
+          <button id="clearFilters" type="button">Сбросить</button>
+        </div>
+        <div class="cf-meta"><span><b id="visibleCount">0 из 0</b></span><span>Статус PAID у счёта рассчитывается по связанным подтверждённым платежам</span></div>
+        <div id="list" class="cf-list"><div class="cf-empty">Загрузка документов…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="invoiceDlg" class="cf-dialog">
+    <form id="invoiceForm">
+      <div class="cf-dialog-head"><div><h2>Новый счёт</h2><p>Счёт можно сразу связать с клиентом и заказом.</p></div><button id="closeInvoiceDlg" class="cf-dialog-close" type="button">×</button></div>
+      <div class="cf-dialog-body">
+        <div class="cf-details">
+          <div class="cf-field full"><span>Клиент *</span><select id="invoiceCustomer" required><option value="">Выберите клиента</option></select></div>
+          <div class="cf-field full"><span>Заказ</span><select id="invoiceOrder"><option value="">Без заказа</option></select></div>
+          <div class="cf-field"><span>Сумма, ₽</span><input id="invoiceAmount" type="number" min="0.01" step="0.01" required></div>
+          <div class="cf-field"><span>Оплатить до</span><input id="invoiceDue" type="date"></div>
+          <div class="cf-field full"><span>Назначение / описание</span><textarea id="invoiceDescription" required></textarea></div>
+        </div>
+        <div id="invoiceError" class="cf-msg error" style="margin-top:10px"></div>
+      </div>
+      <div class="cf-dialog-footer"><button type="button" onclick="document.getElementById('invoiceDlg').close()">Отмена</button><button id="saveInvoice" class="primary" type="submit">Создать счёт</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./documents-modern.js?v=20260908-1"></script>
+</body>
+</html>
