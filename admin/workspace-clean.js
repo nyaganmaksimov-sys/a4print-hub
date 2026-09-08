@@ -23,7 +23,8 @@
     .topbar p{margin-top:4px!important}
     .a4-workspace-actions{margin-left:auto;display:flex;align-items:center;gap:8px;position:relative;flex:0 0 auto}
     .a4-workspace-actions>.user{margin:0!important}
-    .a4-more-btn,.a4-mobile-menu{width:40px;height:40px;border:1px solid #dbe2ea!important;background:#fff!important;color:#334155!important;border-radius:11px!important;display:grid!important;place-items:center!important;padding:0!important;font:900 20px/1 system-ui!important;cursor:pointer;box-shadow:none!important}
+    .a4-more-btn{width:40px;height:40px;border:1px solid #dbe2ea!important;background:#fff!important;color:#334155!important;border-radius:11px!important;display:grid!important;place-items:center!important;padding:0!important;font:900 20px/1 system-ui!important;cursor:pointer;box-shadow:none!important}
+    .a4-mobile-menu{width:40px;height:40px;border:1px solid #dbe2ea!important;background:#fff!important;color:#334155!important;border-radius:11px!important;place-items:center!important;padding:0!important;font:900 20px/1 system-ui!important;cursor:pointer;box-shadow:none!important}
     .a4-more-menu{display:none;position:absolute;right:0;top:48px;z-index:21000;width:230px;background:#fff;border:1px solid #dbe2ea;border-radius:14px;padding:6px;box-shadow:0 20px 55px rgba(15,23,42,.18)}
     .a4-more-menu.open{display:grid;gap:2px}
     .a4-more-menu a,.a4-more-menu button{width:100%;border:0!important;background:#fff!important;color:#334155!important;border-radius:9px!important;padding:10px 11px!important;text-align:left!important;text-decoration:none!important;font:700 13px/1.25 system-ui!important;cursor:pointer!important;display:flex!important;align-items:center!important;gap:9px!important;justify-content:flex-start!important}
@@ -79,7 +80,6 @@
       .panel{padding:14px!important;border-radius:13px!important;max-width:100%!important;overflow-x:auto}
       .a4-theme-panel{left:10px!important;right:10px!important;top:64px!important;width:auto!important;max-height:78dvh;overflow:auto}
 
-      /* Формы и панели действий не выходят за экран телефона. */
       input,select,textarea{max-width:100%}
       .toolbar,.actions,.filters,.form-actions,.panel-head{flex-wrap:wrap!important;max-width:100%!important}
       table{max-width:100%}
@@ -150,17 +150,40 @@
     actions.append(more,menu);top.appendChild(actions);return actions;
   }
 
+  let mobileWired=false;
   function mobileMenu(){
     const top=document.querySelector('.topbar'),sidebar=document.querySelector('.sidebar');if(!top||!sidebar)return;
-    if(window.matchMedia?.('(max-width:900px)').matches)document.body.classList.remove('a4-sidebar-collapsed');
-    if(!top.querySelector('.a4-mobile-menu')){
-      const b=document.createElement('button');b.type='button';b.className='a4-mobile-menu';b.title='Меню';b.setAttribute('aria-label','Открыть меню');b.textContent='☰';top.prepend(b);
-      let shade=document.querySelector('.a4-mobile-nav-shade');if(!shade){shade=document.createElement('div');shade.className='a4-mobile-nav-shade';document.body.appendChild(shade)}
-      const close=()=>document.body.classList.remove('a4-mobile-nav-open');
-      b.onclick=()=>document.body.classList.toggle('a4-mobile-nav-open');
-      shade.onclick=close;
+    const isMobile=window.matchMedia?.('(max-width:900px)').matches;
+    const existing=top.querySelector('.a4-mobile-menu');
+    const shade=document.querySelector('.a4-mobile-nav-shade');
+
+    if(!isMobile){
+      existing?.remove();
+      shade?.remove();
+      document.body.classList.remove('a4-mobile-nav-open');
+      return;
+    }
+
+    document.body.classList.remove('a4-sidebar-collapsed');
+    let b=existing;
+    if(!b){
+      b=document.createElement('button');
+      b.type='button';
+      b.className='a4-mobile-menu';
+      b.title='Меню';
+      b.setAttribute('aria-label','Открыть меню');
+      b.textContent='☰';
+      top.prepend(b);
+    }
+    let sh=document.querySelector('.a4-mobile-nav-shade');
+    if(!sh){sh=document.createElement('div');sh.className='a4-mobile-nav-shade';document.body.appendChild(sh)}
+    const close=()=>document.body.classList.remove('a4-mobile-nav-open');
+    b.onclick=()=>document.body.classList.toggle('a4-mobile-nav-open');
+    sh.onclick=close;
+    if(!mobileWired){
+      mobileWired=true;
       sidebar.addEventListener('click',e=>{if(e.target.closest('a'))close()});
-      window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:900px)').matches)close()},{passive:true});
+      window.addEventListener('resize',mobileMenu,{passive:true});
     }
   }
 
