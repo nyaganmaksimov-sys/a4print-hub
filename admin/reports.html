@@ -1,1 +1,75 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Отчёты — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script></head><body><aside class="sidebar"><div class="brand"><span class="brand-mark">A4</span><div>A4PRINT<br><small>HUB</small></div></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>📊 Отчёты</h1><p>Сводные показатели общей базы</p></div><button id="refresh">Обновить</button></header><section class="stats"><article><span>Заказов</span><strong id="orders">0</strong></article><article><span>Выручка по заказам</span><strong id="revenue">0 ₽</strong></article><article><span>Клиентов</span><strong id="customers">0</strong></article><article><span>Позиций каталога</span><strong id="items">0</strong></article></section><section class="panel"><h2>Статусы заказов</h2><div id="statuses"><div class="empty">Загрузка...</div></div></section></main><script type="module">import{supabase}from'./guard.js';const $=id=>document.getElementById(id),rub=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';async function load(){const[o,c,i]=await Promise.all([supabase.from('orders').select('status,total'),supabase.from('customers').select('id',{count:'exact',head:true}),supabase.from('catalog_items').select('id',{count:'exact',head:true})]);if(o.error){$('statuses').innerHTML=`<div class="empty">Ошибка: ${o.error.message}</div>`;return}const rows=o.data||[];$('orders').textContent=rows.length;$('revenue').textContent=rub(rows.filter(x=>!['CANCELLED'].includes(x.status)).reduce((s,x)=>s+Number(x.total||0),0));$('customers').textContent=c.count||0;$('items').textContent=i.count||0;const map={};rows.forEach(x=>map[x.status]=(map[x.status]||0)+1);$('statuses').innerHTML=Object.entries(map).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb"><span>${k}</span><b>${v}</b></div>`).join('')||'<div class="empty">Нет данных</div>'}$('refresh').onclick=load;load();</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Отчёты — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-reports2">
+  <link rel="stylesheet" href="./reports-modern.css?v=20260908-1">
+  <script src="./config.js?v=20260908-reports2"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>Отчёты</h1>
+        <p>Заказы, реальные кассовые деньги и оперативные показатели A4PRINT HUB</p>
+      </div>
+      <button id="refresh" type="button">↻ Обновить</button>
+    </header>
+
+    <div class="reports-shell">
+      <section class="reports-filterbar" aria-label="Период отчёта">
+        <div class="reports-periods">
+          <button class="active" type="button" data-period="TODAY">Сегодня</button>
+          <button type="button" data-period="7D">7 дней</button>
+          <button type="button" data-period="30D">30 дней</button>
+          <button type="button" data-period="ALL">Всё время</button>
+        </div>
+        <div class="reports-sync"><i class="reports-sync-dot"></i><span id="syncText">Загрузка данных…</span><span>·</span><span id="updatedAt">—</span></div>
+      </section>
+
+      <section class="reports-kpis" aria-label="Ключевые показатели">
+        <article class="reports-kpi"><div class="reports-kpi-head"><span class="reports-kpi-label">Заказы</span><span class="reports-kpi-icon">№</span></div><div><strong id="ordersKpi">0</strong><small>создано за выбранный период</small></div></article>
+        <article class="reports-kpi" data-tone="violet"><div class="reports-kpi-head"><span class="reports-kpi-label">Сумма заказов</span><span class="reports-kpi-icon">₽</span></div><div><strong id="ordersValueKpi">0 ₽</strong><small>без отменённых заказов</small></div></article>
+        <article class="reports-kpi" data-tone="green"><div class="reports-kpi-head"><span class="reports-kpi-label">Оплачено по заказам</span><span class="reports-kpi-icon">✓</span></div><div><strong id="paidKpi">0 ₽</strong><small id="paidKpiNote">подтверждённые оплаты HUB</small></div></article>
+        <article class="reports-kpi" data-tone="green"><div class="reports-kpi-head"><span class="reports-kpi-label">KASSA · чистые продажи</span><span class="reports-kpi-icon">POS</span></div><div><strong id="kassaKpi">0 ₽</strong><small id="kassaKpiNote">продажи минус возвраты</small></div></article>
+        <article class="reports-kpi" data-tone="orange"><div class="reports-kpi-head"><span class="reports-kpi-label">Наличные в кассе</span><span class="reports-kpi-icon">₽</span></div><div><strong id="cashKpi">—</strong><small id="cashKpiNote">текущий остаток</small></div></article>
+        <article class="reports-kpi"><div class="reports-kpi-head"><span class="reports-kpi-label">Клиенты</span><span class="reports-kpi-icon">👤</span></div><div><strong id="customersKpi">0</strong><small id="customersKpiNote">база клиентов и каталог</small></div></article>
+      </section>
+
+      <section class="reports-grid">
+        <article class="reports-card">
+          <div class="reports-card-head"><div><h2>Статусы заказов</h2><p>Распределение заказов выбранного периода</p></div><span class="reports-badge">HUB</span></div>
+          <div class="reports-card-body" id="statusRows"><div class="reports-empty">Загрузка…</div></div>
+        </article>
+        <article class="reports-card">
+          <div class="reports-card-head"><div><h2>KASSA по способам оплаты</h2><p>Продажи за вычетом возвратов</p></div><span class="reports-badge">МойСклад</span></div>
+          <div class="report-money-stack" id="paymentRows"><div class="reports-empty">Загрузка…</div></div>
+          <div class="report-money-stack" id="kassaTotals"></div>
+        </article>
+      </section>
+
+      <section class="reports-grid">
+        <article class="reports-card">
+          <div class="reports-card-head"><div><h2>Направления бизнеса</h2><p>Количество и стоимость созданных заказов</p></div><span class="reports-badge">A4PRINT</span></div>
+          <div class="reports-card-body" id="unitRows"><div class="reports-empty">Загрузка…</div></div>
+        </article>
+        <article class="reports-card">
+          <div class="reports-card-head"><div><h2>Контроль наличных</h2><p>Контрольная база + движения ledger МойСклад</p></div><span class="reports-badge">LIVE</span></div>
+          <div class="reports-ledger" id="ledger"><div class="reports-empty">Проверка кассы…</div></div>
+          <div class="reports-note" id="ledgerNote"></div>
+        </article>
+      </section>
+
+      <section class="reports-card">
+        <div class="reports-card-head"><div><h2>Последние операции KASSA</h2><p>Продажи и возвраты выбранного периода</p></div><a href="../kassa/" style="color:#2563eb;text-decoration:none;font-size:12px;font-weight:850">Открыть кассу →</a></div>
+        <div class="reports-activity" id="activity"><div class="reports-empty">Загрузка…</div></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./reports-modern.js?v=20260908-1"></script>
+</body>
+</html>
