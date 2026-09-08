@@ -4,6 +4,34 @@
   const q=new URLSearchParams(location.search);
   const standalone=window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true;
   const embed=q.get('embed')==='1';
+
+  if(embed){
+    document.documentElement.classList.add('a4-chat-embed-watchdog');
+    const style=document.createElement('style');
+    style.id='a4-chat-embed-watchdog-style';
+    style.textContent=`
+      html.a4-chat-embed-watchdog .a4-mobile-nav,
+      html.a4-chat-embed-watchdog .a4-mobile-nav-shade,
+      html.a4-chat-embed-watchdog .a4qm-panel,
+      html.a4-chat-embed-watchdog .a4qm-backdrop{display:none!important}
+      html.a4-chat-embed-watchdog,
+      html.a4-chat-embed-watchdog body{height:100%!important;min-height:100%!important;overflow:hidden!important}
+      html.a4-chat-embed-watchdog .main{height:100%!important;min-height:100%!important;margin:0!important;padding:0!important}
+      html.a4-chat-embed-watchdog .chat-shell{height:100dvh!important;min-height:0!important;overflow:hidden!important}
+      html.a4-chat-embed-watchdog .chat{height:100%!important;min-height:0!important;display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;overflow:hidden!important}
+      html.a4-chat-embed-watchdog .messages{min-height:0!important;overflow:auto!important}
+      html.a4-chat-embed-watchdog .composer{display:grid!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:30!important;background:#fff!important;flex:none!important}
+      html.a4-chat-embed-watchdog .composer textarea,
+      html.a4-chat-embed-watchdog .composer .attach-btn,
+      html.a4-chat-embed-watchdog .composer .send{visibility:visible!important;opacity:1!important}
+    `;
+    document.head.appendChild(style);
+    const cleanup=()=>document.querySelectorAll('.a4-mobile-nav,.a4-mobile-nav-shade,.a4qm-panel,.a4qm-backdrop').forEach(x=>x.remove());
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',cleanup,{once:true});else cleanup();
+    setTimeout(cleanup,250);
+    setTimeout(cleanup,900);
+  }
+
   if(!embed&&(q.get('app')==='1'||standalone)){
     const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260908-3';shell.async=false;document.head.appendChild(shell);
   }
