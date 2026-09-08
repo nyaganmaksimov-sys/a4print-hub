@@ -2,8 +2,8 @@
   if(window.__A4_TOPBAR_MODERN__)return;
   window.__A4_TOPBAR_MODERN__=true;
 
-  let observer=null;
   let busy=false;
+  let observer=null;
 
   const gearIcon=`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path></svg>`;
 
@@ -13,8 +13,9 @@
     .topbar{
       display:flex!important;
       align-items:flex-start!important;
-      gap:14px!important;
+      gap:12px!important;
       min-width:0!important;
+      position:relative!important;
     }
     .topbar>.a4-topbar-tools{
       margin-left:auto!important;
@@ -24,6 +25,7 @@
       height:40px!important;
       position:relative!important;
       display:block!important;
+      z-index:23000!important;
     }
     .a4-tools-gear{
       width:40px!important;
@@ -50,167 +52,86 @@
       transform:none!important;
     }
 
-    .a4-tools-shade{
+    .a4-tools-popover{
       position:fixed!important;
-      inset:0!important;
-      z-index:31990!important;
-      background:rgba(15,23,42,.18)!important;
-      backdrop-filter:blur(2px)!important;
-      -webkit-backdrop-filter:blur(2px)!important;
+      z-index:32000!important;
+      left:var(--a4-tools-left,auto)!important;
+      top:var(--a4-tools-top,72px)!important;
+      width:min(760px,calc(100vw - 24px))!important;
+      max-width:760px!important;
+      max-height:min(58vh,420px)!important;
+      padding:10px!important;
+      overflow:visible!important;
+      border:1px solid #dce5ef!important;
+      border-radius:15px!important;
+      background:rgba(255,255,255,.98)!important;
+      box-shadow:0 18px 50px rgba(15,23,42,.16)!important;
+      backdrop-filter:blur(14px)!important;
+      -webkit-backdrop-filter:blur(14px)!important;
       opacity:0!important;
       visibility:hidden!important;
       pointer-events:none!important;
-      transition:opacity .18s ease,visibility .18s ease!important;
+      transform:translateY(-6px) scale(.985)!important;
+      transform-origin:top right!important;
+      transition:opacity .15s ease,transform .15s ease,visibility .15s ease!important;
     }
-    .a4-tools-drawer{
-      position:fixed!important;
-      z-index:32000!important;
-      top:18px!important;
-      right:18px!important;
-      bottom:18px!important;
-      width:min(440px,calc(100vw - 36px))!important;
-      max-width:440px!important;
-      display:flex!important;
-      flex-direction:column!important;
-      overflow:hidden!important;
-      border:1px solid #dce4ee!important;
-      border-radius:18px!important;
-      background:#fff!important;
-      box-shadow:0 28px 80px rgba(15,23,42,.20)!important;
-      transform:translateX(calc(100% + 34px))!important;
-      opacity:.98!important;
-      visibility:hidden!important;
-      pointer-events:none!important;
-      transition:transform .22s ease,visibility .22s ease!important;
-    }
-    .a4-topbar-tools.a4-tools-open .a4-tools-shade{
+    .a4-topbar-tools.a4-tools-open .a4-tools-popover{
       opacity:1!important;
       visibility:visible!important;
       pointer-events:auto!important;
+      transform:translateY(0) scale(1)!important;
     }
-    .a4-topbar-tools.a4-tools-open .a4-tools-drawer{
-      transform:translateX(0)!important;
-      visibility:visible!important;
-      pointer-events:auto!important;
-    }
-
-    .a4-tools-drawer-head{
+    .a4-tools-popover-content{
       display:flex!important;
       align-items:center!important;
-      justify-content:space-between!important;
-      gap:12px!important;
-      min-height:66px!important;
-      padding:14px 16px!important;
-      border-bottom:1px solid #edf1f5!important;
-      background:#fff!important;
-      flex:0 0 auto!important;
-    }
-    .a4-tools-drawer-head-copy{min-width:0!important}
-    .a4-tools-drawer-head strong{
-      display:block!important;
-      color:#172033!important;
-      font-size:17px!important;
-      line-height:1.2!important;
-      font-weight:850!important;
-      letter-spacing:-.02em!important;
-    }
-    .a4-tools-drawer-head small{
-      display:block!important;
-      margin-top:3px!important;
-      color:#94a3b8!important;
-      font-size:11px!important;
-      line-height:1.3!important;
-      font-weight:650!important;
-    }
-    .a4-tools-close{
-      width:34px!important;
-      min-width:34px!important;
-      height:34px!important;
-      min-height:34px!important;
-      padding:0!important;
-      display:grid!important;
-      place-items:center!important;
-      border:1px solid #e2e8f0!important;
-      border-radius:9px!important;
-      background:#f8fafc!important;
-      color:#64748b!important;
-      font:800 20px/1 system-ui!important;
-      cursor:pointer!important;
-      box-shadow:none!important;
-    }
-    .a4-tools-close:hover{background:#eef4ff!important;border-color:#cbdcf5!important;color:#2563eb!important;transform:none!important}
-
-    .a4-tools-drawer-content{
-      flex:1 1 auto!important;
-      min-height:0!important;
+      align-content:center!important;
+      justify-content:flex-start!important;
+      flex-wrap:wrap!important;
+      gap:7px!important;
+      min-width:0!important;
+      max-width:100%!important;
+      max-height:min(54vh,390px)!important;
       overflow:auto!important;
-      padding:14px!important;
-      display:grid!important;
-      align-content:start!important;
-      gap:10px!important;
-      background:#f8fafc!important;
+      padding:1px!important;
       scrollbar-width:thin!important;
     }
-    .a4-tools-drawer-content>*{min-width:0!important;max-width:100%!important;margin:0!important}
+    .a4-tools-popover-content>*{margin:0!important;min-width:0!important;max-width:100%!important}
 
-    /* Любые старые группы действий превращаем в аккуратные карточки внутри боковой панели. */
-    .a4-tools-drawer-content>.a4-workspace-actions,
-    .a4-tools-drawer-content>.manager-user,
-    .a4-tools-drawer-content>.layout-tools,
-    .a4-tools-drawer-content>.user,
-    .a4-tools-drawer-content>.toolbar,
-    .a4-tools-drawer-content>.actions{
-      width:100%!important;
-      padding:10px!important;
-      border:1px solid #e3e9f1!important;
-      border-radius:13px!important;
-      background:#fff!important;
-      box-shadow:none!important;
-    }
-
-    .a4-tools-drawer .a4-workspace-actions{
-      display:grid!important;
-      grid-template-columns:1fr 1fr!important;
-      gap:8px!important;
-      margin:0!important;
-      position:relative!important;
-      width:100%!important;
-      align-items:stretch!important;
-    }
-    .a4-tools-drawer .a4-workspace-actions>.a4-block-layout-toolbar,
-    .a4-tools-drawer .a4-workspace-actions>.user,
-    .a4-tools-drawer .a4-workspace-actions>.a4-more-menu{
-      grid-column:1/-1!important;
-    }
-    .a4-tools-drawer .a4-block-layout-toolbar{
-      display:grid!important;
-      grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    .a4-tools-popover .a4-workspace-actions,
+    .a4-tools-popover .manager-user,
+    .a4-tools-popover .manager-actions,
+    .a4-tools-popover .layout-tools,
+    .a4-tools-popover .user,
+    .a4-tools-popover .toolbar,
+    .a4-tools-popover .actions{
+      display:flex!important;
+      align-items:center!important;
+      flex-wrap:wrap!important;
       gap:7px!important;
-      width:100%!important;
       margin:0!important;
+      padding:0!important;
+      border:0!important;
+      background:transparent!important;
+      box-shadow:none!important;
+      position:relative!important;
+      width:auto!important;
     }
-    .a4-tools-drawer .manager-user,
-    .a4-tools-drawer .manager-actions,
-    .a4-tools-drawer .layout-tools,
-    .a4-tools-drawer .user{
-      display:grid!important;
-      grid-template-columns:1fr!important;
-      gap:8px!important;
-      width:100%!important;
-      justify-items:stretch!important;
-      align-items:stretch!important;
+    .a4-tools-popover .a4-block-layout-toolbar{
+      display:flex!important;
+      align-items:center!important;
+      flex-wrap:wrap!important;
+      gap:7px!important;
       margin:0!important;
     }
 
-    /* Единый размер кнопок внутри панели. */
-    .a4-tools-drawer button,
-    .a4-tools-drawer a.button,
-    .a4-tools-drawer .btn,
-    .a4-tools-drawer .a4-block-layout-toolbar button{
-      width:100%!important;
+    .a4-tools-popover button,
+    .a4-tools-popover a.button,
+    .a4-tools-popover .btn,
+    .a4-tools-popover .a4-block-layout-toolbar button{
+      width:auto!important;
       min-width:0!important;
-      min-height:36px!important;
-      height:36px!important;
+      min-height:34px!important;
+      height:34px!important;
       padding:0 11px!important;
       border:1px solid #dbe3ee!important;
       border-radius:9px!important;
@@ -223,36 +144,37 @@
       white-space:nowrap!important;
       justify-content:center!important;
     }
-    .a4-tools-drawer button:hover,
-    .a4-tools-drawer a.button:hover,
-    .a4-tools-drawer .btn:hover{
+    .a4-tools-popover button:hover,
+    .a4-tools-popover a.button:hover,
+    .a4-tools-popover .btn:hover{
       background:#f3f7fd!important;
       border-color:#bfd0e5!important;
       color:#1d4ed8!important;
       transform:none!important;
     }
-    .a4-tools-drawer .a4-block-layout-toolbar .a4-layout-done{
+    .a4-tools-popover .a4-block-layout-toolbar .a4-layout-done{
       background:#2563eb!important;
       border-color:#2563eb!important;
       color:#fff!important;
     }
-    .a4-tools-drawer .manager-status{
-      display:flex!important;
-      align-items:center!important;
-      justify-content:flex-start!important;
-      min-height:36px!important;
+    .a4-tools-popover .manager-status{
+      min-height:34px!important;
+      height:34px!important;
       padding:0 11px!important;
-      border-radius:9px!important;
-      font-size:11px!important;
-      width:100%!important;
-    }
-    .a4-tools-drawer .user-email,
-    .a4-tools-drawer #userEmail,
-    .a4-tools-drawer .a4-profile-trigger{
-      display:flex!important;
+      display:inline-flex!important;
       align-items:center!important;
-      min-height:36px!important;
-      width:100%!important;
+      border-radius:999px!important;
+      font-size:10px!important;
+      white-space:nowrap!important;
+    }
+    .a4-tools-popover .user-email,
+    .a4-tools-popover #userEmail,
+    .a4-tools-popover .a4-profile-trigger{
+      min-height:34px!important;
+      height:34px!important;
+      max-width:210px!important;
+      display:inline-flex!important;
+      align-items:center!important;
       padding:0 10px!important;
       border:1px solid #edf1f5!important;
       border-radius:9px!important;
@@ -263,140 +185,105 @@
       text-overflow:ellipsis!important;
       white-space:nowrap!important;
     }
-
-    /* Иконки уведомлений и меню занимают по половине строки, а не торчат отдельными квадратами. */
-    .a4-tools-drawer #hubChatNotifyCenter.a4-top-notify{
-      width:100%!important;
-      height:36px!important;
-      position:relative!important;
-    }
-    .a4-tools-drawer #hubChatNotifyCenter.a4-top-notify #hubChatNotifyBell,
-    .a4-tools-drawer .a4-more-btn{
-      width:100%!important;
-      min-width:0!important;
-      height:36px!important;
-      min-height:36px!important;
-      border-radius:9px!important;
-      padding:0!important;
-    }
-    .a4-tools-drawer .a4-more-menu{
-      position:static!important;
-      right:auto!important;
-      top:auto!important;
-      width:100%!important;
-      margin-top:0!important;
-      padding:5px!important;
-      border:1px solid #e5eaf1!important;
-      border-radius:10px!important;
-      box-shadow:none!important;
-      background:#fbfdff!important;
-    }
-    .a4-tools-drawer .a4-more-menu a,
-    .a4-tools-drawer .a4-more-menu button{
+    .a4-tools-popover .a4-more-btn,
+    .a4-tools-popover #hubChatNotifyCenter.a4-top-notify,
+    .a4-tools-popover #hubChatNotifyCenter.a4-top-notify #hubChatNotifyBell{
+      width:34px!important;
+      min-width:34px!important;
+      height:34px!important;
       min-height:34px!important;
-      height:auto!important;
-      padding:8px 9px!important;
-      justify-content:flex-start!important;
-      text-align:left!important;
-      border:0!important;
-      background:transparent!important;
+      padding:0!important;
+      border-radius:9px!important;
     }
-    .a4-tools-drawer #hubChatNotifyCenter.a4-top-notify #hubChatNotifyPanel{
-      position:fixed!important;
-      right:28px!important;
-      left:auto!important;
-      top:82px!important;
-      width:min(380px,calc(100vw - 56px))!important;
-      max-height:min(70vh,560px)!important;
-      border-radius:14px!important;
+    .a4-tools-popover #hubChatNotifyCenter.a4-top-notify{position:relative!important}
+
+    /* Вложенные меню продолжают открываться поверх горизонтальной панели. */
+    .a4-tools-popover .a4-more-menu{
+      right:0!important;
+      top:42px!important;
       z-index:32100!important;
+    }
+    .a4-tools-popover #hubChatNotifyCenter.a4-top-notify #hubChatNotifyPanel{
+      position:fixed!important;
+      right:18px!important;
+      left:auto!important;
+      top:var(--a4-notify-top,82px)!important;
+      width:min(390px,calc(100vw - 36px))!important;
+      max-height:min(68vh,520px)!important;
+      z-index:32110!important;
     }
 
     @media(max-width:900px){
       .topbar{align-items:center!important;gap:8px!important}
       .topbar>.a4-topbar-tools{width:40px!important;min-width:40px!important;flex:0 0 40px!important}
-      .a4-tools-drawer{
-        top:10px!important;
-        right:10px!important;
-        bottom:10px!important;
-        width:min(420px,calc(100vw - 20px))!important;
+      .a4-tools-popover{
+        width:calc(100vw - 16px)!important;
         max-width:none!important;
-        border-radius:16px!important;
+        left:8px!important;
+        border-radius:14px!important;
+        padding:9px!important;
+        max-height:62dvh!important;
       }
-      .a4-tools-drawer-content{padding:10px!important}
-      .a4-tools-drawer .a4-block-layout-toolbar{grid-template-columns:1fr!important}
-      .a4-tools-drawer .a4-workspace-actions{grid-template-columns:1fr 1fr!important}
-      body.a4-tools-drawer-open{overflow:hidden!important}
+      .a4-tools-popover-content{gap:6px!important;max-height:58dvh!important}
+      .a4-tools-popover button,
+      .a4-tools-popover a.button,
+      .a4-tools-popover .btn,
+      .a4-tools-popover .a4-block-layout-toolbar button{
+        min-height:36px!important;
+        height:36px!important;
+        padding:0 10px!important;
+        font-size:11px!important;
+      }
+      .a4-tools-popover .user-email,
+      .a4-tools-popover #userEmail,
+      .a4-tools-popover .a4-profile-trigger{max-width:170px!important}
     }
     @media(max-width:520px){
-      .a4-tools-drawer{width:calc(100vw - 16px)!important;right:8px!important;top:8px!important;bottom:8px!important}
-      .a4-tools-drawer-head{min-height:60px!important;padding:12px!important}
-      .a4-tools-drawer-content{padding:8px!important;gap:8px!important}
+      .a4-tools-popover-content{align-items:stretch!important}
+      .a4-tools-popover .a4-workspace-actions,
+      .a4-tools-popover .manager-user,
+      .a4-tools-popover .manager-actions,
+      .a4-tools-popover .layout-tools,
+      .a4-tools-popover .user{gap:6px!important}
+      .a4-tools-popover .a4-block-layout-toolbar{gap:6px!important}
     }
-    @media(prefers-reduced-motion:reduce){
-      .a4-tools-shade,.a4-tools-drawer{transition:none!important}
-    }
+    @media(prefers-reduced-motion:reduce){.a4-tools-popover{transition:none!important}}
   `;
   document.head.appendChild(css);
 
   function titleNode(top){
     const direct=[...top.children];
-    return direct.find(el=>el!==top.querySelector(':scope > .a4-topbar-tools')&&el.matches?.('div,section')&&el.querySelector?.(':scope > h1,:scope > h2'))
+    return direct.find(el=>el.matches?.('div,section')&&el.querySelector?.(':scope > h1,:scope > h2'))
       || direct.find(el=>el.matches?.('h1,h2'))
       || direct.find(el=>!el.classList?.contains('a4-mobile-menu')&&!el.classList?.contains('a4-topbar-tools'))
       || null;
   }
 
+  function positionPopover(wrap){
+    if(!wrap?.classList.contains('a4-tools-open'))return;
+    const gear=wrap.querySelector(':scope > .a4-tools-gear');
+    const pop=wrap.querySelector(':scope > .a4-tools-popover');
+    if(!gear||!pop)return;
+    const r=gear.getBoundingClientRect();
+    const vw=document.documentElement.clientWidth||window.innerWidth;
+    const panelWidth=Math.min(760,Math.max(280,vw-24));
+    const left=Math.max(12,Math.min(vw-panelWidth-12,r.right-panelWidth));
+    const top=Math.max(8,r.bottom+9);
+    pop.style.setProperty('--a4-tools-left',`${left}px`);
+    pop.style.setProperty('--a4-tools-top',`${top}px`);
+    pop.style.setProperty('--a4-notify-top',`${Math.min(window.innerHeight-90,top+48)}px`);
+  }
+
   function setOpen(wrap,open){
     if(!wrap)return;
     wrap.classList.toggle('a4-tools-open',!!open);
-    document.body.classList.toggle('a4-tools-drawer-open',!!open);
     const gear=wrap.querySelector(':scope > .a4-tools-gear');
     if(gear){
       gear.setAttribute('aria-expanded',open?'true':'false');
       gear.title=open?'Закрыть панель управления':'Открыть панель управления';
+      gear.setAttribute('aria-label',gear.title);
     }
-    const drawer=wrap.querySelector(':scope > .a4-tools-drawer');
-    if(drawer)drawer.setAttribute('aria-hidden',open?'false':'true');
-  }
-
-  function createWrap(top){
-    const wrap=document.createElement('div');
-    wrap.className='a4-topbar-tools';
-
-    const gear=document.createElement('button');
-    gear.type='button';
-    gear.className='a4-tools-gear';
-    gear.innerHTML=gearIcon;
-    gear.title='Открыть панель управления';
-    gear.setAttribute('aria-label','Открыть панель управления');
-    gear.setAttribute('aria-expanded','false');
-
-    const shade=document.createElement('div');
-    shade.className='a4-tools-shade';
-    shade.setAttribute('aria-hidden','true');
-
-    const drawer=document.createElement('aside');
-    drawer.className='a4-tools-drawer';
-    drawer.setAttribute('role','dialog');
-    drawer.setAttribute('aria-modal','true');
-    drawer.setAttribute('aria-label','Панель управления');
-    drawer.setAttribute('aria-hidden','true');
-    drawer.innerHTML=`
-      <div class="a4-tools-drawer-head">
-        <div class="a4-tools-drawer-head-copy"><strong>Управление</strong><small>Настройки и действия текущей страницы</small></div>
-        <button type="button" class="a4-tools-close" aria-label="Закрыть панель">×</button>
-      </div>
-      <div class="a4-tools-drawer-content"></div>`;
-
-    gear.onclick=e=>{e.stopPropagation();setOpen(wrap,!wrap.classList.contains('a4-tools-open'))};
-    shade.onclick=()=>setOpen(wrap,false);
-    drawer.querySelector('.a4-tools-close').onclick=()=>setOpen(wrap,false);
-    drawer.addEventListener('click',e=>e.stopPropagation());
-
-    wrap.append(gear,shade,drawer);
-    top.appendChild(wrap);
-    return wrap;
+    if(open)requestAnimationFrame(()=>positionPopover(wrap));
   }
 
   function ensure(top){
@@ -404,37 +291,69 @@
     busy=true;
     try{
       let wrap=top.querySelector(':scope > .a4-topbar-tools');
-      if(!wrap)wrap=createWrap(top);
-      const content=wrap.querySelector('.a4-tools-drawer-content');
-      const title=titleNode(top);
+      let content=wrap?.querySelector(':scope > .a4-tools-popover > .a4-tools-popover-content');
+      if(!wrap){
+        wrap=document.createElement('div');
+        wrap.className='a4-topbar-tools';
 
+        const gear=document.createElement('button');
+        gear.type='button';
+        gear.className='a4-tools-gear';
+        gear.innerHTML=gearIcon;
+        gear.setAttribute('aria-expanded','false');
+        gear.title='Открыть панель управления';
+        gear.setAttribute('aria-label',gear.title);
+
+        const pop=document.createElement('div');
+        pop.className='a4-tools-popover';
+        pop.setAttribute('role','dialog');
+        pop.setAttribute('aria-label','Панель управления страницей');
+        content=document.createElement('div');
+        content.className='a4-tools-popover-content';
+        pop.appendChild(content);
+
+        gear.onclick=e=>{
+          e.stopPropagation();
+          setOpen(wrap,!wrap.classList.contains('a4-tools-open'));
+        };
+        pop.onclick=e=>e.stopPropagation();
+        wrap.append(gear,pop);
+        top.appendChild(wrap);
+      }
+
+      const title=titleNode(top);
       [...top.children].forEach(el=>{
         if(el===wrap||el===title||el.classList?.contains('a4-mobile-menu'))return;
         if(el.tagName==='SCRIPT'||el.tagName==='STYLE')return;
         content.appendChild(el);
       });
 
-      // Служебные элементы могут появиться позже (уведомления, настройка блоков и т.п.).
-      // Пока они остаются потомками .topbar, остальные модули продолжают находить их штатно.
       const actions=top.querySelector('.a4-workspace-actions');
-      if(actions&&actions.parentElement!==content&&actions!==content)content.appendChild(actions);
+      if(actions&&!actions.closest('.a4-tools-popover-content'))content.appendChild(actions);
     }finally{busy=false}
   }
 
   function scan(){document.querySelectorAll('.topbar').forEach(ensure)}
 
+  function closeAll(){document.querySelectorAll('.a4-topbar-tools.a4-tools-open').forEach(w=>setOpen(w,false))}
+
   const init=()=>{
     scan();
+    document.addEventListener('click',e=>{
+      const wrap=e.target.closest?.('.a4-topbar-tools');
+      if(!wrap)closeAll();
+    });
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
+    const reposition=()=>document.querySelectorAll('.a4-topbar-tools.a4-tools-open').forEach(positionPopover);
+    window.addEventListener('resize',reposition,{passive:true});
+    window.addEventListener('scroll',reposition,{passive:true,capture:true});
+
     observer=new MutationObserver(()=>{
       if(busy)return;
       clearTimeout(observer._a4Timer);
-      observer._a4Timer=setTimeout(scan,90);
+      observer._a4Timer=setTimeout(scan,80);
     });
     observer.observe(document.body,{childList:true,subtree:true});
-    document.addEventListener('keydown',e=>{
-      if(e.key!=='Escape')return;
-      document.querySelectorAll('.a4-topbar-tools.a4-tools-open').forEach(w=>setOpen(w,false));
-    });
     setTimeout(scan,350);
     setTimeout(scan,1100);
   };
