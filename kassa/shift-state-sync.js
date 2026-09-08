@@ -14,7 +14,9 @@
     try{
       const gate=state();
       const active=!!gate.active;
-      const name=String(gate.remoteShift?.name||'').trim();
+      const hubName=String(window.A4KassaShiftProfileDisplayName||'').trim();
+      const officialName=String(gate.remoteShift?.name||'').trim();
+      const name=hubName||officialName;
       const label=active?`Смена${name?' '+name:''}`:'Смена не открыта';
       setText($('shiftInfo'),label);
       setText($('footerShift'),label);
@@ -44,6 +46,7 @@
   }
 
   function onShiftEvent(event){
+    if(event?.detail?.reason==='close'||event?.detail?.reason==='remote-closed')window.A4KassaShiftProfileDisplayName='';
     sync();
     scheduleShiftViewRefresh();
     if(event?.detail?.reason==='open'){
