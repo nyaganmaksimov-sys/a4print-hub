@@ -39,7 +39,12 @@
       const target=[...nav.querySelectorAll('a')].find(a=>/messages\.html/.test(a.getAttribute('href')||''));
       const wrap=document.createElement('div');wrap.innerHTML=link(supportHref,'Поддержка',supportIcon(),/support\.html$/.test(location.pathname));
       const a=wrap.firstElementChild;
-      if(target?.nextSibling)nav.insertBefore(a,target.nextSibling);else nav.appendChild(a);
+      if(target?.parentNode){
+        target.parentNode.insertBefore(a,target.nextSibling);
+      }else{
+        const operationsBody=nav.querySelector('.a4-nav-group[data-group="operations"] .a4-nav-group-body');
+        (operationsBody||nav).appendChild(a);
+      }
     }
     return true;
   }
@@ -65,8 +70,13 @@
     let tries=0;
     const timer=setInterval(()=>{
       tries++;
-      const ok=supportOnly?isolateSupportNav():ensureSupportLink();
-      if(ok||tries>30)clearInterval(timer);
+      try{
+        const ok=supportOnly?isolateSupportNav():ensureSupportLink();
+        if(ok||tries>30)clearInterval(timer);
+      }catch(error){
+        console.warn('Support navigation init failed',error);
+        clearInterval(timer);
+      }
     },100);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
