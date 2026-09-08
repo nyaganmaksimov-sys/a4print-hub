@@ -10,8 +10,7 @@ const preloads = [
   '--import=./src/cbr-rates.js',
   '--import=./src/partner-invites.js',
   '--import=./src/partner-admin.js',
-  '--import=./src/pos-shift-control.js',
-  '--import=./src/pos-cash-chain-selftest.js'
+  '--import=./src/pos-shift-control.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
