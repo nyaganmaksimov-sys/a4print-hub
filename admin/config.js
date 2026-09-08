@@ -61,6 +61,12 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     s.async = false;
     document.head.appendChild(s);
   };
+  const loadModule = (file, version='20260908-1') => {
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.src = new URL(file, base).href + '?v=' + version;
+    document.head.appendChild(s);
+  };
   const loadCss = (file, version='20260905-1') => {
     const l=document.createElement('link');
     l.rel='stylesheet';
@@ -80,6 +86,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
 
   const isAuthPage = /\/admin\/(login|register|pending|invite|reset-password)\.html$/.test(location.pathname);
   const isAdmin = /\/admin\//.test(location.pathname) && !isAuthPage;
+  const isDashboard = /\/admin\/(?:index\.html)?$/.test(location.pathname);
   const isChat = /\/admin\/messages\.html$/.test(location.pathname);
   const isManager = /\/admin\/manager\.html$/.test(location.pathname);
   const isPartners = /\/admin\/partners\.html$/.test(location.pathname);
@@ -198,6 +205,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
 
   if (!isAdmin) return;
 
+  if (isDashboard) loadModule('dashboard-payment-split.js','20260908-2');
   if (isManager) load('manager-runtime.js','20260905-4');
   if (isSettings) {
     load('auth-settings.js','20260905-2');
