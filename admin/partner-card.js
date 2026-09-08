@@ -3,7 +3,7 @@ import { supabase } from './guard.js';
 const cfg=window.A4PRINT_CONFIG||{};
 const apiBase=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
 const $=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
 const money=v=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(Number(v||0));
 const count=v=>new Intl.NumberFormat('ru-RU').format(Number(v||0));
 const dateTime=v=>{if(!v)return'—';const d=new Date(v);return Number.isFinite(d.getTime())?new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(d):'—'};
@@ -71,9 +71,9 @@ async function updateUser(user,patch,button){
   catch(error){alert(error.message)}finally{button.disabled=false}
 }
 function renderServices(){
-  const rows=data.supplier_services||[];
-  $('servicesCount').textContent=`${rows.filter(x=>x.is_active).length} активных из ${rows.length}`;
-  $('supplierServices').innerHTML=rows.length?rows.slice(0,60).map(s=>`<div class="supplier-service"><div><div class="supplier-name">${esc(s.name)}</div><div class="supplier-meta">${esc(s.category||'Без категории')} · ${esc(s.unit||'шт.')}${s.is_active?'':' · отключена'}</div></div><div class="supplier-price">${esc(money(s.price))}</div></div>`).join(''):'<div class="empty-state">Партнёр ещё не заполнил собственный прайс.</div>';
+  const rows=data.supplier_services||[],s=data.stats||{};
+  $('servicesCount').textContent=`${count(s.active_supplier_services)} активных из ${count(s.supplier_services_count)}`;
+  $('supplierServices').innerHTML=rows.length?rows.slice(0,60).map(item=>`<div class="supplier-service"><div><div class="supplier-name">${esc(item.name)}</div><div class="supplier-meta">${esc(item.category||'Без категории')} · ${esc(item.unit||'шт.')}${item.is_active?'':' · отключена'}</div></div><div class="supplier-price">${esc(money(item.price))}</div></div>`).join(''):'<div class="empty-state">Партнёр ещё не заполнил собственный прайс.</div>';
 }
 function hubDirection(o){
   if(o.partner_id===partnerId&&o.fulfillment_partner_id===partnerId)return'Внутренний';
@@ -95,7 +95,7 @@ function renderOrders(){
   }
 }
 function render(){
-  $('loading').hidden=true;$('partnerContent').hidden=false;
+  $('error').hidden=true;$('loading').hidden=true;$('partnerContent').hidden=false;
   renderHero();fillForm(data.partner);renderUsers();renderServices();renderOrders();
 }
 async function load(){
