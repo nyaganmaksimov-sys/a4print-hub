@@ -1,1 +1,77 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Заказы — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script></head><body><aside class="sidebar"><div class="brand"></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>🛒 Заказы</h1><p>Заказы А4-Принт, 3D-ARTPRINT и партнёрского канала</p></div><button id="refresh">Обновить</button></header><section class="stats"><article><span>Всего</span><strong id="all">0</strong></article><article><span>Новые</span><strong id="new">0</strong></article><article><span>В работе</span><strong id="work">0</strong></article><article><span>🤝 Партнёрские</span><strong id="partnerCount">0</strong></article></section><section class="panel"><div class="toolbar"><input id="search" placeholder="Поиск по номеру, услуге, клиенту или партнёру"><select id="status"><option value="">Все статусы</option><option value="NEW">Новые</option><option value="WORK">В работе</option><option value="CONFIRMED">Подтверждённые</option><option value="IN_PROGRESS">Только в производстве</option><option value="READY">Готовые</option><option value="COMPLETED">Завершённые</option><option value="ON_HOLD">Приостановленные</option><option value="CANCELLED">Отменённые</option></select><select id="unit"><option value="">Все направления</option><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общие</option></select><select id="source"><option value="">Все источники</option><option value="PARTNER">Партнёрские</option><option value="DIRECT">Без партнёров</option></select></div><div id="list"><div class="empty">Загрузка...</div></div></section></main><script type="module">import{supabase}from'./guard.js';const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));let orders=[];const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён'};const params=new URLSearchParams(location.search);if(params.get('q'))$('search').value=params.get('q');if(params.get('status')&&[...$('status').options].some(o=>o.value===params.get('status')))$('status').value=params.get('status');if(params.get('unit')&&[...$('unit').options].some(o=>o.value===params.get('unit')))$('unit').value=params.get('unit');async function load(){const {data,error}=await supabase.from('orders').select('*,customers(full_name,company_name,phone,email),requester:partners!orders_partner_id_fkey(name,contact_name,phone,email),executor:partners!orders_fulfillment_partner_id_fkey(name,contact_name,phone,email)').order('created_at',{ascending:false});if(error){$('list').innerHTML=`<div class="empty">Ошибка: ${esc(error.message)}</div>`;return}orders=data||[];render()}function render(){const q=$('search').value.trim().toLowerCase(),s=$('status').value,u=$('unit').value,src=$('source').value;const rows=orders.filter(o=>{const c=o.customers||{},p=o.requester||o.executor||{};const text=`${o.order_number||''} ${o.model_name||''} ${o.source||''} ${c.full_name||''} ${c.company_name||''} ${c.phone||''} ${c.email||''} ${p.name||''} ${p.contact_name||''}`.toLowerCase(),isPartner=!!(o.partner_id||o.fulfillment_partner_id),statusOk=!s||(s==='WORK'?['CONFIRMED','IN_PROGRESS'].includes(o.status):o.status===s);return(!q||text.includes(q))&&statusOk&&(!u||o.business_unit===u)&&(!src||(src==='PARTNER'?isPartner:!isPartner))});$('all').textContent=orders.length;$('new').textContent=orders.filter(x=>x.status==='NEW').length;$('work').textContent=orders.filter(x=>['CONFIRMED','IN_PROGRESS'].includes(x.status)).length;$('partnerCount').textContent=orders.filter(x=>x.partner_id||x.fulfillment_partner_id).length;$('list').innerHTML=rows.map(o=>{const c=o.customers||{},p=o.requester||o.executor||{},isOutbound=!!o.fulfillment_partner_id&&o.partner_direction==='OUTBOUND',isPartner=!!(o.partner_id||o.fulfillment_partner_id),who=isPartner?p.name:(c.full_name||c.company_name||'Клиент не указан'),badge=isOutbound?'🤝 МЫ ЗАКАЗАЛИ У ПАРТНЁРА':'🤝 ПАРТНЁР ЗАКАЗАЛ У НАС';return`<a class="order" href="./order.html?id=${o.id}"><div><b>Заказ №${esc(o.order_number)}</b>${isPartner?`<span class="partner-badge">${badge}</span>`:''}<small>${o.business_unit==='3D_ARTPRINT'?'3D-ARTPRINT':o.business_unit==='A4_PRINT'?'А4-Принт':'Общий'} · ${new Date(o.created_at).toLocaleString('ru-RU')}</small></div><div><b>${esc(who)}</b><small>${esc(isPartner?(p.contact_name||p.phone||p.email||'Партнёрский кабинет'):(o.model_name||o.source||'—'))}</small></div><div><b>${Number(o.total||0).toLocaleString('ru-RU')} ₽</b><small>${esc(labels[o.status]||o.status)}</small></div></a>`}).join('')||'<div class="empty">Заказы не найдены</div>'}['search','status','unit','source'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));$('refresh').onclick=load;load();</script><style>.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.toolbar input,.toolbar select{padding:11px;border:1px solid #dbe1ea;border-radius:9px;font:inherit}.toolbar input{flex:1;min-width:240px}.order{display:grid;grid-template-columns:1fr 1fr 180px;gap:18px;padding:16px;border-bottom:1px solid #e5e7eb;text-decoration:none;color:inherit}.order:hover{background:#f8fafc}.order small{display:block;color:#64748b;margin-top:5px}.partner-badge{display:inline-block;margin-left:8px;padding:4px 7px;border-radius:999px;background:#ecfdf5;color:#166534;font-size:10px;font-weight:900}@media(max-width:800px){.order{grid-template-columns:1fr}.sidebar{display:none}.main{margin-left:0!important}}</style></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Заказы — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-orders2">
+  <script src="./config.js?v=20260908-orders2"></script>
+  <style>
+    .orders-top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.orders-top-actions a,.orders-top-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border:1px solid #d7dee9;border-radius:11px;background:#fff;color:#334155;text-decoration:none;font:inherit;font-weight:800;cursor:pointer}.orders-top-actions a.primary{background:#2563eb;border-color:#2563eb;color:#fff}.orders-top-actions button:disabled{opacity:.55;cursor:wait}.orders-updated{font-size:12px;color:#64748b;font-weight:650}.orders-stats{grid-template-columns:repeat(5,minmax(0,1fr))}.orders-stats article:last-child strong{font-size:25px}.orders-panel{padding:0!important;overflow:hidden}.orders-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) repeat(3,minmax(150px,auto)) auto;gap:9px;align-items:center;padding:16px;border-bottom:1px solid #e8edf4;background:rgba(248,250,252,.78)}.orders-toolbar input,.orders-toolbar select{width:100%;min-height:43px;border:1px solid #d7dee9;border-radius:11px;background:#fff;padding:0 12px;color:#172033;font:inherit}.orders-toolbar input{padding-left:40px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='%2364758b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center}.orders-toolbar input:focus,.orders-toolbar select:focus{outline:none;border-color:#93b4ee;box-shadow:0 0 0 3px rgba(37,99,235,.08)}.orders-clear{height:43px;border:1px solid #d7dee9;background:#fff;border-radius:11px;padding:0 13px;color:#475569;font-weight:800;cursor:pointer}.orders-list-head{display:grid;grid-template-columns:115px minmax(180px,1.15fr) minmax(220px,1.35fr) minmax(150px,.8fr) 125px 190px;gap:14px;padding:11px 16px;background:#f8fafc;border-bottom:1px solid #e8edf4;color:#8290a4;font-size:10px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.orders-list-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid #edf1f5;color:#64748b;font-size:12px}.order-work-row{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:14px;align-items:center;padding:0 16px;border-bottom:1px solid #edf1f5;background:#fff;transition:background .15s ease}.order-work-row:hover{background:#fbfdff}.order-work-row:last-child{border-bottom:0}.order-main-link{display:grid;grid-template-columns:115px minmax(180px,1.15fr) minmax(220px,1.35fr) minmax(150px,.8fr) 125px;gap:14px;align-items:center;min-width:0;padding:15px 0;color:#172033;text-decoration:none}.order-main-link>span{min-width:0}.order-main-link b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-main-link small{display:block;margin-top:4px;color:#718096;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-number b{font-size:15px}.order-total{text-align:right}.order-total b{font-size:14px}.order-payment .pay-paid{color:#15803d}.order-payment .pay-part{color:#a16207}.order-payment .pay-none{color:#64748b}.order-actions{display:flex;align-items:center;gap:8px;justify-content:flex-end}.order-status-select{width:100%;min-width:0;height:38px;border:1px solid #d7dee9;border-radius:10px;background:#fff;color:#334155;padding:0 9px;font:inherit;font-size:12px;font-weight:750;transition:border-color .15s ease,box-shadow .15s ease}.order-status-select.saving{opacity:.6}.order-status-select.saved{border-color:#86efac;box-shadow:0 0 0 3px rgba(34,197,94,.08)}.order-open{white-space:nowrap;color:#2563eb;text-decoration:none;font-size:12px;font-weight:850}.orders-empty{padding:46px 20px;text-align:center;color:#94a3b8}.orders-empty.error{color:#b91c1c}.orders-note{color:#64748b;font-size:12px;line-height:1.45}.orders-note b{color:#334155}
+    @media(max-width:1320px){.orders-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.orders-toolbar{grid-template-columns:minmax(240px,1fr) repeat(2,minmax(145px,auto));}.orders-toolbar #source{grid-column:auto}.orders-toolbar .orders-clear{grid-column:auto}.orders-list-head{display:none}.order-work-row{grid-template-columns:minmax(0,1fr) 180px}.order-main-link{grid-template-columns:100px 1fr 1.1fr 120px}.order-payment{display:none}}
+    @media(max-width:980px){.orders-toolbar{grid-template-columns:1fr 1fr}.orders-toolbar input{grid-column:1/-1}.order-work-row{grid-template-columns:1fr;padding:14px}.order-main-link{grid-template-columns:100px 1fr 130px;padding:0}.order-service{display:none}.order-actions{justify-content:stretch}.order-status-select{flex:1}.order-open{padding:8px 0}}
+    @media(max-width:700px){.orders-stats{grid-template-columns:1fr 1fr}.orders-toolbar{grid-template-columns:1fr}.orders-toolbar input{grid-column:auto}.order-main-link{grid-template-columns:1fr 110px}.order-client{grid-column:1/-1}.order-total{grid-row:1;grid-column:2}.orders-top-actions{width:100%}.orders-top-actions a,.orders-top-actions button{flex:1}.topbar{gap:14px}}
+  </style>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>Заказы</h1>
+        <p>Единый рабочий список А4-Принт, 3D-ARTPRINT и партнёрского канала</p>
+      </div>
+      <div class="orders-top-actions">
+        <span class="orders-updated" id="updatedAt">загрузка…</span>
+        <a href="./manager.html" class="primary">+ Новый заказ</a>
+        <button id="refresh" type="button">↻ Обновить</button>
+      </div>
+    </header>
+
+    <section class="stats orders-stats">
+      <article><span>Всего заказов</span><strong id="all">0</strong></article>
+      <article><span>Новые</span><strong id="new">0</strong></article>
+      <article><span>В работе</span><strong id="work">0</strong></article>
+      <article><span>Готовы к выдаче</span><strong id="ready">0</strong></article>
+      <article><span>Сумма активных</span><strong id="activeTotal">0 ₽</strong></article>
+    </section>
+
+    <section class="panel orders-panel">
+      <div class="orders-toolbar">
+        <input id="search" autocomplete="off" placeholder="Номер, клиент, телефон, услуга или партнёр">
+        <select id="status">
+          <option value="">Все статусы</option>
+          <option value="NEW">Новые</option>
+          <option value="WORK">В работе</option>
+          <option value="CONFIRMED">Подтверждённые</option>
+          <option value="IN_PROGRESS">В производстве</option>
+          <option value="READY">Готовые</option>
+          <option value="COMPLETED">Завершённые</option>
+          <option value="ON_HOLD">Приостановленные</option>
+          <option value="CANCELLED">Отменённые</option>
+        </select>
+        <select id="unit">
+          <option value="">Все направления</option>
+          <option value="A4_PRINT">А4-Принт</option>
+          <option value="3D_ARTPRINT">3D-ARTPRINT</option>
+          <option value="COMMON">Общие</option>
+        </select>
+        <select id="source">
+          <option value="">Все источники</option>
+          <option value="PARTNER">Партнёрские</option>
+          <option value="DIRECT">Прямые</option>
+        </select>
+        <button id="clearFilters" class="orders-clear" type="button">Сбросить</button>
+      </div>
+      <div class="orders-list-meta">
+        <span><b id="visibleCount">0 из 0</b> · статусы можно менять прямо в списке</span>
+        <span class="orders-note">Изменения синхронизируются с HUB в реальном времени</span>
+      </div>
+      <div class="orders-list-head"><span>Заказ</span><span>Клиент / партнёр</span><span>Услуга</span><span>Оплата</span><span style="text-align:right">Сумма</span><span>Управление</span></div>
+      <div id="list"><div class="orders-empty">Загрузка заказов…</div></div>
+    </section>
+  </main>
+  <script type="module" src="./orders.js?v=20260908-orders2"></script>
+</body>
+</html>
