@@ -14,9 +14,9 @@
     #a4ChatWidget{position:fixed;right:18px;bottom:18px;z-index:25000;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #a4ChatWidgetButton{position:relative;width:54px;height:54px;border:0;border-radius:17px;background:#2563eb;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 12px 30px rgba(37,99,235,.28);font-size:24px}
     #a4ChatWidgetCount{display:none;position:absolute;right:-5px;top:-5px;min-width:21px;height:21px;padding:0 5px;border-radius:999px;background:#ef4444;color:#fff;font:800 11px/21px Arial;text-align:center;border:2px solid #fff}
-    #a4ChatWidgetPanel{display:none;position:absolute;right:0;bottom:66px;width:min(430px,calc(100vw - 28px));height:min(680px,calc(100vh - 106px));background:#fff;border:1px solid #dbe2ea;border-radius:17px;overflow:hidden;box-shadow:0 22px 64px rgba(15,23,42,.22)}
+    #a4ChatWidgetPanel{display:none;position:absolute;right:0;bottom:66px;width:min(390px,calc(100vw - 28px));height:min(560px,calc(100vh - 106px));background:#fff;border:1px solid #dbe2ea;border-radius:17px;overflow:hidden;box-shadow:0 22px 64px rgba(15,23,42,.22)}
     #a4ChatWidget.open #a4ChatWidgetPanel{display:flex;flex-direction:column}
-    .a4-chat-widget-head{height:50px;flex:0 0 50px;display:flex;align-items:center;gap:9px;padding:0 9px 0 13px;background:#0f172a;color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+    .a4-chat-widget-head{height:48px;flex:0 0 48px;display:flex;align-items:center;gap:9px;padding:0 9px 0 13px;background:#0f172a;color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
     .a4-chat-widget-title{min-width:0;flex:1}.a4-chat-widget-title b{display:block;font-size:14px;line-height:1.1}.a4-chat-widget-title span{display:block;margin-top:3px;color:#94a3b8;font-size:10px}
     .a4-chat-widget-head button,.a4-chat-widget-head a{width:32px;height:32px;border:0;border-radius:8px;background:rgba(255,255,255,.09);color:#fff;display:grid;place-items:center;cursor:pointer;text-decoration:none;font:800 16px/1 system-ui}
     #a4ChatWidgetFrame{width:100%;height:100%;flex:1;min-height:0;border:0;background:#fff}
@@ -40,19 +40,19 @@
     const u=new URL(url||'./messages.html',location.href);
     u.searchParams.set('app','1');
     if(embed)u.searchParams.set('embed','1');else u.searchParams.delete('embed');
-    u.searchParams.set('v',embed?'widget4':'notify4');
+    u.searchParams.set('v',embed?'widget5':'notify5');
     return u.pathname+`?${u.searchParams.toString()}`;
   }
 
   async function latestTarget(){
     const rows=window.__A4_CHAT_UNREAD_NOTIFICATIONS__||[];
     const latest=rows[0];
-    if(!latest)return{embed:'./messages.html?app=1&embed=1&v=widget4',full:'./messages.html?app=1',unread:false};
+    if(!latest)return{embed:'./messages.html?app=1&embed=1&v=widget5',full:'./messages.html?app=1',unread:false};
     try{
       const resolver=window.__A4_RESOLVE_CHAT_NOTIFICATION_URL__;
       const base=typeof resolver==='function'?await resolver(latest):`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}`;
       return{embed:withMode(base,true),full:withMode(base,false),unread:true};
-    }catch(e){console.warn('A4 chat widget target resolve failed',e);return{embed:`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}&app=1&embed=1&v=widget4`,full:`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}&app=1`,unread:true}}
+    }catch(e){console.warn('A4 chat widget target resolve failed',e);return{embed:`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}&app=1&embed=1&v=widget5`,full:`./messages.html?room=${encodeURIComponent(latest.entity_id||'')}&app=1`,unread:true}}
   }
 
   function ensureFrame(targetUrl,forceNavigate=false){
@@ -63,7 +63,7 @@
     }
     iframeLoaded=true;
     if(!document.getElementById('a4ChatWidgetLoading')){const l=document.createElement('div');l.id='a4ChatWidgetLoading';l.className='a4-chat-widget-loading';l.textContent='Открываем чат…';panel.appendChild(l)}
-    frame=document.createElement('iframe');frame.id='a4ChatWidgetFrame';frame.title='A4PRINT HUB Chat';frame.loading='lazy';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.dataset.target=targetUrl||'./messages.html?app=1&embed=1&v=widget4';frame.src=frame.dataset.target;frame.onload=()=>document.getElementById('a4ChatWidgetLoading')?.remove();panel.appendChild(frame);return frame;
+    frame=document.createElement('iframe');frame.id='a4ChatWidgetFrame';frame.title='A4PRINT HUB Chat';frame.loading='lazy';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.dataset.target=targetUrl||'./messages.html?app=1&embed=1&v=widget5';frame.src=frame.dataset.target;frame.onload=()=>document.getElementById('a4ChatWidgetLoading')?.remove();panel.appendChild(frame);return frame;
   }
 
   function releaseFrame(){
