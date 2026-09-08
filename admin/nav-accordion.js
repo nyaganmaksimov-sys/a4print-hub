@@ -22,11 +22,26 @@
     .a4-nav-group.open>.a4-nav-group-body{display:grid}
     .a4-nav-group.has-active>.a4-nav-group-head{color:#e2e8f0}
     .a4-nav-group.has-active>.a4-nav-group-head:after{display:none!important;content:none!important}
-    .a4-nav-group[data-group="work"]>.a4-nav-group-head .chev{margin-left:0}
-    .a4-system-health-dot{width:8px;height:8px;flex:0 0 8px;margin-left:auto;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.14);transition:background .18s ease,box-shadow .18s ease}
-    .a4-system-health-dot.ok{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
-    .a4-system-health-dot.error{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
-    .a4-system-health-dot.checking{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+
+    .sidebar .hub-logo-wrap,.sidebar .brand{position:relative!important}
+    .sidebar .a4-system-health-dot{
+      position:absolute!important;
+      right:18px!important;
+      bottom:8px!important;
+      z-index:8!important;
+      width:10px!important;
+      height:10px!important;
+      flex:0 0 10px!important;
+      border-radius:50%!important;
+      background:#f59e0b!important;
+      box-shadow:0 0 0 4px rgba(245,158,11,.14)!important;
+      cursor:help!important;
+      transition:background .18s ease,box-shadow .18s ease,transform .15s ease!important;
+    }
+    .sidebar .a4-system-health-dot:hover{transform:scale(1.12)!important}
+    .sidebar .a4-system-health-dot.ok{background:#22c55e!important;box-shadow:0 0 0 4px rgba(34,197,94,.16)!important}
+    .sidebar .a4-system-health-dot.error{background:#ef4444!important;box-shadow:0 0 0 4px rgba(239,68,68,.16)!important}
+    .sidebar .a4-system-health-dot.checking{background:#f59e0b!important;box-shadow:0 0 0 4px rgba(245,158,11,.16)!important}
 
     body:not(.a4-side-glass) .a4-nav-group-head{color:#64748b}
     body:not(.a4-side-glass) .a4-nav-group-head:hover{background:#eef2f7;color:#0f172a}
@@ -34,8 +49,9 @@
 
     @media(min-width:901px){
       .a4-sidebar-collapsed .a4-nav-group-head{height:8px;padding:0;margin:4px 0;background:#cbd5e1;border-radius:999px;font-size:0}
-      .a4-sidebar-collapsed .a4-nav-group-head .chev,.a4-sidebar-collapsed .a4-system-health-dot{display:none!important}
+      .a4-sidebar-collapsed .a4-nav-group-head .chev{display:none!important}
       .a4-sidebar-collapsed .a4-nav-group-body{display:grid!important}
+      body.a4-sidebar-collapsed .sidebar .a4-system-health-dot{display:block!important;right:3px!important;bottom:3px!important;width:8px!important;height:8px!important;box-shadow:0 0 0 3px rgba(34,197,94,.15)!important}
     }
 
     @media(max-width:900px){
@@ -48,11 +64,11 @@
       .sidebar a b,.a4-sidebar-collapsed .sidebar a b{display:inline-flex!important;margin-left:auto!important}
       .a4-sidebar-collapsed .a4-nav-group-head,.a4-nav-group-head{height:auto!important;padding:12px 10px 9px!important;margin:0!important;background:transparent!important;font-size:11px!important;color:#94a3b8!important}
       .a4-sidebar-collapsed .a4-nav-group-head .chev{display:inline!important}
-      .a4-sidebar-collapsed .a4-system-health-dot{display:block!important}
       .a4-sidebar-collapsed .a4-nav-group-body{display:none!important}
       .a4-sidebar-collapsed .a4-nav-group.open>.a4-nav-group-body,.a4-nav-group.open>.a4-nav-group-body{display:grid!important}
       .a4-nav-group-body{gap:4px}
       .a4-sidebar-head{display:none!important}
+      .sidebar .a4-system-health-dot,.a4-sidebar-collapsed .sidebar .a4-system-health-dot{display:block!important;right:16px!important;bottom:7px!important}
     }
   `;
   document.head.appendChild(css);
@@ -62,6 +78,23 @@
     if(/^\.\.\/kassa(?:\/|$)/.test(raw)) return 'kassa-root';
     if(raw.startsWith('../')) return 'index-root';
     return raw.split('?')[0].split('/').pop()||'';
+  }
+
+  function ensureHealthDot(){
+    const sidebar=document.querySelector('.sidebar');
+    if(!sidebar) return false;
+    const logo=sidebar.querySelector('.hub-logo-wrap,.brand');
+    if(!logo) return false;
+    let dot=sidebar.querySelector('.a4-system-health-dot');
+    if(!dot){
+      dot=document.createElement('span');
+      dot.className='a4-system-health-dot checking';
+      dot.title='Проверка подключения...';
+      dot.setAttribute('aria-label','Проверка подключения');
+      dot.setAttribute('role','status');
+    }
+    if(dot.parentElement!==logo) logo.appendChild(dot);
+    return true;
   }
 
   function getAccessToken(){
@@ -82,7 +115,8 @@
   }
 
   function setHealth(state,text){
-    const dot=document.querySelector('.a4-system-health-dot');
+    ensureHealthDot();
+    const dot=document.querySelector('.sidebar .a4-system-health-dot');
     if(!dot) return;
     dot.className=`a4-system-health-dot ${state}`;
     dot.title=text;
@@ -159,7 +193,7 @@
       const head=document.createElement('button');
       head.type='button';
       head.className='a4-nav-group-head';
-      head.innerHTML=`<span>${g.title}</span>${g.key==='work'?'<span class="a4-system-health-dot checking" title="Проверка подключения..." aria-label="Проверка подключения"></span>':''}<span class="chev">›</span>`;
+      head.innerHTML=`<span>${g.title}</span><span class="chev">›</span>`;
       const body=document.createElement('div');body.className='a4-nav-group-body';
       let has=false,active=false;
       for(const p of g.pages){
@@ -191,15 +225,17 @@
     }
 
     nav.innerHTML='';nav.appendChild(shell);nav.dataset.a4Accordion='1';
+    ensureHealthDot();
     setTimeout(checkSystemHealth,150);
     return true;
   }
 
   function init(){
     if(window.matchMedia?.('(max-width:900px)').matches) document.body.classList.remove('a4-sidebar-collapsed');
+    ensureHealthDot();
     if(!build()){
       let tries=0;
-      const t=setInterval(()=>{if(build()||++tries>40)clearInterval(t)},100);
+      const t=setInterval(()=>{ensureHealthDot();if(build()||++tries>40)clearInterval(t)},100);
     }
     setInterval(checkSystemHealth,60000);
     window.addEventListener('online',checkSystemHealth);
