@@ -1,37 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" role="img" aria-labelledby="title desc">
-  <title id="title">A4PRINT-HUB</title>
-  <desc id="desc">Логотип A4PRINT HUB с символом базы данных</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" role="img" aria-label="A4PRINT HUB">
   <defs>
     <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1667e8"/>
-      <stop offset="1" stop-color="#11a9f5"/>
+      <stop stop-color="#67e8f9"/>
+      <stop offset=".48" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#3b82f6"/>
     </linearGradient>
-    <linearGradient id="dark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#25364a"/>
-      <stop offset="1" stop-color="#071523"/>
-    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#020617" flood-opacity=".24"/>
+    </filter>
   </defs>
-
-  <rect width="1000" height="700" rx="54" fill="#fff"/>
-
-  <path d="M175 335A325 325 0 0 1 755 145" fill="none" stroke="url(#blue)" stroke-width="20" stroke-linecap="round"/>
-  <path d="M305 577A325 325 0 0 0 712 580" fill="none" stroke="url(#blue)" stroke-width="20" stroke-linecap="round"/>
-
-  <g transform="translate(105 155)">
-    <path d="M45 260L188 0h83l99 260h-88l-20-58H158l-31 58H45zm145-130h48l-20-64-28 64z" fill="url(#dark)"/>
-    <path d="M345 260h108l12-74h58l12-73h-57l17-113h-86L282 159l17 76h53l-7 25zm58-147l-10 0 29-38-6 38h-13z" fill="url(#blue)"/>
+  <g filter="url(#shadow)">
+    <path d="M110 275C95 170 160 75 280 48c132-29 251 25 318 119" fill="none" stroke="url(#blue)" stroke-width="15" stroke-linecap="round"/>
+    <path d="M255 451c112 38 243 5 313-82" fill="none" stroke="url(#blue)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M77 316L196 101h76l75 215h-77l-14-46H143l-25 46zm104-105h54l-21-74z" fill="#fff"/>
+    <path d="M322 245L459 101h77l-18 146h53l-10 68h-52l-7 62h-76l7-62H329zm77 2h43l9-77z" fill="url(#blue)"/>
+    <g transform="translate(500 143)">
+      <ellipse cx="91" cy="33" rx="82" ry="30" fill="#fff"/>
+      <path d="M9 33v62c0 17 37 30 82 30s82-13 82-30V33" fill="#fff" stroke="#cbd5e1" stroke-width="4"/>
+      <path d="M9 95v62c0 17 37 30 82 30s82-13 82-30V95" fill="#fff" stroke="#cbd5e1" stroke-width="4"/>
+      <circle cx="145" cy="72" r="9" fill="#38bdf8"/><circle cx="145" cy="134" r="9" fill="#38bdf8"/><circle cx="145" cy="176" r="9" fill="#38bdf8"/>
+    </g>
   </g>
-
-  <g transform="translate(654 180)">
-    <ellipse cx="115" cy="40" rx="110" ry="40" fill="url(#dark)"/>
-    <path d="M5 40v72c0 22 49 40 110 40s110-18 110-40V40c0 22-49 40-110 40S5 62 5 40z" fill="url(#dark)" stroke="#fff" stroke-width="10"/>
-    <path d="M5 112v72c0 22 49 40 110 40s110-18 110-40v-72c0 22-49 40-110 40S5 134 5 112z" fill="url(#dark)" stroke="#fff" stroke-width="10"/>
-    <path d="M5 184v72c0 22 49 40 110 40s110-18 110-40v-72c0 22-49 40-110 40S5 206 5 184z" fill="url(#dark)" stroke="#fff" stroke-width="10"/>
-    <circle cx="178" cy="113" r="10" fill="#139cf5"/>
-    <circle cx="178" cy="185" r="10" fill="#139cf5"/>
-    <circle cx="178" cy="257" r="10" fill="#139cf5"/>
-  </g>
-
-  <text x="500" y="530" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="92" font-weight="900" letter-spacing="2" fill="#101f31">A4PRINT-<tspan fill="url(#blue)">HUB</tspan></text>
-  <text x="500" y="590" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="28" font-weight="700" letter-spacing="9" fill="#14243a">ДАННЫЕ <tspan fill="#159cf2">•</tspan> ПРОЦЕССЫ <tspan fill="#159cf2">•</tspan> РЕЗУЛЬТАТ</text>
+  <text x="72" y="413" font-family="Arial,Helvetica,sans-serif" font-size="66" font-weight="900" fill="#fff">A4PRINT-<tspan fill="url(#blue)">HUB</tspan></text>
+  <text x="150" y="458" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" letter-spacing="5" fill="#e2e8f0">ДАННЫЕ <tspan fill="#38bdf8">•</tspan> ПРОЦЕССЫ <tspan fill="#38bdf8">•</tspan> РЕЗУЛЬТАТ</text>
 </svg>
