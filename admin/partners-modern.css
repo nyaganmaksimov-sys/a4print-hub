@@ -1,0 +1,504 @@
+/* A4PRINT HUB — modern Partners workspace */
+
+.main{
+  background:linear-gradient(180deg,#f5f8fc 0%,#f7f9fc 100%)!important;
+}
+
+.main>.topbar{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding-bottom:18px;
+}
+
+.main>.topbar h1{
+  margin:0 0 5px!important;
+  font-size:38px!important;
+  line-height:1.05!important;
+  letter-spacing:-.035em;
+}
+
+.main>.topbar p{
+  margin:0!important;
+  max-width:660px;
+  color:#718198!important;
+  font-size:15px!important;
+  line-height:1.5;
+}
+
+/* Old per-page layout controls duplicate the global workspace controls. */
+#resetLayout{display:none!important}
+.layout-tools{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin-left:auto;
+}
+#refresh{
+  min-height:40px!important;
+  height:40px!important;
+  padding:0 14px!important;
+  border-radius:11px!important;
+  background:#fff!important;
+  border:1px solid #dce5f0!important;
+  color:#334155!important;
+  box-shadow:0 3px 10px rgba(15,23,42,.035)!important;
+  font-size:14px!important;
+  font-weight:750!important;
+}
+#refresh:hover{background:#f8fbff!important;border-color:#c6d5e7!important;transform:translateY(-1px)}
+
+.grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.18fr) minmax(390px,.82fr)!important;
+  gap:18px!important;
+  align-items:start!important;
+}
+
+.block-column{
+  min-width:0;
+  min-height:0!important;
+}
+
+.block-column>.card{
+  margin-top:18px!important;
+}
+.block-column>.card:first-child{margin-top:0!important}
+
+.card{
+  position:relative;
+  overflow:hidden;
+  background:rgba(255,255,255,.96)!important;
+  border:1px solid #e0e8f2!important;
+  border-radius:20px!important;
+  padding:22px!important;
+  box-shadow:0 8px 28px rgba(31,52,79,.055)!important;
+}
+
+.card h2{
+  color:#0f172a!important;
+  font-size:24px!important;
+  line-height:1.15!important;
+  letter-spacing:-.02em;
+  font-weight:850!important;
+}
+
+.card>.small,
+.card .small,
+.meta{
+  color:#75849a!important;
+  font-size:13px!important;
+  line-height:1.45!important;
+}
+
+.row{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:flex-start!important;
+  gap:16px!important;
+}
+
+/* Local legacy drag button is visually hidden. The global workspace editor owns layout now. */
+.drag-handle{display:none!important}
+
+.toolbar{
+  display:flex!important;
+  gap:10px!important;
+  margin:16px 0 12px!important;
+}
+.toolbar input,
+.form input,
+.form select,
+.form textarea,
+.service input,
+.partner-invite-form input,
+.partner-invite-url input{
+  width:100%!important;
+  box-sizing:border-box!important;
+  border:1px solid #d8e2ee!important;
+  border-radius:12px!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  font:inherit!important;
+  box-shadow:inset 0 1px 0 rgba(15,23,42,.015)!important;
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease!important;
+}
+.toolbar input,
+.form input,
+.form select{
+  min-height:46px!important;
+  padding:10px 13px!important;
+}
+.toolbar input{
+  font-size:15px!important;
+}
+.form textarea{
+  min-height:92px!important;
+  padding:11px 13px!important;
+  resize:vertical;
+}
+.toolbar input:focus,
+.form input:focus,
+.form select:focus,
+.form textarea:focus,
+.service input:focus,
+.partner-invite-form input:focus,
+.partner-invite-url input:focus{
+  outline:none!important;
+  border-color:#7fb0ff!important;
+  box-shadow:0 0 0 4px rgba(37,99,235,.10)!important;
+}
+
+.form{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:13px!important;
+  margin-top:16px;
+}
+.form label{
+  display:grid!important;
+  gap:7px!important;
+  color:#64748b!important;
+  font-size:13px!important;
+  font-weight:700!important;
+}
+.form .full{grid-column:1/-1!important}
+
+/* Buttons: clear hierarchy, compact sizing. */
+.card button,
+.partner-invite-card button{
+  min-height:39px!important;
+  height:auto!important;
+  padding:9px 13px!important;
+  border-radius:11px!important;
+  font-size:13px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  box-shadow:none!important;
+  transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease!important;
+}
+.card button:hover:not(:disabled),
+.partner-invite-card button:hover:not(:disabled){transform:translateY(-1px)}
+.card button:disabled,
+.partner-invite-card button:disabled{opacity:.55!important;cursor:not-allowed!important}
+
+#partnerForm button[type="submit"],
+#outSend,
+#createPartnerInvite{
+  background:#2563eb!important;
+  border-color:#2563eb!important;
+  color:#fff!important;
+  box-shadow:0 8px 18px rgba(37,99,235,.17)!important;
+}
+#partnerForm button[type="submit"]:hover,
+#outSend:hover,
+#createPartnerInvite:hover{background:#1d4ed8!important;border-color:#1d4ed8!important}
+
+/* Partner list */
+#partners{
+  display:grid;
+  gap:10px;
+  margin-top:8px;
+}
+.partner{
+  padding:16px!important;
+  border:1px solid #e7edf5!important;
+  border-radius:15px!important;
+  background:#fbfdff!important;
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.partner:last-child{border-bottom:1px solid #e7edf5!important}
+.partner:hover{
+  border-color:#d3dfed!important;
+  box-shadow:0 7px 18px rgba(43,67,98,.055);
+  transform:translateY(-1px);
+}
+.partner .row>div:first-child{
+  min-width:0;
+  flex:1;
+}
+.partner .row>div:first-child>b{
+  display:block;
+  margin-bottom:5px;
+  color:#0f172a;
+  font-size:16px;
+  line-height:1.25;
+  font-weight:850;
+}
+.partner .row>div:last-child{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-end!important;
+  gap:7px!important;
+  min-width:126px;
+}
+.partner .row>div:last-child br{display:none!important}
+.partner button[data-order-partner]{
+  width:100%;
+  margin:0!important;
+  background:#eef5ff!important;
+  border:1px solid #d6e6ff!important;
+  color:#175ac9!important;
+}
+.partner button[data-order-partner]:hover{background:#e4efff!important}
+.partner button[data-toggle]{
+  width:100%;
+  margin:0!important;
+  background:#fff!important;
+  border:1px solid #e2e8f0!important;
+  color:#64748b!important;
+}
+.partner button[data-toggle]:hover{background:#f8fafc!important;color:#334155!important}
+.badge{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  min-height:28px!important;
+  padding:0 10px!important;
+  border-radius:999px!important;
+  background:#eaf8ef!important;
+  color:#16803b!important;
+  font-size:12px!important;
+  font-weight:850!important;
+}
+.badge::before{
+  content:'';
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:currentColor;
+  opacity:.8;
+}
+.badge.off{background:#fff0f1!important;color:#c2414c!important}
+
+.empty{
+  padding:28px 18px!important;
+  border:1px dashed #dbe5f0;
+  border-radius:14px;
+  background:#fbfdff;
+  color:#91a0b5!important;
+  text-align:center!important;
+  font-size:14px!important;
+}
+
+/* Catalog */
+#services{margin-top:14px}
+.service{
+  display:grid!important;
+  grid-template-columns:minmax(190px,1.35fr) minmax(100px,.65fr) minmax(100px,.65fr) auto!important;
+  gap:10px!important;
+  align-items:end!important;
+  padding:13px 0!important;
+  border-bottom:1px solid #edf2f7!important;
+}
+.service:last-child{border-bottom:0!important}
+.service>b,.service div>b{font-size:14px;color:#0f172a}
+.service label{display:grid;gap:5px!important}
+.service input{min-height:40px!important;padding:8px 10px!important}
+.service button{
+  background:#fff!important;
+  border:1px solid #dce5ef!important;
+  color:#334155!important;
+}
+
+.status-ok{color:#15803d!important;font-weight:800!important}
+.status-error{color:#b91c1c!important;font-weight:800!important}
+
+/* Partner invite card — cleaner, denser and easier to scan. */
+.partner-invite-card{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%)!important;
+  border-color:#dbe7f5!important;
+}
+.partner-invite-head{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  margin-bottom:17px!important;
+}
+.partner-invite-head h2{
+  margin:0 0 7px!important;
+  font-size:25px!important;
+}
+.partner-invite-form{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:12px!important;
+  margin:0 0 17px!important;
+}
+.partner-invite-form label{
+  display:grid!important;
+  gap:6px!important;
+  color:#64748b!important;
+  font-size:12px!important;
+  font-weight:750!important;
+}
+.partner-invite-form label:first-child{grid-column:1/-1!important}
+.partner-invite-form input{
+  min-height:44px!important;
+  padding:9px 12px!important;
+}
+.partner-invite-form .invite-actions{
+  grid-column:1/-1!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  margin-top:2px;
+}
+#createPartnerInvite{min-width:146px}
+.partner-invite-status{
+  min-height:18px!important;
+  color:#64748b!important;
+  font-size:12px!important;
+}
+.partner-invite-status.ok{color:#15803d!important;font-weight:800!important}
+.partner-invite-status.error{color:#b91c1c!important;font-weight:800!important}
+.partner-invite-list{
+  display:grid!important;
+  gap:11px!important;
+}
+.partner-invite-row{
+  padding:14px!important;
+  border:1px solid #e4ebf4!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:0 3px 10px rgba(30,55,85,.025);
+}
+.partner-invite-row-top{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:flex-start!important;
+  gap:12px!important;
+}
+.partner-invite-title{
+  color:#0f172a!important;
+  font-size:15px!important;
+  font-weight:850!important;
+}
+.partner-invite-meta{
+  margin-top:4px!important;
+  color:#748398!important;
+  font-size:12px!important;
+  line-height:1.45!important;
+}
+.partner-invite-badge{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:27px!important;
+  padding:0 9px!important;
+  border-radius:999px!important;
+  background:#eaf8ef!important;
+  color:#15803d!important;
+  font-size:11px!important;
+  font-weight:850!important;
+}
+.partner-invite-badge.off{background:#fff1f2!important;color:#be3446!important}
+.partner-invite-url{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto auto!important;
+  gap:7px!important;
+  margin-top:11px!important;
+}
+.partner-invite-url input{
+  min-width:0!important;
+  min-height:39px!important;
+  padding:8px 10px!important;
+  background:#f8fbff!important;
+  color:#516176!important;
+  font-size:11px!important;
+}
+.partner-invite-url button{
+  background:#fff!important;
+  border:1px solid #dce5ef!important;
+  color:#334155!important;
+}
+.partner-invite-url [data-copy]{
+  background:#eef5ff!important;
+  border-color:#d6e6ff!important;
+  color:#175ac9!important;
+}
+.partner-invite-stats{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  gap:6px!important;
+  margin-top:10px!important;
+}
+.partner-invite-stat{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:27px!important;
+  padding:0 9px!important;
+  border-radius:999px!important;
+  background:#f1f5fa!important;
+  color:#52657d!important;
+  font-size:11px!important;
+  font-weight:750!important;
+}
+.partner-invite-stats [data-toggle]{
+  min-height:29px!important;
+  padding:6px 9px!important;
+  margin-left:auto!important;
+  background:#fff!important;
+  border:1px solid #e1e8f0!important;
+  color:#64748b!important;
+}
+.partner-invite-uses{
+  margin-top:11px!important;
+  padding-top:9px!important;
+  border-top:1px solid #edf2f7!important;
+}
+.partner-invite-use{
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  padding:5px 0!important;
+  color:#556579!important;
+  font-size:12px!important;
+}
+.partner-invite-empty{
+  padding:24px 16px!important;
+  border:1px dashed #d6e2ef!important;
+  border-radius:13px!important;
+  background:#fbfdff!important;
+  color:#91a0b4!important;
+  text-align:center!important;
+  line-height:1.5;
+}
+
+/* Global workspace buttons injected on this page should stay subtle. */
+.a4-workspace-toolbar,
+.a4-workspace-controls{
+  gap:7px!important;
+}
+.a4-workspace-toolbar button,
+.a4-workspace-controls button{
+  min-height:39px!important;
+  padding:8px 12px!important;
+  border-radius:11px!important;
+}
+
+@media(max-width:1180px){
+  .grid{grid-template-columns:1fr!important}
+  .main>.topbar{flex-wrap:wrap}
+}
+
+@media(max-width:760px){
+  .main>.topbar h1{font-size:31px!important}
+  .card{padding:17px!important;border-radius:17px!important}
+  .form,.partner-invite-form{grid-template-columns:1fr!important}
+  .form .full,.partner-invite-form label:first-child,.partner-invite-form .invite-actions{grid-column:auto!important}
+  .service{grid-template-columns:1fr!important;align-items:stretch!important}
+  .partner .row{flex-direction:column!important}
+  .partner .row>div:last-child{width:100%;align-items:stretch!important;min-width:0}
+  .partner-invite-url{grid-template-columns:1fr 1fr!important}
+  .partner-invite-url input{grid-column:1/-1!important}
+  .partner-invite-stats [data-toggle]{margin-left:0!important}
+}
+
+@media(max-width:520px){
+  .partner-invite-url{grid-template-columns:1fr!important}
+  .partner-invite-use{flex-direction:column!important}
+  .layout-tools{width:100%;justify-content:flex-end}
+}
