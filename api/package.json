@@ -6,9 +6,9 @@
     "start": "node src/boot.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.57.4",
-    "cors": "2.8.5",
-    "dotenv": "17.2.2",
-    "express": "5.1.0"
+    "@supabase/supabase-js": "2.112.4",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1"
   }
 }
