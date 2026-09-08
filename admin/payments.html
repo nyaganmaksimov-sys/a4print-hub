@@ -1,1 +1,64 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оплаты — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script></head><body><aside class="sidebar"><div class="brand"><span class="brand-mark">A4</span><div>A4PRINT<br><small>HUB</small></div></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>💰 Оплаты</h1><p>Платежи по общей базе</p></div><button id="refresh">Обновить</button></header><section class="stats"><article><span>Всего операций</span><strong id="count">0</strong></article><article><span>Сумма</span><strong id="sum">0 ₽</strong></article></section><section class="panel"><div id="list"><div class="empty">Загрузка...</div></div></section></main><script type="module">import{supabase}from'./guard.js';const $=id=>document.getElementById(id),rub=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';async function load(){const{data,error}=await supabase.from('payments').select('*').order('created_at',{ascending:false}).limit(200);if(error){$('list').innerHTML=`<div class="empty">Ошибка: ${error.message}</div>`;return}const rows=data||[];$('count').textContent=rows.length;$('sum').textContent=rub(rows.reduce((s,x)=>s+Number(x.amount||0),0));$('list').innerHTML=rows.map(x=>`<div style="display:grid;grid-template-columns:1fr auto;gap:15px;padding:14px 0;border-bottom:1px solid #e5e7eb"><div><b>${x.payment_method||x.method||'Оплата'}</b><div style="color:#64748b;font-size:13px;margin-top:5px">${new Date(x.created_at).toLocaleString('ru-RU')} ${x.description?'· '+x.description:''}</div></div><strong>${rub(x.amount)}</strong></div>`).join('')||'<div class="empty">Платежей пока нет</div>'}$('refresh').onclick=load;load();</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Оплаты — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-payments3">
+  <link rel="stylesheet" href="./crm-finance.css?v=20260908-1">
+  <script src="./config.js?v=20260908-payments3"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Оплаты</h1><p>Входящие платежи HUB с прямой привязкой к клиенту, заказу и счёту</p></div>
+      <div class="cf-actions"><span id="updatedAt" class="cf-updated">загрузка…</span><button id="refresh" type="button">↻ Обновить</button><button id="addPayment" class="primary" type="button">+ Оплата</button></div>
+    </header>
+
+    <div class="cf-shell">
+      <section class="cf-kpis">
+        <article class="cf-kpi"><span>Операций</span><strong id="paymentsCount">0</strong><small>в журнале платежей HUB</small></article>
+        <article class="cf-kpi green"><span>Подтверждено</span><strong id="confirmedTotal">0 ₽</strong><small>только успешные статусы</small></article>
+        <article class="cf-kpi"><span>Ожидается</span><strong id="pendingTotal">0 ₽</strong><small>не подтверждённые платежи</small></article>
+        <article class="cf-kpi"><span>Без счёта / заказа</span><strong id="unlinkedCount">0</strong><small>платежи, требующие проверки</small></article>
+      </section>
+
+      <section class="cf-card">
+        <div class="cf-card-head"><div><h2>Журнал оплат</h2><p>Подтверждённая оплата счёта автоматически меняет его статус на PAID</p></div></div>
+        <div class="cf-toolbar">
+          <input id="search" type="search" autocomplete="off" placeholder="Номер платежа, клиент, заказ, счёт…">
+          <select id="statusFilter"><option value="">Все статусы</option><option value="PENDING">Ожидается</option><option value="CONFIRMED">Подтверждён</option><option value="CANCELLED">Отменён</option><option value="REFUNDED">Возвращён</option></select>
+          <select id="methodFilter"><option value="">Все способы</option><option>Банк</option><option>Наличные</option><option>Карта</option><option>СБП</option><option>Онлайн</option></select>
+          <button id="clearFilters" type="button">Сбросить</button>
+        </div>
+        <div class="cf-meta"><span><b id="visibleCount">0 из 0</b></span><span>Валюта новых платежей: RUB</span></div>
+        <div id="list" class="cf-list"><div class="cf-empty">Загрузка оплат…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="paymentDlg" class="cf-dialog">
+    <form id="paymentForm">
+      <div class="cf-dialog-head"><div><h2>Новая оплата</h2><p>Привяжите платёж к счёту — его статус обновится автоматически.</p></div><button id="closePaymentDlg" class="cf-dialog-close" type="button">×</button></div>
+      <div class="cf-dialog-body">
+        <div class="cf-details">
+          <div class="cf-field full"><span>Клиент</span><select id="paymentCustomer"><option value="">Клиент не выбран</option></select></div>
+          <div class="cf-field full"><span>Счёт</span><select id="paymentDocument"><option value="">Без счёта</option></select></div>
+          <div class="cf-field full"><span>Заказ</span><select id="paymentOrder"><option value="">Без заказа</option></select></div>
+          <div class="cf-field"><span>Сумма, ₽</span><input id="paymentAmount" type="number" min="0.01" step="0.01" required></div>
+          <div class="cf-field"><span>Способ оплаты</span><select id="paymentMethod"><option>Банк</option><option>Наличные</option><option>Карта</option><option>СБП</option><option>Онлайн</option></select></div>
+          <div class="cf-field"><span>Статус</span><select id="paymentStatus"><option value="CONFIRMED">Подтверждён</option><option value="PENDING">Ожидается</option><option value="CANCELLED">Отменён</option></select></div>
+          <div class="cf-field"><span>Дата оплаты</span><input id="paymentDate" type="datetime-local"></div>
+          <div class="cf-field full"><span>Комментарий</span><textarea id="paymentNote" placeholder="Назначение платежа, номер банковской операции и т.д."></textarea></div>
+        </div>
+        <div id="paymentError" class="cf-msg error" style="margin-top:10px"></div>
+      </div>
+      <div class="cf-dialog-footer"><button type="button" onclick="document.getElementById('paymentDlg').close()">Отмена</button><button id="savePayment" class="primary" type="submit">Сохранить оплату</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./payments-modern.js?v=20260908-1"></script>
+</body>
+</html>
