@@ -3,10 +3,10 @@
   window.__A4_NAV_ACCORDION__=true;
 
   const GROUPS=[
-    {key:'work',title:'Работа',pages:['index.html','manager.html','orders.html','customers.html']},
-    {key:'operations',title:'Операции',pages:['cuim-delivery.html','partners.html','requests.html','warehouse.html','production.html','messages.html']},
-    {key:'team',title:'Команда',pages:['employees.html','staff-structure.html']},
-    {key:'system',title:'Система',pages:['documents.html','payments.html','reports.html','settings.html','help.html','index-root']},
+    {key:'work',title:'Работа',pages:['index.html','manager.html','orders.html','customers.html','requests.html','partners.html']},
+    {key:'operations',title:'Операции',pages:['kassa-root','warehouse.html','production.html','cuim-delivery.html','documents.html','payments.html','reports.html']},
+    {key:'team',title:'Команда',pages:['messages.html','employees.html','staff-structure.html']},
+    {key:'system',title:'Система',pages:['telegram.html','apps.html','settings.html','help.html','index-root']},
   ];
 
   const css=document.createElement('style');
@@ -23,6 +23,10 @@
     .a4-nav-group.has-active>.a4-nav-group-head{color:#e2e8f0}
     .a4-nav-group.has-active>.a4-nav-group-head:after{content:'•';color:var(--a4-accent,#60a5fa);font-size:18px;line-height:0;margin-left:auto;margin-right:3px}
     .a4-nav-group.has-active>.a4-nav-group-head .chev{margin-left:0}
+
+    body:not(.a4-side-glass) .a4-nav-group-head{color:#64748b}
+    body:not(.a4-side-glass) .a4-nav-group-head:hover{background:#eef2f7;color:#0f172a}
+    body:not(.a4-side-glass) .a4-nav-group.has-active>.a4-nav-group-head{color:#334155}
 
     @media(min-width:901px){
       .a4-sidebar-collapsed .a4-nav-group-head{height:8px;padding:0;margin:4px 0;background:#cbd5e1;border-radius:999px;font-size:0}
@@ -44,14 +48,13 @@
       .a4-sidebar-collapsed .a4-nav-group.open>.a4-nav-group-body,.a4-nav-group.open>.a4-nav-group-body{display:grid!important}
       .a4-nav-group-body{gap:4px}
       .a4-sidebar-head{display:none!important}
-      .sidebar .brand,.sidebar .hub-logo-wrap,.a4-sidebar-collapsed .sidebar .brand,.a4-sidebar-collapsed .sidebar .hub-logo-wrap{min-height:74px!important;margin:0 0 10px!important;padding:6px!important;border-radius:14px!important}
-      .sidebar .brand img,.sidebar .hub-logo,.a4-sidebar-collapsed .sidebar .brand img,.a4-sidebar-collapsed .sidebar .hub-logo{max-width:150px!important;width:auto!important;height:62px!important;max-height:62px!important}
     }
   `;
   document.head.appendChild(css);
 
   function pageKey(a){
     const raw=a.getAttribute('href')||'';
+    if(/^\.\.\/kassa(?:\/|$)/.test(raw)) return 'kassa-root';
     if(raw.startsWith('../')) return 'index-root';
     return raw.split('?')[0].split('/').pop()||'';
   }
@@ -70,9 +73,6 @@
     const shell=document.createElement('div');
     shell.className='a4-nav-accordion';
 
-    // Каждый новый экран открывается с закрытыми разделами меню.
-    try{sessionStorage.removeItem('a4_nav_open_group_v1')}catch{}
-
     for(const g of GROUPS){
       const group=document.createElement('section');
       group.className='a4-nav-group';
@@ -87,7 +87,7 @@
         if(a.classList.contains('active'))active=true;
       }
       if(!has)continue;
-      if(active)group.classList.add('has-active');
+      if(active)group.classList.add('has-active','open');
       head.onclick=()=>{
         const opening=!group.classList.contains('open');
         shell.querySelectorAll('.a4-nav-group.open').forEach(x=>x.classList.remove('open'));
