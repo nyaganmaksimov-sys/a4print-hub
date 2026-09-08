@@ -23,15 +23,35 @@ async function loadLocalSupabase() {
   return window.supabase.createClient;
 }
 
-const createClient = await loadLocalSupabase();
-const supabase = createClient(url, key, {
-  global: { fetch: window.A4SupabaseFetch || fetch },
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
+async function getSharedSupabaseClient() {
+  if (window.__A4_SUPABASE_CLIENT__) return window.__A4_SUPABASE_CLIENT__;
+  if (window.__A4_SUPABASE_CLIENT_PROMISE__) return window.__A4_SUPABASE_CLIENT_PROMISE__;
+
+  window.__A4_SUPABASE_CLIENT_PROMISE__ = (async () => {
+    const createClient = await loadLocalSupabase();
+    if (window.__A4_SUPABASE_CLIENT__) return window.__A4_SUPABASE_CLIENT__;
+
+    const client = createClient(url, key, {
+      global: { fetch: window.A4SupabaseFetch || fetch },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+    window.__A4_SUPABASE_CLIENT__ = client;
+    return client;
+  })();
+
+  try {
+    return await window.__A4_SUPABASE_CLIENT_PROMISE__;
+  } catch (error) {
+    delete window.__A4_SUPABASE_CLIENT_PROMISE__;
+    throw error;
   }
-});
+}
+
+const supabase = await getSharedSupabaseClient();
 
 const page = location.pathname.split('/').pop();
 const params = new URLSearchParams(location.search);
