@@ -44,14 +44,16 @@ async function getPartner(id){
 async function loadDetails(id){
   const partner=await getPartner(id);
   if(!partner)return null;
-  const [usersRes,ordersRes,crmOrdersRes,servicesRes,customersRes]=await Promise.all([
+  const [usersRes,ordersRes,crmOrdersRes,servicesRes,servicesCountRes,activeServicesCountRes,customersRes]=await Promise.all([
     service.from('partner_users').select('id,partner_id,auth_user_id,full_name,email,phone,is_admin,is_active,created_at,updated_at').eq('partner_id',id).order('created_at',{ascending:true}),
     service.from('orders').select('id,order_number,status,total,source,created_at,updated_at,partner_id,partner_user_id,fulfillment_partner_id,partner_direction,customer_comment').or(`partner_id.eq.${id},fulfillment_partner_id.eq.${id}`).order('created_at',{ascending:false}).limit(500),
     service.from('partner_crm_orders').select('id,order_number,title,status,sale_total,production_cost,prepaid,due_date,a4print_order_id,created_at,updated_at').eq('partner_id',id).order('created_at',{ascending:false}).limit(500),
-    service.from('partner_supplier_services').select('id,category,name,description,unit,price,is_active,created_at,updated_at').eq('partner_id',id).order('category').order('name').limit(300),
+    service.from('partner_supplier_services').select('id,category,name,description,unit,price,is_active,created_at,updated_at').eq('partner_id',id).order('category').order('name').limit(80),
+    service.from('partner_supplier_services').select('id',{count:'exact',head:true}).eq('partner_id',id),
+    service.from('partner_supplier_services').select('id',{count:'exact',head:true}).eq('partner_id',id).eq('is_active',true),
     service.from('partner_crm_customers').select('id',{count:'exact',head:true}).eq('partner_id',id)
   ]);
-  for(const r of [usersRes,ordersRes,crmOrdersRes,servicesRes])if(r.error)throw r.error;
+  for(const r of [usersRes,ordersRes,crmOrdersRes,servicesRes,servicesCountRes,activeServicesCountRes])if(r.error)throw r.error;
   if(customersRes.error)throw customersRes.error;
   const users=usersRes.data||[];
   const orders=ordersRes.data||[];
@@ -69,8 +71,8 @@ async function loadDetails(id){
       orders_from_partner:fromPartner.length,orders_to_partner:toPartner.length,
       turnover_from_partner:sum(fromPartner,'total'),turnover_to_partner:sum(toPartner,'total'),
       crm_orders_count:crmOrders.length,crm_sales:crmSales,crm_prepaid:crmPrepaid,crm_receivable:crmReceivable,
-      crm_customers_count:Number(customersRes.count||0),supplier_services_count:supplierServices.length,
-      active_supplier_services:supplierServices.filter(x=>x.is_active).length
+      crm_customers_count:Number(customersRes.count||0),supplier_services_count:Number(servicesCountRes.count||0),
+      active_supplier_services:Number(activeServicesCountRes.count||0)
     }
   };
 }
