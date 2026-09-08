@@ -9,7 +9,7 @@
   window.__A4_BLOCK_LAYOUT__=true;
 
   const PAGE_KEY=path.replace(/\/+$/,'')||'/';
-  const STORE_KEY=`a4print:block-layout:v2:${PAGE_KEY}`;
+  const STORE_KEY=`a4print:block-layout:v3:${PAGE_KEY}`;
   const BLOCK_SELECTOR=[
     '.dash-app-launcher','.dash-kpis','.dash-card','.dash-unit-card',
     '.manager-panel','.quick>a','.panel','.stats>article',
@@ -24,9 +24,9 @@
   ].join(',');
 
   let editMode=false;
-  let dragged=null;
   let scanTimer=null;
   let applying=false;
+  let pointerDrag=null;
   const known=new Map();
 
   const readState=()=>{
@@ -46,17 +46,18 @@
   css.textContent=`
     .a4-layout-block{position:relative!important;transition:outline-color .14s ease,box-shadow .14s ease,opacity .14s ease}
     .a4-layout-hidden{display:none!important}
-    .a4-block-controls{display:none;position:absolute;z-index:80;right:8px;top:8px;align-items:center;gap:4px;padding:4px;border:1px solid #dbe3ee;border-radius:10px;background:rgba(255,255,255,.96);box-shadow:0 7px 22px rgba(15,23,42,.12);backdrop-filter:blur(8px)}
+    .a4-block-controls{display:none;position:absolute;z-index:80;right:8px;top:8px;align-items:center;gap:4px;padding:4px;border:1px solid #dbe3ee;border-radius:10px;background:rgba(255,255,255,.97);box-shadow:0 7px 22px rgba(15,23,42,.12);backdrop-filter:blur(8px)}
     body.a4-layout-edit .a4-layout-block:not(.a4-layout-hidden){outline:1px dashed rgba(37,99,235,.32);outline-offset:3px}
-    body.a4-layout-edit .a4-layout-block:not(.a4-layout-hidden):hover{outline-color:rgba(37,99,235,.78)}
+    body.a4-layout-edit .a4-layout-block:not(.a4-layout-hidden):hover{outline-color:rgba(37,99,235,.75)}
     body.a4-layout-edit .a4-block-controls{display:flex}
-    .a4-block-controls button{display:grid!important;place-items:center!important;width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;padding:0!important;border:0!important;border-radius:7px!important;background:#f8fafc!important;color:#475569!important;font:800 14px/1 system-ui!important;box-shadow:none!important}
+    .a4-block-controls button{display:grid!important;place-items:center!important;width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;padding:0!important;border:0!important;border-radius:7px!important;background:#f8fafc!important;color:#475569!important;font:800 14px/1 system-ui!important;box-shadow:none!important;user-select:none!important;-webkit-user-select:none!important}
     .a4-block-controls button:hover{background:#eef4ff!important;color:#1d4ed8!important;transform:none!important}
     .a4-block-controls button[data-a4-hide]:hover{background:#fff1f2!important;color:#be123c!important}
-    .a4-block-drag{cursor:grab!important;touch-action:none}
+    .a4-block-drag{cursor:grab!important;touch-action:none!important}
     .a4-block-drag:active{cursor:grabbing!important}
-    .a4-layout-dragging{opacity:.42!important}
-    .a4-layout-drop-target{outline:2px solid #60a5fa!important;outline-offset:4px!important}
+    .a4-layout-dragging{opacity:.58!important;outline:2px solid #60a5fa!important;outline-offset:3px!important}
+    .a4-layout-drop-target{outline:2px solid #22c55e!important;outline-offset:4px!important;box-shadow:0 0 0 5px rgba(34,197,94,.10)!important}
+    .a4-layout-drop-target:before{content:'Переместить сюда';position:absolute;z-index:95;left:50%;top:8px;transform:translateX(-50%);padding:4px 8px;border-radius:999px;background:#166534;color:#fff;font:800 10px/1.2 system-ui;white-space:nowrap;pointer-events:none}
 
     .a4-block-collapsed-bar{display:none;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:10px 12px;color:#334155}
     .a4-block-collapsed-bar strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -120,8 +121,8 @@
     else{
       const cls=[...parent.classList].filter(x=>!x.startsWith('a4-')).slice(0,3).join('.');
       const tag=parent.tagName.toLowerCase();
-      const siblings=parent.parentElement?[...parent.parentElement.children].filter(x=>x.tagName===parent.tagName&&[...x.classList].filter(c=>!c.startsWith('a4-')).slice(0,3).join('.')===cls):[parent];
-      key=`${tag}.${cls||'plain'}:${Math.max(0,siblings.indexOf(parent))}`;
+      const same=parent.parentElement?[...parent.parentElement.children].filter(x=>x.tagName===parent.tagName&&[...x.classList].filter(c=>!c.startsWith('a4-')).slice(0,3).join('.')===cls):[parent];
+      key=`${tag}.${cls||'plain'}:${Math.max(0,same.indexOf(parent))}`;
     }
     parent.dataset.a4LayoutParent=key;
     return key;
@@ -160,9 +161,7 @@
     const main=document.querySelector('.main');
     if(!main)return [];
     const set=new Set();
-    main.querySelectorAll(BLOCK_SELECTOR).forEach(el=>{
-      if(looksLikeBlock(el))set.add(el);
-    });
+    main.querySelectorAll(BLOCK_SELECTOR).forEach(el=>{if(looksLikeBlock(el))set.add(el)});
     [...main.children].forEach(el=>{
       if(el.matches('header,.topbar,script,style')||el.closest(EXCLUDE_SELECTOR))return;
       if(el.querySelector(BLOCK_SELECTOR))return;
@@ -171,18 +170,98 @@
     return [...set].filter(el=>!el.closest('.a4-layout-block .a4-layout-block'));
   }
 
+  function applyBlockState(el){
+    const id=blockKey(el);
+    const cfg=state.blocks[id]||{};
+    el.classList.toggle('a4-layout-hidden',cfg.hidden===true);
+    el.classList.toggle('a4-layout-collapsed',cfg.collapsed===true);
+    const c=el.querySelector(':scope > .a4-block-controls [data-a4-collapse]');
+    if(c)c.textContent=cfg.collapsed===true?'+':'−';
+  }
+
+  function clearDropTarget(){
+    document.querySelectorAll('.a4-layout-drop-target').forEach(x=>x.classList.remove('a4-layout-drop-target'));
+  }
+
+  function targetAt(x,y,source,parent){
+    const els=document.elementsFromPoint(x,y);
+    for(const node of els){
+      const block=node.closest?.('.a4-layout-block');
+      if(block&&block!==source&&block.parentElement===parent&&!block.classList.contains('a4-layout-hidden'))return block;
+    }
+    return null;
+  }
+
+  function shouldInsertBefore(target,x,y){
+    const parent=target.parentElement;
+    const style=getComputedStyle(parent);
+    const rect=target.getBoundingClientRect();
+    if(style.display==='flex'&&!style.flexDirection.startsWith('column'))return x<rect.left+rect.width/2;
+    const cols=(style.gridTemplateColumns||'').split(' ').filter(Boolean).length;
+    if(style.display.includes('grid')&&cols>1){
+      const dy=y-(rect.top+rect.height/2);
+      if(Math.abs(dy)>rect.height*.28)return dy<0;
+      return x<rect.left+rect.width/2;
+    }
+    return y<rect.top+rect.height/2;
+  }
+
+  function finishPointerDrag(commit=true){
+    const d=pointerDrag;
+    if(!d)return;
+    pointerDrag=null;
+    clearDropTarget();
+    d.source.classList.remove('a4-layout-dragging');
+    try{d.handle.releasePointerCapture(d.pointerId)}catch{}
+    if(commit&&d.target&&d.target.parentElement===d.parent&&d.source.parentElement===d.parent){
+      applying=true;
+      try{
+        const reference=d.before?d.target:d.target.nextSibling;
+        if(reference!==d.source)d.parent.insertBefore(d.source,reference);
+        saveOrder(d.parent);
+      }finally{applying=false}
+    }
+    setTimeout(scheduleScan,80);
+  }
+
+  function startPointerDrag(e,source,handle){
+    if(!editMode||e.button!==0)return;
+    const parent=source.parentElement;
+    const siblings=[...parent.children].filter(x=>x.classList?.contains('a4-layout-block')&&!x.classList.contains('a4-layout-hidden'));
+    if(siblings.length<2)return;
+    e.preventDefault();
+    e.stopPropagation();
+    finishPointerDrag(false);
+    pointerDrag={source,parent,handle,pointerId:e.pointerId,target:null,before:true};
+    source.classList.add('a4-layout-dragging');
+    try{handle.setPointerCapture(e.pointerId)}catch{}
+  }
+
+  function movePointerDrag(e){
+    const d=pointerDrag;
+    if(!d||e.pointerId!==d.pointerId)return;
+    e.preventDefault();
+    const target=targetAt(e.clientX,e.clientY,d.source,d.parent);
+    if(target!==d.target){
+      clearDropTarget();
+      d.target=target;
+      if(target)target.classList.add('a4-layout-drop-target');
+    }
+    if(target)d.before=shouldInsertBefore(target,e.clientX,e.clientY);
+  }
+
   function ensureControls(el){
-    if(el.querySelector(':scope > .a4-block-controls'))return;
     const id=blockKey(el);
     const label=titleFor(el);
     el.classList.add('a4-layout-block');
     el.dataset.a4LayoutTitle=label;
     known.set(id,el);
+    if(el.querySelector(':scope > .a4-block-controls')){applyBlockState(el);return}
 
     const controls=document.createElement('div');
     controls.className='a4-block-controls';
     controls.innerHTML=`
-      <button type="button" class="a4-block-drag" draggable="true" title="Перетащить блок" aria-label="Перетащить блок">⠿</button>
+      <button type="button" class="a4-block-drag" title="Перетащить блок" aria-label="Перетащить блок">⠿</button>
       <button type="button" data-a4-up title="Переместить выше" aria-label="Переместить выше">↑</button>
       <button type="button" data-a4-down title="Переместить ниже" aria-label="Переместить ниже">↓</button>
       <button type="button" data-a4-collapse title="Свернуть блок" aria-label="Свернуть блок">−</button>
@@ -200,49 +279,15 @@
     controls.querySelector('[data-a4-hide]').onclick=e=>{e.stopPropagation();setHidden(el,true)};
 
     const handle=controls.querySelector('.a4-block-drag');
-    handle.addEventListener('dragstart',e=>{
-      dragged=el;
-      el.classList.add('a4-layout-dragging');
-      try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id)}catch{}
-    });
-    handle.addEventListener('dragend',()=>{
-      document.querySelectorAll('.a4-layout-drop-target').forEach(x=>x.classList.remove('a4-layout-drop-target'));
-      el.classList.remove('a4-layout-dragging');
-      if(el.parentElement)saveOrder(el.parentElement);
-      dragged=null;
-    });
-    el.addEventListener('dragover',e=>{
-      if(!editMode||!dragged||dragged===el||dragged.parentElement!==el.parentElement)return;
-      e.preventDefault();
-      el.classList.add('a4-layout-drop-target');
-      const parent=el.parentElement;
-      const ps=getComputedStyle(parent);
-      const columns=(ps.gridTemplateColumns||'').split(' ').filter(Boolean).length;
-      const horizontal=(ps.display.includes('grid')&&columns>1)||(ps.display==='flex'&&!ps.flexDirection.startsWith('column'));
-      const r=el.getBoundingClientRect();
-      const before=horizontal?e.clientX<r.left+r.width/2:e.clientY<r.top+r.height/2;
-      parent.insertBefore(dragged,before?el:el.nextSibling);
-    });
-    el.addEventListener('dragleave',()=>el.classList.remove('a4-layout-drop-target'));
-    el.addEventListener('drop',e=>{
-      if(!dragged)return;
-      e.preventDefault();
-      el.classList.remove('a4-layout-drop-target');
-      saveOrder(el.parentElement);
-    });
+    handle.addEventListener('pointerdown',e=>startPointerDrag(e,el,handle));
+    handle.addEventListener('pointermove',movePointerDrag);
+    handle.addEventListener('pointerup',e=>{if(pointerDrag?.pointerId===e.pointerId)finishPointerDrag(true)});
+    handle.addEventListener('pointercancel',e=>{if(pointerDrag?.pointerId===e.pointerId)finishPointerDrag(false)});
+    handle.addEventListener('lostpointercapture',()=>{if(pointerDrag?.handle===handle)finishPointerDrag(false)});
 
     el.prepend(bar);
     el.appendChild(controls);
     applyBlockState(el);
-  }
-
-  function applyBlockState(el){
-    const id=blockKey(el);
-    const cfg=state.blocks[id]||{};
-    el.classList.toggle('a4-layout-hidden',cfg.hidden===true);
-    el.classList.toggle('a4-layout-collapsed',cfg.collapsed===true);
-    const c=el.querySelector(':scope > .a4-block-controls [data-a4-collapse]');
-    if(c)c.textContent=cfg.collapsed===true?'+':'−';
   }
 
   function setHidden(el,value){
@@ -264,15 +309,19 @@
   }
 
   function move(el,delta){
+    if(pointerDrag)finishPointerDrag(false);
     const parent=el.parentElement;
     if(!parent)return;
-    const siblings=[...parent.children].filter(x=>x.classList?.contains('a4-layout-block'));
-    const i=siblings.indexOf(el);
-    const next=i+delta;
+    const siblings=[...parent.children].filter(x=>x.classList?.contains('a4-layout-block')&&!x.classList.contains('a4-layout-hidden'));
+    const i=siblings.indexOf(el),next=i+delta;
     if(i<0||next<0||next>=siblings.length)return;
-    if(delta<0)parent.insertBefore(el,siblings[next]);
-    else parent.insertBefore(el,siblings[next].nextSibling);
-    saveOrder(parent);
+    applying=true;
+    try{
+      if(delta<0)parent.insertBefore(el,siblings[next]);
+      else parent.insertBefore(el,siblings[next].nextSibling);
+      saveOrder(parent);
+    }finally{applying=false}
+    setTimeout(scheduleScan,50);
   }
 
   function saveOrder(parent){
@@ -282,7 +331,7 @@
   }
 
   function applyOrders(){
-    if(applying)return;
+    if(applying||pointerDrag)return;
     applying=true;
     try{
       const parents=new Set([...known.values()].map(x=>x.parentElement).filter(Boolean));
@@ -291,14 +340,16 @@
         if(!Array.isArray(order)||!order.length)continue;
         const items=[...parent.children].filter(x=>x.classList?.contains('a4-layout-block'));
         const map=new Map(items.map(x=>[blockKey(x),x]));
-        for(const id of order){const el=map.get(id);if(el)parent.appendChild(el)}
+        const desired=order.map(id=>map.get(id)).filter(Boolean);
+        const current=items.filter(x=>desired.includes(x));
+        const already=desired.length===current.length&&desired.every((x,i)=>x===current[i]);
+        if(already)continue;
+        for(const el of desired)parent.appendChild(el);
       }
     }finally{applying=false}
   }
 
-  function hiddenBlocks(){
-    return [...known.values()].filter(el=>state.blocks[blockKey(el)]?.hidden===true);
-  }
+  function hiddenBlocks(){return [...known.values()].filter(el=>state.blocks[blockKey(el)]?.hidden===true)}
 
   function ensureHiddenPanel(){
     let panel=document.querySelector('.a4-block-hidden-panel');
@@ -346,8 +397,7 @@
       location.reload();
     };
     const actions=top.querySelector('.a4-workspace-actions');
-    if(actions)actions.insertBefore(toolbar,actions.firstChild);
-    else top.appendChild(toolbar);
+    if(actions)actions.insertBefore(toolbar,actions.firstChild);else top.appendChild(toolbar);
     updateToolbarCount();
     return true;
   }
@@ -358,6 +408,7 @@
   }
 
   function setEditMode(value){
+    if(pointerDrag)finishPointerDrag(false);
     editMode=!!value;
     document.body.classList.toggle('a4-layout-edit',editMode);
     const btn=document.querySelector('.a4-block-layout-toolbar [data-a4-layout-toggle]');
@@ -370,7 +421,7 @@
   }
 
   function scan(){
-    if(applying)return;
+    if(applying||pointerDrag)return;
     const blocks=collectBlocks();
     blocks.forEach(ensureControls);
     applyOrders();
@@ -380,8 +431,9 @@
   }
 
   function scheduleScan(){
+    if(pointerDrag)return;
     clearTimeout(scanTimer);
-    scanTimer=setTimeout(scan,180);
+    scanTimer=setTimeout(scan,220);
   }
 
   document.addEventListener('click',e=>{
@@ -393,13 +445,12 @@
   const init=()=>{
     ensureHiddenPanel();
     scan();
-    setTimeout(scan,450);
-    setTimeout(scan,1100);
+    setTimeout(scan,500);
+    setTimeout(scan,1300);
     const main=document.querySelector('.main');
-    if(main)new MutationObserver(scheduleScan).observe(main,{childList:true,subtree:true});
-    new MutationObserver(()=>{ensureToolbar()}).observe(document.documentElement,{childList:true,subtree:true});
+    if(main)new MutationObserver(()=>{if(!applying&&!pointerDrag)scheduleScan()}).observe(main,{childList:true,subtree:true});
+    new MutationObserver(()=>{if(!pointerDrag)ensureToolbar()}).observe(document.documentElement,{childList:true,subtree:true});
   };
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
-  else init();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
