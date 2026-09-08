@@ -161,3 +161,13 @@
     return nativeFetch(input,init);
   };
 })();
+
+(()=>{
+  if(window.__A4_PARTNER_INVITES_LOADER__)return;
+  window.__A4_PARTNER_INVITES_LOADER__=true;
+  const current=document.currentScript?.src||location.href;
+  const script=document.createElement('script');
+  script.src=new URL('partner-invites.js?v=20260908-1',current).href;
+  script.async=false;
+  document.head.appendChild(script);
+})();
