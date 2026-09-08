@@ -226,9 +226,9 @@ express.application.listen=function patchedPartnerInviteListen(...args){
         });
       }catch(error){
         console.error('[partner registration]',error);
-        if(partnerId)await service.from('partners').delete().eq('id',partnerId).catch(()=>{});
-        if(authUserId)await service.auth.admin.deleteUser(authUserId).catch(()=>{});
-        if(reservedInviteId)await service.rpc('release_partner_registration_invite',{p_invite_id:reservedInviteId}).catch(()=>{});
+        if(partnerId){try{await service.from('partners').delete().eq('id',partnerId)}catch{}}
+        if(authUserId){try{await service.auth.admin.deleteUser(authUserId)}catch{}}
+        if(reservedInviteId){try{await service.rpc('release_partner_registration_invite',{p_invite_id:reservedInviteId})}catch{}}
         return jsonError(res,error.publicStatus||500,error.publicCode||'REGISTRATION_FAILED',error.publicStatus?error.message:'Не удалось завершить регистрацию. Попробуйте ещё раз.');
       }
     });
