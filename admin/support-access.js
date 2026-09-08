@@ -53,8 +53,9 @@
       if(document.getElementById(id))return;
       const s=document.createElement('script');s.id=id;s.type='module';s.src=src;document.head.appendChild(s);
     };
-    if(/\/admin\/(?:index\.html)?$/.test(path))add('./dashboard-equipment-widget.js?v=20260908-1','a4-dashboard-equipment-module');
+    if(/\/admin\/(?:index\.html)?$/.test(path))add('./dashboard-equipment-widget.js?v=20260908-2','a4-dashboard-equipment-module');
     if(/\/admin\/equipment\.html$/.test(path))add('./equipment-service-kpis.js?v=20260908-1','a4-equipment-service-kpis-module');
+    if(/\/admin\/reports\.html$/.test(path))add('./reports-equipment-widget.js?v=20260908-1','a4-reports-equipment-module');
   }
 
   function isolateSupportNav(){
