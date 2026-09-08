@@ -1,36 +1,99 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Заказ — A4PRINT HUB</title>
-<link rel="stylesheet" href="./styles.css?v=20260905-5">
-<script src="./config.js?v=20260905-5"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Заказ — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-order6">
+  <link rel="stylesheet" href="./order-modern.css?v=20260908-1">
+  <script src="./config.js?v=20260908-order6"></script>
 </head>
 <body>
-<aside class="sidebar"><div class="brand"></div><nav></nav></aside>
-<main class="main">
-<header class="topbar">
-  <div><h1 id="title">Заказ</h1><p id="subtitle">Карточка заказа</p></div>
-  <div><span id="userEmail" style="margin-right:12px"></span><a href="./orders.html" style="text-decoration:none;color:inherit">← Все заказы</a></div>
-</header>
-<section class="grid">
-  <article class="panel wide">
-    <div class="panel-head"><h2>Информация о заказе</h2><span id="status" class="badge">—</span></div>
-    <div id="details" class="details"><div class="empty">Загрузка...</div></div>
-    <div class="actions">
-      <button data-status="CONFIRMED">Подтвердить</button>
-      <button data-status="IN_PROGRESS">В работу</button>
-      <button data-status="READY">Готов</button>
-      <button data-status="COMPLETED">Завершить</button>
-      <button data-status="ON_HOLD">Пауза</button>
-      <button data-status="CANCELLED">Отменить</button>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1 id="title">Заказ</h1><p id="subtitle">Карточка заказа</p></div>
+      <div class="order-top-actions"><span id="updatedAt" class="order-updated">загрузка…</span><button id="refresh" type="button">↻ Обновить</button><a href="./orders.html" style="text-decoration:none">← Все заказы</a></div>
+    </header>
+
+    <div class="order-shell">
+      <section class="order-card">
+        <div class="order-card-head"><div><h2>Состояние заказа</h2><p>Стоимость, этап, клиент и финансовое состояние</p></div><span id="status" class="order-badge gray">—</span></div>
+        <div class="order-card-body">
+          <div class="order-summary">
+            <div class="order-kpi"><span>Стоимость заказа</span><b id="orderTotal">0 ₽</b><small>сумма заказа HUB</small></div>
+            <div class="order-kpi"><span>Выставлено счетов</span><b id="invoicedTotal">0 ₽</b><small id="invoicedNote">клиентские счета</small></div>
+            <div class="order-kpi"><span>Получено оплат</span><b id="paidTotal">0 ₽</b><small>только подтверждённые</small></div>
+            <div class="order-kpi"><span id="debtLabel">К получению</span><b id="debtTotal">0 ₽</b><small id="debtNote">остаток по заказу</small></div>
+          </div>
+          <div class="order-status-actions" id="statusActions" style="margin-top:12px">
+            <button data-status="CONFIRMED" type="button">Подтвердить</button>
+            <button data-status="IN_PROGRESS" type="button">В работу</button>
+            <button data-status="READY" type="button">Готов</button>
+            <button data-status="COMPLETED" type="button">Завершить</button>
+            <button data-status="ON_HOLD" type="button">Пауза</button>
+            <button data-status="CANCELLED" type="button">Отменить</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="order-grid">
+        <div class="order-stack">
+          <section class="order-card">
+            <div class="order-card-head"><div><h2>Заказ</h2><p>Заказчик, работа, позиции и комментарии</p></div><span id="orderDirection" class="order-badge">HUB</span></div>
+            <div class="order-card-body">
+              <div id="partnerBlock"></div>
+              <div class="order-info-grid" id="orderInfo"><div class="order-empty">Загрузка…</div></div>
+              <div class="order-section"><div class="order-section-title">Позиции</div><div id="itemsList"><div class="order-empty">Загрузка…</div></div></div>
+              <div class="order-section" id="partnerMessagesSection" hidden><div class="order-section-title">Сообщения партнёру</div><div id="partnerMessages" class="order-message-list"></div><div class="order-message"><textarea id="partnerReply" placeholder="Это сообщение увидит партнёр"></textarea><button id="sendPartnerReply" type="button">Отправить партнёру</button></div></div>
+              <div class="order-section"><div class="order-section-title">Внутренний комментарий</div><div class="order-comment"><textarea id="internalComment" placeholder="Комментарий для сотрудников HUB"></textarea><button id="saveComment" type="button">Сохранить комментарий</button></div></div>
+            </div>
+          </section>
+
+          <section class="order-card">
+            <div class="order-card-head"><div><h2>История статусов</h2><p>Изменения этапов заказа</p></div><span class="order-badge gray">HISTORY</span></div>
+            <div class="order-card-body" id="history"><div class="order-empty">История пока пуста</div></div>
+          </section>
+        </div>
+
+        <aside class="order-stack">
+          <section class="order-card" id="financeCard">
+            <div class="order-card-head"><div><h2 id="financeTitle">Финансы</h2><p id="financeSubtitle">Счета и оплаты по заказу</p></div><span id="financeBadge" class="order-badge green">₽</span></div>
+            <div class="order-card-body">
+              <div id="financeMessage"></div>
+              <div id="invoiceList"></div>
+              <div class="order-section"><div class="order-section-title">Оплаты</div><div id="paymentList"></div></div>
+              <div class="order-finance-actions" id="financeActions">
+                <button id="createInvoice" class="primary" type="button">+ Выставить счёт</button>
+                <a id="registerPayment" class="green" href="./payments.html">+ Оплата</a>
+                <a id="allPayments" href="./payments.html">Все оплаты</a>
+              </div>
+            </div>
+          </section>
+
+          <section class="order-card">
+            <div class="order-card-head"><div><h2>Производство</h2><p>Задания, связанные с этим заказом</p></div><span id="productionCount" class="order-badge gray">0</span></div>
+            <div class="order-card-body"><div id="productionJobs" class="order-production-state"><div class="order-empty">Проверка…</div></div><div class="order-finance-actions"><button id="productionBtn" class="primary" type="button">Передать в производство</button><a href="./production.html">Открыть производство</a></div></div>
+          </section>
+        </aside>
+      </div>
     </div>
-  </article>
-  <article class="panel"><h2>История статусов</h2><div id="history"><div class="empty">Нет данных</div></div></article>
-</section>
-</main>
-<script type="module">import {supabase} from './guard.js';const {data:{session}}=await supabase.auth.getSession();if(session)document.getElementById('userEmail').textContent=session.user.email||'';</script>
-<script type="module" src="./order.js?v=20260905-5"></script>
+  </main>
+
+  <dialog id="invoiceDlg" class="order-dialog">
+    <form id="invoiceForm" method="dialog">
+      <div class="order-dialog-head"><h3>Выставить счёт</h3><p id="invoiceDlgText">Счёт будет связан с этим заказом.</p></div>
+      <div class="order-dialog-body">
+        <div class="order-field"><label>Сумма, ₽</label><input id="invoiceAmount" type="number" min="0.01" step="0.01" required></div>
+        <div class="order-field"><label>Назначение</label><textarea id="invoiceDescription" rows="3" required></textarea></div>
+        <div class="order-field"><label>Оплатить до</label><input id="invoiceDue" type="date"></div>
+        <div id="invoiceError" class="order-error"></div>
+      </div>
+      <div class="order-dialog-actions"><button id="closeInvoiceDlg" type="button">Отмена</button><button id="saveInvoice" class="primary" type="submit">Создать счёт</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./order.js?v=20260908-6"></script>
 </body>
 </html>
