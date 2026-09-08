@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Оборудование — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20260908-equipment1">
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment2">
   <link rel="stylesheet" href="./equipment.css?v=20260908-1">
-  <script src="./config.js?v=20260908-equipment1"></script>
+  <script src="./config.js?v=20260908-equipment2"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
     <header class="topbar">
-      <div><h1>Оборудование и расходники</h1><p>Инвентарные номера, ответственные, обслуживание и движение расходных материалов</p></div>
+      <div><h1>Оборудование и расходники</h1><p>Инвентарные номера, ТО, ремонты и движение расходных материалов</p></div>
       <div class="eq-actions"><span id="updatedAt" class="eq-muted">загрузка…</span><button id="refresh" type="button">↻ Обновить</button></div>
     </header>
 
     <div class="eq-shell">
       <section class="eq-kpis">
         <article class="eq-kpi"><span>Оборудование</span><strong id="equipmentCount">0</strong><small>в инвентарном реестре</small></article>
-        <article class="eq-kpi"><span>В эксплуатации</span><strong id="activeCount">0</strong><small>статус ACTIVE</small></article>
+        <article class="eq-kpi"><span>В эксплуатации</span><strong id="activeCount">0</strong><small>рабочие аппараты</small></article>
         <article class="eq-kpi warn"><span>ТО / сервис</span><strong id="serviceCount">0</strong><small>просрочено или в ближайшие 14 дней</small></article>
         <article class="eq-kpi danger"><span>Низкий запас</span><strong id="lowStockCount">0</strong><small>остаток ≤ минимального</small></article>
       </section>
@@ -63,7 +63,7 @@
         <label class="eq-field"><span>Ответственный</span><select id="eqResponsible"><option value="">Не назначен</option></select></label><label class="eq-field"><span>Статус</span><select id="eqStatus"><option value="ACTIVE">В эксплуатации</option><option value="REPAIR">В ремонте</option><option value="RESERVE">Резерв</option><option value="STORAGE">На хранении</option><option value="WRITTEN_OFF">Списано</option></select></label>
         <label class="eq-field"><span>Дата покупки</span><input id="eqPurchaseDate" type="date"></label><label class="eq-field"><span>Стоимость, ₽</span><input id="eqPurchasePrice" type="number" min="0" step="0.01"></label>
         <label class="eq-field"><span>Гарантия до</span><input id="eqWarranty" type="date"></label><label class="eq-field"><span>Интервал ТО, дней</span><input id="eqServiceInterval" type="number" min="1" step="1"></label>
-        <label class="eq-field"><span>Последнее ТО</span><input id="eqLastService" type="date"></label><label class="eq-field"><span>Следующее ТО</span><input id="eqNextService" type="date"></label>
+        <label class="eq-field"><span>Последнее обслуживание</span><input id="eqLastService" type="date"></label><label class="eq-field"><span>Следующее ТО</span><input id="eqNextService" type="date"></label>
         <label class="eq-field full"><span>Комментарий</span><textarea id="eqNotes"></textarea></label>
       </div><div id="equipmentError" class="eq-msg error"></div></div>
       <div class="eq-dialog-foot"><button type="button" data-close="equipmentDlg">Отмена</button><button id="saveEquipment" class="primary" type="submit">Сохранить</button></div>
@@ -99,11 +99,27 @@
     </form>
   </dialog>
 
+  <dialog id="serviceDlg" class="eq-dialog">
+    <form id="serviceForm">
+      <div class="eq-dialog-head"><div><h2>Записать ТО / обслуживание</h2><p id="serviceDlgText">История обслуживания оборудования.</p></div><button class="eq-close" type="button" data-close="serviceDlg">×</button></div>
+      <div class="eq-dialog-body"><input id="serviceEquipmentId" type="hidden"><div class="eq-form">
+        <label class="eq-field"><span>Тип обслуживания *</span><select id="serviceType"><option value="MAINTENANCE">Плановое ТО</option><option value="REPAIR">Ремонт</option><option value="INSPECTION">Осмотр / диагностика</option><option value="CALIBRATION">Калибровка</option><option value="CLEANING">Чистка</option><option value="OTHER">Другое</option></select></label>
+        <label class="eq-field"><span>Дата *</span><input id="serviceDate" type="date" required></label>
+        <label class="eq-field"><span>Стоимость, ₽</span><input id="serviceCost" type="number" min="0" step="0.01" placeholder="0"></label>
+        <label class="eq-field"><span>Исполнитель / сервис</span><input id="serviceProvider" placeholder="Сервисный центр или мастер"></label>
+        <label class="eq-field full"><span>Что делали *</span><textarea id="serviceDescription" required placeholder="Например: чистка тракта, замена роликов, профилактика, настройка качества печати…"></textarea></label>
+        <label class="eq-field"><span>Следующее ТО</span><input id="serviceNext" type="date"></label>
+        <div class="eq-msg" style="align-self:end;padding-bottom:10px">Если у оборудования задан интервал ТО, следующая дата будет рассчитана автоматически.</div>
+      </div><div id="serviceError" class="eq-msg error"></div></div>
+      <div class="eq-dialog-foot"><button type="button" data-close="serviceDlg">Отмена</button><button id="saveService" class="primary" type="submit">Сохранить запись</button></div>
+    </form>
+  </dialog>
+
   <dialog id="detailDlg" class="eq-dialog">
-    <div class="eq-dialog-head"><div><h2>Карточка оборудования</h2><p>Расходники и история обслуживания.</p></div><button class="eq-close" type="button" data-close="detailDlg">×</button></div>
+    <div class="eq-dialog-head"><div><h2>Карточка оборудования</h2><p>Расходники, ТО, ремонты и история обслуживания.</p></div><button class="eq-close" type="button" data-close="detailDlg">×</button></div>
     <div id="detailBody" class="eq-dialog-body"><div class="eq-empty">Загрузка…</div></div>
   </dialog>
 
-  <script type="module" src="./equipment.js?v=20260908-1"></script>
+  <script type="module" src="./equipment.js?v=20260908-2"></script>
 </body>
 </html>
