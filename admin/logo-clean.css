@@ -1,43 +1,60 @@
 html body .sidebar .hub-logo-wrap,
 html body .sidebar .brand{
+  background:transparent!important;
   background-color:transparent!important;
-  background-image:url('./assets/a4print-hub-logo-white.svg?v=20260908-1')!important;
-  background-repeat:no-repeat!important;
-  background-position:center!important;
-  background-size:contain!important;
+  background-image:none!important;
   border:0!important;
   box-shadow:none!important;
   border-radius:0!important;
   padding:0!important;
-  min-height:106px!important;
-  margin:2px 8px 18px!important;
+  min-height:0!important;
+  height:auto!important;
+  margin:4px 8px 20px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
 }
 html body .sidebar .hub-logo,
 html body .sidebar .brand img{
-  opacity:0!important;
+  display:block!important;
+  opacity:1!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  padding:0!important;
   width:100%!important;
-  height:106px!important;
-  max-width:none!important;
-  max-height:none!important;
-}
-html body:not(.a4-side-glass) .sidebar .hub-logo-wrap,
-html body:not(.a4-side-glass) .sidebar .brand{
-  background-image:url('./assets/logo_bd_transparent.svg?v=20260908-1')!important;
+  max-width:190px!important;
+  height:auto!important;
+  max-height:126px!important;
+  object-fit:contain!important;
+  filter:none!important;
+  border-radius:0!important;
 }
 html body.a4-sidebar-collapsed .sidebar .hub-logo-wrap,
 html body.a4-sidebar-collapsed .sidebar .brand{
-  min-height:54px!important;
-  height:54px!important;
-  margin:4px 0 12px!important;
-  background-size:58px auto!important;
+  margin:4px 0 14px!important;
+  min-height:0!important;
+  height:auto!important;
 }
 html body.a4-sidebar-collapsed .sidebar .hub-logo,
 html body.a4-sidebar-collapsed .sidebar .brand img{
-  height:54px!important;
+  width:54px!important;
+  max-width:54px!important;
+  height:auto!important;
+  max-height:54px!important;
 }
 @media(max-width:900px){
   html body .sidebar .hub-logo-wrap,
-  html body .sidebar .brand{min-height:54px!important;height:54px!important;margin:4px 0 12px!important;background-size:58px auto!important}
+  html body .sidebar .brand{
+    margin:4px 0 12px!important;
+    min-height:0!important;
+    height:auto!important;
+  }
   html body .sidebar .hub-logo,
-  html body .sidebar .brand img{height:54px!important}
+  html body .sidebar .brand img{
+    width:58px!important;
+    max-width:58px!important;
+    height:auto!important;
+    max-height:58px!important;
+  }
 }
