@@ -23,18 +23,28 @@
 
   function ensureEquipmentLink(){
     const nav=document.querySelector('.sidebar nav');if(!nav)return false;
-    if(nav.querySelector('a[href$="equipment.html"]'))return true;
-    const wrap=document.createElement('div');
-    wrap.innerHTML=link('./equipment.html','Оборудование',equipmentIcon(),/equipment\.html$/.test(location.pathname));
-    const a=wrap.firstElementChild;
-    const warehouse=[...nav.querySelectorAll('a')].find(x=>/warehouse\.html/.test(x.getAttribute('href')||''));
-    if(warehouse?.parentNode){
-      warehouse.parentNode.insertBefore(a,warehouse.nextSibling);
-      return true;
+    let a=nav.querySelector('a[href$="equipment.html"]');
+    if(!a){
+      const wrap=document.createElement('div');
+      wrap.innerHTML=link('./equipment.html','Оборудование',equipmentIcon(),/equipment\.html$/.test(location.pathname));
+      a=wrap.firstElementChild;
     }
     const operations=nav.querySelector('.a4-nav-group[data-group="operations"] .a4-nav-group-body');
-    (operations||nav).appendChild(a);
-    return true;
+    const warehouse=[...nav.querySelectorAll('a')].find(x=>/warehouse\.html/.test(x.getAttribute('href')||''));
+    if(operations){
+      if(a.parentElement!==operations){
+        if(warehouse?.parentElement===operations)operations.insertBefore(a,warehouse.nextSibling);
+        else operations.appendChild(a);
+      }else if(warehouse?.parentElement===operations&&warehouse.nextSibling!==a){operations.insertBefore(a,warehouse.nextSibling)}
+      if(/equipment\.html$/.test(location.pathname)){
+        a.classList.add('active');
+        const group=operations.closest('.a4-nav-group');
+        group?.classList.add('has-active','open');
+      }
+      return true;
+    }
+    if(warehouse?.parentNode){warehouse.parentNode.insertBefore(a,warehouse.nextSibling);return true}
+    nav.appendChild(a);return true;
   }
 
   function loadContextModules(){
@@ -69,6 +79,7 @@
         if(ok||tries>30)clearInterval(timer);
       }catch(error){console.warn('Support navigation init failed',error);clearInterval(timer)}
     },100);
+    if(!supportOnly){setTimeout(ensureEquipmentLink,500);setTimeout(ensureEquipmentLink,1400)}
   }
 
   function apply(){
