@@ -93,7 +93,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAdmin&&!document.querySelector('link[rel="manifest"]')){
     const manifest=document.createElement('link');
     manifest.rel='manifest';
-    manifest.href=new URL('manifest.webmanifest?v=1',base).href;
+    manifest.href=new URL('manifest.webmanifest?v=20260908-2',base).href;
     document.head.appendChild(manifest);
   }
 
@@ -179,7 +179,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('settings-collapsible.js','20260905-1');
   }
   load('navigation.js','20260907-logo2');
-  load('support-access.js','20260905-1');
+  load('support-access.js','20260908-fix1');
   load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260904-2');
   load('nav-accordion.js','20260908-2');
