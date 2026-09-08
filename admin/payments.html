@@ -20,16 +20,16 @@
     <div class="cf-shell">
       <section class="cf-kpis">
         <article class="cf-kpi"><span>Операций</span><strong id="paymentsCount">0</strong><small>в журнале платежей HUB</small></article>
-        <article class="cf-kpi green"><span>Подтверждено</span><strong id="confirmedTotal">0 ₽</strong><small>только успешные статусы</small></article>
+        <article class="cf-kpi green"><span>Оплачено</span><strong id="confirmedTotal">0 ₽</strong><small>статус PAID</small></article>
         <article class="cf-kpi"><span>Ожидается</span><strong id="pendingTotal">0 ₽</strong><small>не подтверждённые платежи</small></article>
         <article class="cf-kpi"><span>Без счёта / заказа</span><strong id="unlinkedCount">0</strong><small>платежи, требующие проверки</small></article>
       </section>
 
       <section class="cf-card">
-        <div class="cf-card-head"><div><h2>Журнал оплат</h2><p>Подтверждённая оплата счёта автоматически меняет его статус на PAID</p></div></div>
+        <div class="cf-card-head"><div><h2>Журнал оплат</h2><p>Оплата со статусом PAID автоматически меняет полностью оплаченный счёт на PAID</p></div></div>
         <div class="cf-toolbar">
           <input id="search" type="search" autocomplete="off" placeholder="Номер платежа, клиент, заказ, счёт…">
-          <select id="statusFilter"><option value="">Все статусы</option><option value="PENDING">Ожидается</option><option value="CONFIRMED">Подтверждён</option><option value="CANCELLED">Отменён</option><option value="REFUNDED">Возвращён</option></select>
+          <select id="statusFilter"><option value="">Все статусы</option><option value="PENDING">Ожидается</option><option value="PAID">Оплачен</option><option value="CANCELLED">Отменён</option><option value="REFUNDED">Возвращён</option></select>
           <select id="methodFilter"><option value="">Все способы</option><option>Банк</option><option>Наличные</option><option>Карта</option><option>СБП</option><option>Онлайн</option></select>
           <button id="clearFilters" type="button">Сбросить</button>
         </div>
@@ -49,7 +49,7 @@
           <div class="cf-field full"><span>Заказ</span><select id="paymentOrder"><option value="">Без заказа</option></select></div>
           <div class="cf-field"><span>Сумма, ₽</span><input id="paymentAmount" type="number" min="0.01" step="0.01" required></div>
           <div class="cf-field"><span>Способ оплаты</span><select id="paymentMethod"><option>Банк</option><option>Наличные</option><option>Карта</option><option>СБП</option><option>Онлайн</option></select></div>
-          <div class="cf-field"><span>Статус</span><select id="paymentStatus"><option value="CONFIRMED">Подтверждён</option><option value="PENDING">Ожидается</option><option value="CANCELLED">Отменён</option></select></div>
+          <div class="cf-field"><span>Статус</span><select id="paymentStatus"><option value="PAID">Оплачен</option><option value="PENDING">Ожидается</option><option value="CANCELLED">Отменён</option></select></div>
           <div class="cf-field"><span>Дата оплаты</span><input id="paymentDate" type="datetime-local"></div>
           <div class="cf-field full"><span>Комментарий</span><textarea id="paymentNote" placeholder="Назначение платежа, номер банковской операции и т.д."></textarea></div>
         </div>
@@ -59,6 +59,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./payments-modern.js?v=20260908-1"></script>
+  <script type="module" src="./payments-modern.js?v=20260908-2"></script>
 </body>
 </html>
