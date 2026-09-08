@@ -204,7 +204,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   load('navigation.js','20260907-logo2');
   load('support-access.js','20260908-fix1');
   load('onboarding.js','20260905-1');
-  load('workspace-clean.js','20260904-2');
+  load('workspace-clean.js','20260908-mobilefix1');
   load('nav-accordion.js','20260908-2');
   load('modern-ui.js','20260904-1');
 
