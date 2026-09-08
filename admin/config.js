@@ -90,6 +90,14 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const isChatApp = isChat && (params.get('app') === '1' || standalone);
   const mobileContext = isAdmin && (params.get('mobile') === '1' || params.get('app') === '1' || (standalone && isMobile));
 
+  if(isAdmin&&!document.querySelector('link[rel="icon"]')){
+    const icon=document.createElement('link');
+    icon.rel='icon';
+    icon.type='image/svg+xml';
+    icon.href=new URL('assets/logo_bd_transparent.svg?v=20260908-favicon1',base).href;
+    document.head.appendChild(icon);
+  }
+
   if(isAdmin&&!document.querySelector('link[rel="manifest"]')){
     const manifest=document.createElement('link');
     manifest.rel='manifest';
@@ -97,47 +105,58 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     document.head.appendChild(manifest);
   }
 
-  if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260908-2');
+  if(isAdmin&&!mobileContext){
+    loadCss('sidebar-light.css','20260908-2');
+    loadCss('logo-clean.css','20260908-2');
+  }
 
   if(isAdmin){
     const logoStyle=document.createElement('style');
     logoStyle.id='a4-logo-transparent-fix';
     logoStyle.textContent=`
-      .hub-logo-wrap,.brand{
+      html body .sidebar .hub-logo-wrap,html body .sidebar .brand{
         background:transparent!important;
+        background-image:none!important;
         border:0!important;
         box-shadow:none!important;
         border-radius:0!important;
         padding:0!important;
         min-height:0!important;
-        margin:2px 8px 20px!important;
+        height:auto!important;
+        margin:4px 8px 20px!important;
       }
-      .hub-logo,.brand img{
+      html body .sidebar .hub-logo,html body .sidebar .brand img{
+        display:block!important;
+        opacity:1!important;
+        background:transparent!important;
+        border:0!important;
+        box-shadow:none!important;
+        padding:0!important;
         width:100%!important;
         max-width:190px!important;
         height:auto!important;
-        max-height:132px!important;
+        max-height:126px!important;
         object-fit:contain!important;
         filter:none!important;
+        border-radius:0!important;
       }
-      .a4-sidebar-collapsed .hub-logo-wrap,.a4-sidebar-collapsed .brand{
+      html body.a4-sidebar-collapsed .sidebar .hub-logo-wrap,html body.a4-sidebar-collapsed .sidebar .brand{
         margin:4px 0 14px!important;
-        padding:0!important;
-        min-height:0!important;
       }
-      .a4-sidebar-collapsed .hub-logo,.a4-sidebar-collapsed .brand img{
+      html body.a4-sidebar-collapsed .sidebar .hub-logo,html body.a4-sidebar-collapsed .sidebar .brand img{
+        width:54px!important;
         max-width:54px!important;
-        max-height:54px!important;
         height:auto!important;
+        max-height:54px!important;
       }
     `;
     document.head.appendChild(logoStyle);
 
     const useTransparentLogo=()=>{
       const logo=document.getElementById('hubLogo');
-      if(logo) logo.src=new URL('assets/logo_bd_transparent.svg?v=20260908-transparent3',base).href;
+      if(logo) logo.src=new URL('assets/logo_bd_transparent.svg?v=20260908-transparent4',base).href;
       document.querySelectorAll('.brand img').forEach(img=>{
-        img.src=new URL('assets/logo_bd_transparent.svg?v=20260908-transparent3',base).href;
+        img.src=new URL('assets/logo_bd_transparent.svg?v=20260908-transparent4',base).href;
       });
     };
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',useTransparentLogo,{once:true});
@@ -151,7 +170,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('ui-fixes.js');
     load('chat-app-mode.js','20260904-4');
     load('chat-ui-fixes.js','20260904-3');
-    if (isEmbed) load('chat-embed.js','20260904-4');
+    if (isEmbed) load('chat-embed.js','20260908-2');
     else background(() => {
       load('chat-notifications.js','20260904-7');
       load('support-notifications.js','20260905-1');
@@ -195,6 +214,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('chat-notifications.js','20260904-7');
     load('support-notifications.js','20260905-1');
     load('push-client.js','20260904-4');
-    if (!isChat) load('chat-widget.js','20260904-5');
+    if (!isChat) load('chat-widget.js','20260908-2');
   });
 })();
