@@ -1,1 +1,100 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Карточка клиента — A4PRINT HUB</title><link rel="stylesheet" href="./styles.css"><script src="./config.js"></script><style>.customer-page{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.cardx{background:#fff;border:1px solid #e6ebf2;border-radius:18px;padding:18px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid2 label,.invoice-form label{display:grid;gap:6px;font-size:13px;color:#475569}.grid2 input,.grid2 select,.grid2 textarea,.invoice-form input,.invoice-form textarea{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #dbe1ea;border-radius:9px;font:inherit}.full{grid-column:1/-1}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.muted{color:#64748b;font-size:12px}.docs{display:grid;gap:8px;margin-top:12px}.doc{padding:12px;border:1px solid #eef2f7;border-radius:12px;background:#f8fafc}.doc a{text-decoration:none;font-weight:800}.success{color:#166534}.error{color:#b91c1c}@media(max-width:900px){.customer-page{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.full{grid-column:auto}}</style></head><body><aside class="sidebar"><div class="brand"></div><nav></nav></aside><main class="main"><header class="topbar"><div><h1>👤 Карточка клиента</h1><p id="subtitle">Загрузка…</p></div><a href="./customers.html">← К клиентам</a></header><section class="customer-page"><div><article class="cardx"><h2>Контакты и реквизиты</h2><form id="customerForm"><div class="grid2"><label>Тип клиента<select id="customer_type"><option value="PERSON">Физлицо</option><option value="IP">ИП</option><option value="LEGAL">Юрлицо</option></select></label><label>ФИО / контакт<input id="full_name" required></label><label>Компания<input id="company_name"></label><label>Полное юр. наименование<input id="legal_name"></label><label>Телефон<input id="phone"></label><label>E-mail<input id="email" type="email"></label><label>ИНН<input id="inn"></label><label>КПП<input id="kpp"></label><label>ОГРН / ОГРНИП<input id="ogrn"></label><label>Банк<input id="bank_name"></label><label>БИК<input id="bik"></label><label>Расчётный счёт<input id="settlement_account"></label><label>Корреспондентский счёт<input id="correspondent_account"></label><label class="full">Юридический адрес<textarea id="legal_address"></textarea></label><label class="full">Фактический адрес<textarea id="actual_address"></textarea></label><label>Подписант<input id="signatory_name"></label><label>Должность<input id="signatory_title"></label><label class="full">Основание полномочий<input id="signatory_basis" placeholder="Устав, доверенность и т.д."></label><label class="full">Комментарий<textarea id="notes"></textarea></label></div><div class="actions"><button type="submit">Сохранить реквизиты</button><span id="saveMsg" class="muted"></span></div></form></article></div><div><article class="cardx"><h2>Создать счёт</h2><form id="invoiceForm" class="invoice-form"><label>Сумма, ₽<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Назначение / описание<textarea id="description" placeholder="Например: Печать визиток, 1000 шт." required></textarea></label><label>Оплатить до<input id="due_date" type="date"></label><button type="submit">Создать счёт</button><div id="invoiceMsg" class="muted"></div></form></article><article class="cardx" style="margin-top:18px"><h2>Документы клиента</h2><div id="docs" class="docs"><div class="muted">Загрузка…</div></div></article></div></section></main><script type="module">import{supabase}from'./guard.js';const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const id=new URLSearchParams(location.search).get('id');if(!id)location.replace('./customers.html');let customer=null;const fields=['customer_type','full_name','company_name','legal_name','phone','email','inn','kpp','ogrn','bank_name','bik','settlement_account','correspondent_account','legal_address','actual_address','signatory_name','signatory_title','signatory_basis','notes'];async function access(){const[{data:a},{data:m}]=await Promise.all([supabase.rpc('has_role',{required_role:'ADMIN'}),supabase.rpc('has_role',{required_role:'MANAGER'})]);if(!a&&!m)throw Error('NO_ACCESS')}async function load(){const{data,error}=await supabase.from('customers').select('*').eq('id',id).single();if(error)throw error;customer=data;fields.forEach(f=>{if($(f))$(f).value=data[f]??''});$('subtitle').textContent=data.company_name?`${data.full_name} · ${data.company_name}`:data.full_name;await loadDocs()}async function loadDocs(){const{data,error}=await supabase.from('customer_documents').select('id,document_number,document_type,status,title,amount,currency,issue_date,due_date,description').eq('customer_id',id).order('created_at',{ascending:false});if(error){$('docs').innerHTML=`<div class="error">${esc(error.message)}</div>`;return}$('docs').innerHTML=(data||[]).map(d=>`<div class="doc"><a href="./invoice.html?id=${d.id}">${esc(d.document_number||'Без номера')}</a><div>${esc(d.title||d.description||'Документ')}</div><div class="muted">${esc(d.status)} · ${esc(d.issue_date||'')} · ${Number(d.amount||0).toLocaleString('ru-RU')} ₽</div></div>`).join('')||'<div class="muted">Документов пока нет</div>'}$('customerForm').onsubmit=async e=>{e.preventDefault();const payload={};fields.forEach(f=>payload[f]=$(f).value.trim?$(f).value.trim():$(f).value);payload.updated_at=new Date().toISOString();const{error}=await supabase.from('customers').update(payload).eq('id',id);$('saveMsg').className=error?'error':'success';$('saveMsg').textContent=error?'Ошибка: '+error.message:'Сохранено ✓';if(!error)await load()};$('invoiceForm').onsubmit=async e=>{e.preventDefault();$('invoiceMsg').textContent='Создание…';const{data,error}=await supabase.rpc('create_customer_invoice',{p_customer_id:id,p_amount:Number($('amount').value),p_description:$('description').value.trim(),p_due_date:$('due_date').value||null,p_order_id:null});if(error){$('invoiceMsg').className='error';$('invoiceMsg').textContent='Ошибка: '+error.message;return}$('invoiceMsg').className='success';$('invoiceMsg').innerHTML=`Счёт создан ✓ · <a href="./invoice.html?id=${data}">Открыть и распечатать</a>`;e.currentTarget.reset();await loadDocs()};try{await access();await load()}catch(e){document.querySelector('.main').innerHTML=`<div class="cardx">Ошибка: ${esc(e.message)}</div>`}</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Карточка клиента — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-customer3">
+  <link rel="stylesheet" href="./crm-finance.css?v=20260908-1">
+  <script src="./config.js?v=20260908-customer3"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1 id="pageTitle">Карточка клиента</h1><p id="subtitle">Загрузка…</p></div>
+      <div class="cf-actions"><span id="updatedAt" class="cf-updated">—</span><a href="./customers.html">← Клиенты</a><a id="newPaymentLink" class="primary" href="./payments.html">+ Оплата</a><button id="refresh" type="button">↻</button></div>
+    </header>
+
+    <div id="profileRoot" class="cf-shell">
+      <section class="cf-kpis">
+        <article class="cf-kpi"><span>Заказы HUB</span><strong id="ordersKpi">0</strong><small>вся история клиента</small></article>
+        <article class="cf-kpi"><span>Сумма заказов</span><strong id="orderValueKpi">0 ₽</strong><small>без отменённых</small></article>
+        <article class="cf-kpi green"><span>Подтверждено оплат HUB</span><strong id="paidKpi">0 ₽</strong><small>по таблице платежей</small></article>
+        <article class="cf-kpi"><span>Покупки KASSA</span><strong id="posKpi">0 ₽</strong><small>отдельный кассовый источник</small></article>
+      </section>
+
+      <section class="cf-grid">
+        <article class="cf-card">
+          <div class="cf-card-head"><div><h2>Контакты и реквизиты</h2><p>Единая карточка клиента для заказов, счетов и документов</p></div></div>
+          <div class="cf-card-body">
+            <form id="customerForm">
+              <div class="cf-details">
+                <div class="cf-field"><span>Тип клиента</span><select id="customer_type"><option value="PERSON">Физлицо</option><option value="IP">ИП</option><option value="LEGAL">Юрлицо</option></select></div>
+                <div class="cf-field"><span>ФИО / контакт *</span><input id="full_name" required></div>
+                <div class="cf-field"><span>Компания</span><input id="company_name"></div>
+                <div class="cf-field"><span>Полное юр. наименование</span><input id="legal_name"></div>
+                <div class="cf-field"><span>Телефон</span><input id="phone" type="tel"></div>
+                <div class="cf-field"><span>Email</span><input id="email" type="email"></div>
+                <div class="cf-field"><span>ИНН</span><input id="inn"></div>
+                <div class="cf-field"><span>КПП</span><input id="kpp"></div>
+                <div class="cf-field"><span>ОГРН / ОГРНИП</span><input id="ogrn"></div>
+                <div class="cf-field"><span>Банк</span><input id="bank_name"></div>
+                <div class="cf-field"><span>БИК</span><input id="bik"></div>
+                <div class="cf-field"><span>Расчётный счёт</span><input id="settlement_account"></div>
+                <div class="cf-field"><span>Корреспондентский счёт</span><input id="correspondent_account"></div>
+                <div class="cf-field"><span>Подписант</span><input id="signatory_name"></div>
+                <div class="cf-field"><span>Должность</span><input id="signatory_title"></div>
+                <div class="cf-field full"><span>Основание полномочий</span><input id="signatory_basis" placeholder="Устав, доверенность и т.д."></div>
+                <div class="cf-field full"><span>Юридический адрес</span><textarea id="legal_address"></textarea></div>
+                <div class="cf-field full"><span>Фактический адрес</span><textarea id="actual_address"></textarea></div>
+                <div class="cf-field"><span>Telegram</span><input id="telegram"></div>
+                <div class="cf-field"><span>WhatsApp</span><input id="whatsapp"></div>
+                <div class="cf-field"><span>VK</span><input id="vk"></div>
+                <div class="cf-field"><span>Instagram</span><input id="instagram"></div>
+                <div class="cf-field"><span>Viber</span><input id="viber"></div>
+                <div class="cf-field full"><span>Комментарий</span><textarea id="notes"></textarea></div>
+              </div>
+              <div class="cf-form-actions"><span id="saveMsg" class="cf-msg"></span><button id="saveCustomer" class="primary" type="submit">Сохранить</button></div>
+            </form>
+          </div>
+        </article>
+
+        <div class="cf-stack">
+          <article class="cf-card">
+            <div class="cf-card-head"><div><h2>Финансы клиента</h2><p>Счета и остаток к оплате</p></div></div>
+            <div class="cf-card-body"><div class="cf-summary"><div class="cf-summary-item"><span>Выставлено счетов</span><b id="invoiceTotal">0 ₽</b></div><div class="cf-summary-item"><span>Осталось по счетам</span><b id="invoiceOutstanding">0 ₽</b></div></div><p class="cf-note">Оплаты HUB и покупки KASSA не смешиваются автоматически. Счёт считается оплаченным только по платежам, привязанным к этому счёту.</p></div>
+          </article>
+
+          <article class="cf-card">
+            <div class="cf-card-head"><div><h2>Создать счёт</h2><p>Можно привязать счёт к заказу клиента</p></div></div>
+            <div class="cf-card-body">
+              <form id="invoiceForm">
+                <div class="cf-details">
+                  <div class="cf-field full"><span>Заказ</span><select id="invoiceOrder"><option value="">Без привязки к заказу</option></select></div>
+                  <div class="cf-field"><span>Сумма, ₽</span><input id="amount" type="number" min="0.01" step="0.01" required></div>
+                  <div class="cf-field"><span>Оплатить до</span><input id="due_date" type="date"></div>
+                  <div class="cf-field full"><span>Назначение / описание</span><textarea id="description" required placeholder="Например: печать визиток, 1000 шт."></textarea></div>
+                </div>
+                <div class="cf-form-actions"><span id="invoiceMsg" class="cf-msg"></span><button id="createInvoice" class="primary" type="submit">Создать счёт</button></div>
+              </form>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="cf-grid">
+        <article class="cf-card"><div class="cf-card-head"><div><h2>Заказы</h2><p>История заказов этого клиента</p></div><a class="cf-link" href="./manager.html">+ Новый заказ</a></div><div class="cf-card-body"><div id="ordersList" class="cf-mini-list"><div class="cf-empty">Загрузка…</div></div></div></article>
+        <article class="cf-card"><div class="cf-card-head"><div><h2>Счета и документы</h2><p>Оплата каждого счёта считается отдельно</p></div><a class="cf-link" href="./documents.html">Все документы →</a></div><div class="cf-card-body"><div id="docsList" class="cf-mini-list"><div class="cf-empty">Загрузка…</div></div></div></article>
+      </section>
+
+      <section class="cf-grid">
+        <article class="cf-card"><div class="cf-card-head"><div><h2>Оплаты HUB</h2><p>Зарегистрированные входящие платежи</p></div><a id="newPaymentLinkBottom" class="cf-link" href="./payments.html">Открыть оплаты →</a></div><div class="cf-card-body"><div id="paymentsList" class="cf-mini-list"><div class="cf-empty">Загрузка…</div></div></div></article>
+        <article class="cf-card"><div class="cf-card-head"><div><h2>Покупки KASSA</h2><p>Розничные чеки, привязанные к клиенту</p></div><a class="cf-link" href="../kassa/">Открыть KASSA →</a></div><div class="cf-card-body"><div id="posList" class="cf-mini-list"><div class="cf-empty">Загрузка…</div></div></div></article>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./customer-modern.js?v=20260908-1"></script>
+</body>
+</html>
