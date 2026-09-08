@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Регистрация партнёра — A4PRINT HUB</title>
+  <link rel="icon" type="image/svg+xml" href="../admin/assets/a4print-hub-logo.svg">
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f172a;background:#f4f7fb}
+    body{min-height:100vh;background:radial-gradient(circle at 10% 0%,#dceaff 0,transparent 34%),radial-gradient(circle at 100% 100%,#e8fff3 0,transparent 30%),#f5f7fb}
+    .page{min-height:100vh;display:grid;place-items:center;padding:34px 18px}.shell{width:min(920px,100%);display:grid;grid-template-columns:.88fr 1.2fr;background:#fff;border:1px solid #e2e8f0;border-radius:26px;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,.12)}
+    .brand{padding:40px;background:linear-gradient(150deg,#0d1729,#16294b 58%,#1c4f98);color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:28px}.brand img{width:220px;max-width:100%;height:auto}.brand h1{font-size:32px;line-height:1.04;margin:20px 0 12px}.brand p{margin:0;color:#cbd8ee;font-size:15px;line-height:1.55}.brand-note{padding:16px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);border-radius:16px;font-size:13px;line-height:1.5;color:#dce8fa}.badge{display:inline-flex;align-items:center;gap:7px;width:max-content;border-radius:999px;padding:7px 10px;background:rgba(40,196,108,.16);color:#9ff4c2;font-weight:800;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#2bd576;box-shadow:0 0 0 5px rgba(43,213,118,.12)}
+    .content{padding:38px 42px}.eyebrow{color:#2463eb;font-weight:850;font-size:12px;text-transform:uppercase;letter-spacing:.08em}.content h2{font-size:29px;margin:7px 0 7px}.muted{color:#64748b;line-height:1.5;font-size:14px;margin:0 0 22px}.invite-info{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 20px}.chip{border-radius:999px;padding:6px 9px;background:#eef4ff;color:#315a9b;font-size:12px;font-weight:750}.form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:7px}.field.full{grid-column:1/-1}.field span{font-size:12px;color:#475569;font-weight:750}.field input{width:100%;padding:12px 13px;border:1px solid #d7e0eb;border-radius:11px;background:#fff;color:#0f172a;font:inherit;outline:none;transition:.15s}.field input:focus{border-color:#5b8def;box-shadow:0 0 0 3px rgba(59,130,246,.12)}details{grid-column:1/-1;border:1px solid #e5eaf1;border-radius:12px;padding:10px 12px}summary{cursor:pointer;color:#475569;font-size:13px;font-weight:750}.optional{display:grid;grid-template-columns:1.25fr .75fr;gap:12px;padding-top:12px}
+    .check{grid-column:1/-1;display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#64748b;line-height:1.45}.check input{margin-top:3px}.check a{color:#2563eb;text-decoration:none}.check a:hover{text-decoration:underline}.submit{grid-column:1/-1;border:0;border-radius:12px;background:#2366ea;color:#fff;padding:13px 18px;font:inherit;font-weight:850;cursor:pointer;box-shadow:0 10px 24px rgba(35,102,234,.2)}.submit:hover{background:#1757cf}.submit:disabled{opacity:.55;cursor:wait}.status{grid-column:1/-1;min-height:20px;font-size:13px;color:#64748b}.status.error{color:#b42318;font-weight:700}.status.ok{color:#15803d;font-weight:700}
+    .state{padding:35px 0;text-align:center}.state h3{font-size:22px;margin:12px 0 8px}.state p{color:#64748b;line-height:1.5;margin:0 auto 18px;max-width:430px}.state .icon{width:58px;height:58px;margin:auto;border-radius:18px;display:grid;place-items:center;background:#eef4ff;font-size:28px}.state.error .icon{background:#fff0f0}.login-link{display:inline-flex;text-decoration:none;border-radius:11px;padding:11px 15px;background:#2366ea;color:#fff;font-weight:800}.hidden{display:none!important}.foot{text-align:center;font-size:11px;color:#94a3b8;margin-top:17px}
+    @media(max-width:760px){.shell{grid-template-columns:1fr}.brand{padding:25px}.brand img{width:160px}.brand h1{font-size:25px}.brand-note{display:none}.content{padding:27px 22px}.form{grid-template-columns:1fr}.field.full,.check,.submit,.status,details{grid-column:auto}.optional{grid-template-columns:1fr}.content h2{font-size:25px}}
+  </style>
+  <script src="./config.js"></script>
+</head>
+<body>
+  <main class="page">
+    <section class="shell">
+      <aside class="brand">
+        <div>
+          <img src="../admin/assets/a4print-hub-logo-white.svg" alt="A4PRINT HUB">
+          <div class="badge"><span class="dot"></span> Partner CRM</div>
+          <h1>Добро пожаловать в партнёрскую сеть A4PRINT HUB</h1>
+          <p>Один кабинет для заказов, индивидуальных цен, файлов, статусов производства и связи с командой A4PRINT.</p>
+        </div>
+        <div class="brand-note">Регистрация доступна только по защищённой ссылке-приглашению. После создания аккаунта вы сразу сможете войти в Partner CRM.</div>
+      </aside>
+
+      <div class="content">
+        <div id="loadingState" class="state">
+          <div class="icon">🔗</div>
+          <h3>Проверяем приглашение</h3>
+          <p>Это займёт несколько секунд.</p>
+        </div>
+
+        <div id="errorState" class="state error hidden">
+          <div class="icon">⚠️</div>
+          <h3>Ссылка недоступна</h3>
+          <p id="errorText">Проверьте ссылку или запросите новое приглашение.</p>
+          <a class="login-link" href="./login.html">Войти в Partner CRM</a>
+        </div>
+
+        <div id="successState" class="state hidden">
+          <div class="icon">✓</div>
+          <h3>Регистрация завершена</h3>
+          <p>Компания добавлена в A4PRINT HUB. Используйте указанный email и пароль для входа.</p>
+          <a class="login-link" href="./login.html">Войти в Partner CRM →</a>
+        </div>
+
+        <div id="registerState" class="hidden">
+          <div class="eyebrow">Регистрация партнёра</div>
+          <h2 id="inviteTitle">Создать аккаунт</h2>
+          <p class="muted">Заполните основные данные. Их можно будет использовать в партнёрских заказах и документах.</p>
+          <div class="invite-info" id="inviteInfo"></div>
+
+          <form id="registerForm" class="form" autocomplete="on">
+            <label class="field full"><span>Компания *</span><input name="company_name" required maxlength="220" autocomplete="organization" placeholder="Например, СтепПринт"></label>
+            <label class="field"><span>Контактное лицо *</span><input name="contact_name" required maxlength="200" autocomplete="name" placeholder="Имя и фамилия"></label>
+            <label class="field"><span>Телефон</span><input name="phone" maxlength="80" autocomplete="tel" placeholder="+7 ..."></label>
+            <label class="field"><span>Email для входа *</span><input name="email" type="email" required maxlength="240" autocomplete="email" placeholder="name@company.ru"></label>
+            <label class="field"><span>Пароль *</span><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Не менее 8 символов"></label>
+
+            <details>
+              <summary>Реквизиты компании — можно заполнить сейчас</summary>
+              <div class="optional">
+                <label class="field"><span>Юридическое название</span><input name="legal_name" maxlength="240" placeholder="ООО «Компания»"></label>
+                <label class="field"><span>ИНН</span><input name="tax_id" maxlength="30" inputmode="numeric" placeholder="ИНН"></label>
+              </div>
+            </details>
+
+            <label class="check"><input name="accepted_terms" type="checkbox" required><span>Я принимаю <a href="../legal/partner-agreement.html" target="_blank" rel="noopener">условия партнёрской программы</a> и <a href="../legal/privacy.html" target="_blank" rel="noopener">политику конфиденциальности</a>.</span></label>
+            <button class="submit" id="submitBtn" type="submit">Зарегистрироваться как партнёр</button>
+            <div class="status" id="formStatus"></div>
+          </form>
+          <div class="foot">A4PRINT HUB · защищённая регистрация партнёра</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (()=>{
+      const cfg=window.A4PRINT_PARTNER_CONFIG||{};
+      const apiBase=String(cfg.apiBaseUrl||'https://a4print-hub-api.onrender.com').replace(/\/$/,'');
+      const params=new URLSearchParams(location.search);
+      const invite=params.get('invite')||'';
+      const loading=document.getElementById('loadingState');
+      const errorState=document.getElementById('errorState');
+      const successState=document.getElementById('successState');
+      const registerState=document.getElementById('registerState');
+      const errorText=document.getElementById('errorText');
+      const inviteTitle=document.getElementById('inviteTitle');
+      const inviteInfo=document.getElementById('inviteInfo');
+      const form=document.getElementById('registerForm');
+      const submit=document.getElementById('submitBtn');
+      const status=document.getElementById('formStatus');
+
+      const show=el=>el.classList.remove('hidden');
+      const hide=el=>el.classList.add('hidden');
+      const fmt=value=>{
+        const d=new Date(value);return Number.isFinite(d.getTime())?new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(d):'';
+      };
+      function fail(message){hide(loading);hide(registerState);hide(successState);errorText.textContent=message||'Ссылка регистрации недоступна.';show(errorState)}
+      async function request(path,opt={}){
+        const r=await fetch(apiBase+path,{...opt,cache:'no-store',headers:{'Content-Type':'application/json',...(opt.headers||{})}});
+        const data=await r.json().catch(()=>({}));
+        if(!r.ok)throw new Error(data.message||data.error||`HTTP ${r.status}`);
+        return data;
+      }
+
+      async function init(){
+        if(!invite)return fail('В ссылке отсутствует код приглашения. Запросите новую ссылку у A4PRINT HUB.');
+        try{
+          const data=await request('/api/v1/partner-registration/'+encodeURIComponent(invite));
+          const info=data.invite||{};
+          inviteTitle.textContent=info.label||'Создать аккаунт партнёра';
+          const chips=[];
+          if(Number(info.discount_percent||0)>0)chips.push(`<span class="chip">Стартовая скидка ${Number(info.discount_percent)}%</span>`);
+          if(Number(info.payment_terms_days||0)>0)chips.push(`<span class="chip">Отсрочка ${Number(info.payment_terms_days)} дн.</span>`);
+          if(info.expires_at)chips.push(`<span class="chip">Ссылка до ${fmt(info.expires_at)}</span>`);
+          inviteInfo.innerHTML=chips.join('');
+          hide(loading);show(registerState);
+        }catch(error){fail(error.message)}
+      }
+
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        status.textContent='';status.className='status';submit.disabled=true;
+        try{
+          const fd=new FormData(form);
+          const data=await request('/api/v1/partner-registration/'+encodeURIComponent(invite),{
+            method:'POST',body:JSON.stringify({
+              company_name:String(fd.get('company_name')||'').trim(),
+              contact_name:String(fd.get('contact_name')||'').trim(),
+              phone:String(fd.get('phone')||'').trim(),
+              email:String(fd.get('email')||'').trim(),
+              password:String(fd.get('password')||''),
+              legal_name:String(fd.get('legal_name')||'').trim(),
+              tax_id:String(fd.get('tax_id')||'').trim(),
+              accepted_terms:Boolean(fd.get('accepted_terms'))
+            })
+          });
+          hide(registerState);hide(errorState);show(successState);
+          if(data.login_url)successState.querySelector('a').href=data.login_url;
+        }catch(error){status.textContent=error.message;status.className='status error'}
+        finally{submit.disabled=false}
+      });
+
+      init();
+    })();
+  </script>
+</body>
+</html>
