@@ -5,18 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Оборудование — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20260908-equipment2">
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
   <link rel="stylesheet" href="./equipment.css?v=20260908-1">
-  <script src="./config.js?v=20260908-equipment2"></script>
+  <script src="./config.js?v=20260908-equipment3"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
     <header class="topbar">
-      <div><h1>Оборудование и расходники</h1><p>Инвентарные номера, ТО, ремонты и движение расходных материалов</p></div>
+      <div><h1>Оборудование и расходники</h1><p>Инвентарные номера, ТО, профилактика, ремонты и расходные материалы</p></div>
       <div class="eq-actions"><span id="updatedAt" class="eq-muted">загрузка…</span><button id="refresh" type="button">↻ Обновить</button></div>
     </header>
-
     <div class="eq-shell">
       <section class="eq-kpis">
         <article class="eq-kpi"><span>Оборудование</span><strong id="equipmentCount">0</strong><small>в инвентарном реестре</small></article>
@@ -24,25 +23,21 @@
         <article class="eq-kpi warn"><span>ТО / сервис</span><strong id="serviceCount">0</strong><small>просрочено или в ближайшие 14 дней</small></article>
         <article class="eq-kpi danger"><span>Низкий запас</span><strong id="lowStockCount">0</strong><small>остаток ≤ минимального</small></article>
       </section>
-
       <div class="eq-tabs" role="tablist">
         <button class="eq-tab active" data-tab="equipment" type="button">Оборудование</button>
         <button class="eq-tab" data-tab="consumables" type="button">Расходники</button>
         <button class="eq-tab" data-tab="movements" type="button">Движения</button>
       </div>
-
       <section id="equipmentTab" class="eq-card">
         <div class="eq-head"><div><h2>Инвентарный реестр</h2><p>Инвентарный номер присваивается автоматически и не повторяется.</p></div><div class="eq-actions"><button id="addEquipment" class="primary" type="button">+ Оборудование</button></div></div>
         <div class="eq-toolbar"><input id="equipmentSearch" type="search" placeholder="Инв. номер, название, модель, серийный номер…"><select id="equipmentStatus"><option value="">Все статусы</option><option value="ACTIVE">В эксплуатации</option><option value="REPAIR">В ремонте</option><option value="RESERVE">Резерв</option><option value="STORAGE">На хранении</option><option value="WRITTEN_OFF">Списано</option></select><select id="equipmentOrg"><option value="">Все подразделения</option></select></div>
         <div id="equipmentGrid" class="eq-grid"><div class="eq-empty">Загрузка оборудования…</div></div>
       </section>
-
       <section id="consumablesTab" class="eq-card eq-hidden">
-        <div class="eq-head"><div><h2>Расходные материалы</h2><p>Фактический остаток считается только по журналу движений.</p></div><div class="eq-actions"><button id="addMovement" class="green" type="button">+ Движение</button><button id="addConsumable" class="primary" type="button">+ Расходник</button></div></div>
+        <div class="eq-head"><div><h2>Расходные материалы</h2><p>Фактический остаток считается по журналу движений.</p></div><div class="eq-actions"><button id="addMovement" class="green" type="button">+ Движение</button><button id="addConsumable" class="primary" type="button">+ Расходник</button></div></div>
         <div class="eq-toolbar"><input id="consumableSearch" type="search" placeholder="Название, SKU, категория, место хранения…"><select id="stockFilter"><option value="">Любой остаток</option><option value="LOW">Низкий запас</option><option value="ZERO">Нулевой остаток</option><option value="OK">Запас в норме</option></select><select id="consumableOrg"><option value="">Все подразделения</option></select></div>
         <div id="consumablesList" class="eq-list"><div class="eq-empty">Загрузка расходников…</div></div>
       </section>
-
       <section id="movementsTab" class="eq-card eq-hidden">
         <div class="eq-head"><div><h2>Журнал движений</h2><p>Приход, выдача на оборудование, возврат, списание и корректировки.</p></div><div class="eq-actions"><button id="addMovement2" class="green" type="button">+ Движение</button></div></div>
         <div class="eq-toolbar"><input id="movementSearch" type="search" placeholder="Расходник, оборудование, документ или комментарий…"><select id="movementType"><option value="">Все операции</option><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка</option></select><select id="movementEquipment"><option value="">Любое оборудование</option></select></div>
@@ -51,75 +46,47 @@
     </div>
   </main>
 
-  <dialog id="equipmentDlg" class="eq-dialog">
-    <form id="equipmentForm">
-      <div class="eq-dialog-head"><div><h2 id="equipmentDlgTitle">Новое оборудование</h2><p id="equipmentDlgText">Инвентарный номер будет присвоен автоматически.</p></div><button class="eq-close" type="button" data-close="equipmentDlg">×</button></div>
-      <div class="eq-dialog-body"><input id="equipmentId" type="hidden"><div class="eq-form">
-        <label class="eq-field full"><span>Название *</span><input id="eqName" required placeholder="Например: МФУ Konica Minolta C308"></label>
-        <label class="eq-field"><span>Подразделение</span><select id="eqOrganization"></select></label>
-        <label class="eq-field"><span>Категория</span><select id="eqCategory"><option value="">Не выбрана</option><option>МФУ / принтер</option><option>3D-принтер</option><option>Плоттер</option><option>Режущий плоттер</option><option>Ламинатор</option><option>Постпечатное оборудование</option><option>Компьютер</option><option>Сетевое оборудование</option><option>Другое</option></select></label>
-        <label class="eq-field"><span>Бренд</span><input id="eqBrand"></label><label class="eq-field"><span>Модель</span><input id="eqModel"></label>
-        <label class="eq-field"><span>Серийный номер</span><input id="eqSerial"></label><label class="eq-field"><span>Место установки</span><input id="eqLocation" placeholder="Копицентр, кабинет, участок…"></label>
-        <label class="eq-field"><span>Ответственный</span><select id="eqResponsible"><option value="">Не назначен</option></select></label><label class="eq-field"><span>Статус</span><select id="eqStatus"><option value="ACTIVE">В эксплуатации</option><option value="REPAIR">В ремонте</option><option value="RESERVE">Резерв</option><option value="STORAGE">На хранении</option><option value="WRITTEN_OFF">Списано</option></select></label>
-        <label class="eq-field"><span>Дата покупки</span><input id="eqPurchaseDate" type="date"></label><label class="eq-field"><span>Стоимость, ₽</span><input id="eqPurchasePrice" type="number" min="0" step="0.01"></label>
-        <label class="eq-field"><span>Гарантия до</span><input id="eqWarranty" type="date"></label><label class="eq-field"><span>Интервал ТО, дней</span><input id="eqServiceInterval" type="number" min="1" step="1"></label>
-        <label class="eq-field"><span>Последнее обслуживание</span><input id="eqLastService" type="date"></label><label class="eq-field"><span>Следующее ТО</span><input id="eqNextService" type="date"></label>
-        <label class="eq-field full"><span>Комментарий</span><textarea id="eqNotes"></textarea></label>
-      </div><div id="equipmentError" class="eq-msg error"></div></div>
-      <div class="eq-dialog-foot"><button type="button" data-close="equipmentDlg">Отмена</button><button id="saveEquipment" class="primary" type="submit">Сохранить</button></div>
-    </form>
-  </dialog>
+  <dialog id="equipmentDlg" class="eq-dialog"><form id="equipmentForm">
+    <div class="eq-dialog-head"><div><h2 id="equipmentDlgTitle">Новое оборудование</h2><p id="equipmentDlgText">Инвентарный номер будет присвоен автоматически.</p></div><button class="eq-close" type="button" data-close="equipmentDlg">×</button></div>
+    <div class="eq-dialog-body"><input id="equipmentId" type="hidden"><div class="eq-form">
+      <label class="eq-field full"><span>Название *</span><input id="eqName" required placeholder="Например: Epson L8050"></label>
+      <label class="eq-field"><span>Подразделение</span><select id="eqOrganization"></select></label>
+      <label class="eq-field"><span>Категория</span><select id="eqCategory"><option value="">Не выбрана</option><option>МФУ / принтер</option><option>Струйный принтер / МФУ</option><option>3D-принтер</option><option>Плоттер</option><option>Режущий плоттер</option><option>Ламинатор</option><option>Постпечатное оборудование</option><option>Компьютер</option><option>Сетевое оборудование</option><option>Другое</option></select></label>
+      <label class="eq-field"><span>Бренд</span><input id="eqBrand"></label><label class="eq-field"><span>Модель</span><input id="eqModel"></label>
+      <label class="eq-field"><span>Серийный номер</span><input id="eqSerial"></label><label class="eq-field"><span>Место установки</span><input id="eqLocation"></label>
+      <label class="eq-field"><span>Ответственный</span><select id="eqResponsible"><option value="">Не назначен</option></select></label><label class="eq-field"><span>Статус</span><select id="eqStatus"><option value="ACTIVE">В эксплуатации</option><option value="REPAIR">В ремонте</option><option value="RESERVE">Резерв</option><option value="STORAGE">На хранении</option><option value="WRITTEN_OFF">Списано</option></select></label>
+      <label class="eq-field"><span>Дата покупки</span><input id="eqPurchaseDate" type="date"></label><label class="eq-field"><span>Стоимость, ₽</span><input id="eqPurchasePrice" type="number" min="0" step="0.01"></label>
+      <label class="eq-field"><span>Гарантия до</span><input id="eqWarranty" type="date"></label><label class="eq-field"><span>Интервал ТО, дней</span><input id="eqServiceInterval" type="number" min="1" step="1"></label>
+      <label class="eq-field"><span>Последнее обслуживание</span><input id="eqLastService" type="date"></label><label class="eq-field"><span>Следующее ТО</span><input id="eqNextService" type="date"></label>
+      <label class="eq-field full"><span>Комментарий</span><textarea id="eqNotes"></textarea></label>
+    </div><div id="equipmentError" class="eq-msg error"></div></div>
+    <div class="eq-dialog-foot"><button type="button" data-close="equipmentDlg">Отмена</button><button id="saveEquipment" class="primary" type="submit">Сохранить</button></div>
+  </form></dialog>
 
-  <dialog id="consumableDlg" class="eq-dialog">
-    <form id="consumableForm">
-      <div class="eq-dialog-head"><div><h2 id="consumableDlgTitle">Новый расходник</h2><p>Карточка материала и минимальный страховой запас.</p></div><button class="eq-close" type="button" data-close="consumableDlg">×</button></div>
-      <div class="eq-dialog-body"><input id="consumableId" type="hidden"><div class="eq-form">
-        <label class="eq-field full"><span>Название *</span><input id="conName" required placeholder="Тонер TN-324K, PLA Black, бумага SRA3…"></label>
-        <label class="eq-field"><span>Подразделение</span><select id="conOrganization"></select></label><label class="eq-field"><span>Категория</span><input id="conCategory" placeholder="Тонер, бумага, пластик…"></label>
-        <label class="eq-field"><span>SKU / артикул</span><input id="conSku"></label><label class="eq-field"><span>Единица</span><input id="conUnit" value="шт"></label>
-        <label class="eq-field"><span>Минимальный запас</span><input id="conMinStock" type="number" min="0" step="0.001" value="0"></label><label class="eq-field"><span>Место хранения</span><input id="conStorage"></label>
-        <label class="eq-field"><span>Поставщик</span><input id="conSupplier"></label><label class="eq-field"><span>Активен</span><select id="conActive"><option value="1">Да</option><option value="0">Нет</option></select></label>
-        <label class="eq-field full"><span>Комментарий</span><textarea id="conNotes"></textarea></label>
-      </div><div id="consumableError" class="eq-msg error"></div></div>
-      <div class="eq-dialog-foot"><button type="button" data-close="consumableDlg">Отмена</button><button id="saveConsumable" class="primary" type="submit">Сохранить</button></div>
-    </form>
-  </dialog>
+  <dialog id="consumableDlg" class="eq-dialog"><form id="consumableForm">
+    <div class="eq-dialog-head"><div><h2 id="consumableDlgTitle">Новый расходник</h2><p>Карточка материала и минимальный страховой запас.</p></div><button class="eq-close" type="button" data-close="consumableDlg">×</button></div>
+    <div class="eq-dialog-body"><input id="consumableId" type="hidden"><div class="eq-form">
+      <label class="eq-field full"><span>Название *</span><input id="conName" required></label><label class="eq-field"><span>Подразделение</span><select id="conOrganization"></select></label><label class="eq-field"><span>Категория</span><input id="conCategory"></label>
+      <label class="eq-field"><span>SKU / артикул</span><input id="conSku"></label><label class="eq-field"><span>Единица</span><input id="conUnit" value="шт"></label><label class="eq-field"><span>Минимальный запас</span><input id="conMinStock" type="number" min="0" step="0.001" value="0"></label><label class="eq-field"><span>Место хранения</span><input id="conStorage"></label>
+      <label class="eq-field"><span>Поставщик</span><input id="conSupplier"></label><label class="eq-field"><span>Активен</span><select id="conActive"><option value="1">Да</option><option value="0">Нет</option></select></label><label class="eq-field full"><span>Комментарий</span><textarea id="conNotes"></textarea></label>
+    </div><div id="consumableError" class="eq-msg error"></div></div><div class="eq-dialog-foot"><button type="button" data-close="consumableDlg">Отмена</button><button id="saveConsumable" class="primary" type="submit">Сохранить</button></div>
+  </form></dialog>
 
-  <dialog id="movementDlg" class="eq-dialog">
-    <form id="movementForm">
-      <div class="eq-dialog-head"><div><h2>Движение расходника</h2><p>Старые движения не редактируются — исправления проводятся отдельной корректировкой.</p></div><button class="eq-close" type="button" data-close="movementDlg">×</button></div>
-      <div class="eq-dialog-body"><div class="eq-form">
-        <label class="eq-field full"><span>Расходник *</span><select id="moveConsumable" required></select></label>
-        <label class="eq-field"><span>Операция *</span><select id="moveType"><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача на оборудование</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка</option></select></label>
-        <label class="eq-field"><span>Количество *</span><input id="moveQty" type="number" step="0.001" required value="1"></label>
-        <label class="eq-field full"><span>Оборудование</span><select id="moveEquipmentSelect"><option value="">Не привязано</option></select></label>
-        <label class="eq-field"><span>Документ / основание</span><input id="moveDocument" placeholder="Накладная, акт, чек…"></label><label class="eq-field"><span>Комментарий</span><input id="moveNote"></label>
-      </div><div id="movementHint" class="eq-msg" style="margin-top:10px"></div><div id="movementError" class="eq-msg error"></div></div>
-      <div class="eq-dialog-foot"><button type="button" data-close="movementDlg">Отмена</button><button id="saveMovement" class="primary" type="submit">Провести</button></div>
-    </form>
-  </dialog>
+  <dialog id="movementDlg" class="eq-dialog"><form id="movementForm">
+    <div class="eq-dialog-head"><div><h2>Движение расходника</h2><p>Исправления проводятся отдельной корректировкой.</p></div><button class="eq-close" type="button" data-close="movementDlg">×</button></div>
+    <div class="eq-dialog-body"><div class="eq-form"><label class="eq-field full"><span>Расходник *</span><select id="moveConsumable" required></select></label><label class="eq-field"><span>Операция *</span><select id="moveType"><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача на оборудование</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка</option></select></label><label class="eq-field"><span>Количество *</span><input id="moveQty" type="number" step="0.001" required value="1"></label><label class="eq-field full"><span>Оборудование</span><select id="moveEquipmentSelect"><option value="">Не привязано</option></select></label><label class="eq-field"><span>Документ / основание</span><input id="moveDocument"></label><label class="eq-field"><span>Комментарий</span><input id="moveNote"></label></div><div id="movementHint" class="eq-msg" style="margin-top:10px"></div><div id="movementError" class="eq-msg error"></div></div>
+    <div class="eq-dialog-foot"><button type="button" data-close="movementDlg">Отмена</button><button id="saveMovement" class="primary" type="submit">Провести</button></div>
+  </form></dialog>
 
-  <dialog id="serviceDlg" class="eq-dialog">
-    <form id="serviceForm">
-      <div class="eq-dialog-head"><div><h2>Записать ТО / обслуживание</h2><p id="serviceDlgText">История обслуживания оборудования.</p></div><button class="eq-close" type="button" data-close="serviceDlg">×</button></div>
-      <div class="eq-dialog-body"><input id="serviceEquipmentId" type="hidden"><div class="eq-form">
-        <label class="eq-field"><span>Тип обслуживания *</span><select id="serviceType"><option value="MAINTENANCE">Плановое ТО</option><option value="REPAIR">Ремонт</option><option value="INSPECTION">Осмотр / диагностика</option><option value="CALIBRATION">Калибровка</option><option value="CLEANING">Чистка</option><option value="OTHER">Другое</option></select></label>
-        <label class="eq-field"><span>Дата *</span><input id="serviceDate" type="date" required></label>
-        <label class="eq-field"><span>Стоимость, ₽</span><input id="serviceCost" type="number" min="0" step="0.01" placeholder="0"></label>
-        <label class="eq-field"><span>Исполнитель / сервис</span><input id="serviceProvider" placeholder="Сервисный центр или мастер"></label>
-        <label class="eq-field full"><span>Что делали *</span><textarea id="serviceDescription" required placeholder="Например: чистка тракта, замена роликов, профилактика, настройка качества печати…"></textarea></label>
-        <label class="eq-field"><span>Следующее ТО</span><input id="serviceNext" type="date"></label>
-        <div class="eq-msg" style="align-self:end;padding-bottom:10px">Если у оборудования задан интервал ТО, следующая дата будет рассчитана автоматически.</div>
-      </div><div id="serviceError" class="eq-msg error"></div></div>
-      <div class="eq-dialog-foot"><button type="button" data-close="serviceDlg">Отмена</button><button id="saveService" class="primary" type="submit">Сохранить запись</button></div>
-    </form>
-  </dialog>
+  <dialog id="serviceDlg" class="eq-dialog"><form id="serviceForm">
+    <div class="eq-dialog-head"><div><h2>Записать ТО / обслуживание</h2><p id="serviceDlgText">История обслуживания оборудования.</p></div><button class="eq-close" type="button" data-close="serviceDlg">×</button></div>
+    <div class="eq-dialog-body"><input id="serviceEquipmentId" type="hidden"><div class="eq-form"><label class="eq-field"><span>Тип обслуживания *</span><select id="serviceType"><option value="MAINTENANCE">Плановое ТО</option><option value="REPAIR">Ремонт</option><option value="INSPECTION">Осмотр / диагностика</option><option value="CALIBRATION">Калибровка</option><option value="CLEANING">Чистка</option><option value="OTHER">Другое</option></select></label><label class="eq-field"><span>Дата *</span><input id="serviceDate" type="date" required></label><label class="eq-field"><span>Стоимость, ₽</span><input id="serviceCost" type="number" min="0" step="0.01"></label><label class="eq-field"><span>Исполнитель / сервис</span><input id="serviceProvider"></label><label class="eq-field full"><span>Что делали *</span><textarea id="serviceDescription" required></textarea></label><label class="eq-field"><span>Следующее ТО</span><input id="serviceNext" type="date"></label><div class="eq-msg" style="align-self:end;padding-bottom:10px">Для регулярной прочистки используйте вкладку «Календарь обслуживания».</div></div><div id="serviceError" class="eq-msg error"></div></div>
+    <div class="eq-dialog-foot"><button type="button" data-close="serviceDlg">Отмена</button><button id="saveService" class="primary" type="submit">Сохранить запись</button></div>
+  </form></dialog>
 
-  <dialog id="detailDlg" class="eq-dialog">
-    <div class="eq-dialog-head"><div><h2>Карточка оборудования</h2><p>Расходники, ТО, ремонты и история обслуживания.</p></div><button class="eq-close" type="button" data-close="detailDlg">×</button></div>
-    <div id="detailBody" class="eq-dialog-body"><div class="eq-empty">Загрузка…</div></div>
-  </dialog>
+  <dialog id="detailDlg" class="eq-dialog"><div class="eq-dialog-head"><div><h2>Карточка оборудования</h2><p>Расходники, ТО, ремонты и история обслуживания.</p></div><button class="eq-close" type="button" data-close="detailDlg">×</button></div><div id="detailBody" class="eq-dialog-body"><div class="eq-empty">Загрузка…</div></div></dialog>
 
   <script type="module" src="./equipment.js?v=20260908-2"></script>
+  <script type="module" src="./equipment-calendar.js?v=20260908-1"></script>
 </body>
 </html>
