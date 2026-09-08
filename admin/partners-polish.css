@@ -1,0 +1,130 @@
+/* A4PRINT HUB — Partners compact polish */
+
+/* Top bar: less visual weight */
+.main>.topbar{gap:14px!important;padding-bottom:14px!important}
+.main>.topbar h1{font-size:34px!important;line-height:1.04!important}
+.main>.topbar p{font-size:14px!important;line-height:1.45!important;max-width:620px!important}
+.main>.topbar button,
+.main>.topbar .a4-workspace-toolbar button,
+.main>.topbar .a4-workspace-controls button,
+.a4-workspace-toolbar button,
+.a4-workspace-controls button{
+  min-height:35px!important;
+  height:35px!important;
+  padding:0 11px!important;
+  border-radius:10px!important;
+  font-size:12px!important;
+  font-weight:760!important;
+  box-shadow:0 2px 7px rgba(15,23,42,.035)!important;
+}
+#refresh{min-height:35px!important;height:35px!important;padding:0 11px!important;font-size:12px!important;border-radius:10px!important}
+
+/* Slightly denser workspace */
+.grid{grid-template-columns:minmax(0,1.2fr) minmax(370px,.8fr)!important;gap:16px!important}
+.block-column>.card{margin-top:16px!important}
+.card{padding:19px!important;border-radius:18px!important;box-shadow:0 6px 22px rgba(31,52,79,.045)!important}
+.card h2{font-size:22px!important;line-height:1.15!important}
+.card>.small,.card .small,.meta{font-size:12px!important;line-height:1.42!important}
+
+/* Inputs: still comfortable, but not oversized */
+.toolbar{margin:13px 0 10px!important}
+.toolbar input,
+.form input,
+.form select{min-height:42px!important;padding:8px 11px!important;border-radius:11px!important;font-size:13px!important}
+.form textarea{min-height:78px!important;padding:9px 11px!important;border-radius:11px!important;font-size:13px!important}
+.form{gap:11px!important;margin-top:13px!important}
+.form label{gap:5px!important;font-size:12px!important}
+
+/* All card buttons compact */
+.card button,
+.partner-invite-card button{
+  min-height:34px!important;
+  height:34px!important;
+  padding:0 11px!important;
+  border-radius:10px!important;
+  font-size:12px!important;
+  line-height:1!important;
+  font-weight:780!important;
+}
+
+/* Partner cards */
+#partners{gap:8px!important;margin-top:7px!important}
+.partner{padding:13px!important;border-radius:14px!important}
+.partner .row{gap:12px!important}
+.partner .row>div:first-child>b{font-size:15px!important;margin-bottom:3px!important}
+.partner .row>div:last-child{min-width:114px!important;gap:6px!important}
+.partner button[data-order-partner],
+.partner button[data-toggle]{width:114px!important;min-width:114px!important}
+.badge{min-height:25px!important;padding:0 8px!important;font-size:11px!important}
+.badge::before{width:5px!important;height:5px!important}
+
+/* Catalog: prevent Save button from being clipped and reduce row height */
+#services{margin-top:10px!important}
+.service{
+  grid-template-columns:minmax(150px,1fr) 108px 108px 82px!important;
+  gap:8px!important;
+  padding:10px 0!important;
+  align-items:end!important;
+}
+.service>b,.service div>b{font-size:13px!important}
+.service label{gap:4px!important;font-size:11px!important}
+.service input{min-height:36px!important;height:36px!important;padding:6px 8px!important;border-radius:9px!important;font-size:12px!important}
+.service button{
+  width:82px!important;
+  min-width:82px!important;
+  min-height:34px!important;
+  height:34px!important;
+  padding:0 8px!important;
+  font-size:11px!important;
+  border-radius:9px!important;
+  white-space:nowrap!important;
+}
+
+/* Invite generator */
+.partner-invite-head{margin-bottom:13px!important}
+.partner-invite-head h2{font-size:22px!important;margin-bottom:5px!important}
+.partner-invite-form{gap:10px!important;margin-bottom:14px!important}
+.partner-invite-form label{gap:5px!important;font-size:11px!important}
+.partner-invite-form input{min-height:40px!important;height:40px!important;padding:7px 10px!important;border-radius:10px!important;font-size:12px!important}
+.partner-invite-form .invite-actions{gap:8px!important;margin-top:0!important}
+#createPartnerInvite{min-width:128px!important;width:auto!important;box-shadow:0 6px 14px rgba(37,99,235,.14)!important}
+.partner-invite-row{padding:12px!important;border-radius:12px!important}
+.partner-invite-title{font-size:14px!important}
+.partner-invite-meta{font-size:11px!important}
+.partner-invite-badge{min-height:24px!important;padding:0 8px!important;font-size:10px!important}
+.partner-invite-url{gap:6px!important;margin-top:8px!important}
+.partner-invite-url input{min-height:35px!important;height:35px!important;padding:6px 8px!important;font-size:10.5px!important}
+.partner-invite-url button{min-height:33px!important;height:33px!important;padding:0 9px!important;font-size:11px!important}
+.partner-invite-stat{min-height:24px!important;padding:0 8px!important;font-size:10.5px!important}
+.partner-invite-stats [data-toggle]{min-height:30px!important;height:30px!important;padding:0 8px!important;font-size:10.5px!important}
+.partner-invite-empty{padding:20px 14px!important;font-size:12px!important}
+
+/* Manual create / outbound cards */
+#partnerForm button[type="submit"],#outSend{width:auto!important;min-width:150px!important;justify-self:start!important}
+
+/* Empty state should not dominate the card */
+.empty{padding:20px 14px!important;font-size:12px!important;border-radius:12px!important}
+
+@media(max-width:1180px){
+  .grid{grid-template-columns:1fr!important}
+  .service{grid-template-columns:minmax(180px,1fr) 115px 115px 82px!important}
+}
+
+@media(max-width:760px){
+  .main>.topbar h1{font-size:29px!important}
+  .card{padding:16px!important;border-radius:16px!important}
+  .service{grid-template-columns:1fr 1fr!important;align-items:end!important}
+  .service>div:first-child{grid-column:1/-1!important}
+  .service button{width:100%!important;min-width:0!important}
+  .partner .row{flex-direction:column!important}
+  .partner .row>div:last-child{width:100%!important;min-width:0!important;align-items:stretch!important;display:grid!important;grid-template-columns:auto 1fr 1fr!important}
+  .partner button[data-order-partner],.partner button[data-toggle]{width:100%!important;min-width:0!important}
+  .partner-invite-url{grid-template-columns:1fr 1fr!important}
+  .partner-invite-url input{grid-column:1/-1!important}
+}
+
+@media(max-width:520px){
+  .main>.topbar button,.a4-workspace-toolbar button,.a4-workspace-controls button{min-height:34px!important;height:34px!important;padding:0 9px!important;font-size:11px!important}
+  .service{grid-template-columns:1fr!important}
+  .partner .row>div:last-child{grid-template-columns:1fr!important}
+}
