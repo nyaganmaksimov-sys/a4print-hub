@@ -2,6 +2,46 @@
   if(window.__A4_PARTNERS_MODERN__)return;
   window.__A4_PARTNERS_MODERN__=true;
 
+  function installOpenStyles(){
+    if(document.getElementById('a4-partner-open-styles'))return;
+    const style=document.createElement('style');
+    style.id='a4-partner-open-styles';
+    style.textContent=`
+      #partners .partner.partner-openable{cursor:pointer;position:relative}
+      #partners .partner.partner-openable:focus-visible{outline:3px solid rgba(37,99,235,.16);outline-offset:2px}
+      #partners .partner.partner-openable .row>div:first-child>b{transition:color .16s ease}
+      #partners .partner.partner-openable:hover .row>div:first-child>b{color:#1d4ed8!important}
+      #partners .partner.partner-openable:after{content:'Открыть карточку →';display:block;margin-top:7px;color:#8a99ad;font-size:10px;font-weight:750}
+      @media(max-width:760px){#partners .partner.partner-openable:after{margin-top:5px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function wirePartnerRows(){
+    installOpenStyles();
+    document.querySelectorAll('#partners .partner').forEach(row=>{
+      if(row.dataset.partnerOpenable==='1')return;
+      const btn=row.querySelector('[data-toggle],[data-order-partner]');
+      const id=btn?.dataset.toggle||btn?.dataset.orderPartner||'';
+      if(!id)return;
+      row.dataset.partnerOpenable='1';
+      row.classList.add('partner-openable');
+      row.tabIndex=0;
+      row.setAttribute('role','link');
+      row.setAttribute('aria-label','Открыть карточку партнёра');
+      const open=()=>location.href=`./partner.html?id=${encodeURIComponent(id)}`;
+      row.addEventListener('click',event=>{
+        if(event.target.closest('button,a,input,textarea,select,label'))return;
+        open();
+      });
+      row.addEventListener('keydown',event=>{
+        if((event.key==='Enter'||event.key===' ')&&!event.target.closest('button,a,input,textarea,select')){
+          event.preventDefault();open();
+        }
+      });
+    });
+  }
+
   function enhance(){
     const main=document.querySelector('.main');
     if(!main)return;
@@ -55,21 +95,15 @@
 
     const inviteCard=document.querySelector('.partner-invite-card');
     if(inviteCard)inviteCard.classList.add('partners-invite-card-ready');
+    wirePartnerRows();
   }
 
   let timer=0;
-  const schedule=()=>{
-    clearTimeout(timer);
-    timer=setTimeout(enhance,30);
-  };
-
+  const schedule=()=>{clearTimeout(timer);timer=setTimeout(enhance,30)};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
   else schedule();
-
   const observer=new MutationObserver(schedule);
   const startObserver=()=>observer.observe(document.body,{childList:true,subtree:true});
-  if(document.body)startObserver();
-  else document.addEventListener('DOMContentLoaded',startObserver,{once:true});
-
+  if(document.body)startObserver();else document.addEventListener('DOMContentLoaded',startObserver,{once:true});
   window.addEventListener('load',()=>setTimeout(enhance,180),{once:true});
 })();
