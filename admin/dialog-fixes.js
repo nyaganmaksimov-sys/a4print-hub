@@ -27,4 +27,12 @@
       }
     }
   }).observe(document.documentElement,{childList:true,subtree:true});
+
+  if(!document.querySelector('script[data-a4-workspace-layout]')){
+    const s=document.createElement('script');
+    s.dataset.a4WorkspaceLayout='1';
+    s.src=new URL('workspace-layout.js',document.currentScript?.src||location.href).href+'?v=20260908-1';
+    s.async=false;
+    document.head.appendChild(s);
+  }
 })();
