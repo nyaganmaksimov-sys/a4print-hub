@@ -209,7 +209,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260908-profile1');
   load('topbar-modern.js','20260908-3');
-  load('nav-accordion.js','20260908-2');
+  load('nav-accordion.js','20260908-3');
   load('modern-ui.js','20260904-1');
 
   if (isEmployees) {
