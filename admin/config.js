@@ -97,7 +97,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     document.head.appendChild(manifest);
   }
 
-  if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260905-1');
+  if(isAdmin&&!mobileContext)loadCss('sidebar-light.css','20260908-2');
 
   if(isAdmin){
     const logoStyle=document.createElement('style');
@@ -135,9 +135,9 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
 
     const useTransparentLogo=()=>{
       const logo=document.getElementById('hubLogo');
-      if(logo) logo.src=new URL('assets/logo_bd_transparent.svg?v=20260907-transparent2',base).href;
+      if(logo) logo.src=new URL('assets/logo_bd_transparent.svg?v=20260908-transparent3',base).href;
       document.querySelectorAll('.brand img').forEach(img=>{
-        img.src=new URL('assets/logo_bd_transparent.svg?v=20260907-transparent2',base).href;
+        img.src=new URL('assets/logo_bd_transparent.svg?v=20260908-transparent3',base).href;
       });
     };
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',useTransparentLogo,{once:true});
@@ -182,7 +182,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   load('support-access.js','20260905-1');
   load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260904-2');
-  load('nav-accordion.js','20260904-3');
+  load('nav-accordion.js','20260908-2');
   load('modern-ui.js','20260904-1');
 
   if (isEmployees) {
