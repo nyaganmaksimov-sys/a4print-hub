@@ -2,6 +2,11 @@
   if(window.__A4_PARTNERS_MODERN__)return;
   window.__A4_PARTNERS_MODERN__=true;
 
+  const legacyLayoutKey='a4print-partners-layout-v1';
+  const clearLegacyLayout=()=>{try{localStorage.removeItem(legacyLayoutKey)}catch{}};
+  clearLegacyLayout();
+  window.addEventListener('pageshow',clearLegacyLayout,{passive:true});
+
   function installOpenStyles(){
     if(document.getElementById('a4-partner-open-styles'))return;
     const style=document.createElement('style');
@@ -12,6 +17,8 @@
       #partners .partner.partner-openable .row>div:first-child>b{transition:color .16s ease}
       #partners .partner.partner-openable:hover .row>div:first-child>b{color:#1d4ed8!important}
       #partners .partner.partner-openable:after{content:'Открыть карточку →';display:block;margin-top:7px;color:#8a99ad;font-size:10px;font-weight:750}
+      #resetLayout{display:none!important}
+      .drag-handle{display:none!important}
       @media(max-width:760px){#partners .partner.partner-openable:after{margin-top:5px}}
     `;
     document.head.appendChild(style);
@@ -45,7 +52,11 @@
   function enhance(){
     const main=document.querySelector('.main');
     if(!main)return;
+    clearLegacyLayout();
     document.body.classList.add('partners-modern');
+
+    const legacyReset=document.getElementById('resetLayout');
+    if(legacyReset){legacyReset.hidden=true;legacyReset.setAttribute('aria-hidden','true')}
 
     const cards=[...document.querySelectorAll('.grid article.card')];
     cards.forEach(card=>{
