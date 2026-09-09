@@ -61,7 +61,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     s.async = false;
     document.head.appendChild(s);
   };
-  const loadModule = (file, version='20260908-1') => {
+  const loadModule = (file, version='20260909-1') => {
     const s = document.createElement('script');
     s.type = 'module';
     s.src = new URL(file, base).href + '?v=' + version;
@@ -205,19 +205,23 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
 
   if (!isAdmin) return;
 
-  if (isDashboard) loadModule('dashboard-payment-split.js','20260908-2');
+  if (isDashboard) {
+    loadModule('dashboard-payment-split.js','20260908-2');
+    loadModule('dashboard-equipment-widget.js','20260909-1');
+  }
   if (isManager) load('manager-runtime.js','20260905-4');
   if (isSettings) {
     load('auth-settings.js','20260905-2');
     load('settings-collapsible.js','20260905-1');
   }
-  load('navigation.js','20260907-logo2');
+  load('navigation.js','20260909-equipment1');
   load('support-access.js','20260908-clean2');
   load('onboarding.js','20260905-1');
   load('workspace-clean.js','20260908-profile1');
   load('topbar-modern.js','20260908-3');
-  load('nav-accordion.js','20260908-3');
+  load('nav-accordion.js','20260909-equipment1');
   load('modern-ui.js','20260904-1');
+  loadModule('equipment-maintenance-badge.js','20260909-1');
 
   if (isEmployees) {
     load('employees-delete.js','20260904-2');
