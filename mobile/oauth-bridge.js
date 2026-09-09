@@ -42,7 +42,7 @@
   }
 
   function directProviderUrl(provider){
-    const callback=new URL('/mobile/',location.origin).href;
+    const callback=new URL('/mobile/auth-callback.html',location.origin).href;
     const url=new URL('/auth/v1/authorize',SUPABASE_URL);
     url.searchParams.set('provider',provider);
     url.searchParams.set('redirect_to',callback);
@@ -68,8 +68,8 @@
     button.disabled=true;
     button.textContent=provider==='google'?'Открываем Google…':'Открываем вход…';
 
-    // Мобильная версия больше не ходит через /admin/login.html.
-    // Supabase возвращает сессию прямо в /mobile/, где app-v3.js её принимает.
+    // Возвращаем OAuth на отдельную стабильную callback-страницу. Она сохраняет
+    // query/hash от Supabase и передаёт их в /mobile/, где app-v3.js завершает вход.
     location.assign(directProviderUrl(provider));
   },true);
 })();
