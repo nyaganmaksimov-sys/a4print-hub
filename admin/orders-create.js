@@ -2,7 +2,8 @@ import { supabase } from './guard.js?v=20260905-netfix1';
 
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2});
-const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null};
+const MAX_FILE_SIZE=50*1024*1024;
+const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[]};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
 
 function normalizeRoles(data){
@@ -85,10 +86,82 @@ function applyCatalogPrice(){
   }
 }
 
+function fileSize(bytes){
+  const value=Number(bytes||0);
+  if(value<1024)return `${value} Б`;
+  if(value<1024*1024)return `${(value/1024).toFixed(value<10*1024?1:0)} КБ`;
+  return `${(value/(1024*1024)).toFixed(value<10*1024*1024?1:0)} МБ`;
+}
+
+function fileKey(file){return `${file.name}\u0000${file.size}\u0000${file.lastModified}`}
+
+function renderFiles(){
+  const node=$('newOrderFilesList');if(!node)return;
+  if(!state.files.length){node.innerHTML='<span>Файлы не выбраны</span>';return}
+  node.innerHTML=state.files.map((file,index)=>`<div class="order-create-file-row"><b title="${String(file.name).replace(/"/g,'&quot;')}">${String(file.name).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</b><small>${fileSize(file.size)}</small><button class="order-create-file-remove" type="button" data-remove-file="${index}" aria-label="Убрать файл">×</button></div>`).join('');
+}
+
+function addFiles(list){
+  const errorNode=$('newOrderError');
+  const incoming=[...(list||[])];
+  if(!incoming.length)return;
+  const existing=new Set(state.files.map(fileKey));
+  const tooLarge=[];
+  for(const file of incoming){
+    if(file.size>MAX_FILE_SIZE){tooLarge.push(file.name);continue}
+    const key=fileKey(file);
+    if(existing.has(key))continue;
+    existing.add(key);state.files.push(file);
+  }
+  renderFiles();
+  if(errorNode){
+    errorNode.classList.remove('ok');
+    errorNode.textContent=tooLarge.length?`Не добавлены файлы больше 50 МБ: ${tooLarge.join(', ')}`:'';
+  }
+}
+
+function resetFiles(){
+  state.files=[];
+  const input=$('newOrderFiles');if(input)input.value='';
+  renderFiles();
+}
+
+function safeStorageName(name){
+  const clean=String(name||'file').normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').replace(/\s+/g,' ').trim().slice(-150);
+  return clean||'file';
+}
+
+function uniquePart(){
+  if(globalThis.crypto?.randomUUID)return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2,12)}`;
+}
+
+async function uploadOrderFiles(orderId,saveButton){
+  const failures=[];
+  for(let index=0;index<state.files.length;index++){
+    const file=state.files[index];
+    if(saveButton)saveButton.textContent=`Загрузка файлов ${index+1}/${state.files.length}…`;
+    const path=`${orderId}/${uniquePart()}-${safeStorageName(file.name)}`;
+    try{
+      const upload=await supabase.storage.from('order-files').upload(path,file,{contentType:file.type||'application/octet-stream',cacheControl:'3600',upsert:false});
+      if(upload.error)throw upload.error;
+      const meta=await supabase.from('order_files').insert({order_id:orderId,file_name:file.name,file_url:path,mime_type:file.type||null});
+      if(meta.error){
+        await supabase.storage.from('order-files').remove([path]).catch(()=>{});
+        throw meta.error;
+      }
+    }catch(error){
+      console.error('Order attachment upload failed',file.name,error);
+      failures.push({name:file.name,error:String(error?.message||error)});
+    }
+  }
+  return failures;
+}
+
 async function openDialog(){
   if(!canManage())return;
   const dlg=$('newOrderDlg');if(!dlg)return;
-  $('newOrderError').textContent='';
+  $('newOrderError').textContent='';$('newOrderError').classList.remove('ok');
   try{
     await loadReferenceData();
     $('newOrderCustomer').value='';
@@ -100,6 +173,7 @@ async function openDialog(){
     $('newOrderPrice').value='0';
     $('newOrderSource').value='Офис';
     $('newOrderComment').value='';
+    resetFiles();
     toggleNewCustomer();recalc();
     dlg.showModal();
     setTimeout(()=>$('newOrderCustomer')?.focus(),0);
@@ -113,7 +187,7 @@ async function submitOrder(event){
   event.preventDefault();
   if(!canManage())return;
   const save=$('saveNewOrder'),errorNode=$('newOrderError');
-  errorNode.textContent='';
+  errorNode.textContent='';errorNode.classList.remove('ok');
   const customerChoice=$('newOrderCustomer').value;
   const itemName=$('newOrderItem').value.trim();
   const qty=Number($('newOrderQty').value||0);
@@ -140,8 +214,17 @@ async function submitOrder(event){
     });
     if(error)throw error;
     const result=Array.isArray(data)?data[0]:data;
+    if(result?.id){
+      const failures=state.files.length?await uploadOrderFiles(result.id,save):[];
+      if(failures.length){
+        const names=failures.map(x=>x.name).join(', ');
+        window.alert(`Заказ создан, но не удалось прикрепить ${failures.length} файл(а): ${names}. Их можно добавить позже из карточки заказа.`);
+      }
+      $('newOrderDlg').close();
+      location.href=`./order.html?id=${encodeURIComponent(result.id)}`;
+      return;
+    }
     $('newOrderDlg').close();
-    if(result?.id){location.href=`./order.html?id=${encodeURIComponent(result.id)}`;return}
     location.reload();
   }catch(error){
     console.error(error);
@@ -182,6 +265,20 @@ function bind(){
   $('newOrderItem')?.addEventListener('blur',applyCatalogPrice);
   $('newOrderQty')?.addEventListener('input',recalc);
   $('newOrderPrice')?.addEventListener('input',recalc);
+
+  const fileInput=$('newOrderFiles'),drop=$('newOrderFileDrop'),filesList=$('newOrderFilesList');
+  fileInput?.addEventListener('change',()=>{addFiles(fileInput.files);fileInput.value=''});
+  drop?.addEventListener('click',()=>fileInput?.click());
+  drop?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();fileInput?.click()}});
+  for(const name of ['dragenter','dragover'])drop?.addEventListener(name,event=>{event.preventDefault();event.stopPropagation();drop.classList.add('drag')});
+  for(const name of ['dragleave','drop'])drop?.addEventListener(name,event=>{event.preventDefault();event.stopPropagation();drop.classList.remove('drag')});
+  drop?.addEventListener('drop',event=>addFiles(event.dataTransfer?.files));
+  filesList?.addEventListener('click',event=>{
+    const button=event.target.closest('[data-remove-file]');if(!button)return;
+    const index=Number(button.dataset.removeFile);if(!Number.isInteger(index))return;
+    state.files.splice(index,1);renderFiles();
+  });
+
   const list=$('list');
   if(list){
     const observer=new MutationObserver(()=>{syncStatusControls();patchVisibleItemTitles()});
