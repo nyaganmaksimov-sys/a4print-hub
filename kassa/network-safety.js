@@ -4,43 +4,63 @@
   window.__A4_KASSA_NETWORK_SAFETY__=true;
 
   const nativeFetch=window.fetch.bind(window);
-  const DEFAULT_TIMEOUT=12000;
-  const SHIFT_READ_TIMEOUT=30000;
-  const SHIFT_CONTROL_TIMEOUT=60000;
-  const WRITE_TIMEOUT=45000;
+  const cfg=window.A4PRINT_CONFIG||{};
+  const API_ORIGINS=[
+    'https://api.a4print-hub.ru',
+    String(cfg.apiBaseUrl||'').replace(/\/$/,''),
+    'https://a4print-hub-api.onrender.com'
+  ].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const PREF_KEY='a4_kassa_api_origin';
+  const READ_TIMEOUT=5500;
+  const WRITE_TIMEOUT=12000;
 
-  function timeoutError(ms){
-    const seconds=Math.round(ms/1000);
-    try{return new DOMException(`Сервер не ответил за ${seconds} сек. Повторите обновление.`, 'TimeoutError')}
-    catch{return new Error(`Сервер не ответил за ${seconds} сек. Повторите обновление.`)}
-  }
-
-  function infoFor(input,init={}){
+  function savedOrigin(){try{const v=localStorage.getItem(PREF_KEY);return API_ORIGINS.includes(v)?v:null}catch{return null}}
+  function saveOrigin(v){try{if(v)localStorage.setItem(PREF_KEY,v)}catch{}}
+  function timeoutError(ms){try{return new DOMException(`Сервер не ответил за ${Math.ceil(ms/1000)} сек.`,'TimeoutError')}catch{return new Error('Таймаут сети')}}
+  function parse(input,init={}){
     try{
-      const raw=input instanceof Request?input.url:String(input||'');
-      const u=new URL(raw,location.href);
-      const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
-      const isShift=/\/api\/v1\/pos\/shift(?:\/|$)/.test(u.pathname);
-      const isShiftControl=method==='GET'&&/\/api\/v1\/pos\/shift\/control(?:\/|$)/.test(u.pathname);
-      const isMoneyWrite=method==='POST'&&/\/api\/v1\/pos\/(?:sale|returns|cashout)(?:\/|$)/.test(u.pathname);
-      const isShiftWrite=isShift&&method!=='GET'&&method!=='HEAD';
-      return{
-        timeout:isShiftWrite||isMoneyWrite?WRITE_TIMEOUT:isShiftControl?SHIFT_CONTROL_TIMEOUT:isShift?SHIFT_READ_TIMEOUT:DEFAULT_TIMEOUT,
-        overrideSignal:isShift||isMoneyWrite
-      };
-    }catch{return{timeout:DEFAULT_TIMEOUT,overrideSignal:false}}
+      const req=new Request(input,init);
+      const url=new URL(req.url);
+      const apiOrigin=API_ORIGINS.find(x=>url.origin===x);
+      return{req,url,apiOrigin,method:req.method.toUpperCase()};
+    }catch{return null}
+  }
+  async function one(req,url,origin,timeout){
+    const target=new URL(url.href);target.origin=origin;
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(timeoutError(timeout)),timeout);
+    try{
+      const r=await nativeFetch(new Request(target.href,req),{signal:controller.signal});
+      if(r.ok||r.status<500){saveOrigin(origin);return r}
+      throw new Error(`HTTP ${r.status}`);
+    }finally{clearTimeout(timer)}
+  }
+  async function firstSuccess(promises){
+    if(typeof Promise.any==='function')return Promise.any(promises);
+    return new Promise((resolve,reject)=>{let left=promises.length,last;promises.forEach(p=>Promise.resolve(p).then(resolve,e=>{last=e;if(--left===0)reject(last)}))});
   }
 
-  window.fetch=function a4SafeFetch(input,init={}){
-    const info=infoFor(input,init);
-    const existingSignal=init?.signal||(input instanceof Request?input.signal:null);
-    // The legacy app creates an 8-second AbortController for every API call.
-    // For shift and money operations we intentionally replace that signal so a
-    // slow MoySklad request is not reported as a fake network outage.
-    if(existingSignal&&!info.overrideSignal)return nativeFetch(input,init);
+  window.fetch=async function a4SafeFetch(input,init={}){
+    const info=parse(input,init);
+    if(!info||!info.apiOrigin)return nativeFetch(input,init);
+    const {req,url,method}=info;
+    const preferred=savedOrigin();
+    const ordered=[preferred,...API_ORIGINS].filter((v,i,a)=>v&&a.indexOf(v)===i);
+    const safeRace=method==='GET'||method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(url.pathname);
 
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(timeoutError(info.timeout)),info.timeout);
-    return nativeFetch(input,{...init,signal:controller.signal}).finally(()=>clearTimeout(timer));
+    if(safeRace){
+      try{return await firstSuccess(ordered.map(origin=>one(req.clone(),url,origin,READ_TIMEOUT)))}
+      catch(e){throw e}
+    }
+
+    // Never race financial/shift writes: a timed-out request may still complete server-side.
+    const origin=preferred||info.apiOrigin;
+    try{return await one(req.clone(),url,origin,WRITE_TIMEOUT)}
+    catch(error){
+      // For non-financial idempotent POSTs (Supabase read RPC etc.) allow one alternate route.
+      const risky=/\/api\/v1\/pos\/(?:sale|returns|cashout|shift\/(?:open|close)|orders\/pay)(?:\/|$)/.test(url.pathname);
+      if(risky)throw error;
+      const alt=ordered.find(x=>x!==origin);if(!alt)throw error;
+      return one(req.clone(),url,alt,WRITE_TIMEOUT);
+    }
   };
 })();
