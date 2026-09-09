@@ -6,7 +6,7 @@
   <title>Заказ — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260908-order6">
-  <link rel="stylesheet" href="./order-modern.css?v=20260908-1">
+  <link rel="stylesheet" href="./order-modern.css?v=20260909-files1">
   <script src="./config.js?v=20260908-order6"></script>
 </head>
 <body>
@@ -46,6 +46,15 @@
               <div id="partnerBlock"></div>
               <div class="order-info-grid" id="orderInfo"><div class="order-empty">Загрузка…</div></div>
               <div class="order-section"><div class="order-section-title">Позиции</div><div id="itemsList"><div class="order-empty">Загрузка…</div></div></div>
+              <div class="order-section">
+                <div class="order-section-title order-files-title"><span>Файлы заказа</span><span id="orderFilesCount" class="order-badge gray">0</span></div>
+                <div id="orderFiles" class="order-files-list"><div class="order-empty">Файлы не прикреплены</div></div>
+                <div class="order-files-actions" id="orderFilesActions">
+                  <input id="orderFileInput" type="file" multiple hidden>
+                  <button id="addOrderFiles" type="button">📎 Прикрепить файлы</button>
+                  <small id="orderFileStatus">до 50 МБ на файл</small>
+                </div>
+              </div>
               <div class="order-section" id="partnerMessagesSection" hidden><div class="order-section-title">Сообщения партнёру</div><div id="partnerMessages" class="order-message-list"></div><div class="order-message"><textarea id="partnerReply" placeholder="Это сообщение увидит партнёр"></textarea><button id="sendPartnerReply" type="button">Отправить партнёру</button></div></div>
               <div class="order-section"><div class="order-section-title">Внутренний комментарий</div><div class="order-comment"><textarea id="internalComment" placeholder="Комментарий для сотрудников HUB"></textarea><button id="saveComment" type="button">Сохранить комментарий</button></div></div>
             </div>
@@ -94,6 +103,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./order.js?v=20260908-6"></script>
+  <script type="module" src="./order.js?v=20260909-files1"></script>
 </body>
 </html>
