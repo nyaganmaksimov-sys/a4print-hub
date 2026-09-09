@@ -41,6 +41,7 @@ jobs:
         run: |
           node --check mobile/oauth-bridge.js
           node --check mobile/app-v3.js
+          node --check mobile/dashboard-v2.js
           node --check mobile/quick-menu.js
           node --check mobile/pwa.js
           node --check mobile/updates-client.js
@@ -69,6 +70,10 @@ jobs:
           grep -q 'manifest.webmanifest' mobile/index.html
           grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'app-v3.js' mobile/index.html
+          grep -q 'dashboard-v2.js' mobile/index.html
+          grep -q 'mobileRevenue' mobile/index.html
+          grep -q 'mobileCash' mobile/index.html
+          grep -q 'mobileAttention' mobile/index.html
           grep -q 'quick-menu.js' mobile/index.html
           grep -q 'pwa.js' mobile/index.html
           grep -q '/admin/orders.html?status=NEW&mobile=1' mobile/index.html
@@ -144,7 +149,16 @@ jobs:
           grep -q 'a4print_mobile_access' admin/manager-runtime.js
           ! grep -q "import {supabase} from './guard.js'" admin/manager.html
           grep -q 'mobile-shell.js' admin/config.js
-          grep -q 'mobile-shell.js' admin/chat-watchdog.js
+
+      - name: Verify full mobile dashboard
+        run: |
+          grep -q '/api/v1/pos/cash-balance' mobile/dashboard-v2.js
+          grep -q '/api/v1/pos/shift' mobile/dashboard-v2.js
+          grep -q 'pos_sales' mobile/dashboard-v2.js
+          grep -q 'pos_returns' mobile/dashboard-v2.js
+          grep -q 'inventory_transactions' mobile/dashboard-v2.js
+          grep -q 'production_jobs' mobile/dashboard-v2.js
+          grep -q 'setInterval(load,30000)' mobile/dashboard-v2.js
 
       - name: Verify background Push
         run: |
