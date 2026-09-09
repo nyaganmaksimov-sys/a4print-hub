@@ -1,4 +1,15 @@
-body:not(.a4-side-glass) .sidebar{background:#ffffff!important;color:#0f172a!important;border-right:1px solid #dbe3ee!important;box-shadow:8px 0 28px rgba(15,23,42,.05)!important}body:not(.a4-side-glass) .sidebar a{color:#475569!important}body:not(.a4-side-glass) .sidebar a:hover{background:#f1f5f9!important;color:#0f172a!important}body:not(.a4-side-glass) .sidebar a.active{background:#e8f0ff!important;color:#173b75!important;box-shadow:inset 3px 0 0 var(--a4-accent,#2563eb)!important}body:not(.a4-side-glass) .a4-sidebar-toggle{background:#f1f5f9!important;color:#334155!important}body:not(.a4-side-glass) .a4-sidebar-toggle:hover{background:#e2e8f0!important;color:#0f172a!important}body:not(.a4-side-glass) .sidebar b{background:#e2e8f0!important;color:#334155!important}.hub-logo-wrap,.brand{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;border-radius:0!important}.hub-logo,.brand img{filter:none!important}#globalHubLogoFallback,.hub-logo-fallback{color:#0f172a!important}body.a4-side-glass #globalHubLogoFallback,body.a4-side-glass .hub-logo-fallback{color:#fff!important}
+/* HUB sidebar. Keep the standard dark sidebar by default; glass remains selectable from the theme panel. */
+body:not(.a4-side-glass) .sidebar{background:var(--a4-side,#101827)!important;color:#fff!important;border-right:1px solid rgba(148,163,184,.14)!important;box-shadow:8px 0 28px rgba(15,23,42,.16)!important}
+body:not(.a4-side-glass) .sidebar a{color:#cbd5e1!important}
+body:not(.a4-side-glass) .sidebar a:hover{background:rgba(255,255,255,.075)!important;color:#fff!important}
+body:not(.a4-side-glass) .sidebar a.active{background:linear-gradient(90deg,rgba(37,99,235,.30),rgba(37,99,235,.10))!important;color:#fff!important;box-shadow:inset 3px 0 0 #60a5fa!important}
+body:not(.a4-side-glass) .a4-sidebar-toggle{background:rgba(255,255,255,.08)!important;color:#dbeafe!important}
+body:not(.a4-side-glass) .a4-sidebar-toggle:hover{background:rgba(255,255,255,.12)!important;color:#fff!important}
+body:not(.a4-side-glass) .sidebar b{background:rgba(255,255,255,.12)!important;color:#fff!important}
+.hub-logo-wrap,.brand{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;border-radius:0!important}
+.hub-logo,.brand img{filter:none!important}
+#globalHubLogoFallback,.hub-logo-fallback{color:#fff!important}
+body.a4-side-glass #globalHubLogoFallback,body.a4-side-glass .hub-logo-fallback{color:#fff!important}
 
 /* Desktop keeps only the real sidebar collapse button. The separate mobile burger is hidden. */
 @media(min-width:901px){
