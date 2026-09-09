@@ -4,7 +4,7 @@
 window.A4PRINT_CONFIG = {
   supabaseUrl: 'https://qgakliolffnwkymoqvzn.supabase.co',
   supabasePublishableKey: 'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu',
-  apiBaseUrl: 'https://api.a4print-hub.ru'
+  apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
 // In some networks direct access to *.supabase.co is unstable or unavailable.
@@ -12,11 +12,7 @@ window.A4PRINT_CONFIG = {
 window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const cfg = window.A4PRINT_CONFIG || {};
   let request;
-  try {
-    request = new Request(input, init);
-  } catch {
-    return fetch(input, init);
-  }
+  try { request = new Request(input, init); } catch { return fetch(input, init); }
 
   let target;
   try { target = new URL(request.url); } catch { return fetch(request); }
@@ -29,32 +25,20 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const proxyFetch = async () => {
     const headers = new Headers(request.headers);
     const method = request.method.toUpperCase();
-    const options = {
-      method,
-      headers,
-      cache: 'no-store',
-      credentials: 'omit',
-      redirect: 'follow'
-    };
+    const options = { method, headers, cache: 'no-store', credentials: 'omit', redirect: 'follow' };
     if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const timer = setTimeout(() => controller.abort(), 8000);
     options.signal = controller.signal;
     try {
-      const response = await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options);
-      window.dispatchEvent(new CustomEvent('a4:supabase-proxy', { detail: { path: target.pathname } }));
-      return response;
+      return await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options);
     } finally { clearTimeout(timer); }
   };
 
-  try {
-    return await proxyFetch();
-  } catch (proxyError) {
+  try { return await proxyFetch(); }
+  catch (proxyError) {
     try { return await fetch(request.clone()); }
-    catch (directError) {
-      console.warn('A4 Supabase proxy/direct failed', proxyError, directError);
-      throw proxyError;
-    }
+    catch (directError) { console.warn('A4 Supabase proxy/direct failed', proxyError, directError); throw proxyError; }
   }
 };
 
@@ -90,7 +74,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
   if(mobileContext)load('mobile-shell.js','20260905-4');
   if(isChatApp){load('dialog-fixes.js');load('ui-fixes.js');load('chat-app-mode.js','20260904-4');load('chat-ui-fixes.js','20260904-3');if(isEmbed)load('chat-embed.js','20260908-2');else background(()=>{load('chat-notifications.js','20260904-7');load('support-notifications.js','20260905-1');load('push-client.js','20260904-4')});return}
-  if(isAuthPage){load('auth-ui.js','20260910-custom-api1');return}
+  if(isAuthPage){load('auth-ui.js','20260910-api-rollback1');return}
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
   if(isManager)load('manager-runtime.js','20260905-4');
