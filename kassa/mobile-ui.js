@@ -9,27 +9,29 @@
 
   function mobile(){return mq.matches}
   function workspace(){return document.querySelector('.workspace')}
-  function closeDrawer(){ $('appView')?.classList.remove('nav-open'); }
+  function appOpen(){return mobile()&&!!$('appView')&&!$('appView').hidden}
+  function closeDrawer(){$('appView')?.classList.remove('nav-open')}
   function showCatalog(){const w=workspace();if(!w)return;w.classList.remove('mobile-cart','mobile-categories');document.body.classList.remove('kassa-mobile-cart-open')}
   function showCart(){const w=workspace();if(!w)return;w.classList.remove('mobile-categories');w.classList.add('mobile-cart');document.body.classList.add('kassa-mobile-cart-open');$('cartItems')?.scrollTo?.({top:0,behavior:'smooth'})}
   function showCategories(){const w=workspace();if(!w)return;w.classList.remove('mobile-cart');w.classList.add('mobile-categories');document.body.classList.remove('kassa-mobile-cart-open')}
 
-  function activate(name){
-    document.querySelectorAll('.kassa-mobile-nav button').forEach(b=>b.classList.toggle('active',b.dataset.mobileNav===name));
-  }
-  function clickSection(name){
-    showCatalog();closeDrawer();
-    const btn=document.querySelector(`.main-nav [data-section="${name}"]`);btn?.click();
-  }
+  function activate(name){document.querySelectorAll('.kassa-mobile-nav button').forEach(b=>b.classList.toggle('active',b.dataset.mobileNav===name))}
+  function clickSection(name){showCatalog();closeDrawer();document.querySelector(`.main-nav [data-section="${name}"]`)?.click()}
   function openHistory(){showCatalog();closeDrawer();$('navHistory')?.click()}
   function openShift(){showCatalog();closeDrawer();$('navShift')?.click()}
-  function openMore(){ $('appView')?.classList.toggle('nav-open'); }
+  function openMore(){$('appView')?.classList.toggle('nav-open')}
+
+  function syncVisibility(){
+    const visible=appOpen();
+    document.body.classList.toggle('kassa-mobile',visible);
+    document.querySelector('.kassa-mobile-nav')?.classList.toggle('hidden',!visible);
+    document.querySelector('.kassa-mobile-sale-tools')?.classList.toggle('auth-hidden',!visible);
+  }
 
   function ensure(){
     if(!mobile())return;
-    document.body.classList.add('kassa-mobile');
     if(!document.querySelector('.kassa-mobile-nav')){
-      const nav=document.createElement('nav');nav.className='kassa-mobile-nav';nav.setAttribute('aria-label','Навигация кассы');
+      const nav=document.createElement('nav');nav.className='kassa-mobile-nav hidden';nav.setAttribute('aria-label','Навигация кассы');
       nav.innerHTML=`
         <button type="button" data-mobile-nav="sale" class="active"><span>▣</span><b>Продажа</b></button>
         <button type="button" data-mobile-nav="receipts"><span>◷</span><b>Чеки</b></button>
@@ -44,7 +46,7 @@
       nav.querySelector('[data-mobile-nav="more"]').onclick=()=>{activate('more');openMore()};
     }
     if(!document.querySelector('.kassa-mobile-sale-tools')){
-      const tools=document.createElement('div');tools.className='kassa-mobile-sale-tools';
+      const tools=document.createElement('div');tools.className='kassa-mobile-sale-tools auth-hidden';
       tools.innerHTML=`<button type="button" class="kassa-mobile-cat-btn"><span>☷</span><b>Категории</b></button><button type="button" class="kassa-mobile-cart-btn"><span class="kassa-mobile-cart-label">Чек</span><strong class="kassa-mobile-cart-total">0 ₽</strong><small class="kassa-mobile-cart-count">0 поз.</small></button>`;
       document.body.appendChild(tools);
       tools.querySelector('.kassa-mobile-cat-btn').onclick=showCategories;
@@ -56,22 +58,22 @@
     if($('category-mobile-back')==null&&document.querySelector('.category-head')){
       const b=document.createElement('button');b.id='category-mobile-back';b.className='category-mobile-back';b.type='button';b.textContent='← Товары';b.onclick=showCatalog;document.querySelector('.category-head').prepend(b);
     }
-    syncCart();
+    syncVisibility();syncCart();
   }
 
   function syncCart(){
     const total=document.querySelector('.kassa-mobile-cart-total'),count=document.querySelector('.kassa-mobile-cart-count');
     if(total)total.textContent=moneyText();if(count)count.textContent=countText();
     const tools=document.querySelector('.kassa-mobile-sale-tools');
-    const saleVisible=!$('saleCatalog')?.hidden && !$('returnsView')?.hidden===false;
-    if(tools)tools.classList.toggle('hide',!!$('shiftView')&&!$('shiftView').hidden || !!$('reportsView')&&!$('reportsView').hidden || !!$('returnsView')&&!$('returnsView').hidden);
+    if(tools)tools.classList.toggle('hide',!appOpen() || (!!$('shiftView')&&!$('shiftView').hidden) || (!!$('reportsView')&&!$('reportsView').hidden) || (!!$('returnsView')&&!$('returnsView').hidden));
   }
 
   function observe(){
-    const targets=[$('cartTotal'),$('cartCount'),$('workspace'),$('shiftView'),$('reportsView'),$('returnsView')].filter(Boolean);
-    const obs=new MutationObserver(()=>{ensure();syncCart()});targets.forEach(t=>obs.observe(t,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden','class']}));
+    const targets=[$('cartTotal'),$('cartCount'),$('appView'),workspace(),$('shiftView'),$('reportsView'),$('returnsView')].filter(Boolean);
+    const obs=new MutationObserver(()=>{ensure();syncVisibility();syncCart()});
+    targets.forEach(t=>obs.observe(t,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden','class']}));
     document.addEventListener('click',e=>{
-      if(!mobile())return;
+      if(!appOpen())return;
       const section=e.target.closest?.('.main-nav [data-section]')?.dataset?.section;
       if(section){activate(section==='reports'?'reports':'sale');showCatalog()}
       if(e.target.closest?.('#navShift,#shiftChip'))activate('shift');
@@ -79,6 +81,6 @@
     },true);
   }
 
-  function init(){ensure();observe();mq.addEventListener?.('change',()=>{if(mobile())ensure();else{document.body.classList.remove('kassa-mobile','kassa-mobile-cart-open');workspace()?.classList.remove('mobile-cart','mobile-categories')}})}
+  function init(){ensure();observe();mq.addEventListener?.('change',()=>{if(mobile())ensure();else{document.body.classList.remove('kassa-mobile','kassa-mobile-cart-open');workspace()?.classList.remove('mobile-cart','mobile-categories');document.querySelector('.kassa-mobile-nav')?.classList.add('hidden');document.querySelector('.kassa-mobile-sale-tools')?.classList.add('auth-hidden')}})}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
