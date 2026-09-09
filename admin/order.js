@@ -7,7 +7,8 @@ const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' 
 const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён'};
 const prodLabels={NEW:'Новая',QUEUED:'В очереди',IN_PROGRESS:'В работе',PAUSED:'Пауза',DONE:'Готово',CANCELLED:'Отменена'};
 const paidStatuses=new Set(['PAID','COMPLETED','SUCCESS','SUCCESSFUL','CONFIRMED','CAPTURED']);
-const state={order:null,roles:[],staffId:null,docs:[],payments:[],jobs:[],loading:false,channel:null};
+const MAX_FILE_SIZE=50*1024*1024;
+const state={order:null,roles:[],staffId:null,docs:[],payments:[],jobs:[],files:[],loading:false,channel:null};
 let reloadTimer=null;
 
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
@@ -34,13 +35,14 @@ async function load(){
   state.loading=true;$('refresh').disabled=true;$('refresh').textContent='Обновление…';
   try{
     const orderSelect='*,customers(*),requester:partners!orders_partner_id_fkey(*),executor:partners!orders_fulfillment_partner_id_fkey(*),partner_users(*),order_items(*),order_status_history(*),partner_order_messages(*)';
-    const [order,docs,jobs]=await Promise.all([
+    const [order,docs,jobs,files]=await Promise.all([
       supabase.from('orders').select(orderSelect).eq('id',id).single(),
       supabase.from('customer_documents').select('id,customer_id,order_id,document_number,document_type,status,title,amount,currency,issue_date,due_date,description,created_at').eq('order_id',id).order('created_at',{ascending:false}),
-      supabase.from('production_jobs').select('id,order_id,assigned_to,status,title,priority,planned_start,planned_end,started_at,completed_at,notes,created_at,updated_at,assignee:users!production_jobs_assigned_to_fkey(full_name,email)').eq('order_id',id).order('created_at',{ascending:false})
+      supabase.from('production_jobs').select('id,order_id,assigned_to,status,title,priority,planned_start,planned_end,started_at,completed_at,notes,created_at,updated_at,assignee:users!production_jobs_assigned_to_fkey(full_name,email)').eq('order_id',id).order('created_at',{ascending:false}),
+      supabase.from('order_files').select('id,order_id,file_name,file_url,mime_type,created_at').eq('order_id',id).order('created_at',{ascending:false})
     ]);
-    if(order.error)throw order.error;if(docs.error)throw docs.error;if(jobs.error)throw jobs.error;
-    state.order=order.data;state.docs=docs.data||[];state.jobs=jobs.data||[];
+    if(order.error)throw order.error;if(docs.error)throw docs.error;if(jobs.error)throw jobs.error;if(files.error)throw files.error;
+    state.order=order.data;state.docs=docs.data||[];state.jobs=jobs.data||[];state.files=files.data||[];
 
     const paymentQueries=[supabase.from('payments').select('*').eq('order_id',id).order('created_at',{ascending:false})];
     const docIds=state.docs.map(x=>x.id);
@@ -65,16 +67,80 @@ function render(){
   $('status').textContent=labels[o.status]||o.status||'—';$('status').className=`order-badge ${tone(o.status)}`;
   $('orderDirection').textContent=pc?.direction||(o.customer_id?'КЛИЕНТ → A4PRINT':'HUB');
   document.querySelectorAll('[data-status]').forEach(b=>{b.hidden=!canManage();b.classList.toggle('active',b.dataset.status===o.status)});
-  renderOrder(o,pc,c);renderFinance(o,pc);renderProduction();renderHistory(o);renderMessages(o);
+  renderOrder(o,pc,c);renderFiles();renderFinance(o,pc);renderProduction();renderHistory(o);renderMessages(o);
 }
 
 function renderOrder(o,pc,c){
   if(pc){const p=pc.partner;$('partnerBlock').innerHTML=`<div class="order-partner"><b>${esc(pc.role)} · <a class="order-link" href="./partner.html?id=${encodeURIComponent(pc.id)}">${esc(p.name||'Партнёр')}</a></b><small>${esc(o.partner_users?.full_name||p.contact_name||'')}${p.phone?' · '+esc(p.phone):''}${p.email?' · '+esc(p.email):''}<br>Скидка ${Number(p.discount_percent||0)}% · отсрочка ${Number(p.payment_terms_days||0)} дн.</small></div>`}else $('partnerBlock').innerHTML='';
   const name=pc?(pc.partner.name||'Партнёр'):(c.company_name||c.full_name||'Не указан');
   const contact=pc?(pc.partner.phone||pc.partner.email||'—'):[c.full_name&&c.company_name?c.full_name:'',c.phone,c.email].filter(Boolean).join(' · ')||'—';
-  $('orderInfo').innerHTML=`<div class="order-info"><span>${pc?'Контрагент':'Клиент'}</span><b>${pc?esc(name):(o.customer_id?`<a class="order-link" href="./customer.html?id=${encodeURIComponent(o.customer_id)}">${esc(name)}</a>`:esc(name))}</b><small>${esc(contact)}</small></div><div class="order-info"><span>Работа / модель</span><b>${esc(o.model_name||o.source||'—')}</b><small>${o.model_url?`<a class="order-link" href="${esc(o.model_url)}" target="_blank" rel="noopener">Открыть модель ↗</a>`:'Файл модели не указан'}</small></div><div class="order-info"><span>Создан</span><b>${esc(fmtDate(o.created_at,true))}</b><small>${esc(o.source||'A4PRINT HUB')}</small></div><div class="order-info"><span>Комментарий заказчика</span><b>${esc(o.customer_comment||'Нет')}</b><small>${o.partner_direction?`Направление: ${esc(o.partner_direction)}`:'—'}</small></div>`;
+  $('orderInfo').innerHTML=`<div class="order-info"><span>${pc?'Контрагент':'Клиент'}</span><b>${pc?esc(name):(o.customer_id?`<a class="order-link" href="./customer.html?id=${encodeURIComponent(o.customer_id)}">${esc(name)}</a>`:esc(name))}</b><small>${esc(contact)}</small></div><div class="order-info"><span>Работа / модель</span><b>${esc(o.model_name||o.source||'—')}</b><small>${o.model_url?`<a class="order-link" href="${esc(o.model_url)}" target="_blank" rel="noopener">Открыть модель ↗</a>`:'Файлы заказа — ниже'}</small></div><div class="order-info"><span>Создан</span><b>${esc(fmtDate(o.created_at,true))}</b><small>${esc(o.source||'A4PRINT HUB')}</small></div><div class="order-info"><span>Комментарий заказчика</span><b>${esc(o.customer_comment||'Нет')}</b><small>${o.partner_direction?`Направление: ${esc(o.partner_direction)}`:'—'}</small></div>`;
   $('itemsList').innerHTML=(o.order_items||[]).map(i=>`<div class="order-item"><span><b>${esc(i.name||'Позиция')} × ${Number(i.quantity||0).toLocaleString('ru-RU')}</b><small>${i.parameters?.details?esc(i.parameters.details):''}</small></span><strong>${money(i.total_price)}</strong></div>`).join('')||'<div class="order-empty">Позиции не добавлены</div>';
   $('internalComment').value=o.internal_comment||'';$('internalComment').disabled=!canManage();$('saveComment').hidden=!canManage();
+}
+
+function fileIcon(mime,name){
+  const type=String(mime||'').toLowerCase(),n=String(name||'').toLowerCase();
+  if(type.startsWith('image/'))return'▧';
+  if(type==='application/pdf'||n.endsWith('.pdf'))return'PDF';
+  if(/\.(stl|3mf|obj|step|stp|gltf|glb)$/i.test(n))return'3D';
+  if(/\.(zip|rar|7z)$/i.test(n))return'ZIP';
+  return'📄';
+}
+
+function renderFiles(){
+  const count=$('orderFilesCount'),list=$('orderFiles'),actions=$('orderFilesActions');
+  if(count)count.textContent=String(state.files.length);
+  if(actions)actions.hidden=!canManage();
+  if(!list)return;
+  list.innerHTML=state.files.length?state.files.map(file=>`<div class="order-file-row"><div class="order-file-icon">${esc(fileIcon(file.mime_type,file.file_name))}</div><div class="order-file-meta"><b title="${esc(file.file_name)}">${esc(file.file_name)}</b><small>${esc(file.mime_type||'файл')} · ${esc(fmtDate(file.created_at,true))}</small></div><button class="order-file-open" type="button" data-order-file="${esc(file.id)}">Открыть</button></div>`).join(''):'<div class="order-empty">Файлы не прикреплены</div>';
+}
+
+async function openOrderFile(fileId,button){
+  const file=state.files.find(x=>x.id===fileId);if(!file)return;
+  button.disabled=true;const old=button.textContent;button.textContent='Открываю…';
+  try{
+    let url=String(file.file_url||'');
+    if(!/^https?:\/\//i.test(url)){
+      const {data,error}=await supabase.storage.from('order-files').createSignedUrl(url,3600);
+      if(error)throw error;url=data?.signedUrl||'';
+    }
+    if(!url)throw new Error('Не удалось получить ссылку на файл.');
+    window.open(url,'_blank','noopener,noreferrer');
+  }catch(error){alert(`Не удалось открыть файл: ${error.message||error}`)}
+  finally{button.disabled=false;button.textContent=old}
+}
+
+function safeStorageName(name){
+  const clean=String(name||'file').normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').replace(/\s+/g,' ').trim().slice(-150);
+  return clean||'file';
+}
+function uniquePart(){return globalThis.crypto?.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2,12)}`}
+
+async function addOrderFiles(fileList){
+  if(!canManage())return;
+  const files=[...(fileList||[])];if(!files.length)return;
+  const tooLarge=files.filter(f=>f.size>MAX_FILE_SIZE);
+  if(tooLarge.length){alert(`Файл больше 50 МБ: ${tooLarge.map(f=>f.name).join(', ')}`);return}
+  const button=$('addOrderFiles'),status=$('orderFileStatus');button.disabled=true;
+  const failures=[];
+  try{
+    for(let index=0;index<files.length;index++){
+      const file=files[index];
+      button.textContent=`Загрузка ${index+1}/${files.length}…`;if(status)status.textContent=file.name;
+      const path=`${id}/${uniquePart()}-${safeStorageName(file.name)}`;
+      try{
+        const upload=await supabase.storage.from('order-files').upload(path,file,{contentType:file.type||'application/octet-stream',cacheControl:'3600',upsert:false});
+        if(upload.error)throw upload.error;
+        const meta=await supabase.from('order_files').insert({order_id:id,file_name:file.name,file_url:path,mime_type:file.type||null});
+        if(meta.error){await supabase.storage.from('order-files').remove([path]).catch(()=>{});throw meta.error}
+      }catch(error){console.error('Order file upload failed',file.name,error);failures.push(file.name)}
+    }
+    if(failures.length)alert(`Не удалось прикрепить: ${failures.join(', ')}`);
+    await load();
+  }finally{
+    button.disabled=false;button.textContent='📎 Прикрепить файлы';if(status)status.textContent='до 50 МБ на файл';const input=$('orderFileInput');if(input)input.value='';
+  }
 }
 
 function renderMessages(o){
@@ -132,6 +198,7 @@ async function createInvoice(e){
 }
 
 $('refresh').addEventListener('click',load);$('saveComment').addEventListener('click',saveComment);$('sendPartnerReply').addEventListener('click',sendMessage);$('productionBtn').addEventListener('click',sendProduction);$('createInvoice').addEventListener('click',openInvoice);$('closeInvoiceDlg').addEventListener('click',()=>$('invoiceDlg').close());$('invoiceForm').addEventListener('submit',createInvoice);document.querySelectorAll('[data-status]').forEach(b=>b.addEventListener('click',()=>changeStatus(b.dataset.status)));
-function realtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,650)};let ch=supabase.channel(`order-card-${id}`);for(const table of ['orders','order_status_history','partner_order_messages','production_jobs','customer_documents','payments'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
+$('addOrderFiles')?.addEventListener('click',()=>$('orderFileInput')?.click());$('orderFileInput')?.addEventListener('change',event=>addOrderFiles(event.target.files));$('orderFiles')?.addEventListener('click',event=>{const button=event.target.closest('[data-order-file]');if(button)openOrderFile(button.dataset.orderFile,button)});
+function realtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,650)};let ch=supabase.channel(`order-card-${id}`);for(const table of ['orders','order_status_history','partner_order_messages','production_jobs','customer_documents','payments','order_files'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
 
 await context();await load();realtime();
