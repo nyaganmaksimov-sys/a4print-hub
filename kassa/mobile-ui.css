@@ -1,0 +1,106 @@
+/* A4PRINT KASSA — mobile-first UX layer */
+@media(max-width:980px){
+  :root{--kassa-mobile-nav:68px;--kassa-mobile-tools:66px}
+  body.kassa-mobile .main-stage{grid-template-rows:58px minmax(0,1fr) 0!important;padding-bottom:var(--kassa-mobile-nav)!important}
+  body.kassa-mobile .statusbar{display:none!important}
+  body.kassa-mobile .workspace{background:#f5f7fb!important}
+
+  /* Mobile top bar */
+  body.kassa-mobile .topbar{position:relative!important;z-index:120!important;box-shadow:0 1px 0 #e5eaf0!important}
+  body.kassa-mobile .hamburger{border-radius:12px!important;background:#f3f6f9!important;color:#334155!important}
+  body.kassa-mobile .top-search{border:1px solid #dbe3ec!important;border-radius:12px!important;background:#f8fafc!important;box-shadow:none!important}
+  body.kassa-mobile .top-search input{font-size:16px!important}
+  body.kassa-mobile .tool-button{border-radius:12px!important;border:0!important;background:#e8fbfc!important;color:#078b96!important}
+
+  /* Sale catalogue becomes the main mobile screen. */
+  body.kassa-mobile .catalog-panel{padding-bottom:calc(var(--kassa-mobile-tools) + 8px)!important;background:#f5f7fb!important}
+  body.kassa-mobile .catalog-toolbar{background:#fff!important;border:0!important;border-bottom:1px solid #e8edf2!important;padding:9px 12px!important;min-height:52px!important}
+  body.kassa-mobile .catalog-toolbar h1{font-size:18px!important;font-weight:850!important;color:#172033!important}
+  body.kassa-mobile .catalog-toolbar span{font-size:11px!important}
+  body.kassa-mobile .toolbar-actions .btn{min-height:36px!important;border-radius:10px!important}
+  body.kassa-mobile .catalog-grid{padding:8px!important;background:#f5f7fb!important}
+  body.kassa-mobile .catalog-grid.list-mode .product-card{margin:0 0 8px!important;border:1px solid #e2e8f0!important;border-radius:14px!important;background:#fff!important;min-height:78px!important;padding:10px!important;box-shadow:0 1px 2px rgba(15,23,42,.025)!important}
+  body.kassa-mobile .catalog-grid.list-mode .product-card::before{border-radius:10px!important;border:0!important;background:#f1f5f9!important}
+  body.kassa-mobile .product-card .name{font-size:14px!important;font-weight:820!important;color:#172033!important}
+  body.kassa-mobile .product-card .meta{font-size:10.5px!important}
+  body.kassa-mobile .product-card .price{font-size:16px!important;color:#0b8f9a!important}
+  body.kassa-mobile .catalog-grid.grid-mode{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  body.kassa-mobile .catalog-grid.grid-mode .product-card{border-radius:14px!important;min-height:148px!important;box-shadow:0 1px 2px rgba(15,23,42,.03)!important}
+
+  /* Category screen */
+  body.kassa-mobile .category-panel{padding:8px!important;background:#f5f7fb!important}
+  body.kassa-mobile .category-head{position:sticky!important;top:0!important;z-index:2!important;display:flex!important;align-items:center!important;gap:8px!important;background:#f5f7fb!important;border:0!important;padding:4px 0 10px!important;font-size:18px!important}
+  .category-mobile-back,.cart-mobile-back{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:40px!important;border:1px solid #dce4ec!important;border-radius:11px!important;background:#fff!important;color:#334155!important;font-weight:800!important;font-size:12px!important;padding:0 12px!important}
+  body.kassa-mobile .category{border:1px solid #e2e8f0!important;border-radius:13px!important;margin-bottom:7px!important;min-height:54px!important;background:#fff!important}
+  body.kassa-mobile .category.active{background:#e8fbfc!important;border-color:#a9e8ed!important}
+
+  /* Cart becomes a full-height easy checkout sheet. */
+  body.kassa-mobile .cart-panel{background:#f5f7fb!important;padding-bottom:0!important}
+  body.kassa-mobile .cart-head{flex:0 0 58px!important;min-height:58px!important;background:#fff!important;padding:8px!important;gap:8px!important;border-bottom:1px solid #e5eaf0!important}
+  body.kassa-mobile .cart-head .cart-mobile-back{order:-2!important}
+  body.kassa-mobile .cart-head>div:first-of-type{min-width:0!important;flex:1!important}
+  body.kassa-mobile .cart-head h2{font-size:18px!important}
+  body.kassa-mobile .cart-items{background:#f5f7fb!important;padding:8px!important}
+  body.kassa-mobile .cart-row{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:13px!important;margin-bottom:7px!important;padding:11px!important}
+  body.kassa-mobile .cart-row-name{font-size:14px!important}.cart-row-total{font-size:15px!important}
+  body.kassa-mobile .cart-bottom{background:#fff!important;border-top:1px solid #dfe6ed!important;box-shadow:0 -8px 24px rgba(15,23,42,.07)!important;padding-bottom:max(8px,env(safe-area-inset-bottom))!important}
+  body.kassa-mobile .customer-toggle,body.kassa-mobile .cashier-strip{min-height:46px!important;border-radius:11px!important;background:#f8fafc!important}
+  body.kassa-mobile .payment-tabs{border-radius:11px!important;overflow:hidden!important}
+  body.kassa-mobile .pay-tab{min-height:44px!important;font-size:13px!important}
+  body.kassa-mobile .account-select{min-height:42px!important;border-radius:10px!important}
+  body.kassa-mobile .checkout-bar{margin:8px!important;border-radius:14px!important;overflow:hidden!important;min-height:72px!important;background:#0fb4c0!important}
+  body.kassa-mobile .total-row{padding:10px 12px!important}.total-row strong{font-size:24px!important}
+  body.kassa-mobile .pay-button{min-height:72px!important;padding:0 18px!important;font-size:17px!important}
+  body.kassa-mobile .bottom-info{padding:4px 10px 8px!important}
+
+  /* Fixed mobile sale tools — categories + current receipt. */
+  .kassa-mobile-sale-tools{position:fixed;left:8px;right:8px;bottom:calc(var(--kassa-mobile-nav) + 8px + env(safe-area-inset-bottom));height:58px;z-index:330;display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;pointer-events:none;transition:.15s}
+  .kassa-mobile-sale-tools.hide,body.kassa-mobile-cart-open .kassa-mobile-sale-tools{opacity:0;transform:translateY(12px);pointer-events:none}
+  .kassa-mobile-sale-tools button{pointer-events:auto;border:0;border-radius:15px;box-shadow:0 8px 24px rgba(15,23,42,.15);font:inherit}
+  .kassa-mobile-cat-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:#fff;color:#334155;border:1px solid #dfe6ed!important}
+  .kassa-mobile-cat-btn span{font-size:20px}.kassa-mobile-cat-btn b{font-size:10px}
+  .kassa-mobile-cart-btn{display:grid;grid-template-columns:1fr auto;grid-template-rows:1fr 1fr;align-items:center;text-align:left;padding:8px 14px;background:#0fb4c0;color:#fff}
+  .kassa-mobile-cart-label{font-weight:850;font-size:15px;align-self:end}.kassa-mobile-cart-total{font-size:20px;grid-row:1/-1;grid-column:2;align-self:center}.kassa-mobile-cart-count{font-size:10px;opacity:.85;align-self:start}
+
+  /* Primary mobile navigation. */
+  .kassa-mobile-nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--kassa-mobile-nav) + env(safe-area-inset-bottom));padding:5px 4px env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(5,1fr);background:rgba(255,255,255,.97);border-top:1px solid #e2e8f0;box-shadow:0 -8px 24px rgba(15,23,42,.06);z-index:350;backdrop-filter:blur(14px)}
+  .kassa-mobile-nav button{position:relative;border:0;background:transparent;color:#718096;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;border-radius:10px}
+  .kassa-mobile-nav button span{font-size:21px;line-height:1}.kassa-mobile-nav button b{font-size:9.5px;white-space:nowrap}
+  .kassa-mobile-nav button.active{color:#0796a2;background:#eafbfc}
+  .kassa-mobile-nav button.active:after{content:'';position:absolute;bottom:2px;width:18px;height:3px;border-radius:99px;background:#08aebb}
+
+  /* Shift */
+  body.kassa-mobile .shift-view{padding-bottom:0!important;background:#f5f7fb!important}
+  body.kassa-mobile .shift-topline{min-height:56px!important;background:#fff!important}
+  body.kassa-mobile #shiftHeading{font-size:19px!important;font-weight:850!important;color:#172033!important}
+  body.kassa-mobile .shift-scroll{padding:8px 8px calc(76px + var(--kassa-mobile-nav) + env(safe-area-inset-bottom))!important}
+  body.kassa-mobile .shift-bottom{bottom:calc(var(--kassa-mobile-nav) + 8px + env(safe-area-inset-bottom))!important}
+  body.kassa-mobile .shift-main-action{border-radius:15px!important;font-size:17px!important}
+
+  /* Reports / returns */
+  body.kassa-mobile .module-view{padding-bottom:var(--kassa-mobile-nav)!important}
+  body.kassa-mobile .module-toolbar{background:#fff!important;border-bottom:1px solid #e5eaf0!important}
+  body.kassa-mobile .module-toolbar h1{font-size:20px!important;font-weight:850!important}
+  body.kassa-mobile .module-card,body.kassa-mobile .stat-card{border-radius:14px!important;border:1px solid #e2e8f0!important;box-shadow:0 1px 2px rgba(15,23,42,.025)!important}
+  body.kassa-mobile .stats-grid{gap:8px!important}
+  body.kassa-mobile .stat-card{min-height:86px!important}
+
+  /* Drawers sit above bottom nav. */
+  body.kassa-mobile .drawer,body.kassa-mobile .utility-drawer{z-index:500!important;padding-bottom:calc(var(--kassa-mobile-nav) + env(safe-area-inset-bottom))!important}
+  body.kassa-mobile .main-nav{z-index:520!important;padding-bottom:calc(var(--kassa-mobile-nav) + env(safe-area-inset-bottom))!important}
+}
+
+@media(max-width:560px){
+  body.kassa-mobile .topbar{padding:6px 8px!important}
+  body.kassa-mobile .top-search{display:flex!important}
+  body.kassa-mobile .tool-button{display:none!important}
+  .kassa-mobile-sale-tools{grid-template-columns:98px minmax(0,1fr)}
+  body.kassa-mobile .catalog-grid.list-mode .product-card{grid-template-columns:25px 40px minmax(0,1fr) auto!important}
+  body.kassa-mobile .catalog-grid.list-mode .product-card::before{width:38px!important;height:38px!important}
+}
+
+@media(max-width:390px){
+  .kassa-mobile-nav button b{font-size:8.8px}.kassa-mobile-nav button span{font-size:19px}
+  .kassa-mobile-sale-tools{left:6px;right:6px;grid-template-columns:88px minmax(0,1fr);gap:6px}
+  .kassa-mobile-cart-total{font-size:18px}.kassa-mobile-cart-label{font-size:14px}
+}
