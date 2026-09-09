@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-shift-v2-resilient1';
+  const VERSION='20260910-kassa-login-resilient2';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
 
@@ -70,7 +70,8 @@
   }
 
   async function boot(){
-    if(!window.A4PRINT_CONFIG)await loadScript('./config.js');
+    // Always reload config with a unique URL. The static index may still have an older cached config.js.
+    await loadScript('./config.js');
     if(!window.supabase?.createClient)await loadScript('../admin/vendor/supabase.js');
     await ensureLocalDb();
     if(!window.supabase?.createClient)throw new Error('модуль авторизации Supabase недоступен');
