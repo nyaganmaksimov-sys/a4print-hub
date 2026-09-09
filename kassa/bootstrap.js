@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-first4';
+  const VERSION='20260910-mobile-first5';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -98,6 +98,7 @@
     await loadScript('./startup-shift.js');
     await loadScript('./runtime-stability.js');
     await loadScript('./mobile-ui.js');
+    await loadScript('./shift-mobile-action-fix.js');
     window.__A4_KASSA_BOOT_OK__=true;
   }
 
