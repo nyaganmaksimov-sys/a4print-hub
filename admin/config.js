@@ -7,6 +7,8 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
+// In some networks direct access to *.supabase.co is unstable or unavailable.
+// HUB therefore uses our backend proxy first for Auth / REST / Functions.
 window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const cfg = window.A4PRINT_CONFIG || {};
   let request;
@@ -16,35 +18,43 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     return fetch(input, init);
   }
 
-  try {
-    return await fetch(request.clone());
-  } catch (directError) {
+  let target;
+  try { target = new URL(request.url); } catch { return fetch(request); }
+  const apiBase = String(cfg.apiBaseUrl || '').replace(/\/$/, '');
+  let supabaseOrigin = '';
+  try { supabaseOrigin = new URL(cfg.supabaseUrl).origin; } catch {}
+  const isSupabase = target.origin === supabaseOrigin && /^\/(auth|rest|functions)\/v1(?:\/|$)/.test(target.pathname);
+  if (!apiBase || !isSupabase) return fetch(request);
+
+  const proxyFetch = async () => {
+    const headers = new Headers(request.headers);
+    const method = request.method.toUpperCase();
+    const options = {
+      method,
+      headers,
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'follow'
+    };
+    if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    options.signal = controller.signal;
     try {
-      const target = new URL(request.url);
-      const supabaseOrigin = new URL(cfg.supabaseUrl).origin;
-      const apiBase = String(cfg.apiBaseUrl || '').replace(/\/$/, '');
-      if (!apiBase || target.origin !== supabaseOrigin) throw directError;
-      if (!/^\/(auth|rest|functions)\/v1(?:\/|$)/.test(target.pathname)) throw directError;
-
-      const headers = new Headers(request.headers);
-      const method = request.method.toUpperCase();
-      const options = {
-        method,
-        headers,
-        cache: 'no-store',
-        credentials: 'omit',
-        redirect: 'follow'
-      };
-      if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
-
-      const proxyUrl = `${apiBase}/api/v1/supabase${target.pathname}${target.search}`;
-      const response = await fetch(proxyUrl, options);
-      window.dispatchEvent(new CustomEvent('a4:supabase-fallback', { detail: { path: target.pathname } }));
+      const response = await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options);
+      window.dispatchEvent(new CustomEvent('a4:supabase-proxy', { detail: { path: target.pathname } }));
       return response;
-    } catch (fallbackError) {
-      if (fallbackError === directError) throw directError;
-      console.warn('A4 Supabase fallback failed', fallbackError);
-      throw directError;
+    } finally { clearTimeout(timer); }
+  };
+
+  try {
+    return await proxyFetch();
+  } catch (proxyError) {
+    // Keep a direct fallback for networks where Render is unavailable but Supabase is reachable.
+    try { return await fetch(request.clone()); }
+    catch (directError) {
+      console.warn('A4 Supabase proxy/direct failed', proxyError, directError);
+      throw proxyError;
     }
   }
 };
@@ -55,19 +65,19 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
   window.__A4_MOBILE__ = !!isMobile;
 
-  const load = (file, version='20260905-1') => {
+  const load = (file, version='20260910-1') => {
     const s = document.createElement('script');
     s.src = new URL(file, base).href + '?v=' + version;
     s.async = false;
     document.head.appendChild(s);
   };
-  const loadModule = (file, version='20260909-1') => {
+  const loadModule = (file, version='20260910-1') => {
     const s = document.createElement('script');
     s.type = 'module';
     s.src = new URL(file, base).href + '?v=' + version;
     document.head.appendChild(s);
   };
-  const loadCss = (file, version='20260905-1') => {
+  const loadCss = (file, version='20260910-1') => {
     const l=document.createElement('link');
     l.rel='stylesheet';
     l.href=new URL(file,base).href+'?v='+version;
@@ -194,7 +204,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
 
   if (isAuthPage) {
-    load('auth-ui.js','20260905-netfix1');
+    load('auth-ui.js','20260910-novpn2');
     return;
   }
 
