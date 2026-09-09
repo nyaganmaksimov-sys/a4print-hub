@@ -4,7 +4,7 @@
 
   const GROUPS=[
     {key:'work',title:'Работа',pages:['index.html','manager.html','orders.html','customers.html','requests.html','partners.html']},
-    {key:'operations',title:'Операции',pages:['kassa-root','warehouse.html','production.html','cuim-delivery.html','documents.html','payments.html','reports.html']},
+    {key:'operations',title:'Операции',pages:['kassa-root','warehouse.html','equipment.html','production.html','cuim-delivery.html','documents.html','payments.html','reports.html']},
     {key:'team',title:'Команда',pages:['messages.html','employees.html','staff-structure.html']},
     {key:'system',title:'Система',pages:['telegram.html','apps.html','settings.html','help.html','index-root']},
   ];
@@ -51,7 +51,10 @@
       .a4-sidebar-collapsed .a4-nav-group-head{height:8px;padding:0;margin:4px 0;background:#cbd5e1;border-radius:999px;font-size:0}
       .a4-sidebar-collapsed .a4-nav-group-head .chev{display:none!important}
       .a4-sidebar-collapsed .a4-nav-group-body{display:grid!important}
-      body.a4-sidebar-collapsed .sidebar .a4-system-health-dot{display:block!important;right:3px!important;bottom:3px!important;width:8px!important;height:8px!important;box-shadow:0 0 0 3px rgba(34,197,94,.15)!important}
+      body.a4-sidebar-collapsed .sidebar .a4-system-health-dot{display:block!important;right:3px!important;bottom:3px!important;width:8px!important;height:8px!important}
+      body.a4-sidebar-collapsed .sidebar .a4-system-health-dot.ok{box-shadow:0 0 0 3px rgba(34,197,94,.15)!important}
+      body.a4-sidebar-collapsed .sidebar .a4-system-health-dot.error{box-shadow:0 0 0 3px rgba(239,68,68,.15)!important}
+      body.a4-sidebar-collapsed .sidebar .a4-system-health-dot.checking{box-shadow:0 0 0 3px rgba(245,158,11,.15)!important}
     }
 
     @media(max-width:900px){
