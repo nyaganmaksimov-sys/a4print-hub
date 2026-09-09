@@ -5,8 +5,15 @@
 
   const nativeFetch=window.fetch.bind(window);
   const DEFAULT_TIMEOUT=12000;
-  const SHIFT_READ_TIMEOUT=20000;
+  const SHIFT_READ_TIMEOUT=30000;
+  const SHIFT_CONTROL_TIMEOUT=60000;
   const WRITE_TIMEOUT=45000;
+
+  function timeoutError(ms){
+    const seconds=Math.round(ms/1000);
+    try{return new DOMException(`Сервер не ответил за ${seconds} сек. Повторите обновление.`, 'TimeoutError')}
+    catch{return new Error(`Сервер не ответил за ${seconds} сек. Повторите обновление.`)}
+  }
 
   function infoFor(input,init={}){
     try{
@@ -14,10 +21,11 @@
       const u=new URL(raw,location.href);
       const method=String(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
       const isShift=/\/api\/v1\/pos\/shift(?:\/|$)/.test(u.pathname);
+      const isShiftControl=method==='GET'&&/\/api\/v1\/pos\/shift\/control(?:\/|$)/.test(u.pathname);
       const isMoneyWrite=method==='POST'&&/\/api\/v1\/pos\/(?:sale|returns|cashout)(?:\/|$)/.test(u.pathname);
       const isShiftWrite=isShift&&method!=='GET'&&method!=='HEAD';
       return{
-        timeout:isShiftWrite||isMoneyWrite?WRITE_TIMEOUT:isShift?SHIFT_READ_TIMEOUT:DEFAULT_TIMEOUT,
+        timeout:isShiftWrite||isMoneyWrite?WRITE_TIMEOUT:isShiftControl?SHIFT_CONTROL_TIMEOUT:isShift?SHIFT_READ_TIMEOUT:DEFAULT_TIMEOUT,
         overrideSignal:isShift||isMoneyWrite
       };
     }catch{return{timeout:DEFAULT_TIMEOUT,overrideSignal:false}}
@@ -32,7 +40,7 @@
     if(existingSignal&&!info.overrideSignal)return nativeFetch(input,init);
 
     const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),info.timeout);
+    const timer=setTimeout(()=>controller.abort(timeoutError(info.timeout)),info.timeout);
     return nativeFetch(input,{...init,signal:controller.signal}).finally(()=>clearTimeout(timer));
   };
 })();
