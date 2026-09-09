@@ -82,7 +82,7 @@ jobs:
       - name: Verify direct mobile auth routing
         run: |
           grep -q 'auth/v1/authorize' mobile/oauth-bridge.js
-          grep -q "new URL('/mobile/'" mobile/oauth-bridge.js
+          grep -q "new URL('/mobile/auth-callback.html'" mobile/oauth-bridge.js
           grep -q 'redirect_to' mobile/oauth-bridge.js
           ! grep -q "new URL('/admin/login.html'" mobile/oauth-bridge.js
           grep -q 'startProvider' admin/mobile-auth-route.js
@@ -92,6 +92,7 @@ jobs:
           grep -q 'finishOAuth' mobile/app-v3.js
           grep -q 'access_token' mobile/app-v3.js
           grep -q 'grant_type=password' mobile/app-v3.js
+          grep -q "const target='/mobile/'+location.search+location.hash" mobile/auth-callback.html
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
       - name: Verify resilient desktop login
@@ -119,7 +120,7 @@ jobs:
           KEY='sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu'
           curl -fsS --max-time 20 -H "apikey: $KEY" 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/settings' -o /tmp/auth-settings.json
           node -e "const s=JSON.parse(require('fs').readFileSync('/tmp/auth-settings.json','utf8')); if(s.external?.google!==true){console.error(s); process.exit(1)}; console.log('Google OAuth provider enabled')"
-          code=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Fa4print-hub.ru%2Fmobile%2F')
+          code=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://qgakliolffnwkymoqvzn.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Fa4print-hub.ru%2Fmobile%2Fauth-callback.html')
           test "$code" = "302" || test "$code" = "303"
 
       - name: Verify self-service profile
