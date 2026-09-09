@@ -7,6 +7,32 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://a4print-hub-api.onrender.com'
 };
 
+// Resilient API routing for networks where one backend hostname is slow/unreachable.
+// Safe reads and password/refresh auth race both public API hostnames; successful
+// origin is remembered and then used for writes to avoid duplicate operations.
+(function installA4ApiRouting(){
+  if(window.__A4_API_ROUTING__)return;window.__A4_API_ROUTING__=true;
+  const nativeFetch=window.fetch.bind(window);
+  const cfg=window.A4PRINT_CONFIG||{};
+  const origins=['https://api.a4print-hub.ru',String(cfg.apiBaseUrl||'').replace(/\/$/,''),'https://a4print-hub-api.onrender.com'].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const key='a4_api_origin';
+  const getPref=()=>{try{const v=localStorage.getItem(key);return origins.includes(v)?v:null}catch{return null}};
+  const setPref=v=>{try{if(v)localStorage.setItem(key,v)}catch{}};
+  const parse=(input,init={})=>{try{const req=new Request(input,init),url=new URL(req.url);const apiOrigin=origins.find(x=>url.origin===x);return{req,url,apiOrigin,method:req.method.toUpperCase()}}catch{return null}};
+  const one=async(req,url,origin,ms)=>{const target=new URL(url.href);target.origin=origin;const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await nativeFetch(new Request(target.href,req),{signal:c.signal});if(r.ok||r.status<500){setPref(origin);return r}throw new Error(`HTTP ${r.status}`)}finally{clearTimeout(t)}};
+  const any=promises=>typeof Promise.any==='function'?Promise.any(promises):new Promise((resolve,reject)=>{let left=promises.length,last;promises.forEach(p=>Promise.resolve(p).then(resolve,e=>{last=e;if(--left===0)reject(last)}))});
+  window.fetch=async function a4RoutedFetch(input,init={}){
+    const x=parse(input,init);if(!x||!x.apiOrigin)return nativeFetch(input,init);
+    const ordered=[getPref(),...origins].filter((v,i,a)=>v&&a.indexOf(v)===i);
+    const safe=x.method==='GET'||x.method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(x.url.pathname);
+    if(safe)return any(ordered.map(origin=>one(x.req.clone(),x.url,origin,5500)));
+    const origin=getPref()||x.apiOrigin;
+    try{return await one(x.req.clone(),x.url,origin,9000)}catch(e){
+      const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,9000);
+    }
+  };
+})();
+
 // In some networks direct access to *.supabase.co is unstable or unavailable.
 // HUB therefore uses our backend proxy first for Auth / REST / Functions.
 window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
@@ -28,7 +54,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     const options = { method, headers, cache: 'no-store', credentials: 'omit', redirect: 'follow' };
     if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const timer = setTimeout(() => controller.abort(), 6500);
     options.signal = controller.signal;
     try {
       return await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options);
@@ -37,7 +63,10 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
 
   try { return await proxyFetch(); }
   catch (proxyError) {
-    try { return await fetch(request.clone()); }
+    try {
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5500);
+      try{return await fetch(request.clone(),{signal:controller.signal})}finally{clearTimeout(timer)}
+    }
     catch (directError) { console.warn('A4 Supabase proxy/direct failed', proxyError, directError); throw proxyError; }
   }
 };
@@ -74,7 +103,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
   if(mobileContext)load('mobile-shell.js','20260905-4');
   if(isChatApp){load('dialog-fixes.js');load('ui-fixes.js');load('chat-app-mode.js','20260904-4');load('chat-ui-fixes.js','20260904-3');if(isEmbed)load('chat-embed.js','20260908-2');else background(()=>{load('chat-notifications.js','20260904-7');load('support-notifications.js','20260905-1');load('push-client.js','20260904-4')});return}
-  if(isAuthPage){load('auth-ui.js','20260910-api-rollback1');return}
+  if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
   if(isManager)load('manager-runtime.js','20260905-4');
