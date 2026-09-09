@@ -7,7 +7,7 @@
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260909-orders4">
   <link rel="stylesheet" href="./orders-workspace.css?v=20260908-1">
-  <link rel="stylesheet" href="./orders-fixes.css?v=20260909-1">
+  <link rel="stylesheet" href="./orders-fixes.css?v=20260909-files2">
   <script src="./config.js?v=20260909-orders4"></script>
 </head>
 <body>
@@ -71,18 +71,27 @@
           <label class="order-create-field"><span>Цена за единицу, ₽ *</span><input id="newOrderPrice" type="number" min="0" step="0.01" value="0" required></label>
           <label class="order-create-field full"><span>Итого</span><input id="newOrderTotal" value="0 ₽" readonly></label>
           <label class="order-create-field full"><span>Комментарий</span><textarea id="newOrderComment" placeholder="Пожелания клиента, параметры заказа, срок и другая важная информация"></textarea></label>
+          <div class="order-create-field full">
+            <span>Файлы заказа</span>
+            <input id="newOrderFiles" class="order-create-file-native" type="file" multiple tabindex="-1" aria-hidden="true">
+            <div id="newOrderFileDrop" class="order-create-file-drop" role="button" tabindex="0" aria-controls="newOrderFiles">
+              <b>📎 Прикрепить файлы</b>
+              <small>Нажмите или перетащите сюда макеты, PDF, изображения, документы и 3D-модели. До 50 МБ на файл.</small>
+            </div>
+            <div id="newOrderFilesList" class="order-create-files-list"><span>Файлы не выбраны</span></div>
+          </div>
         </div>
         <div class="order-create-hint">Если выбрать позицию из каталога, текущая цена подставится автоматически. Её можно изменить для конкретного заказа.</div>
         <div id="newOrderError" class="order-create-error"></div>
       </div>
       <div class="order-create-foot">
-        <small>После создания откроется карточка нового заказа.</small>
+        <small>После создания откроется карточка нового заказа. Прикреплённые файлы сохранятся в заказе.</small>
         <div class="order-create-foot-actions"><button id="cancelNewOrder" type="button">Отмена</button><button id="saveNewOrder" class="primary" type="submit">Создать заказ</button></div>
       </div>
     </form>
   </dialog>
 
   <script type="module" src="./orders.js?v=20260909-orders4"></script>
-  <script type="module" src="./orders-create.js?v=20260909-1"></script>
+  <script type="module" src="./orders-create.js?v=20260909-files2"></script>
 </body>
 </html>
