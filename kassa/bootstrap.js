@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260908-shiftcompact2';
+  const VERSION='20260909-catalogquick1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -71,6 +71,7 @@
     await loadScript('./app.js');
     await loadScript('./modules.js');
     await loadScript('./ui.js');
+    await loadScript('./catalog-quick-add.js');
     await loadStyle('./shift-layout-fix.css');
     await loadStyle('./sale-finish.css');
     await loadStyle('./shift-profile.css');
