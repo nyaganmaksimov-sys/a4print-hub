@@ -16,10 +16,25 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     const supabaseOrigin=new URL(cfg.supabaseUrl).origin;
     const api=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
     const isSupabase=target.origin===supabaseOrigin&&/^\/(auth|rest|functions)\/v1(?:\/|$)/.test(target.pathname);
-
     if(!api||!isSupabase)return fetch(request);
 
     const method=request.method.toUpperCase();
+    let pathname=target.pathname;
+    let bodyBuffer=null;
+
+    // Existing KASSA code writes sales through record_pos_sale. Transparently
+    // upgrade those calls to v2 so every cash-register sale is linked to an
+    // HUB order/payment. A normal walk-in sale gets its HUB order automatically.
+    if(method==='POST'&&pathname==='/rest/v1/rpc/record_pos_sale'){
+      try{
+        const raw=await request.clone().text();
+        const payload=raw?JSON.parse(raw):{};
+        if(!Object.prototype.hasOwnProperty.call(payload,'p_order_id'))payload.p_order_id=null;
+        pathname='/rest/v1/rpc/record_pos_sale_v2';
+        bodyBuffer=new TextEncoder().encode(JSON.stringify(payload));
+      }catch(error){console.warn('A4PRINT KASSA order bridge payload:',error)}
+    }
+
     const options={
       method,
       headers:new Headers(request.headers),
@@ -28,9 +43,9 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
       redirect:'follow',
       signal:request.signal
     };
-    if(!['GET','HEAD'].includes(method))options.body=await request.clone().arrayBuffer();
+    if(!['GET','HEAD'].includes(method))options.body=bodyBuffer||await request.clone().arrayBuffer();
 
-    return await fetch(`${api}/api/v1/supabase${target.pathname}${target.search}`,options);
+    return await fetch(`${api}/api/v1/supabase${pathname}${target.search}`,options);
   }catch(error){
     console.warn('A4PRINT KASSA Supabase proxy failed',error);
     throw error;
