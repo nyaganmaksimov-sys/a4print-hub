@@ -5,8 +5,6 @@ async function initA4Navigation(){
   const main=document.querySelector('.main');
   let sidebar=document.querySelector('.sidebar');
 
-  // Единая оболочка для всех внутренних страниц. Некоторые старые карточки
-  // (например order.html) исторически не содержали sidebar в разметке.
   if(!sidebar){
     sidebar=document.createElement('aside');
     sidebar.className='sidebar';
@@ -14,15 +12,10 @@ async function initA4Navigation(){
     sidebar.innerHTML='<div class="brand"></div><nav></nav>';
     if(main)main.before(sidebar);else document.body.prepend(sidebar);
   }
-  // На главной уже есть собственный hub-logo-wrap с настраиваемым логотипом.
-  // Не создаём второй блок brand, иначе в сайдбаре появляются два логотипа.
   if(!sidebar.querySelector('.brand')&&!sidebar.querySelector('.hub-logo-wrap')){
     const brand=document.createElement('div');brand.className='brand';sidebar.prepend(brand);
   }
   if(!sidebar.querySelector('nav'))sidebar.appendChild(document.createElement('nav'));
-
-  // У старых detail-страниц мог быть inline margin-left:0, который перекрывал
-  // общий layout. После появления sidebar всегда используем отступ из styles.css.
   if(main)main.style.removeProperty('margin-left');
   document.body.classList.add('a4-has-sidebar');
 
@@ -48,6 +41,7 @@ async function initA4Navigation(){
     employees:svg('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3.5 20v-1.5A5.5 5.5 0 0 1 9 13a5.5 5.5 0 0 1 5.5 5.5V20M14.5 14.5a4.5 4.5 0 0 1 6 4.25V20"/>'),
     structure:svg('<path d="M12 4v5M5 20v-5h14v5M5 15v-3h14v3M12 9v3"/><circle cx="12" cy="3" r="2"/><circle cx="5" cy="21" r="2"/><circle cx="19" cy="21" r="2"/>'),
     warehouse:svg('<path d="m3 9 9-5 9 5v11H3ZM7 20v-7h10v7"/>'),
+    equipment:svg('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M9 17h6"/>'),
     production:svg('<path d="M3 21V10l6 3V9l6 4V5h6v16Z"/>'),
     messages:svg('<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/>'),
     telegram:svg('<path d="M21 3 3.6 9.7c-.9.35-.86 1.62.06 1.92l4.4 1.45 1.7 5.25c.27.85 1.37 1.06 1.94.37l2.45-2.95 4.45 3.28c.67.49 1.62.13 1.79-.68L22 4.2C22.18 3.36 21.8 2.7 21 3Z"/><path d="m8.1 13.05 9.75-6.4M9.8 18.3l.35-5.15"/>'),
@@ -112,6 +106,7 @@ async function initA4Navigation(){
     ['partners.html','partners','Партнёры'],
     ['requests.html','applications','Заявки'],
     ['warehouse.html','warehouse','Склад и номенклатура'],
+    ['equipment.html','equipment','Оборудование'],
     ['production.html','production','Производство'],
     ['messages.html','messages','Сообщения'],
     ['telegram.html','telegram','Telegram'],
@@ -126,10 +121,7 @@ async function initA4Navigation(){
     ['../index.html','systems','Выбор системы']
   ];
 
-  nav.innerHTML=items.map(([href,icon,label])=>`<a href="${href.startsWith('..')?href:'./'+href}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}${href==='requests.html'?'<b id="requestCount" style="display:none">0</b>':''}${href==='messages.html'?'<b id="messageCount" style="display:none;background:#ef4444;color:#fff;min-width:20px;height:20px;border-radius:999px;padding:0 6px;align-items:center;justify-content:center;font-size:11px;margin-left:auto">0</b>':''}</a>`).join('');
-
-  // Уведомления и Push инициализируются отдельно через config.js.
-  // Навигация больше не запускает опрос базы и не регистрирует второй Service Worker.
+  nav.innerHTML=items.map(([href,icon,label])=>`<a href="${href.startsWith('..')?href:'./'+href}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}${href==='requests.html'?'<b id="requestCount" style="display:none">0</b>':''}${href==='messages.html'?'<b id="messageCount" style="display:none;background:#ef4444;color:#fff;min-width:20px;height:20px;border-radius:999px;padding:0 6px;align-items:center;justify-content:center;font-size:11px;margin-left:auto">0</b>':''}${href==='equipment.html'?'<b id="equipmentNavCount" aria-label="Работы по обслуживанию">0</b>':''}</a>`).join('');
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initA4Navigation,{once:true});else initA4Navigation();
