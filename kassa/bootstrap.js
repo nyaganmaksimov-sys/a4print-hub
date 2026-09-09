@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-first2';
+  const VERSION='20260910-mobile-first3';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -79,6 +79,7 @@
     await loadStyle('./shift-compact.css');
     await loadStyle('./mobile-responsive.css');
     await loadStyle('./mobile-ui.css');
+    await loadStyle('./mobile-ui-state.css');
     await loadScript('./shift-state-sync.js');
     await loadScript('./shift-profile.js');
     await loadScript('./shift-profile-compact.js');
