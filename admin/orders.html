@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Заказы — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20260908-orders3">
+  <link rel="stylesheet" href="./styles.css?v=20260909-orders4">
   <link rel="stylesheet" href="./orders-workspace.css?v=20260908-1">
-  <script src="./config.js?v=20260908-orders3"></script>
+  <link rel="stylesheet" href="./orders-fixes.css?v=20260909-1">
+  <script src="./config.js?v=20260909-orders4"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
@@ -16,7 +17,6 @@
       <div><h1>Заказы</h1><p>Статус, финансы, производство и партнёрские направления в одном списке</p></div>
       <div class="orders-top-actions">
         <span class="orders-updated" id="updatedAt">загрузка…</span>
-        <a href="./manager.html" class="primary">+ Новый заказ</a>
         <button id="refresh" type="button">↻ Обновить</button>
       </div>
     </header>
@@ -41,12 +41,48 @@
       </div>
       <div class="orders-list-meta">
         <span><b id="visibleCount">0 из 0</b> · оранжевая полоса означает, что заказ требует внимания</span>
-        <span class="orders-note" id="roleNote">Загрузка прав…</span>
+        <div class="orders-meta-actions">
+          <span class="orders-note" id="roleNote">Загрузка прав…</span>
+          <button id="newOrderBtn" class="orders-new-btn" type="button" hidden>+ Новый заказ</button>
+        </div>
       </div>
       <div class="orders-list-head"><span>Заказ</span><span>Клиент / партнёр</span><span>Услуга</span><span>Финансы</span><span>Производство</span><span style="text-align:right">Сумма</span><span>Управление</span></div>
       <div id="list"><div class="orders-empty">Загрузка заказов…</div></div>
     </section>
   </main>
-  <script type="module" src="./orders.js?v=20260908-orders3"></script>
+
+  <dialog id="newOrderDlg" class="order-create-dialog">
+    <form id="newOrderForm">
+      <div class="order-create-head">
+        <div><h2>Новый заказ</h2><p>Создание заказа A4PRINT HUB без перехода в другой раздел</p></div>
+        <button id="closeNewOrder" class="order-create-close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div class="order-create-body">
+        <div class="order-create-grid">
+          <label class="order-create-field full"><span>Клиент</span><select id="newOrderCustomer"><option>Загрузка клиентов…</option></select></label>
+          <div id="newOrderCustomerFields" class="order-create-new-customer" hidden>
+            <label class="order-create-field"><span>Имя / контакт *</span><input id="newOrderCustomerName" autocomplete="name" placeholder="Иван Иванов"></label>
+            <label class="order-create-field"><span>Телефон</span><input id="newOrderCustomerPhone" autocomplete="tel" placeholder="+7 ..."></label>
+          </div>
+          <label class="order-create-field"><span>Направление *</span><select id="newOrderUnit"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общее</option></select></label>
+          <label class="order-create-field"><span>Источник</span><select id="newOrderSource"><option>Офис</option><option>Телефон</option><option>WhatsApp</option><option>Telegram</option><option>Сайт</option><option>Другое</option></select></label>
+          <label class="order-create-field full"><span>Услуга / товар *</span><input id="newOrderItem" list="orderCatalogList" autocomplete="off" placeholder="Начните вводить название из каталога или укажите вручную" required><datalist id="orderCatalogList"></datalist></label>
+          <label class="order-create-field"><span>Количество *</span><input id="newOrderQty" type="number" min="0.001" step="0.001" value="1" required></label>
+          <label class="order-create-field"><span>Цена за единицу, ₽ *</span><input id="newOrderPrice" type="number" min="0" step="0.01" value="0" required></label>
+          <label class="order-create-field full"><span>Итого</span><input id="newOrderTotal" value="0 ₽" readonly></label>
+          <label class="order-create-field full"><span>Комментарий</span><textarea id="newOrderComment" placeholder="Пожелания клиента, параметры заказа, срок и другая важная информация"></textarea></label>
+        </div>
+        <div class="order-create-hint">Если выбрать позицию из каталога, текущая цена подставится автоматически. Её можно изменить для конкретного заказа.</div>
+        <div id="newOrderError" class="order-create-error"></div>
+      </div>
+      <div class="order-create-foot">
+        <small>После создания откроется карточка нового заказа.</small>
+        <div class="order-create-foot-actions"><button id="cancelNewOrder" type="button">Отмена</button><button id="saveNewOrder" class="primary" type="submit">Создать заказ</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./orders.js?v=20260909-orders4"></script>
+  <script type="module" src="./orders-create.js?v=20260909-1"></script>
 </body>
 </html>
