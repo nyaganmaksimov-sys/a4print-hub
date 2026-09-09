@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-shift-v2';
+  const VERSION='20260910-mobile-shift-v2-resilient1';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
 
@@ -78,6 +78,7 @@
     await loadScript('./network-safety.js');
     await loadScript('./shift-session-gate.js');
     await window.A4KassaShiftSession?.ready;
+    await loadScript('./shift-mobile-resilience.js');
     await loadScript('./sync-throttle.js');
     await loadScript('./app.js');
     await loadScript('./modules.js');
