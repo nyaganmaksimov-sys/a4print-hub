@@ -9,7 +9,7 @@
   const supabase=create(cfg.supabaseUrl,cfg.supabasePublishableKey,{global:{fetch:window.A4SupabaseFetch||fetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
   const $=id=>document.getElementById(id);
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Пауза'};
   let overlay=null,listEl=null,detailEl=null,searchEl=null,current=null,loading=false,serviceItem=null;
@@ -70,6 +70,9 @@
 
   async function ensureOrderService(){
     if(serviceItem?.id)return serviceItem;
+    const {data:existing,error:lookupError}=await supabase.from('catalog_items').select('id,name,article,item_type,sale_price,external_id,external_href').eq('article','A4HUB-ORDER').eq('is_active',true).limit(1).maybeSingle();
+    if(lookupError)console.warn('A4PRINT KASSA HUB order service lookup:',lookupError);
+    if(existing?.id){serviceItem=existing;return serviceItem}
     const d=await api('/api/v1/pos/catalog/items',{method:'POST',body:JSON.stringify({name:'Заказ A4PRINT HUB',item_type:'SERVICE',sale_price:0,category:'Заказы HUB',unit:'шт',article:'A4HUB-ORDER',description:'Служебная кассовая позиция для оплаты заказов A4PRINT HUB'})});
     if(!d?.item?.id)throw new Error('Не удалось подготовить кассовую позицию для заказа.');serviceItem=d.item;return serviceItem;
   }
