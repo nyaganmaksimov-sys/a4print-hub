@@ -10,15 +10,14 @@
   function ensureDetailsToggle(){
     const card=$('shiftProfileCard');
     if(!card)return;
-    const head=card.querySelector('.shift-profile-head');
-    if(!head)return;
-    let btn=$('shiftV2Details');
-    if(!btn){
-      btn=document.createElement('button');
-      btn.id='shiftV2Details';btn.type='button';btn.className='shift-profile-details-toggle';btn.textContent='ⓘ Подробнее';
-      const refresh=$('shiftProfileRefresh');
-      if(refresh)refresh.before(btn);else head.appendChild(btn);
-      btn.onclick=()=>{card.classList.toggle('a4-details-open');btn.textContent=card.classList.contains('a4-details-open')?'Скрыть':'ⓘ Подробнее'};
+    // Reuse the compact-profile toggle that already exists. Never create a
+    // second "Подробнее" button.
+    const existing=$('shiftProfileDetailsToggle');
+    const duplicate=$('shiftV2Details');
+    if(duplicate)duplicate.remove();
+    if(existing){
+      existing.classList.add('shift-profile-details-toggle-v2');
+      existing.textContent=existing.getAttribute('aria-expanded')==='true'?'Свернуть':'ⓘ Подробнее';
     }
   }
 
@@ -45,7 +44,7 @@
     sync();
     const root=$('shiftView')||document.body;
     const obs=new MutationObserver(()=>sync());
-    obs.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden','class']});
+    obs.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden','class','aria-expanded']});
     document.addEventListener('click',e=>{if(e.target?.closest?.('#navShift,#shiftChip,[data-mobile-nav="shift"]'))setTimeout(sync,180)},true);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
