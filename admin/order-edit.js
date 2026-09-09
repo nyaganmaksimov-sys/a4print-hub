@@ -2,10 +2,21 @@ import {supabase} from './guard.js?v=20260905-netfix1';
 
 const orderId=new URLSearchParams(location.search).get('id');
 const $=id=>document.getElementById(id);
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
 const money=value=>Number(value||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';
 const state={roles:[],order:null,customers:[],catalog:[],items:[],saving:false};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
+
+function toLocalDateTime(value){
+  if(!value)return'';
+  const d=new Date(value);if(Number.isNaN(d.getTime()))return'';
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toIsoDateTime(value){
+  if(!value)return null;
+  const d=new Date(value);return Number.isNaN(d.getTime())?null:d.toISOString();
+}
 
 function createDialog(){
   if($('editOrderDlg'))return;
@@ -15,7 +26,7 @@ function createDialog(){
   dialog.innerHTML=`
     <form id="editOrderForm" class="order-edit-form">
       <div class="order-edit-head">
-        <div><h3>Редактировать заказ</h3><p id="editOrderSubtitle">Изменение заказчика, параметров и позиций заказа</p></div>
+        <div><h3>Редактировать заказ</h3><p id="editOrderSubtitle">Изменение заказчика, срока выполнения, параметров и позиций заказа</p></div>
         <button id="closeEditOrder" class="order-edit-close" type="button" aria-label="Закрыть">×</button>
       </div>
       <div class="order-edit-body">
@@ -24,9 +35,13 @@ function createDialog(){
           <label class="order-edit-field"><span>Направление</span><select id="editOrderUnit"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общее</option></select></label>
           <label class="order-edit-field"><span>Источник</span><input id="editOrderSource" placeholder="Офис, телефон, сайт..."></label>
           <label class="order-edit-field"><span>Работа / модель</span><input id="editOrderModel" placeholder="Название работы или модели"></label>
+          <label class="order-edit-field deadline"><span>Выполнить заказ до</span><input id="editOrderDueAt" type="datetime-local"></label>
+          <label class="order-edit-field deadline"><span>Напомнить заранее</span><select id="editOrderReminder"><option value="2">за 2 часа</option><option value="6">за 6 часов</option><option value="12">за 12 часов</option><option value="24">за 1 день</option><option value="48">за 2 дня</option><option value="72">за 3 дня</option><option value="168">за 7 дней</option></select></label>
+          <label class="order-edit-field full"><span>Комментарий к сроку</span><input id="editOrderDeadlineNote" placeholder="Например: выдать клиенту к 18:00, срочный заказ"></label>
           <label class="order-edit-field full"><span>Комментарий заказчика</span><textarea id="editOrderCustomerComment" placeholder="Пожелания, параметры, срок"></textarea></label>
           <label class="order-edit-field full"><span>Внутренний комментарий</span><textarea id="editOrderInternalComment" placeholder="Комментарий только для сотрудников HUB"></textarea></label>
         </div>
+        <div class="order-edit-deadline-hint">Срок появится в карточке заказа. На главной HUB уведомление будет показано, когда наступит выбранный период напоминания; просроченные заказы выделяются красным.</div>
         <div id="editOrderFinanceWarning" class="order-edit-finance-warning"></div>
         <div class="order-edit-items-section">
           <div class="order-edit-items-head"><b>Позиции заказа</b><button id="addEditOrderItem" class="order-edit-add-item" type="button">+ Добавить позицию</button></div>
@@ -84,7 +99,7 @@ async function loadRoles(){
 
 async function loadEditorData(){
   const [orderR,customersR,catalogR,docsR,paymentsR]=await Promise.all([
-    supabase.from('orders').select('id,order_number,business_unit,customer_id,status,total,customer_comment,internal_comment,source,model_name,partner_id,fulfillment_partner_id,order_items(id,product_id,service_id,name,quantity,unit_price,total_price,parameters)').eq('id',orderId).single(),
+    supabase.from('orders').select('id,order_number,business_unit,customer_id,status,total,customer_comment,internal_comment,source,model_name,due_at,deadline_remind_before_hours,deadline_note,partner_id,fulfillment_partner_id,order_items(id,product_id,service_id,name,quantity,unit_price,total_price,parameters)').eq('id',orderId).single(),
     supabase.from('customers').select('id,full_name,company_name,phone,email').order('full_name',{ascending:true}).limit(2000),
     supabase.from('catalog_items').select('id,name,sale_price,is_active').eq('is_active',true).order('name',{ascending:true}).limit(2000),
     supabase.from('customer_documents').select('id',{count:'exact',head:true}).eq('order_id',orderId),
@@ -198,6 +213,10 @@ async function openEditor(){
     $('editOrderUnit').value=order.business_unit||'COMMON';
     $('editOrderSource').value=order.source||'';
     $('editOrderModel').value=order.model_name||'';
+    $('editOrderDueAt').value=toLocalDateTime(order.due_at);
+    $('editOrderReminder').value=String(order.deadline_remind_before_hours??48);
+    if(!$('editOrderReminder').value)$('editOrderReminder').value='48';
+    $('editOrderDeadlineNote').value=order.deadline_note||'';
     $('editOrderCustomerComment').value=order.customer_comment||'';
     $('editOrderInternalComment').value=order.internal_comment||'';
     $('editOrderSubtitle').textContent=`Заказ №${order.order_number??'—'} · ${order.status||'—'}`;
@@ -243,7 +262,7 @@ async function saveOrder(event){
   const button=$('saveEditOrder');state.saving=true;button.disabled=true;button.textContent='Сохранение…';
   try{
     const partner=Boolean(state.order.partner_id||state.order.fulfillment_partner_id);
-    const {error}=await supabase.rpc('update_hub_order_details',{
+    const {error}=await supabase.rpc('update_hub_order_details_v2',{
       p_order_id:orderId,
       p_customer_id:partner?(state.order.customer_id||null):($('editOrderCustomer').value||null),
       p_business_unit:$('editOrderUnit').value,
@@ -251,6 +270,9 @@ async function saveOrder(event){
       p_model_name:$('editOrderModel').value.trim()||null,
       p_customer_comment:$('editOrderCustomerComment').value.trim()||null,
       p_internal_comment:$('editOrderInternalComment').value.trim()||null,
+      p_due_at:toIsoDateTime($('editOrderDueAt').value),
+      p_deadline_remind_before_hours:Number($('editOrderReminder').value||48),
+      p_deadline_note:$('editOrderDeadlineNote').value.trim()||null,
       p_items:items
     });
     if(error)throw error;
