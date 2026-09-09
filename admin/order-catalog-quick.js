@@ -1,6 +1,7 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
 
 const money=value=>Number(value||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';
+const API=String(window.A4PRINT_CONFIG?.apiBaseUrl||'').replace(/\/$/,'');
 let activeContext=null;
 
 function ensureStyle(){
@@ -43,7 +44,7 @@ function enhanceRows(){
     if(!input.closest('.order-edit-name-wrap')){
       const wrap=document.createElement('div');wrap.className='order-edit-name-wrap';
       input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
-      const button=document.createElement('button');button.type='button';button.className='order-catalog-quick-btn';button.textContent='+ В каталог';button.title='Добавить эту позицию в каталог';wrap.appendChild(button);
+      const button=document.createElement('button');button.type='button';button.className='order-catalog-quick-btn';button.textContent='+ В каталог';button.title='Добавить эту позицию в МойСклад и каталог HUB';wrap.appendChild(button);
     }
     refreshQuickButton(row);
   });
@@ -59,7 +60,7 @@ function enhanceCreateField(){
   if(!input.closest('.order-create-quick-wrap')){
     const wrap=document.createElement('div');wrap.className='order-create-quick-wrap';
     input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
-    const button=document.createElement('button');button.id='newOrderCatalogQuickBtn';button.type='button';button.className='order-catalog-quick-btn';button.textContent='+ В каталог';button.title='Добавить эту услугу или товар в каталог';wrap.appendChild(button);
+    const button=document.createElement('button');button.id='newOrderCatalogQuickBtn';button.type='button';button.className='order-catalog-quick-btn';button.textContent='+ В каталог';button.title='Добавить эту услугу или товар в МойСклад и каталог HUB';wrap.appendChild(button);
   }
   refreshCreateQuickButton();
 }
@@ -68,17 +69,17 @@ function ensureDialog(){
   if(document.getElementById('orderCatalogQuickDlg'))return;
   const dialog=document.createElement('dialog');dialog.id='orderCatalogQuickDlg';dialog.className='order-catalog-dialog';
   dialog.innerHTML=`<form id="orderCatalogQuickForm" class="order-catalog-form">
-    <div class="order-catalog-head"><h3>Быстро добавить в каталог</h3><p>Создайте отсутствующую услугу или товар, не закрывая заказ.</p></div>
+    <div class="order-catalog-head"><h3>Быстро добавить в каталог</h3><p>Позиция сначала создаётся в МойСклад, затем автоматически появляется в HUB и KASSA.</p></div>
     <div class="order-catalog-body">
       <label class="order-catalog-field"><span>Тип</span><select id="orderCatalogQuickType"><option value="SERVICE">Услуга</option><option value="PRODUCT">Товар</option></select></label>
       <label class="order-catalog-field"><span>Цена продажи, ₽</span><input id="orderCatalogQuickPrice" type="number" min="0" step="0.01" value="0"></label>
       <label class="order-catalog-field full"><span>Название</span><input id="orderCatalogQuickName" required placeholder="Название услуги или товара"></label>
       <label class="order-catalog-field"><span>Единица</span><select id="orderCatalogQuickUnit"><option value="шт">шт</option><option value="лист">лист</option><option value="м">м</option><option value="м²">м²</option><option value="мин">мин</option><option value="час">час</option></select></label>
       <label class="order-catalog-field"><span>Категория</span><input id="orderCatalogQuickCategory" placeholder="Например: Копирование"></label>
-      <div class="order-catalog-hint">Позиция сохранится в общей базе каталога. В текущем заказе название и цена подставятся автоматически.</div>
+      <div class="order-catalog-hint"><b>МойСклад → HUB → KASSA.</b> В текущем заказе название и цена подставятся автоматически.</div>
       <div id="orderCatalogQuickError" class="order-catalog-error"></div>
     </div>
-    <div class="order-catalog-foot"><button id="orderCatalogQuickCancel" type="button">Отмена</button><button id="orderCatalogQuickSave" class="primary" type="submit">Добавить в каталог</button></div>
+    <div class="order-catalog-foot"><button id="orderCatalogQuickCancel" type="button">Отмена</button><button id="orderCatalogQuickSave" class="primary" type="submit">Добавить в МойСклад</button></div>
   </form>`;
   document.body.appendChild(dialog);
   document.getElementById('orderCatalogQuickCancel').addEventListener('click',()=>dialog.close());
@@ -98,17 +99,25 @@ function openQuickDialog(context){
   setTimeout(()=>document.getElementById('orderCatalogQuickName')?.focus(),0);
 }
 
-function makeSku(type){
-  const prefix=type==='SERVICE'?'SRV':'PRD';
-  const rnd=(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)).replace(/-/g,'').slice(0,8).toUpperCase();
-  return `HUB-${prefix}-${Date.now().toString(36).toUpperCase()}-${rnd}`;
-}
-
 function addOptionToLists(data){
   for(const id of ['orderEditCatalogList','orderCatalogList']){
     const list=document.getElementById(id);if(!list)continue;
+    if([...list.options].some(option=>String(option.value||'').trim().toLowerCase()===String(data.name||'').trim().toLowerCase()))continue;
     const option=document.createElement('option');option.value=data.name;option.label=money(data.sale_price);list.appendChild(option);
   }
+}
+
+async function apiCreateCatalogItem(payload){
+  if(!API)throw new Error('API HUB не настроен.');
+  let {data,error}=await supabase.auth.getSession();
+  if(error)throw error;
+  let session=data?.session;
+  if(!session?.access_token){const refreshed=await supabase.auth.refreshSession();if(refreshed.error)throw refreshed.error;session=refreshed.data?.session}
+  if(!session?.access_token)throw new Error('Сессия истекла. Войдите в HUB заново.');
+  const response=await fetch(`${API}/api/v1/pos/catalog/items`,{method:'POST',cache:'no-store',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload)});
+  const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{}
+  if(!response.ok)throw new Error(body.message||body.error||`HTTP ${response.status}`);
+  return body;
 }
 
 async function saveCatalogItem(event){
@@ -117,15 +126,16 @@ async function saveCatalogItem(event){
   const price=Math.max(0,Number(document.getElementById('orderCatalogQuickPrice').value||0));const unit=document.getElementById('orderCatalogQuickUnit').value||'шт';
   const category=document.getElementById('orderCatalogQuickCategory').value.trim()||null;const errorNode=document.getElementById('orderCatalogQuickError');const save=document.getElementById('orderCatalogQuickSave');
   if(!name){errorNode.textContent='Укажите название.';return}if(nameExists(name)){errorNode.textContent='Такая позиция уже есть в каталоге.';return}
-  save.disabled=true;save.textContent='Добавление…';errorNode.textContent='';
+  save.disabled=true;save.textContent='Создание в МойСклад…';errorNode.textContent='';
   try{
-    const {data,error}=await supabase.from('catalog_items').insert({sku:makeSku(type),name,item_type:type,category,unit,sale_price:price,cost_price:0,min_stock:0,is_active:true,external_source:'HUB_MANUAL'}).select('id,name,sale_price,item_type').single();
-    if(error)throw error;addOptionToLists(data);
+    const result=await apiCreateCatalogItem({name,item_type:type,category,unit,sale_price:price});
+    const data=result?.item;if(!data?.name)throw new Error('Сервер не вернул созданную позицию.');
+    addOptionToLists(data);
     if(activeContext?.nameInput){activeContext.nameInput.value=data.name;activeContext.nameInput.dispatchEvent(new Event('input',{bubbles:true}))}
     if(activeContext?.priceInput){activeContext.priceInput.value=String(Number(data.sale_price||0));activeContext.priceInput.dispatchEvent(new Event('input',{bubbles:true}));activeContext.priceInput.dispatchEvent(new Event('change',{bubbles:true}))}
     activeContext?.refresh?.();document.getElementById('orderCatalogQuickDlg').close();
-  }catch(error){console.error('Quick catalog insert failed',error);const msg=String(error?.message||error);errorNode.textContent=msg.includes('duplicate key')?'Такая позиция или код уже есть в каталоге.':`Не удалось добавить: ${msg}`}
-  finally{save.disabled=false;save.textContent='Добавить в каталог'}
+  }catch(error){console.error('Quick MoySklad catalog create failed',error);errorNode.textContent=`Не удалось добавить: ${error?.message||error}`}
+  finally{save.disabled=false;save.textContent='Добавить в МойСклад'}
 }
 
 function bind(){
