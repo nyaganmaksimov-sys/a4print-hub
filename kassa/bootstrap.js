@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-first3';
+  const VERSION='20260910-order-bridge1';
   const $=id=>document.getElementById(id);
 
   function loadScript(src){
@@ -80,6 +80,7 @@
     await loadStyle('./mobile-responsive.css');
     await loadStyle('./mobile-ui.css');
     await loadStyle('./mobile-ui-state.css');
+    await loadStyle('./order-bridge.css');
     await loadScript('./shift-state-sync.js');
     await loadScript('./shift-profile.js');
     await loadScript('./shift-profile-compact.js');
@@ -95,6 +96,7 @@
     await loadScript('./startup-shift.js');
     await loadScript('./runtime-stability.js');
     await loadScript('./mobile-ui.js');
+    await loadScript('./order-bridge.js');
     window.__A4_KASSA_BOOT_OK__=true;
   }
 
