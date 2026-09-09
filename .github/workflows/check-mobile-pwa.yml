@@ -39,6 +39,7 @@ jobs:
 
       - name: Check JavaScript syntax
         run: |
+          node --check mobile/supabase-proxy-bridge.js
           node --check mobile/oauth-bridge.js
           node --check mobile/app-v3.js
           node --check mobile/dashboard-v2.js
@@ -68,6 +69,7 @@ jobs:
       - name: Verify mobile entrypoint
         run: |
           grep -q 'manifest.webmanifest' mobile/index.html
+          grep -q 'supabase-proxy-bridge.js' mobile/index.html
           grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'app-v3.js' mobile/index.html
           grep -q 'dashboard-v2.js' mobile/index.html
@@ -83,6 +85,14 @@ jobs:
           grep -q '/admin/profile.html?mobile=1' mobile/account.html
           grep -q 'enforceSupportRole' mobile/pwa.js
           grep -q '/admin/support.html?mobile=1' mobile/pwa.js
+
+      - name: Verify VPN-independent Supabase routing
+        run: |
+          grep -q 'qgakliolffnwkymoqvzn.supabase.co' mobile/supabase-proxy-bridge.js
+          grep -q 'a4print-hub-api.onrender.com' mobile/supabase-proxy-bridge.js
+          grep -q '/api/v1/supabase' mobile/supabase-proxy-bridge.js
+          grep -q '/api/v1/supabase' mobile/dashboard-v2.js
+          grep -q "^  <script src=\"./supabase-proxy-bridge.js" mobile/index.html
 
       - name: Verify direct mobile auth routing
         run: |
