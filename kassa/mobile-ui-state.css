@@ -1,0 +1,4 @@
+@media(max-width:980px){
+  .kassa-mobile-nav.hidden,.kassa-mobile-sale-tools.auth-hidden{display:none!important}
+  body:not(.kassa-mobile) .kassa-mobile-nav,body:not(.kassa-mobile) .kassa-mobile-sale-tools{display:none!important}
+}
