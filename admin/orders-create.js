@@ -159,7 +159,7 @@ async function patchVisibleItemTitles(){
     const ids=[...new Set(rows.map(r=>r.dataset.orderId).filter(Boolean))];
     if(!ids.length)return;
     try{
-      const {data,error}=await supabase.from('order_items').select('order_id,name,created_at').in('order_id',ids).order('created_at',{ascending:true});
+      const {data,error}=await supabase.from('order_items').select('id,order_id,name').in('order_id',ids);
       if(error)throw error;
       const first=new Map();
       for(const item of data||[])if(!first.has(item.order_id))first.set(item.order_id,item.name);
