@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-first6';
+  const VERSION='20260910-mobile-shift-v2';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
 
@@ -92,6 +92,7 @@
     await loadStyle('./mobile-ui.css');
     await loadStyle('./mobile-ui-state.css');
     await loadStyle('./shift-mobile-action-fix.css');
+    await loadStyle('./shift-mobile-v2.css');
     await loadScript('./shift-state-sync.js');
     await loadScript('./shift-profile.js');
     await loadScript('./shift-profile-compact.js');
@@ -111,6 +112,7 @@
     await loadScript('./runtime-stability.js');
     await loadScript('./mobile-ui.js');
     await loadScript('./shift-mobile-action-fix.js');
+    await loadScript('./shift-mobile-v2.js');
     window.__A4_KASSA_BOOT_OK__=true;
     requestAnimationFrame(()=>{
       document.documentElement.classList.remove('kassa-mobile-booting');
