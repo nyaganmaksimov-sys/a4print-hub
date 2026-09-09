@@ -1,7 +1,16 @@
 (()=>{
   'use strict';
-  const VERSION='20260910-mobile-first5';
+  const VERSION='20260910-mobile-first6';
   const $=id=>document.getElementById(id);
+  const MOBILE=matchMedia('(max-width:980px)').matches;
+
+  if(MOBILE){
+    document.documentElement.classList.add('kassa-mobile-booting');
+    const s=document.createElement('style');
+    s.id='kassa-mobile-boot-cloak';
+    s.textContent='@media(max-width:980px){html.kassa-mobile-booting #appView:not([hidden]){visibility:hidden!important}html.kassa-mobile-booting body:after{content:"Загрузка кассы…";position:fixed;inset:0;display:grid;place-items:center;background:#f5f7fb;color:#334155;font:700 15px system-ui;z-index:9999}}';
+    document.head.appendChild(s);
+  }
 
   function loadScript(src){
     return new Promise((resolve,reject)=>{
@@ -47,6 +56,8 @@
   }
 
   function showBootError(error){
+    document.documentElement.classList.remove('kassa-mobile-booting');
+    document.getElementById('kassa-mobile-boot-cloak')?.remove();
     const text=String(error?.message||error||'Неизвестная ошибка запуска');
     const err=$('loginError');
     if(err){
@@ -80,6 +91,7 @@
     await loadStyle('./mobile-responsive.css');
     await loadStyle('./mobile-ui.css');
     await loadStyle('./mobile-ui-state.css');
+    await loadStyle('./shift-mobile-action-fix.css');
     await loadScript('./shift-state-sync.js');
     await loadScript('./shift-profile.js');
     await loadScript('./shift-profile-compact.js');
@@ -100,6 +112,10 @@
     await loadScript('./mobile-ui.js');
     await loadScript('./shift-mobile-action-fix.js');
     window.__A4_KASSA_BOOT_OK__=true;
+    requestAnimationFrame(()=>{
+      document.documentElement.classList.remove('kassa-mobile-booting');
+      document.getElementById('kassa-mobile-boot-cloak')?.remove();
+    });
   }
 
   boot().catch(showBootError);
