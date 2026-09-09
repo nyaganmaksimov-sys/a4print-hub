@@ -11,7 +11,7 @@
     'https://a4print-hub-api.onrender.com'
   ].filter((v,i,a)=>v&&a.indexOf(v)===i);
   const PREF_KEY='a4_kassa_api_origin';
-  const READ_TIMEOUT=5500;
+  const READ_TIMEOUT=5000;
   const WRITE_TIMEOUT=12000;
 
   function savedOrigin(){try{const v=localStorage.getItem(PREF_KEY);return API_ORIGINS.includes(v)?v:null}catch{return null}}
@@ -25,11 +25,20 @@
       return{req,url,apiOrigin,method:req.method.toUpperCase()};
     }catch{return null}
   }
+  function routeUrl(url,origin){
+    const base=new URL(origin);
+    const target=new URL(url.href);
+    target.protocol=base.protocol;
+    target.host=base.host;
+    return target.href;
+  }
   async function one(req,url,origin,timeout){
-    const target=new URL(url.href);target.origin=origin;
-    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(timeoutError(timeout)),timeout);
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(timeoutError(timeout)),timeout);
     try{
-      const r=await nativeFetch(new Request(target.href,req),{signal:controller.signal});
+      const target=routeUrl(url,origin);
+      const routed=new Request(target,req);
+      const r=await nativeFetch(routed,{signal:controller.signal});
       if(r.ok||r.status<500){saveOrigin(origin);return r}
       throw new Error(`HTTP ${r.status}`);
     }finally{clearTimeout(timer)}
@@ -48,15 +57,13 @@
     const safeRace=method==='GET'||method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(url.pathname);
 
     if(safeRace){
-      try{return await firstSuccess(ordered.map(origin=>one(req.clone(),url,origin,READ_TIMEOUT)))}
-      catch(e){throw e}
+      return firstSuccess(ordered.map(origin=>one(req.clone(),url,origin,READ_TIMEOUT)));
     }
 
     // Never race financial/shift writes: a timed-out request may still complete server-side.
     const origin=preferred||info.apiOrigin;
     try{return await one(req.clone(),url,origin,WRITE_TIMEOUT)}
     catch(error){
-      // For non-financial idempotent POSTs (Supabase read RPC etc.) allow one alternate route.
       const risky=/\/api\/v1\/pos\/(?:sale|returns|cashout|shift\/(?:open|close)|orders\/pay)(?:\/|$)/.test(url.pathname);
       if(risky)throw error;
       const alt=ordered.find(x=>x!==origin);if(!alt)throw error;
