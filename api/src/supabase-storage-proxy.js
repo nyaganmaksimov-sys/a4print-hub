@@ -1,8 +1,11 @@
 import express from 'express';
+import path from 'node:path';
 
 const supabaseUrl=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const publishableKey=process.env.SUPABASE_PUBLISHABLE_KEY||'';
 const installed=Symbol.for('a4print.supabase.storage.proxy');
+const sawSupabaseRoute=Symbol.for('a4print.saw.supabase.route');
+const staticInstalled=Symbol.for('a4print.render.static.installed');
 const originalUse=express.application.use;
 
 const requestHeaders=new Set([
@@ -18,10 +21,10 @@ const responseHeaders=new Set([
 async function storageProxy(req,res){
   try{
     if(!supabaseUrl)return res.status(503).json({success:false,error:'SUPABASE_PROXY_NOT_CONFIGURED'});
-    const path=String(req.originalUrl||'').replace(/^\/api\/v1\/supabase/,'');
-    if(!/^\/storage\/v1(?:\/|\?|$)/.test(path))return res.status(400).json({success:false,error:'SUPABASE_STORAGE_PATH_DENIED'});
+    const requestPath=String(req.originalUrl||'').replace(/^\/api\/v1\/supabase/,'');
+    if(!/^\/storage\/v1(?:\/|\?|$)/.test(requestPath))return res.status(400).json({success:false,error:'SUPABASE_STORAGE_PATH_DENIED'});
 
-    const upstream=new URL(path,supabaseUrl);
+    const upstream=new URL(requestPath,supabaseUrl);
     if(upstream.origin!==new URL(supabaseUrl).origin)return res.status(400).json({success:false,error:'SUPABASE_STORAGE_PATH_DENIED'});
 
     const headers={};
@@ -44,15 +47,31 @@ async function storageProxy(req,res){
   }
 }
 
+function installStaticFrontend(app){
+  if(app[staticInstalled])return;
+  app[staticInstalled]=true;
+  const root=path.resolve(process.cwd(),'..');
+  const blocked=/^\/(?:api|database|supabase|\.git|\.github)(?:\/|$)|^\/(?:\.env(?:\.|$)|README\.md$|CNAME$)/i;
+  const deny=(req,res,next)=>blocked.test(req.path||'')?next():next();
+  originalUse.call(app,(req,res,next)=>{
+    if(blocked.test(req.path||''))return next();
+    return express.static(root,{index:['index.html'],fallthrough:true,etag:true,maxAge:'5m'})(req,res,next);
+  });
+  console.log(`A4PRINT HUB static frontend enabled from ${root}`);
+}
+
 express.application.use=function patchedSupabaseStorageUse(...args){
   const route=typeof args[0]==='string'?args[0]:'';
   if(route==='/api/v1/supabase'&&!this[installed]){
     this[installed]=true;
+    this[sawSupabaseRoute]=true;
     originalUse.call(this,
       '/api/v1/supabase/storage/v1',
       express.raw({type:'*/*',limit:'52mb'}),
       storageProxy
     );
+  }else if(this[sawSupabaseRoute]&&!this[staticInstalled]&&typeof args[0]==='function'){
+    installStaticFrontend(this);
   }
   return originalUse.apply(this,args);
 };
