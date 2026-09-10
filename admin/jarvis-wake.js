@@ -25,9 +25,17 @@ function withAssistant(callback,attempt=0){
   if(attempt>=30)return;
   setTimeout(()=>withAssistant(callback,attempt+1),100);
 }
+async function acknowledgeAndListen(){
+  openPanel();
+  try{
+    await window.A4VoiceEngine?.unlock?.();
+    await window.A4VoiceEngine?.speak?.('Слушаю.',{profile:'male',apiBaseUrl:apiBase(),tokenProvider:token,interrupt:true,priority:'high'});
+  }catch{}
+  setTimeout(()=>document.getElementById('jarvisMic')?.click(),120);
+}
 function deliverPending(){
   if(wake.pendingCommand){const command=wake.pendingCommand;wake.pendingCommand='';withAssistant(()=>{openPanel();setTimeout(()=>{const input=document.getElementById('jarvisInput'),form=document.getElementById('jarvisForm');if(input&&form){input.value=command;form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))}},80)});return}
-  if(wake.pendingMic){wake.pendingMic=false;withAssistant(()=>{openPanel();setTimeout(()=>document.getElementById('jarvisMic')?.click(),180)})}
+  if(wake.pendingMic){wake.pendingMic=false;withAssistant(()=>acknowledgeAndListen())}
 }
 function startWake(){
   clearTimeout(wake.restartTimer);wake.restartTimer=null;if(!canListen()||wake.listening)return;
