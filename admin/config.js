@@ -4,7 +4,7 @@
 window.A4PRINT_CONFIG = {
   supabaseUrl: 'https://qgakliolffnwkymoqvzn.supabase.co',
   supabasePublishableKey: 'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu',
-  apiBaseUrl: 'https://a4print-hub-api.onrender.com'
+  apiBaseUrl: 'https://api.a4print-hub.ru'
 };
 
 // Resilient API routing for networks where one backend hostname is slow/unreachable.
