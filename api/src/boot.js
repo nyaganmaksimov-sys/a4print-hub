@@ -17,6 +17,8 @@ const preloads = [
   '--import=./src/saas-billing-preload.js',
   '--import=./src/supabase-storage-proxy.js',
   '--import=./src/jarvis-bridge.js',
+  '--import=./src/jarvis-agent-bridge.js',
+  '--import=./src/jarvis-control-bridge.js',
   '--import=./src/jarvis-hub-status.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
