@@ -9,6 +9,32 @@ function jarvisConfig() {
   return { baseUrl, apiKey, configured: Boolean(baseUrl && apiKey) };
 }
 
+async function requireHubSession(req, res, next) {
+  try {
+    const supabaseUrl = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
+    const publishableKey = String(process.env.SUPABASE_PUBLISHABLE_KEY || '');
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (!supabaseUrl || !publishableKey) return res.status(503).json({ success: false, error: 'AUTH_NOT_CONFIGURED' });
+    if (!token) return res.status(401).json({ success: false, error: 'AUTH_REQUIRED' });
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: { Authorization: `Bearer ${token}`, apikey: publishableKey },
+        signal: controller.signal
+      });
+      if (!response.ok) return res.status(401).json({ success: false, error: 'INVALID_SESSION' });
+      req.jarvisUser = await response.json().catch(() => null);
+      return next();
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function proxy(path, options = {}) {
   const cfg = jarvisConfig();
   if (!cfg.configured) {
@@ -45,7 +71,7 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
   if (!this[installed]) {
     this[installed] = true;
 
-    this.get('/api/v1/jarvis/health', async (_req, res) => {
+    this.get('/api/v1/jarvis/health', requireHubSession, async (_req, res) => {
       const cfg = jarvisConfig();
       if (!cfg.configured) return res.status(503).json({ success: false, configured: false });
       try {
@@ -56,7 +82,7 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
       }
     });
 
-    this.post('/api/v1/jarvis/query', async (req, res) => {
+    this.post('/api/v1/jarvis/query', requireHubSession, async (req, res) => {
       const text = String(req.body?.text || '').trim();
       if (!text) return res.status(400).json({ success: false, error: 'TEXT_REQUIRED' });
       try {
@@ -70,7 +96,7 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
       }
     });
 
-    this.get('/api/v1/jarvis/announcements', async (_req, res) => {
+    this.get('/api/v1/jarvis/announcements', requireHubSession, async (_req, res) => {
       try {
         const data = await proxy('/api/v1/announcements');
         return res.json({ success: true, announcements: Array.isArray(data) ? data : (data.announcements || []) });
@@ -79,7 +105,7 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
       }
     });
 
-    this.post('/api/v1/jarvis/announcements/ack', async (req, res) => {
+    this.post('/api/v1/jarvis/announcements/ack', requireHubSession, async (req, res) => {
       try {
         const data = await proxy('/api/v1/announcements/ack', {
           method: 'POST',
