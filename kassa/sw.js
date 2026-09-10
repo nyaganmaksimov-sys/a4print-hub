@@ -1,7 +1,7 @@
-const CACHE='a4print-kassa-v36';
+const CACHE='a4print-kassa-v37';
 const CORE=[
   './','./index.html','./styles.css','./modules.css','./shift.css','./shift-layout-fix.css','./shift-profile.css','./shift-compact.css','./sale-finish.css','./config.js','./db.js','./bootstrap.js','./network-safety.js','./shift-session-gate.js','./sync-throttle.js','./app.js','./modules.js','./ui.js','./catalog-quick-add.js','./shift-operator.js','./shift-state-sync.js','./shift-profile.js','./shift-profile-compact.js','./cash-operations.js','./sale-submit-guard.js','./sale-finish.js','./return-finish.js','./history-hub.js','./held-receipts.js','./report-source-summary.js','./settings-help.js','./sale-view-fix.js','./startup-shift.js','./runtime-stability.js','./jarvis-workday.js',
-  '../admin/vendor/supabase.js','../admin/voice-engine.js','../admin/assets/a4print-hub-logo-white.svg'
+  '../admin/vendor/supabase.js','../admin/voice-engine.js','../admin/jarvis-assistant.js','../admin/jarvis-wake.js','../admin/guard.js','../admin/assets/a4print-hub-logo-white.svg'
 ];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('a4print-kassa-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
