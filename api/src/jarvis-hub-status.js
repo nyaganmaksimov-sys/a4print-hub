@@ -19,18 +19,21 @@ function requireBridge(req, res, next) {
   next();
 }
 
-async function rows(table, select, query = {}) {
-  if (!supabase) throw new Error('DATABASE_NOT_CONFIGURED');
-  let q = supabase.from(table).select(select);
-  for (const [key, value] of Object.entries(query)) {
-    if (key === 'order') q = q.order(value.column, { ascending: value.ascending ?? false });
-    else if (key === 'limit') q = q.limit(value);
-    else if (key === 'eq') for (const [k, v] of Object.entries(value)) q = q.eq(k, v);
-    else if (key === 'gte') for (const [k, v] of Object.entries(value)) q = q.gte(k, v);
+async function safeRows(name, table, query = {}) {
+  if (!supabase) return { name, rows: [], error: 'DATABASE_NOT_CONFIGURED' };
+  try {
+    let q = supabase.from(table).select('*');
+    if (query.eq) for (const [k, v] of Object.entries(query.eq)) q = q.eq(k, v);
+    if (query.gte) for (const [k, v] of Object.entries(query.gte)) q = q.gte(k, v);
+    if (query.order) q = q.order(query.order.column, { ascending: query.order.ascending ?? false });
+    if (query.limit) q = q.limit(query.limit);
+    const { data, error } = await q;
+    if (error) throw error;
+    return { name, rows: data || [], error: null };
+  } catch (error) {
+    console.warn(`[Jarvis HUB snapshot:${name}]`, error?.message || error);
+    return { name, rows: [], error: String(error?.message || error) };
   }
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
 }
 
 function moscowDayStartIso() {
@@ -41,25 +44,42 @@ function moscowDayStartIso() {
   return new Date(moscow.getTime() - MOSCOW_OFFSET_MS).toISOString();
 }
 
+function amount(row, keys) {
+  for (const key of keys) {
+    const value = Number(row?.[key]);
+    if (Number.isFinite(value)) return value;
+  }
+  return 0;
+}
+
 async function buildSnapshot() {
   const todayIso = moscowDayStartIso();
-
-  const [orders, jobs, notifications, sales, returns] = await Promise.all([
-    rows('orders', 'id,status,total,total_amount,business_unit,created_at', { order: { column: 'created_at' }, limit: 1000 }),
-    rows('production_jobs', 'id,status,title,priority,planned_end,updated_at', { order: { column: 'updated_at' }, limit: 1000 }),
-    rows('notifications', 'id,type,is_read,title,message,created_at,entity_type,entity_id', { eq: { is_read: false }, order: { column: 'created_at' }, limit: 100 }),
-    rows('pos_sales', 'id,total,created_at,status', { gte: { created_at: todayIso }, limit: 2000 }),
-    rows('pos_returns', 'id,amount,created_at,status', { gte: { created_at: todayIso }, limit: 2000 })
+  const results = await Promise.all([
+    safeRows('orders', 'orders', { order: { column: 'created_at' }, limit: 1000 }),
+    safeRows('production', 'production_jobs', { order: { column: 'updated_at' }, limit: 1000 }),
+    safeRows('notifications', 'notifications', { eq: { is_read: false }, order: { column: 'created_at' }, limit: 100 }),
+    safeRows('sales', 'pos_sales', { gte: { created_at: todayIso }, limit: 2000 }),
+    safeRows('returns', 'pos_returns', { gte: { created_at: todayIso }, limit: 2000 })
   ]);
 
-  const gross = sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
-  const refunds = returns.reduce((sum, x) => sum + Number(x.amount || 0), 0);
-  const chat = notifications.filter(x => x.type === 'CHAT_MESSAGE');
+  const byName = Object.fromEntries(results.map(x => [x.name, x]));
+  const orders = byName.orders.rows;
+  const jobs = byName.production.rows;
+  const notifications = byName.notifications.rows;
+  const sales = byName.sales.rows;
+  const returns = byName.returns.rows;
+
+  const gross = sales.reduce((sum, x) => sum + amount(x, ['total','total_amount','amount','sum']), 0);
+  const refunds = returns.reduce((sum, x) => sum + amount(x, ['amount','total','total_amount','sum']), 0);
+  const chat = notifications.filter(x => String(x.type || '').toUpperCase() === 'CHAT_MESSAGE');
+  const warnings = results.filter(x => x.error).map(x => ({ source: x.name, error: x.error }));
 
   return {
-    configured: true,
+    configured: Boolean(supabase),
     captured_at: new Date().toISOString(),
     business_timezone: 'Europe/Moscow',
+    partial: warnings.length > 0,
+    warnings,
     revenue: {
       gross,
       refunds,
@@ -84,14 +104,14 @@ async function buildSnapshot() {
       unread: chat.length,
       latest: chat.slice(0, 10).map(x => ({
         title: x.title || 'Новое сообщение',
-        message: String(x.message || '').slice(0, 240),
+        message: String(x.message || x.body || '').slice(0, 240),
         created_at: x.created_at
       }))
     },
     attention: notifications.slice(0, 20).map(x => ({
       type: x.type,
       title: x.title,
-      message: String(x.message || '').slice(0, 240),
+      message: String(x.message || x.body || '').slice(0, 240),
       created_at: x.created_at
     }))
   };
@@ -100,14 +120,10 @@ async function buildSnapshot() {
 express.application.listen = function patchedJarvisHubStatusListen(...args) {
   if (!this[installed]) {
     this[installed] = true;
-    this.get('/api/v1/internal/jarvis/status', requireBridge, async (_req, res, next) => {
-      try {
-        const payload = await buildSnapshot();
-        res.set('Cache-Control', 'no-store');
-        return res.json(payload);
-      } catch (error) {
-        return next(error);
-      }
+    this.get('/api/v1/internal/jarvis/status', requireBridge, async (_req, res) => {
+      const payload = await buildSnapshot();
+      res.set('Cache-Control', 'no-store');
+      return res.json(payload);
     });
   }
   return originalListen.apply(this, args);
