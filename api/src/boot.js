@@ -19,7 +19,8 @@ const preloads = [
   '--import=./src/jarvis-bridge.js',
   '--import=./src/jarvis-agent-bridge.js',
   '--import=./src/jarvis-control-bridge.js',
-  '--import=./src/jarvis-hub-status.js'
+  '--import=./src/jarvis-hub-status.js',
+  '--import=./src/jarvis-learning-bridge.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
