@@ -33,10 +33,16 @@ async function rows(table, select, query = {}) {
   return data || [];
 }
 
+function moscowDayStartIso() {
+  const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
+  const now = new Date();
+  const moscow = new Date(now.getTime() + MOSCOW_OFFSET_MS);
+  moscow.setUTCHours(0, 0, 0, 0);
+  return new Date(moscow.getTime() - MOSCOW_OFFSET_MS).toISOString();
+}
+
 async function buildSnapshot() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const todayIso = start.toISOString();
+  const todayIso = moscowDayStartIso();
 
   const [orders, jobs, notifications, sales, returns] = await Promise.all([
     rows('orders', 'id,status,total,total_amount,business_unit,created_at', { order: { column: 'created_at' }, limit: 1000 }),
@@ -53,6 +59,7 @@ async function buildSnapshot() {
   return {
     configured: true,
     captured_at: new Date().toISOString(),
+    business_timezone: 'Europe/Moscow',
     revenue: {
       gross,
       refunds,
