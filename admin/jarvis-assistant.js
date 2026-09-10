@@ -1,3 +1,4 @@
+import './voice-engine.js?v=20260911-voice2';
 import { supabase } from './guard.js?v=20260905-netfix1';
 
 const cfg = window.A4PRINT_CONFIG || {};
@@ -11,7 +12,6 @@ const state = {
   voice:localStorage.getItem(STORAGE_VOICE)==='1',
   profile:savedProfile==='male'?'male':'female',
   lastAnnouncement:null,
-  currentAudio:null,
   workshopText:''
 };
 
@@ -21,6 +21,12 @@ async function authHeaders(){
   const {data:{session}}=await supabase.auth.getSession();
   if(!session?.access_token)throw new Error('Сессия HUB истекла');
   return {Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Accept:'application/json'};
+}
+
+async function voiceToken(){
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session?.access_token)throw new Error('Сессия HUB истекла');
+  return session.access_token;
 }
 
 async function api(path,options={}){
@@ -33,57 +39,26 @@ async function api(path,options={}){
   return body;
 }
 
-async function neuralAudio(text){
-  const base=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
-  if(!base)throw new Error('API HUB не настроен');
-  const headers=await authHeaders();
-  headers.Accept='audio/mpeg';
-  const r=await fetch(`${base}/api/v1/jarvis/tts`,{
-    method:'POST',headers,cache:'no-store',
-    body:JSON.stringify({text:String(text).slice(0,2500),voice:state.profile})
-  });
-  if(!r.ok){
-    const body=await r.json().catch(()=>({}));
-    throw new Error(body.error||body.detail||`TTS HTTP ${r.status}`);
-  }
-  return await r.blob();
-}
-
-function browserFallback(text){
-  if(!('speechSynthesis' in window))return;
+async function speak(text,options={}){
+  if(!state.voice||!text)return false;
+  const engine=window.A4VoiceEngine;
+  if(!engine)return false;
   try{
-    speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(String(text));
-    u.lang='ru-RU';
-    u.rate=state.profile==='male'?0.94:1;
-    const voices=speechSynthesis.getVoices?.()||[];
-    const ru=voices.filter(v=>String(v.lang||'').toLowerCase().startsWith('ru'));
-    const preferred=ru.find(v=>state.profile==='female'?/female|svetlana|alena|irina|mariya/i.test(v.name):/male|dmit|pavel|alex/i.test(v.name));
-    if(preferred)u.voice=preferred;
-    speechSynthesis.speak(u);
-  }catch{}
-}
-
-async function speak(text){
-  if(!state.voice||!text)return;
-  try{
-    if(state.currentAudio){
-      state.currentAudio.pause();
-      state.currentAudio=null;
-    }
-    const blob=await neuralAudio(text);
-    const url=URL.createObjectURL(blob);
-    const audio=new Audio(url);
-    state.currentAudio=audio;
-    audio.onended=()=>{URL.revokeObjectURL(url);if(state.currentAudio===audio)state.currentAudio=null};
-    audio.onerror=()=>{URL.revokeObjectURL(url);if(state.currentAudio===audio)state.currentAudio=null;browserFallback(text)};
-    await audio.play();
-  }catch{
-    browserFallback(text);
+    return await engine.speak(text,{
+      profile:state.profile,
+      apiBaseUrl:String(cfg.apiBaseUrl||'').replace(/\/$/,''),
+      tokenProvider:voiceToken,
+      interrupt:!!options.interrupt,
+      priority:options.priority||'normal'
+    });
+  }catch(error){
+    console.warn('A4PRINT HUB voice:',error);
+    return false;
   }
 }
 
 function assistantName(){return state.profile==='female'?'Ксюша':'Джарвис'}
+function assistantReadyText(){return state.profile==='female'?'Готова помочь по заказам, выручке, сообщениям и производству.':'Готов помочь по заказам, выручке, сообщениям и производству.'}
 
 function addMessage(role,text){
   const log=document.getElementById('jarvisLog');
@@ -184,7 +159,8 @@ async function pollAnnouncements(){
       state.lastAnnouncement=item.id;
       const text=item.text||item.message||item.title||'Новое событие в HUB';
       addMessage('assistant',text);
-      speak(text);
+      const urgent=item.severity==='critical'||item.priority==='high';
+      speak(text,{interrupt:urgent,priority:urgent?'high':'normal'});
       await api('/api/v1/jarvis/announcements/ack',{method:'POST',body:JSON.stringify({id:item.id})}).catch(()=>{});
     }
   }catch{}
@@ -212,7 +188,7 @@ function build(){
           <button id="jarvisClose" type="button">×</button>
         </div>
       </div>
-      <div id="jarvisLog" class="jarvis-log"><div class="jarvis-msg assistant"><span>${assistantName()}</span><p>Готова помочь по заказам, выручке, сообщениям и производству.</p></div></div>
+      <div id="jarvisLog" class="jarvis-log"><div class="jarvis-msg assistant"><span>${assistantName()}</span><p>${assistantReadyText()}</p></div></div>
       <form id="jarvisForm" class="jarvis-compose"><button id="jarvisMic" class="jarvis-mic" type="button" title="Голосовой ввод">🎙</button><input id="jarvisInput" maxlength="4000" autocomplete="off" placeholder="Например: какая сегодня выручка?"><button id="jarvisSend" class="jarvis-send" type="submit">→</button></form>
     </section>`);
 
@@ -226,13 +202,14 @@ function build(){
     state.profile=e.target.value==='male'?'male':'female';
     localStorage.setItem(STORAGE_PROFILE,state.profile);
     refreshIdentity();
-    if(state.voice)speak(state.profile==='female'?'Привет. Я Ксюша. Голос переключён.':'Здравствуйте. Джарвис на связи.');
+    if(state.voice)speak(state.profile==='female'?'Привет. Я Ксюша. Голос переключён.':'Здравствуйте. Джарвис на связи.',{interrupt:true,priority:'high'});
   };
   document.getElementById('jarvisVoice').onclick=()=>{
     state.voice=!state.voice;
     localStorage.setItem(STORAGE_VOICE,state.voice?'1':'0');
     document.getElementById('jarvisVoice').textContent=state.voice?'🔊':'🔇';
-    if(state.voice)speak(state.profile==='female'?'Озвучивание включено. Я на связи.':'Озвучивание включено. Джарвис на связи.');
+    if(state.voice)speak(state.profile==='female'?'Озвучивание включено. Я на связи.':'Озвучивание включено. Джарвис на связи.',{interrupt:true,priority:'high'});
+    else window.A4VoiceEngine?.stop?.();
   };
 
   api('/api/v1/jarvis/health').then(()=>setStatus('Готов','ok')).catch(()=>setStatus('Не настроен','error'));
