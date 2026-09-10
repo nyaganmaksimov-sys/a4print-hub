@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Джарвис · Цех — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=20260910-jarvis1">
+  <link rel="stylesheet" href="./jarvis.css?v=20260910-jarvis1">
+  <script src="./config.js?v=20260910-jarvis1"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Джарвис · Цех</h1><p>Визуальный контроль оборудования и событий</p></div>
+      <div><button id="refresh" type="button">↻ Обновить</button></div>
+    </header>
+    <div class="jarvis-shell">
+      <section class="jarvis-stats">
+        <article><span>Оборудование</span><strong id="deviceCount">0</strong></article>
+        <article><span>В работе</span><strong id="runningCount">0</strong></article>
+        <article><span>Требует внимания</span><strong id="alertCount">0</strong></article>
+        <article><span>Камеры онлайн</span><strong id="cameraCount">0</strong></article>
+      </section>
+      <section class="jarvis-grid" id="devices"><div class="jarvis-empty">Загрузка оборудования…</div></section>
+      <section class="jarvis-events-card">
+        <div class="jarvis-card-head"><div><h2>Последние события</h2><p>Что увидел Джарвис в цехе</p></div><span id="updatedAt">—</span></div>
+        <div id="events" class="jarvis-events"><div class="jarvis-empty">Загрузка событий…</div></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./jarvis.js?v=20260910-jarvis1"></script>
+</body>
+</html>
