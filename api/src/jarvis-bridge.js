@@ -35,7 +35,7 @@ async function requireHubSession(req, res, next) {
   }
 }
 
-async function proxy(path, options = {}) {
+async function jarvisFetch(path, options = {}) {
   const cfg = jarvisConfig();
   if (!cfg.configured) {
     const error = new Error('JARVIS_NOT_CONFIGURED');
@@ -43,28 +43,37 @@ async function proxy(path, options = {}) {
     throw error;
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(`${cfg.baseUrl}${path}`, {
+    return await fetch(`${cfg.baseUrl}${path}`, {
       ...options,
       signal: controller.signal,
       headers: {
-        Accept: 'application/json',
         Authorization: `Bearer ${cfg.apiKey}`,
-        'Content-Type': 'application/json',
         ...(options.headers || {})
       }
     });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(body.detail || body.message || `JARVIS_HTTP_${response.status}`);
-      error.status = response.status;
-      throw error;
-    }
-    return body;
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function proxy(path, options = {}) {
+  const response = await jarvisFetch(path, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(body.detail || body.message || `JARVIS_HTTP_${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return body;
 }
 
 express.application.listen = function patchedJarvisBridgeListen(...args) {
@@ -91,6 +100,29 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
           body: JSON.stringify({ text: text.slice(0, 4000) })
         });
         return res.json({ success: true, ...data });
+      } catch (error) {
+        return res.status(error.status || 502).json({ success: false, error: String(error.message || error) });
+      }
+    });
+
+    this.post('/api/v1/jarvis/tts', requireHubSession, async (req, res) => {
+      const text = String(req.body?.text || '').trim();
+      const voice = req.body?.voice === 'male' ? 'male' : 'female';
+      if (!text) return res.status(400).json({ success: false, error: 'TEXT_REQUIRED' });
+      try {
+        const response = await jarvisFetch('/api/v1/tts', {
+          method: 'POST',
+          headers: { Accept: 'audio/mpeg', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text.slice(0, 2500), voice })
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          return res.status(response.status).json({ success: false, error: body.detail || `TTS_HTTP_${response.status}` });
+        }
+        const audio = Buffer.from(await response.arrayBuffer());
+        res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
+        res.set('Cache-Control', 'no-store');
+        return res.send(audio);
       } catch (error) {
         return res.status(error.status || 502).json({ success: false, error: String(error.message || error) });
       }
