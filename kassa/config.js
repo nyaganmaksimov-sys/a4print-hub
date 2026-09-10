@@ -4,8 +4,8 @@ window.A4PRINT_CONFIG={
   apiBaseUrl:'https://api.a4print-hub.ru'
 };
 
-// KASSA: proxy Supabase through HUB first, but never let a blocked API domain
-// prevent login. If the proxy path is unavailable, fall back to direct Supabase.
+// KASSA: use our API proxy first. Every network branch is time-bounded so a
+// blocked Supabase/Render hostname can never freeze the whole POS UI.
 window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
   const cfg=window.A4PRINT_CONFIG||{};
   let request;
@@ -36,18 +36,28 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     'https://a4print-hub-api.onrender.com'
   ].filter((v,i,a)=>v&&a.indexOf(v)===i);
 
+  async function fetchWithTimeout(url,options={},ms=4500){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),ms);
+    try{return await fetch(url,{...options,signal:controller.signal})}
+    finally{clearTimeout(timer)}
+  }
+
   async function proxy(base){
     const headers=new Headers(request.headers);
     const options={method,headers,cache:'no-store',credentials:'omit',redirect:'follow'};
     if(!['GET','HEAD'].includes(method))options.body=bodyBuffer||await request.clone().arrayBuffer();
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),5000);
-    options.signal=controller.signal;
-    try{return await fetch(`${base}/api/v1/supabase${pathname}${target.search}`,options)}
-    finally{clearTimeout(timer)}
+    return fetchWithTimeout(`${base}/api/v1/supabase${pathname}${target.search}`,options,4500);
   }
 
-  // Reads/auth can safely race routes. Financial writes must stay single-route.
+  async function direct(){
+    const clone=request.clone();
+    const options={method:clone.method,headers:new Headers(clone.headers),cache:'no-store',credentials:'omit',redirect:'follow'};
+    if(!['GET','HEAD'].includes(method))options.body=await clone.arrayBuffer();
+    return fetchWithTimeout(clone.url,options,3200);
+  }
+
+  // Reads/auth may race safe routes. Financial writes must stay single-route.
   const riskyWrite=method!=='GET'&&method!=='HEAD'&&/record_pos_sale|record_pos_return|cashout|shift/i.test(pathname);
   if(!riskyWrite){
     const jobs=proxyBases.map(base=>proxy(base).then(r=>{if(!r.ok&&r.status>=500)throw new Error(`HTTP ${r.status}`);return r}));
@@ -55,13 +65,12 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
       if(typeof Promise.any==='function')return await Promise.any(jobs);
       return await new Promise((resolve,reject)=>{let left=jobs.length,last;jobs.forEach(p=>p.then(resolve,e=>{last=e;if(--left===0)reject(last)}))});
     }catch(proxyError){
-      try{return await fetch(request.clone())}
-      catch(directError){console.warn('A4PRINT KASSA Supabase proxy/direct failed',proxyError,directError);throw proxyError}
+      try{return await direct()}
+      catch(directError){console.warn('A4PRINT KASSA bounded proxy/direct failed',proxyError,directError);throw proxyError}
     }
   }
 
-  try{return await proxy(proxyBases[0])}
-  catch(error){throw error}
+  return proxy(proxyBases[0]);
 };
 
 window.addEventListener('DOMContentLoaded',()=>{if(document.querySelector('script[data-a4-operator-selector]'))return;const s=document.createElement('script');s.src='./shift-operator.js?v=20260905-operator1';s.dataset.a4OperatorSelector='1';document.body.appendChild(s)},{once:true});
