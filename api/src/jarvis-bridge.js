@@ -99,7 +99,8 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
     this.get('/api/v1/jarvis/announcements', requireHubSession, async (_req, res) => {
       try {
         const data = await proxy('/api/v1/announcements');
-        return res.json({ success: true, announcements: Array.isArray(data) ? data : (data.announcements || []) });
+        const announcements = Array.isArray(data) ? data : (data.items || data.announcements || []);
+        return res.json({ success: true, announcements });
       } catch (error) {
         return res.status(error.status || 502).json({ success: false, error: String(error.message || error), announcements: [] });
       }
