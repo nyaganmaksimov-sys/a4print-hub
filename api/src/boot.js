@@ -16,7 +16,8 @@ const preloads = [
   '--import=./src/pos-customer-directory.js',
   '--import=./src/saas-billing-preload.js',
   '--import=./src/supabase-storage-proxy.js',
-  '--import=./src/jarvis-bridge.js'
+  '--import=./src/jarvis-bridge.js',
+  '--import=./src/jarvis-hub-status.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
