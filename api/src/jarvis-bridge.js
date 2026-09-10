@@ -91,6 +91,15 @@ express.application.listen = function patchedJarvisBridgeListen(...args) {
       }
     });
 
+    this.get('/api/v1/jarvis/workshop/status', requireHubSession, async (_req, res) => {
+      try {
+        const data = await proxy('/api/v1/workshop/status');
+        return res.json({ success: true, ...data });
+      } catch (error) {
+        return res.status(error.status || 502).json({ success: false, error: String(error.message || error) });
+      }
+    });
+
     this.post('/api/v1/jarvis/query', requireHubSession, async (req, res) => {
       const text = String(req.body?.text || '').trim();
       if (!text) return res.status(400).json({ success: false, error: 'TEXT_REQUIRED' });
