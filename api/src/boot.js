@@ -13,7 +13,8 @@ const preloads = [
   '--import=./src/pos-shift-control.js',
   '--import=./src/warehouse-stock.js',
   '--import=./src/pos-catalog-create.js',
-  '--import=./src/pos-customer-directory.js'
+  '--import=./src/pos-customer-directory.js',
+  '--import=./src/saas-billing-preload.js'
 ];
 const current = String(process.env.NODE_OPTIONS || '').trim();
 const missing = preloads.filter(preload => !current.includes(preload));
