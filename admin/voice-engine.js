@@ -6,11 +6,13 @@
   let running=false;
   let currentAudio=null;
   let currentUrl='';
+  let cancelCurrent=null;
+  let generation=0;
 
   function cleanupAudio(){
     if(currentAudio){
       try{currentAudio.pause()}catch{}
-      currentAudio.src='';
+      try{currentAudio.removeAttribute('src');currentAudio.load()}catch{}
       currentAudio=null;
     }
     if(currentUrl){
@@ -19,25 +21,46 @@
     }
   }
 
-  function browserVoice(text,profile){
-    if(!('speechSynthesis'in window))return Promise.resolve(false);
+  function cancelPlayback(){
+    generation+=1;
+    const cancel=cancelCurrent;
+    cancelCurrent=null;
+    if(cancel)try{cancel()}catch{}
+    try{window.speechSynthesis?.cancel?.()}catch{}
+    cleanupAudio();
+  }
+
+  function browserVoice(text,profile,myGeneration){
+    if(!('speechSynthesis'in window)||myGeneration!==generation)return Promise.resolve(false);
     return new Promise(resolve=>{
+      let settled=false;
+      let timer=null;
+      const finish=value=>{
+        if(settled)return;
+        settled=true;
+        clearTimeout(timer);
+        if(cancelCurrent===cancel)cancelCurrent=null;
+        resolve(value);
+      };
+      const cancel=()=>{try{window.speechSynthesis.cancel()}catch{}finish(false)};
+      cancelCurrent=cancel;
       try{
         const utterance=new SpeechSynthesisUtterance(String(text));
         utterance.lang='ru-RU';
         utterance.rate=profile==='male'?0.92:0.98;
         utterance.pitch=profile==='male'?0.82:1.02;
         utterance.volume=1;
-        const voices=speechSynthesis.getVoices?.()||[];
+        const voices=window.speechSynthesis.getVoices?.()||[];
         const russian=voices.filter(v=>String(v.lang||'').toLowerCase().startsWith('ru'));
         const preferred=russian.find(v=>profile==='male'
           ?/dmit|pavel|alex|male|муж/i.test(v.name)
           :/svetlana|alena|irina|mariya|female|жен/i.test(v.name));
         if(preferred)utterance.voice=preferred;
-        utterance.onend=()=>resolve(true);
-        utterance.onerror=()=>resolve(false);
-        speechSynthesis.speak(utterance);
-      }catch{resolve(false)}
+        utterance.onend=()=>finish(true);
+        utterance.onerror=()=>finish(false);
+        timer=setTimeout(()=>finish(false),Math.max(12000,Math.min(60000,String(text).length*140)));
+        window.speechSynthesis.speak(utterance);
+      }catch{finish(false)}
     });
   }
 
@@ -64,24 +87,36 @@
   }
 
   async function playItem(item){
+    const myGeneration=generation;
     try{
       const blob=await neuralAudio(item);
+      if(myGeneration!==generation)return false;
       cleanupAudio();
       currentUrl=URL.createObjectURL(blob);
       const audio=new Audio(currentUrl);
       currentAudio=audio;
-      await new Promise((resolve,reject)=>{
-        audio.onended=resolve;
-        audio.onerror=()=>reject(new Error('VOICE_AUDIO_PLAYBACK_FAILED'));
+      const played=await new Promise((resolve,reject)=>{
+        let settled=false;
+        const finish=(value,error)=>{
+          if(settled)return;
+          settled=true;
+          if(cancelCurrent===cancel)cancelCurrent=null;
+          error?reject(error):resolve(value);
+        };
+        const cancel=()=>finish(false);
+        cancelCurrent=cancel;
+        audio.onended=()=>finish(true);
+        audio.onerror=()=>finish(false,new Error('VOICE_AUDIO_PLAYBACK_FAILED'));
         const started=audio.play();
-        if(started?.catch)started.catch(reject);
+        if(started?.catch)started.catch(error=>finish(false,error));
       });
       cleanupAudio();
-      return true;
+      return played;
     }catch(error){
       cleanupAudio();
+      if(myGeneration!==generation)return false;
       if(item.fallback===false)throw error;
-      return browserVoice(item.text,item.profile);
+      return browserVoice(item.text,item.profile,myGeneration);
     }
   }
 
@@ -95,7 +130,10 @@
         try{item.resolve(await playItem(item))}
         catch(error){item.reject(error)}
       }
-    }finally{running=false}
+    }finally{
+      running=false;
+      cancelCurrent=null;
+    }
   }
 
   function speak(text,options={}){
@@ -104,8 +142,7 @@
     const profile=options.profile==='female'?'female':'male';
     if(options.interrupt){
       queue.splice(0).forEach(item=>item.resolve(false));
-      try{speechSynthesis?.cancel?.()}catch{}
-      cleanupAudio();
+      cancelPlayback();
     }
     return new Promise((resolve,reject)=>{
       const item={
@@ -124,9 +161,7 @@
 
   function stop(){
     queue.splice(0).forEach(item=>item.resolve(false));
-    try{speechSynthesis?.cancel?.()}catch{}
-    cleanupAudio();
-    running=false;
+    cancelPlayback();
   }
 
   window.A4VoiceEngine={speak,stop};
