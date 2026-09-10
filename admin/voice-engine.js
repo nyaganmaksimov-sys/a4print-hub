@@ -8,6 +8,9 @@
   let currentUrl='';
   let cancelCurrent=null;
   let generation=0;
+  let audioContext=null;
+  let unlocked=false;
+  let unlockInFlight=null;
 
   function cleanupAudio(){
     if(currentAudio){
@@ -20,6 +23,36 @@
       currentUrl='';
     }
   }
+
+  async function unlock(){
+    if(unlocked)return true;
+    if(unlockInFlight)return unlockInFlight;
+    unlockInFlight=(async()=>{
+      try{
+        const Context=window.AudioContext||window.webkitAudioContext;
+        if(Context){
+          audioContext=audioContext||new Context();
+          if(audioContext.state==='suspended')await audioContext.resume();
+          const buffer=audioContext.createBuffer(1,1,22050);
+          const source=audioContext.createBufferSource();
+          source.buffer=buffer;source.connect(audioContext.destination);source.start(0);
+          unlocked=audioContext.state==='running';
+        }else{
+          unlocked=true;
+        }
+      }catch{unlocked=false}
+      if(unlocked){
+        try{window.dispatchEvent(new CustomEvent('a4:voice-unlocked'))}catch{}
+      }
+      return unlocked;
+    })().finally(()=>{unlockInFlight=null});
+    return unlockInFlight;
+  }
+
+  function primeUnlock(){unlock().catch(()=>{})}
+  window.addEventListener('pointerdown',primeUnlock,{capture:true,passive:true});
+  window.addEventListener('touchstart',primeUnlock,{capture:true,passive:true});
+  window.addEventListener('keydown',primeUnlock,{capture:true});
 
   function cancelPlayback(){
     generation+=1;
@@ -72,11 +105,7 @@
     const response=await fetch(`${base}/api/v1/jarvis/tts`,{
       method:'POST',
       cache:'no-store',
-      headers:{
-        Authorization:`Bearer ${token}`,
-        'Content-Type':'application/json',
-        Accept:'audio/mpeg'
-      },
+      headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',Accept:'audio/mpeg'},
       body:JSON.stringify({text:String(item.text).slice(0,2500),voice:item.profile})
     });
     if(!response.ok){
@@ -130,39 +159,22 @@
         try{item.resolve(await playItem(item))}
         catch(error){item.reject(error)}
       }
-    }finally{
-      running=false;
-      cancelCurrent=null;
-    }
+    }finally{running=false;cancelCurrent=null}
   }
 
   function speak(text,options={}){
     const value=String(text||'').trim();
     if(!value)return Promise.resolve(false);
     const profile=options.profile==='female'?'female':'male';
-    if(options.interrupt){
-      queue.splice(0).forEach(item=>item.resolve(false));
-      cancelPlayback();
-    }
+    if(options.interrupt){queue.splice(0).forEach(item=>item.resolve(false));cancelPlayback()}
     return new Promise((resolve,reject)=>{
-      const item={
-        text:value,
-        profile,
-        apiBaseUrl:options.apiBaseUrl,
-        tokenProvider:options.tokenProvider,
-        fallback:options.fallback!==false,
-        resolve,
-        reject
-      };
+      const item={text:value,profile,apiBaseUrl:options.apiBaseUrl,tokenProvider:options.tokenProvider,fallback:options.fallback!==false,resolve,reject};
       options.priority==='high'?queue.unshift(item):queue.push(item);
       drain();
     });
   }
 
-  function stop(){
-    queue.splice(0).forEach(item=>item.resolve(false));
-    cancelPlayback();
-  }
+  function stop(){queue.splice(0).forEach(item=>item.resolve(false));cancelPlayback()}
 
-  window.A4VoiceEngine={speak,stop};
+  window.A4VoiceEngine={speak,stop,unlock,isUnlocked:()=>unlocked};
 })();
