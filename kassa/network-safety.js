@@ -3,6 +3,11 @@
   if(window.__A4_KASSA_NETWORK_SAFETY__)return;
   window.__A4_KASSA_NETWORK_SAFETY__=true;
 
+  // The multi-route race exists only to work around unstable mobile carrier routing.
+  // Desktop must keep the normal configured API path; racing several origins here caused
+  // AggregateError: "All promises were rejected" and broke shift/profile loading.
+  if(!matchMedia('(max-width:980px)').matches)return;
+
   const nativeFetch=window.fetch.bind(window);
   const cfg=window.A4PRINT_CONFIG||{};
   const API_ORIGINS=[
@@ -56,9 +61,7 @@
     const ordered=[preferred,...API_ORIGINS].filter((v,i,a)=>v&&a.indexOf(v)===i);
     const safeRace=method==='GET'||method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(url.pathname);
 
-    if(safeRace){
-      return firstSuccess(ordered.map(origin=>one(req.clone(),url,origin,READ_TIMEOUT)));
-    }
+    if(safeRace)return firstSuccess(ordered.map(origin=>one(req.clone(),url,origin,READ_TIMEOUT)));
 
     // Never race financial/shift writes: a timed-out request may still complete server-side.
     const origin=preferred||info.apiOrigin;
