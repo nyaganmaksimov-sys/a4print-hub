@@ -3,46 +3,19 @@
   if(window.__A4_KASSA_STARTUP_SHIFT__)return;
   window.__A4_KASSA_STARTUP_SHIFT__=true;
 
-  let done=false;
-  let attempts=0;
-  let timer=null;
-
-  function appReady(){
+  // Do not force-open the shift page after login.
+  // Mobile networks can make the shift status request slow; the cashier should
+  // always land on the usable sale screen and open Shift explicitly when needed.
+  function keepSaleVisible(){
     const app=document.getElementById('appView');
     const auth=document.getElementById('authView');
-    const nav=document.getElementById('navShift');
-    if(!app||!nav)return false;
-    if(app.hidden)return false;
-    if(auth&&!auth.hidden)return false;
-    return true;
+    if(!app||app.hidden||!auth||!auth.hidden)return;
+    const sale=document.querySelector('[data-section="sale"]');
+    const shift=document.getElementById('shiftView');
+    if(shift&&!shift.hidden)return; // user explicitly opened Shift; do not interfere
+    if(sale&&!sale.classList.contains('active'))sale.click();
   }
 
-  function enterShiftOnce(){
-    if(done)return true;
-    if(!appReady())return false;
-    const view=document.getElementById('shiftView');
-    if(view&&view.hidden===false){done=true;return true}
-    const nav=document.getElementById('navShift');
-    if(!nav)return false;
-    nav.click();
-    done=true;
-    return true;
-  }
-
-  function tick(){
-    attempts+=1;
-    if(enterShiftOnce()||attempts>=120){
-      if(timer)clearInterval(timer);
-      timer=null;
-    }
-  }
-
-  function start(){
-    tick();
-    if(!done&&!timer)timer=setInterval(tick,250);
-  }
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
-  else start();
-  window.addEventListener('pageshow',()=>{if(!done)start()});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(keepSaleVisible,0),{once:true});
+  else setTimeout(keepSaleVisible,0);
 })();
