@@ -44,11 +44,9 @@ async function initA4Navigation(){
 
 function loadJarvisAssistant(){
   if(window.__A4_JARVIS_LOADER__)return;window.__A4_JARVIS_LOADER__=true;
-  const version='20260911-ai1';
-  const assistant=document.createElement('script');assistant.type='module';assistant.src=`./jarvis-assistant.js?v=${version}`;document.head.appendChild(assistant);
-  const wake=document.createElement('script');wake.type='module';wake.src=`./jarvis-wake.js?v=${version}`;document.head.appendChild(wake);
-  const sentinel=document.createElement('script');sentinel.type='module';sentinel.src=`./jarvis-sentinel-ui.js?v=${version}`;document.head.appendChild(sentinel);
-  const sentinelAi=document.createElement('script');sentinelAi.type='module';sentinelAi.src=`./jarvis-sentinel-ai-ui.js?v=${version}`;document.head.appendChild(sentinelAi);
+  const version='20260911-manager1';
+  const files=['jarvis-assistant.js','jarvis-wake.js','jarvis-sentinel-ui.js','jarvis-sentinel-ai-ui.js','jarvis-sentinel-learning-ui.js','jarvis-login-briefing.js'];
+  for(const file of files){const script=document.createElement('script');script.type='module';script.src=`./${file}?v=${version}`;document.head.appendChild(script)}
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{initA4Navigation();loadJarvisAssistant()},{once:true});else{initA4Navigation();loadJarvisAssistant()}
