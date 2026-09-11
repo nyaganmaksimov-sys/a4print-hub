@@ -44,7 +44,9 @@ async function initA4Navigation(){
 
 function loadJarvisAssistant(){
   if(window.__A4_JARVIS_LOADER__)return;window.__A4_JARVIS_LOADER__=true;
-  const s=document.createElement('script');s.type='module';s.src='./jarvis-assistant.js?v=20260910-1';document.head.appendChild(s);
+  const version='20260911-runtime2';
+  const assistant=document.createElement('script');assistant.type='module';assistant.src=`./jarvis-assistant.js?v=${version}`;document.head.appendChild(assistant);
+  const wake=document.createElement('script');wake.type='module';wake.src=`./jarvis-wake.js?v=${version}`;document.head.appendChild(wake);
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{initA4Navigation();loadJarvisAssistant()},{once:true});else{initA4Navigation();loadJarvisAssistant()}
