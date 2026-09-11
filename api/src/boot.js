@@ -3,6 +3,7 @@ const preloads = [
   '--import=./src/jarvis-warmkeeper.js',
   '--import=./src/jarvis-runtime-health.js',
   '--import=./src/jarvis-sentinel.js',
+  '--import=./src/jarvis-cloud-response-guard.js',
   '--import=./src/jarvis-support-ai.js',
   '--import=./src/pos-operator-patch.js',
   '--import=./src/pos-sale-idempotency.js',
