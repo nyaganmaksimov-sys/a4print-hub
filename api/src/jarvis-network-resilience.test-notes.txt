@@ -1,0 +1,7 @@
+Jarvis network resilience invariants:
+- only successful Supabase auth responses are cached;
+- auth cache is fresh for 5 minutes and stale-fallback eligible for 15 minutes;
+- stale cache is only used after upstream network failures;
+- GET requests to Jarvis may retry once;
+- non-GET Jarvis requests are never retried automatically;
+- direct Jarvis upstream requests may wait up to 65 seconds to tolerate Render cold starts.
