@@ -32,9 +32,14 @@ async function init(){
     const {data:{session}}=await supabase.auth.getSession();if(!session?.user?.id)return;
     const mark=`a4_jarvis_greeted_v1:${session.user.id}:${moscowDate()}`;if(localStorage.getItem(mark)==='1')return;
     const data=await api('/api/v1/jarvis/briefing');if(!data?.success)return;
-    localStorage.setItem(mark,'1');const phrase=greetingText(data);showCard(data);appendToJarvis(data,phrase);pendingSpeech=phrase;
-    await speakPending();
-    const retry=()=>speakPending();window.addEventListener('a4:voice-unlocked',retry,{once:true});document.addEventListener('pointerdown',retry,{once:true,capture:true});document.addEventListener('keydown',retry,{once:true,capture:true});
+    const phrase=greetingText(data);showCard(data);appendToJarvis(data,phrase);pendingSpeech=phrase;
+    const retry=async()=>{const ok=await speakPending();if(ok||!voiceEnabled())localStorage.setItem(mark,'1');return ok};
+    await retry();
+    if(localStorage.getItem(mark)!=='1'){
+      window.addEventListener('a4:voice-unlocked',retry,{once:true});
+      document.addEventListener('pointerdown',retry,{once:true,capture:true});
+      document.addEventListener('keydown',retry,{once:true,capture:true});
+    }
     window.dispatchEvent(new CustomEvent('a4:jarvis-login-briefing',{detail:data}));
   }catch(error){console.warn('Jarvis login briefing:',error)}
 }
