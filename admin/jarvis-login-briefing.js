@@ -7,7 +7,6 @@ let pendingSpeech='';
 let speaking=false;
 
 function apiBase(){return String(cfg.apiBaseUrl||'').replace(/\/$/,'')}
-function moscowDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function daypart(){const h=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hour12:false}).format(new Date()));return h<12?'Доброе утро':h<18?'Добрый день':'Добрый вечер'}
 function voiceEnabled(){return localStorage.getItem(STORAGE_VOICE)!=='0'}
 async function token(){const {data:{session}}=await supabase.auth.getSession();return session?.access_token||''}
@@ -30,7 +29,9 @@ async function speakPending(){if(speaking||!pendingSpeech||!voiceEnabled()||!win
 async function init(){
   try{
     const {data:{session}}=await supabase.auth.getSession();if(!session?.user?.id)return;
-    const mark=`a4_jarvis_greeted_v1:${session.user.id}:${moscowDate()}`;if(localStorage.getItem(mark)==='1')return;
+    const signInId=String(session.user.last_sign_in_at||session.expires_at||'current-session');
+    const mark=`a4_jarvis_greeted_login_v1:${session.user.id}:${signInId}`;
+    if(localStorage.getItem(mark)==='1')return;
     const data=await api('/api/v1/jarvis/briefing');if(!data?.success)return;
     const phrase=greetingText(data);showCard(data);appendToJarvis(data,phrase);pendingSpeech=phrase;
     const retry=async()=>{const ok=await speakPending();if(ok||!voiceEnabled())localStorage.setItem(mark,'1');return ok};
