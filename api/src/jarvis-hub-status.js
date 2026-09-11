@@ -59,7 +59,8 @@ async function buildSnapshot() {
     safeRows('production', 'production_jobs', { order: { column: 'updated_at' }, limit: 1000 }),
     safeRows('notifications', 'notifications', { eq: { is_read: false }, order: { column: 'created_at' }, limit: 100 }),
     safeRows('sales', 'pos_sales', { gte: { created_at: todayIso }, limit: 2000 }),
-    safeRows('returns', 'pos_returns', { gte: { created_at: todayIso }, limit: 2000 })
+    safeRows('returns', 'pos_returns', { gte: { created_at: todayIso }, limit: 2000 }),
+    safeRows('incidents', 'jarvis_incidents', { order: { column: 'last_seen_at' }, limit: 1000 })
   ]);
 
   const byName = Object.fromEntries(results.map(x => [x.name, x]));
@@ -68,11 +69,27 @@ async function buildSnapshot() {
   const notifications = byName.notifications.rows;
   const sales = byName.sales.rows;
   const returns = byName.returns.rows;
+  const incidents = byName.incidents.rows.filter(x => x.status !== 'RESOLVED');
 
   const gross = sales.reduce((sum, x) => sum + amount(x, ['total','total_amount','amount','sum']), 0);
   const refunds = returns.reduce((sum, x) => sum + amount(x, ['amount','total','total_amount','sum']), 0);
   const chat = notifications.filter(x => String(x.type || '').toUpperCase() === 'CHAT_MESSAGE');
   const warnings = results.filter(x => x.error).map(x => ({ source: x.name, error: x.error }));
+  const incidentAttention = incidents
+    .sort((a, b) => (a.severity === 'critical' ? -1 : 0) - (b.severity === 'critical' ? -1 : 0) || new Date(b.last_seen_at) - new Date(a.last_seen_at))
+    .slice(0, 20)
+    .map(x => ({
+      type: 'JARVIS_INCIDENT',
+      id: x.id,
+      severity: x.severity,
+      priority: x.severity === 'critical' ? 'high' : 'normal',
+      title: x.title,
+      message: String(x.detail || '').slice(0, 320),
+      source: x.source,
+      kind: x.kind,
+      route: x.evidence?.route || null,
+      created_at: x.last_seen_at
+    }));
 
   return {
     configured: Boolean(supabase),
@@ -108,12 +125,21 @@ async function buildSnapshot() {
         created_at: x.created_at
       }))
     },
-    attention: notifications.slice(0, 20).map(x => ({
-      type: x.type,
-      title: x.title,
-      message: String(x.message || x.body || '').slice(0, 240),
-      created_at: x.created_at
-    }))
+    incidents: {
+      total: incidents.length,
+      critical: incidents.filter(x => x.severity === 'critical').length,
+      warning: incidents.filter(x => x.severity === 'warning').length,
+      items: incidentAttention
+    },
+    attention: [
+      ...incidentAttention,
+      ...notifications.map(x => ({
+        type: x.type,
+        title: x.title,
+        message: String(x.message || x.body || '').slice(0, 240),
+        created_at: x.created_at
+      }))
+    ].slice(0, 30)
   };
 }
 
