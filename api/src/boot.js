@@ -1,5 +1,6 @@
 const preloads = [
   '--import=./src/jarvis-network-resilience.js',
+  '--import=./src/jarvis-warmkeeper.js',
   '--import=./src/jarvis-runtime-health.js',
   '--import=./src/jarvis-sentinel.js',
   '--import=./src/pos-operator-patch.js',
