@@ -13,8 +13,6 @@
     }catch{return null}
   }
   function methodOf(input,init){return String(init?.method||input?.method||'GET').toUpperCase()}
-  function idOf(shift){return String(shift?.id||'').trim()}
-  function sameShift(a,b){const aa=idOf(a),bb=idOf(b);return !!aa&&aa===bb}
   function jsonResponse(body,source){
     const headers=new Headers(source?.headers||{});
     headers.set('content-type','application/json; charset=utf-8');
@@ -31,6 +29,9 @@
     if(!shift){await DB.setMeta('shift',null);return}
     await DB.setMeta('shift',{...shift,...extra,checked_at:new Date().toISOString()});
   }
+  function saveShiftInBackground(shift,extra={}){
+    Promise.resolve(saveShift(shift,extra)).catch(error=>console.warn('Shift session cache:',error));
+  }
   async function restore(){
     try{
       const saved=await DB?.getMeta?.('shift',null);
@@ -38,16 +39,6 @@
     }catch(error){console.warn('Shift session restore:',error)}
   }
   gate.ready=restore();
-
-  async function liveStatus(openUrl,input,init){
-    try{
-      const statusUrl=new URL(openUrl.href);statusUrl.pathname=statusUrl.pathname.replace(/\/open\/?$/,'');
-      const sourceHeaders=init?.headers||input?.headers||undefined;
-      const response=await originalFetch(statusUrl.href,{method:'GET',headers:sourceHeaders,cache:'no-store'});
-      if(!response.ok)return null;
-      return await response.json().catch(()=>null);
-    }catch{return null}
-  }
 
   window.fetch=async function a4ShiftSessionFetch(input,init={}){
     const u=posShiftUrl(input),method=methodOf(input,init);
@@ -57,15 +48,16 @@
 
     try{
       if(method==='POST'&&u.pathname.endsWith('/open')){
-        let data=await response.clone().json();
-        const live=await liveStatus(u,input,init);
-        if(live?.shift)data={...data,shift:live.shift,store:live.store||data.store,organization:live.organization||data.organization,summary:live.summary||data.summary};
+        const data=await response.clone().json();
         gate.active=!!data?.shift;gate.remoteShift=data?.shift||null;gate.openedAt=data?.shift?.openDate||data?.shift?.moment||new Date().toISOString();
-        await saveShift(gate.remoteShift,{store:data?.store||null});emit('open');return jsonResponse(data,response);
+        saveShiftInBackground(gate.remoteShift,{store:data?.store||null});
+        emit('open');
+        return jsonResponse(data,response);
       }
 
       if(method==='POST'&&u.pathname.endsWith('/close')){
-        gate.active=false;gate.remoteShift=null;gate.openedAt=null;await saveShift(null);emit('close');return response;
+        gate.active=false;gate.remoteShift=null;gate.openedAt=null;
+        saveShiftInBackground(null);emit('close');return response;
       }
 
       if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)){
@@ -73,11 +65,11 @@
         if(liveShift){
           const wasActive=gate.active;
           gate.active=true;gate.remoteShift=liveShift;gate.openedAt=liveShift.openDate||gate.openedAt||new Date().toISOString();
-          await saveShift(liveShift,{store:data?.store||null});
+          saveShiftInBackground(liveShift,{store:data?.store||null});
           if(!wasActive)emit('remote-adopted');
           return response;
         }
-        if(gate.active){gate.active=false;gate.remoteShift=null;gate.openedAt=null;await saveShift(null);emit('remote-closed')}
+        if(gate.active){gate.active=false;gate.remoteShift=null;gate.openedAt=null;saveShiftInBackground(null);emit('remote-closed')}
         return closedResponse(response);
       }
     }catch(error){console.warn('Shift session gate:',error)}
