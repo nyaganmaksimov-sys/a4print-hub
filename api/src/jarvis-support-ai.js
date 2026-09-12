@@ -18,6 +18,7 @@ const service = supabaseUrl && serviceKey
 
 const AI_INTERVAL_MS = Math.max(90_000, Number(process.env.JARVIS_INCIDENT_AI_INTERVAL_MS || 120_000));
 const AI_MAX_PER_RUN = Math.max(1, Math.min(5, Number(process.env.JARVIS_INCIDENT_AI_BATCH || 2)));
+const AI_RETRY_MS = Math.max(AI_INTERVAL_MS, Number(process.env.JARVIS_INCIDENT_AI_RETRY_MS || 1_800_000));
 const workerState = { running: false, scans: 0, analyzed: 0, last_run_at: null, last_error: null };
 
 function nowIso() { return new Date().toISOString(); }
@@ -251,6 +252,14 @@ function incidentSignature(incident) {
   return hash(JSON.stringify({ kind: incident.kind, severity: incident.severity, source: incident.source, title: incident.title, detail: incident.detail, evidence: incident.evidence || {} }));
 }
 
+function incidentNeedsAnalysis(incident, cached, at = Date.now(), retryMs = AI_RETRY_MS) {
+  if (!cached || cached.incident_signature !== incidentSignature(incident)) return true;
+  if (cached.analysis) return false;
+  if (!cached.last_error) return true;
+  const lastAttemptAt = Date.parse(cached.updated_at || '');
+  return !Number.isFinite(lastAttemptAt) || at - lastAttemptAt >= retryMs;
+}
+
 function technicalIncident(incident) {
   return new Set(['integration_error', 'equipment_maintenance', 'monitoring_error', 'jarvis_runtime', 'system_health']).has(String(incident?.kind || ''));
 }
@@ -314,15 +323,14 @@ async function runIncidentAi() {
     const ids = (incidents || []).map(x => x.id);
     let cachedRows = [];
     if (ids.length) {
-      const { data, error: aiError } = await service.from('jarvis_incident_ai').select('incident_id,incident_signature,analysis').in('incident_id', ids);
+      const { data, error: aiError } = await service.from('jarvis_incident_ai').select('incident_id,incident_signature,analysis,last_error,updated_at').in('incident_id', ids);
       if (aiError) throw aiError;
       cachedRows = data || [];
     }
     const cache = new Map(cachedRows.map(x => [x.incident_id, x]));
-    const pending = (incidents || []).filter(item => {
-      const row = cache.get(item.id);
-      return !row || row.incident_signature !== incidentSignature(item) || !row.analysis;
-    }).slice(0, AI_MAX_PER_RUN);
+    const pending = (incidents || [])
+      .filter(item => incidentNeedsAnalysis(item, cache.get(item.id)))
+      .slice(0, AI_MAX_PER_RUN);
     for (const incident of pending) {
       try { await analyzeIncidentRecord(incident); }
       catch (error) { console.warn('[Jarvis Sentinel AI]', incident.id, error?.message || error); }
@@ -376,7 +384,7 @@ express.application.listen = function patchedJarvisSupportAiListen(...args) {
       try {
         const viewer = await sentinelViewer(req);
         if (!viewer.isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
-        return res.json({ success: true, ai: { ...workerState, interval_ms: AI_INTERVAL_MS, batch: AI_MAX_PER_RUN } });
+        return res.json({ success: true, ai: { ...workerState, interval_ms: AI_INTERVAL_MS, retry_ms: AI_RETRY_MS, batch: AI_MAX_PER_RUN } });
       } catch (error) { return res.status(error.status || 500).json({ success: false, error: String(error?.message || error) }); }
     });
   }
@@ -384,4 +392,4 @@ express.application.listen = function patchedJarvisSupportAiListen(...args) {
   return originalListen.apply(this, args);
 };
 
-export { runIncidentAi };
+export { incidentNeedsAnalysis, runIncidentAi };

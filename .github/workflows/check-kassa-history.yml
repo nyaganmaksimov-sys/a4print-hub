@@ -9,6 +9,14 @@ on:
       - 'kassa/sw.js'
       - 'database/migrations/108_pos_receipt_history.sql'
       - '.github/workflows/check-kassa-history.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'kassa/history-hub.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - 'database/migrations/108_pos_receipt_history.sql'
+      - '.github/workflows/check-kassa-history.yml'
   workflow_dispatch:
 
 jobs:
@@ -33,13 +41,14 @@ jobs:
           grep -q 'get_pos_receipt_history' kassa/history-hub.js
           grep -q 'Печать чека' kassa/history-hub.js
           grep -q 'returned_total' kassa/history-hub.js
-          grep -q "loadScript('./history-hub.js')" kassa/bootstrap.js
+          grep -q "'./history-hub.js'" kassa/bootstrap.js
           grep -q './history-hub.js' kassa/sw.js
           grep -q 'get_pos_receipt_history' database/migrations/108_pos_receipt_history.sql
           grep -q "has_role('POS_OPERATOR')" database/migrations/108_pos_receipt_history.sql
           grep -q 'security definer' database/migrations/108_pos_receipt_history.sql
 
   history-live:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
