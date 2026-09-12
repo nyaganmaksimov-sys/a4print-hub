@@ -80,9 +80,9 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
 };
 
-// The manager workspace shows real customer/production orders only.
-// POS receipts are stored in public.orders for accounting, but they must not
-// pollute the manager's compact "Recent orders" widget.
+// The manager workspace shows only ordinary office/customer orders.
+// POS receipts and partner-direction orders live in their own workflows and must
+// not pollute the manager's compact "Recent orders" widget.
 (function installManagerRecentOrdersFilter(){
   if(window.__A4_MANAGER_ORDER_FILTER__)return;
   if(!/\/admin\/manager\.html$/.test(location.pathname))return;
@@ -96,8 +96,11 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
         && url.searchParams.get('limit')==='8'
         && String(url.searchParams.get('order')||'').startsWith('created_at.desc')
         && String(url.searchParams.get('select')||'').includes('customers(');
-      if(isRecentOrders&&!url.searchParams.has('source')){
-        url.searchParams.set('source','neq.KASSA');
+      if(isRecentOrders){
+        if(!url.searchParams.has('source')) url.searchParams.set('source','neq.KASSA');
+        if(!url.searchParams.has('partner_direction')) url.searchParams.set('partner_direction','eq.NONE');
+        if(!url.searchParams.has('partner_id')) url.searchParams.set('partner_id','is.null');
+        if(!url.searchParams.has('fulfillment_partner_id')) url.searchParams.set('fulfillment_partner_id','is.null');
         return previousFetch(new Request(url.href,req));
       }
     }catch{}
