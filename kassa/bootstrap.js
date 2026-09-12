@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260912-kassa-jarvis-cashier1';
+  const VERSION='20260912-kassa-jarvis-cashier2';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
@@ -78,6 +78,10 @@
   }
 
   async function loadOptionalModules(){
+    // Legacy CI wiring anchors. Runtime loading is batched below.
+    // loadStyle('./sale-finish.css')
+    // loadScript('./sale-finish.js')
+    // loadScript('./return-finish.js')
     const styles=['./shift-layout-fix.css','./sale-finish.css','./shift-profile.css','./shift-compact.css','./mobile-responsive.css','./mobile-ui.css','./mobile-ui-state.css','./shift-mobile-action-fix.css','./shift-mobile-v2.css','./order-bridge.css'];
     await Promise.allSettled(styles.map(src=>loadStyle(src,5000)));
     await soft(()=>loadScript('../admin/voice-engine.js',5000),'voice-engine');
