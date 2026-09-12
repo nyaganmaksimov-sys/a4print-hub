@@ -7,6 +7,7 @@
   function state(){return window.A4KassaShiftSession||{active:false,remoteShift:null,openedAt:null,pending:null}}
   function setText(el,text){if(el&&el.textContent!==text)el.textContent=text}
   function setClass(el,value){if(el&&el.className!==value)el.className=value}
+  function localShift(gate){return !!gate?.remoteShift&&(gate.remoteShift._local_pending===true||String(gate.remoteShift.id||'').startsWith('local-'))}
 
   function sync(){
     if(syncing)return;
@@ -15,22 +16,31 @@
       const gate=state();
       const active=!!gate.active;
       const pending=gate.pending||null;
+      const local=active&&localShift(gate);
+      const backgroundSync=local||pending==='sync'||pending==='sync-error';
       const hubName=String(window.A4KassaShiftProfileDisplayName||'').trim();
       const officialName=String(gate.remoteShift?.name||'').trim();
       const name=hubName||officialName;
-      const label=pending==='open'?'Открываем смену…':pending==='close'?'Закрываем смену…':active?`Смена${name?' '+name:''}`:'Смена не открыта';
+      let label;
+      if(backgroundSync&&active){
+        label=pending==='sync-error'?'Смена открыта · ждём синхронизацию':'Смена открыта · синхронизация…';
+      }else if(pending==='close'||pending==='sync-close')label='Закрываем смену…';
+      else if(pending==='open'&&!active)label='Открываем смену…';
+      else label=active?`Смена${name?' '+name:''}`:'Смена не открыта';
       setText($('shiftInfo'),label);
       setText($('footerShift'),label);
 
       const chip=$('shiftChip');
       if(chip){
-        setClass(chip,'status-chip '+(pending?'warn':active?'ok':'warn'));
-        setText(chip.querySelector('span'),pending==='open'?'Открываем…':pending==='close'?'Закрываем…':active?'Смена открыта':'Смена закрыта');
+        const visuallyOpen=active&&pending!=='close'&&pending!=='sync-close';
+        setClass(chip,'status-chip '+(visuallyOpen?'ok':pending?'warn':'warn'));
+        setText(chip.querySelector('span'),visuallyOpen?'Смена открыта':pending==='close'||pending==='sync-close'?'Закрываем…':pending==='open'?'Открываем…':'Смена закрыта');
       }
 
       const oldButton=$('shiftButton');
       if(oldButton){
-        setText(oldButton,pending==='open'?'Открываем…':pending==='close'?'Закрываем…':active?'Закрыть смену':'Открыть смену');
+        const visuallyOpen=active&&pending!=='close'&&pending!=='sync-close';
+        setText(oldButton,visuallyOpen?'Закрыть смену':pending==='close'||pending==='sync-close'?'Закрываем…':pending==='open'?'Открываем…':'Открыть смену');
       }
 
       const toast=$('toast');
@@ -50,10 +60,10 @@
 
   function onShiftEvent(event){
     const reason=event?.detail?.reason;
-    if(reason==='close'||reason==='remote-closed')window.A4KassaShiftProfileDisplayName='';
+    if(reason==='close'||reason==='remote-closed'||reason==='local-close')window.A4KassaShiftProfileDisplayName='';
     sync();
-    if(reason==='open'||reason==='close'||reason==='remote-adopted'||reason==='remote-closed')scheduleShiftViewRefresh();
-    if(reason==='open'){
+    if(reason==='open'||reason==='close'||reason==='remote-adopted'||reason==='remote-closed'||reason==='sync-complete')scheduleShiftViewRefresh();
+    if(reason==='open'||reason==='sync-complete'){
       setTimeout(()=>{
         const toast=$('toast');
         if(toast&&/Подключились к открытой смене/i.test(toast.textContent||''))setText(toast,'Смена открыта');
