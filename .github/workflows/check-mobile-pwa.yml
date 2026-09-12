@@ -13,6 +13,9 @@ on:
       - 'admin/profile.js'
       - 'admin/manager.html'
       - 'admin/manager-runtime.js'
+      - 'admin/manager-workspace.js'
+      - 'admin/manager-layout-v2.js'
+      - 'admin/manager-widgets.js'
       - 'admin/mobile-shell.*'
       - 'admin/config.js'
       - 'admin/guard.js'
@@ -50,6 +53,9 @@ jobs:
           node --check admin/mobile-auth-route.js
           node --check admin/profile.js
           node --check admin/manager-runtime.js
+          node --check admin/manager-workspace.js
+          node --check admin/manager-layout-v2.js
+          node --check admin/manager-widgets.js
           node --check admin/mobile-shell.js
           node --check admin/chat-watchdog.js
           node --check admin/chat-modern.js
@@ -124,9 +130,18 @@ jobs:
           grep -q "'/api/v1/supabase'" api/src/mobile-proxy.js
           grep -q '/api/v1/mobile/auth/password' api/src/mobile-proxy.js
           grep -q 'vendor/supabase.js' admin/login.html
-          grep -q 'login.js?v=20260905-emailfix1' admin/login.html
+          grep -q 'login.js?v=' admin/login.html
           ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' admin/login.js
           ! grep -q 'sb-qgakliolffnwkymoqvzn-auth-token' admin/login.js
+
+      - name: Verify manager workspace assets
+        run: |
+          grep -q 'manager-layout-v2.js?v=' admin/manager.html
+          grep -q 'manager-widgets.js?v=' admin/manager.html
+          grep -q 'manager-side-stack' admin/manager-layout-v2.js
+          grep -q 'managerDigitalClock' admin/manager-widgets.js
+          grep -q 'pointerdown' admin/manager-widgets.js
+          grep -q 'pointermove' admin/manager-widgets.js
 
       - name: Verify Google auth provider
         shell: bash
