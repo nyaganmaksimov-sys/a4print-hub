@@ -2,7 +2,7 @@
   'use strict';
   const originalFetch=window.fetch.bind(window);
   const DB=window.A4KassaDB;
-  const gate={active:false,remoteShift:null,openedAt:null,ready:null};
+  const gate={active:false,remoteShift:null,openedAt:null,ready:null,pending:null};
   window.A4KassaShiftSession=gate;
 
   function posShiftUrl(input){
@@ -21,7 +21,7 @@
   }
   function closedResponse(source){return jsonResponse({success:true,shift:null,summary:null,manualRequired:true},source)}
   function emit(reason){
-    const detail={active:!!gate.active,shift:gate.remoteShift?{...gate.remoteShift}:null,openedAt:gate.openedAt,reason};
+    const detail={active:!!gate.active,shift:gate.remoteShift?{...gate.remoteShift}:null,openedAt:gate.openedAt,pending:gate.pending,reason};
     queueMicrotask(()=>window.dispatchEvent(new CustomEvent('a4:kassa-shift',{detail})));
   }
   async function saveShift(shift,extra={}){
@@ -43,20 +43,33 @@
   window.fetch=async function a4ShiftSessionFetch(input,init={}){
     const u=posShiftUrl(input),method=methodOf(input,init);
     if(!u)return originalFetch(input,init);
-    const response=await originalFetch(input,init);
-    if(!response.ok)return response;
+
+    const opening=method==='POST'&&u.pathname.endsWith('/open');
+    const closing=method==='POST'&&u.pathname.endsWith('/close');
+    if(opening||closing){gate.pending=opening?'open':'close';emit(opening?'opening':'closing')}
+
+    let response;
+    try{response=await originalFetch(input,init)}
+    catch(error){
+      if(opening||closing){gate.pending=null;emit(opening?'open-error':'close-error')}
+      throw error;
+    }
+    if(!response.ok){
+      if(opening||closing){gate.pending=null;emit(opening?'open-error':'close-error')}
+      return response;
+    }
 
     try{
-      if(method==='POST'&&u.pathname.endsWith('/open')){
+      if(opening){
         const data=await response.clone().json();
-        gate.active=!!data?.shift;gate.remoteShift=data?.shift||null;gate.openedAt=data?.shift?.openDate||data?.shift?.moment||new Date().toISOString();
+        gate.pending=null;gate.active=!!data?.shift;gate.remoteShift=data?.shift||null;gate.openedAt=data?.shift?.openDate||data?.shift?.moment||new Date().toISOString();
         saveShiftInBackground(gate.remoteShift,{store:data?.store||null});
         emit('open');
         return jsonResponse(data,response);
       }
 
-      if(method==='POST'&&u.pathname.endsWith('/close')){
-        gate.active=false;gate.remoteShift=null;gate.openedAt=null;
+      if(closing){
+        gate.pending=null;gate.active=false;gate.remoteShift=null;gate.openedAt=null;
         saveShiftInBackground(null);emit('close');return response;
       }
 
