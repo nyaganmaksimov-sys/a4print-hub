@@ -1,6 +1,7 @@
 (function(){
   if(!/\/admin\/messages\.html$/.test(location.pathname))return;
   const q=new URLSearchParams(location.search);
+  const embed=q.get('embed')==='1';
   const appMode=q.get('app')==='1'||window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true;
   const style=document.createElement('style');
   style.textContent=`
@@ -19,9 +20,14 @@
   document.head.appendChild(style);
   if(appMode){
     document.documentElement.classList.add('a4-chat-app-mode');
-    const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260904-1';shell.async=false;document.head.appendChild(shell);
+    // Embedded widget already has its own compact shell. Loading the full mobile
+    // shell here duplicates observers/navigation and can stall low-power clients.
+    if(!embed){
+      const shell=document.createElement('script');shell.src='/admin/mobile-shell.js?v=20260905-4';shell.async=false;document.head.appendChild(shell);
+    }
   }
   const addLink=()=>{
+    if(embed)return;
     const actions=document.querySelector('.chat-head .head-actions');
     if(!actions)return;
     if(appMode){
