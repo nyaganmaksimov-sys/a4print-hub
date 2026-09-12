@@ -20,7 +20,24 @@
     return new Response(JSON.stringify(body),{status:source?.status||200,statusText:source?.statusText||'OK',headers});
   }
   function closedResponse(source){return jsonResponse({success:true,shift:null,summary:null,manualRequired:true},source)}
+  function setText(id,text){const el=document.getElementById(id);if(el)el.textContent=text}
+  function paint(){
+    const pending=gate.pending;
+    const active=!!gate.active;
+    const name=String(gate.remoteShift?.name||'').trim();
+    const label=pending==='open'?'Открываем смену…':pending==='close'?'Закрываем смену…':active?`Смена${name?' '+name:''}`:'Смена не открыта';
+    setText('shiftInfo',label);setText('footerShift',label);
+    const button=document.getElementById('shiftButton');
+    if(button)button.textContent=pending==='open'?'Открываем…':pending==='close'?'Закрываем…':active?'Закрыть смену':'Открыть смену';
+    const chip=document.getElementById('shiftChip');
+    if(chip){
+      chip.className='status-chip '+(pending?'warn':active?'ok':'warn');
+      const span=chip.querySelector('span');
+      if(span)span.textContent=pending==='open'?'Открываем…':pending==='close'?'Закрываем…':active?'Смена открыта':'Смена закрыта';
+    }
+  }
   function emit(reason){
+    paint();
     const detail={active:!!gate.active,shift:gate.remoteShift?{...gate.remoteShift}:null,openedAt:gate.openedAt,pending:gate.pending,reason};
     queueMicrotask(()=>window.dispatchEvent(new CustomEvent('a4:kassa-shift',{detail})));
   }
@@ -36,6 +53,7 @@
     try{
       const saved=await DB?.getMeta?.('shift',null);
       if(saved?.id){gate.active=true;gate.remoteShift=saved;gate.openedAt=saved.openDate||saved.openedAt||null}
+      paint();
     }catch(error){console.warn('Shift session restore:',error)}
   }
   gate.ready=restore();
@@ -79,10 +97,12 @@
           const wasActive=gate.active;
           gate.active=true;gate.remoteShift=liveShift;gate.openedAt=liveShift.openDate||gate.openedAt||new Date().toISOString();
           saveShiftInBackground(liveShift,{store:data?.store||null});
+          paint();
           if(!wasActive)emit('remote-adopted');
           return response;
         }
         if(gate.active){gate.active=false;gate.remoteShift=null;gate.openedAt=null;saveShiftInBackground(null);emit('remote-closed')}
+        else paint();
         return closedResponse(response);
       }
     }catch(error){console.warn('Shift session gate:',error)}
