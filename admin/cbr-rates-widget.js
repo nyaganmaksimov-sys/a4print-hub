@@ -107,3 +107,12 @@
   function init(){installStyles();ensureRoot();loadRates();clearInterval(timer);timer=setInterval(loadRates,REFRESH_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadRates()});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
+
+(()=>{
+  if(window.__A4_DASHBOARD_PANELS_LOADER__)return;
+  window.__A4_DASHBOARD_PANELS_LOADER__=true;
+  const script=document.createElement('script');
+  script.src='./dashboard-panels.js?v=20260912-1';
+  script.defer=true;
+  document.head.appendChild(script);
+})();
