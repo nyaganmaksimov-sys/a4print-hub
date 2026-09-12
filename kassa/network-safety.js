@@ -12,6 +12,7 @@
   const READ_TIMEOUT=6500;
   const HEAVY_READ_TIMEOUT=30000;
   const WRITE_TIMEOUT=14000;
+  const RETURN_WRITE_TIMEOUT=60000;
   const STAGGER_MS=250;
 
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -36,6 +37,10 @@
     const p=url.pathname;
     return /\/api\/v1\/pos\/cash-balance(?:\/|$)/.test(p)
       || /\/api\/v1\/pos\/shift(?:\/|$)/.test(p);
+  }
+
+  function writeTimeoutFor(url){
+    return /\/api\/v1\/pos\/returns\/?$/.test(url.pathname)?RETURN_WRITE_TIMEOUT:WRITE_TIMEOUT;
   }
 
   async function one(req,url,base,timeout){
@@ -122,12 +127,13 @@
     const routes=routeOrder(url);
     const allowFallback=isIdempotentWrite(url);
     const authWrite=isAuthWrite(url);
+    const timeout=writeTimeoutFor(url);
     let lastError=null;
     let clientResponse=null;
 
     for(let i=0;i<routes.length;i++){
       try{
-        const response=await one(req.clone(),url,routes[i],WRITE_TIMEOUT);
+        const response=await one(req.clone(),url,routes[i],timeout);
         if(response.ok)return response;
         if(response.status<500){
           clientResponse=clientResponse||response;
