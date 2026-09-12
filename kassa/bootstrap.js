@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260912-kassa-fast-shift1';
+  const VERSION='20260912-kassa-shift-resilience2';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
@@ -103,6 +103,7 @@
     await loadScript('./app.js');
     await loadScript('./modules.js');
     await loadScript('./ui.js');
+    await soft(()=>loadScript('./shift-page-resilience.js',5000),'shift-page-resilience');
     releaseBootCloak();
 
     setTimeout(()=>{loadOptionalModules().catch(error=>console.warn('A4PRINT KASSA background modules:',error))},0);
