@@ -51,8 +51,7 @@
     html.a4-manager-compact .manager-calendar-card .calendar-day.out{background:#f8fafc!important}
     html.a4-manager-compact .manager-calendar-card .day-num{width:18px!important;height:18px!important;font-size:8.5px!important;margin:0!important}
     html.a4-manager-compact .manager-calendar-card .day-chip,
-    html.a4-manager-compact .manager-calendar-card .calendar-more,
-    html.a4-manager-compact .manager-calendar-card .mgr-note[data-calendar-extra]{display:none!important}
+    html.a4-manager-compact .manager-calendar-card .calendar-more{display:none!important}
     html.a4-manager-compact .calendar-markers{position:absolute;left:4px;right:4px;bottom:4px;display:flex;align-items:center;gap:3px;min-height:8px;pointer-events:none}
     html.a4-manager-compact .calendar-marker{width:5px;height:5px;border-radius:999px;background:#2563eb;box-shadow:0 0 0 1px rgba(255,255,255,.9)}
     html.a4-manager-compact .calendar-marker.order{background:#16a34a}
@@ -101,6 +100,7 @@
 
   let hideTimer=0;
   let hover=null;
+  const ownMutationClass=new Set(['calendar-markers','calendar-marker','calendar-count']);
   function hoverBox(){
     if(hover)return hover;
     hover=document.createElement('div');
@@ -113,9 +113,10 @@
   function dateLabel(key){
     try{return new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date(`${key}T12:00:00+03:00`)).replace(/^./,x=>x.toUpperCase())}catch{return key}
   }
+  function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function positionHover(day){
-    const box=hoverBox(),r=day.getBoundingClientRect(),w=290,h=Math.max(120,box.offsetHeight||120),gap=7;
-    let left=Math.min(window.innerWidth-w-10,Math.max(10,r.left+r.width/2-w/2));
+    const box=hoverBox(),r=day.getBoundingClientRect(),w=290,h=Math.max(90,box.offsetHeight||90),gap=7;
+    const left=Math.min(window.innerWidth-w-10,Math.max(10,r.left+r.width/2-w/2));
     let top=r.bottom+gap;
     if(top+h>window.innerHeight-10)top=Math.max(10,r.top-h-gap);
     box.style.left=`${Math.round(left)}px`;box.style.top=`${Math.round(top)}px`;
@@ -125,7 +126,7 @@
     const box=hoverBox();
     const key=day.dataset.day||'';
     const chips=[...day.querySelectorAll('.day-chip')];
-    box.innerHTML=`<div class="hover-title">${dateLabel(key)}</div>${chips.length?chips.map((chip,i)=>{
+    box.innerHTML=`<div class="hover-title">${escapeHtml(dateLabel(key))}</div>${chips.length?chips.map((chip,i)=>{
       const isOrder=chip.matches('[data-order]');
       const overdue=chip.classList.contains('overdue');
       const title=(chip.getAttribute('title')||chip.textContent||'').trim();
@@ -142,24 +143,25 @@
     requestAnimationFrame(()=>positionHover(day));
   }
   function scheduleHide(){clearTimeout(hideTimer);hideTimer=setTimeout(()=>hoverBox().classList.remove('show'),130)}
-  function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
   function decorateCalendar(){
     const grid=document.getElementById('managerCalendarGrid');
     if(!grid)return;
     const days=[...grid.querySelectorAll('.calendar-day')];
     days.forEach(day=>{
-      day.querySelectorAll(':scope > .calendar-markers').forEach(x=>x.remove());
+      day.querySelector(':scope > .calendar-markers')?.remove();
       const chips=[...day.querySelectorAll('.day-chip')];
-      const marks=document.createElement('div');
-      marks.className='calendar-markers';
-      chips.slice(0,3).forEach(chip=>{
-        const dot=document.createElement('span');
-        dot.className='calendar-marker'+(chip.matches('[data-order]')?' order':'')+(chip.classList.contains('overdue')?' overdue':'');
-        marks.appendChild(dot);
-      });
-      if(chips.length){const count=document.createElement('span');count.className='calendar-count';count.textContent=String(chips.length);marks.appendChild(count)}
-      day.appendChild(marks);
+      if(chips.length){
+        const marks=document.createElement('div');
+        marks.className='calendar-markers';
+        chips.slice(0,3).forEach(chip=>{
+          const dot=document.createElement('span');
+          dot.className='calendar-marker'+(chip.matches('[data-order]')?' order':'')+(chip.classList.contains('overdue')?' overdue':'');
+          marks.appendChild(dot);
+        });
+        const count=document.createElement('span');count.className='calendar-count';count.textContent=String(chips.length);marks.appendChild(count);
+        day.appendChild(marks);
+      }
       day.tabIndex=0;
       if(day.dataset.a4HoverBound!=='1'){
         day.dataset.a4HoverBound='1';
@@ -179,10 +181,15 @@
 
   let queued=false;
   function schedule(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;decorateCalendar()})}
+  function isOwnNode(node){return node instanceof HTMLElement&&[...ownMutationClass].some(cls=>node.classList.contains(cls))}
   function init(){
     schedule();
     const observer=new MutationObserver(muts=>{
-      if(muts.some(m=>m.type==='childList'&&m.target.closest?.('#managerCalendarGrid')))schedule();
+      const relevant=muts.some(m=>{
+        if(m.type!=='childList'||!m.target.closest?.('#managerCalendarGrid'))return false;
+        return [...m.addedNodes,...m.removedNodes].some(n=>n.nodeType===1&&!isOwnNode(n));
+      });
+      if(relevant)schedule();
     });
     observer.observe(document.body,{childList:true,subtree:true});
     window.addEventListener('scroll',()=>hoverBox().classList.remove('show'),{passive:true});
