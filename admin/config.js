@@ -80,6 +80,31 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
 };
 
+// The manager workspace shows real customer/production orders only.
+// POS receipts are stored in public.orders for accounting, but they must not
+// pollute the manager's compact "Recent orders" widget.
+(function installManagerRecentOrdersFilter(){
+  if(window.__A4_MANAGER_ORDER_FILTER__)return;
+  if(!/\/admin\/manager\.html$/.test(location.pathname))return;
+  window.__A4_MANAGER_ORDER_FILTER__=true;
+  const previousFetch=window.fetch.bind(window);
+  window.fetch=function managerFilteredFetch(input,init){
+    try{
+      const req=new Request(input,init);
+      const url=new URL(req.url);
+      const isRecentOrders=url.pathname==='/rest/v1/orders'
+        && url.searchParams.get('limit')==='8'
+        && String(url.searchParams.get('order')||'').startsWith('created_at.desc')
+        && String(url.searchParams.get('select')||'').includes('customers(');
+      if(isRecentOrders&&!url.searchParams.has('source')){
+        url.searchParams.set('source','neq.KASSA');
+        return previousFetch(new Request(url.href,req));
+      }
+    }catch{}
+    return previousFetch(input,init);
+  };
+})();
+
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
   const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
@@ -115,7 +140,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
-  if(isManager)load('manager-runtime.js','20260905-4');
+  if(isManager)load('manager-runtime.js','20260912-manager8');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1')}
   load('navigation.js','20260909-equipment1');load('support-access.js','20260908-clean2');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260909-1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
