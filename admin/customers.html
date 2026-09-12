@@ -7,6 +7,7 @@
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260908-customers3">
   <link rel="stylesheet" href="./crm-finance.css?v=20260908-1">
+  <link rel="stylesheet" href="./customers-page.css?v=20260912-1">
   <script src="./config.js?v=20260908-customers3"></script>
 </head>
 <body>
@@ -22,18 +23,23 @@
         <article class="cf-kpi"><span>Клиентов</span><strong id="customersCount">0</strong><small>в общей базе HUB</small></article>
         <article class="cf-kpi"><span>Компании и ИП</span><strong id="companiesCount">0</strong><small>клиенты с бизнес-реквизитами</small></article>
         <article class="cf-kpi"><span>С заказами</span><strong id="withOrdersCount">0</strong><small>есть история заказов HUB</small></article>
-        <article class="cf-kpi green"><span>Подтверждено оплат HUB</span><strong id="paidTotal">0 ₽</strong><small>не смешивается с продажами KASSA</small></article>
+        <article class="cf-kpi green"><span>Подтверждено оплат HUB</span><strong id="paidTotal">0 ₽</strong><small>KASSA учитывается отдельно</small></article>
       </section>
 
       <section class="cf-card">
-        <div class="cf-card-head"><div><h2>База клиентов</h2><p>Карточка клиента связывает заказы, счета, оплаты и покупки в KASSA</p></div></div>
-        <div class="cf-toolbar">
+        <div class="cf-card-head customers-head">
+          <div><h2>База клиентов</h2><p>Быстрый поиск, контакты, активность, заказы и оплаты по каждому клиенту</p></div>
+          <div class="cf-card-head-actions"><button id="addCustomerInline" class="primary" type="button">+ Новый клиент</button></div>
+        </div>
+        <div class="cf-toolbar customers-toolbar">
           <input id="search" type="search" autocomplete="off" placeholder="Имя, компания, телефон, email, ИНН…">
-          <select id="type"><option value="">Все типы</option><option value="PERSON">Физлица</option><option value="IP">ИП</option><option value="LEGAL">Организации</option></select>
-          <select id="activity"><option value="">Любая активность</option><option value="orders">Есть заказы HUB</option><option value="pos">Есть покупки KASSA</option><option value="none">Без активности</option></select>
+          <select id="type" aria-label="Тип клиента"><option value="">Все типы</option><option value="PERSON">Физлица</option><option value="IP">ИП</option><option value="LEGAL">Организации</option></select>
+          <select id="activity" aria-label="Активность"><option value="">Любая активность</option><option value="orders">Есть заказы HUB</option><option value="pos">Есть покупки KASSA</option><option value="none">Без активности</option></select>
+          <select id="sort" aria-label="Сортировка"><option value="activity">Сначала активные</option><option value="name">По имени</option><option value="orders">Больше заказов</option><option value="value">По сумме заказов</option></select>
           <button id="clearFilters" type="button">Сбросить</button>
         </div>
-        <div class="cf-meta"><span><b id="visibleCount">0 из 0</b></span><span>Суммы HUB и KASSA показываются отдельно</span></div>
+        <div class="cf-meta customers-meta"><span><b id="visibleCount">0 из 0</b></span><span>HUB-заказы и продажи KASSA считаются отдельно</span></div>
+        <div class="cf-list-head" aria-hidden="true"><span>Клиент и контакты</span><span>Заказы HUB</span><span>Оплаты и KASSA</span><span>Действия</span></div>
         <div id="list" class="cf-list"><div class="cf-empty">Загрузка клиентов…</div></div>
       </section>
     </div>
@@ -60,6 +66,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./customers-modern.js?v=20260908-1"></script>
+  <script type="module" src="./customers-modern.js?v=20260912-2"></script>
 </body>
 </html>
