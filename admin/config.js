@@ -25,7 +25,16 @@ window.A4PRINT_CONFIG = {
     const x=parse(input,init);if(!x||!x.apiOrigin)return nativeFetch(input,init);
     const ordered=[getPref(),...origins].filter((v,i,a)=>v&&a.indexOf(v)===i);
     const safe=x.method==='GET'||x.method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(x.url.pathname);
-    if(safe)return any(ordered.map(origin=>one(x.req.clone(),x.url,origin,5500)));
+    const slowPosRead=x.method==='GET'&&/\/api\/v1\/pos\/(?:shift|cash-balance)(?:\/|$)/.test(x.url.pathname);
+    if(safe){
+      if(slowPosRead){
+        const origin=getPref()||x.apiOrigin;
+        try{return await one(x.req.clone(),x.url,origin,30000)}catch(e){
+          const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,30000);
+        }
+      }
+      return any(ordered.map(origin=>one(x.req.clone(),x.url,origin,5500)));
+    }
     const origin=getPref()||x.apiOrigin;
     try{return await one(x.req.clone(),x.url,origin,9000)}catch(e){
       const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,9000);
