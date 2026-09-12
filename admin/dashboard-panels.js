@@ -3,6 +3,7 @@
   window.__A4_DASHBOARD_PANELS__=true;
 
   const STORAGE_PREFIX='a4hub.dashboard.collapse.';
+  const KPI_ORDER_KEY='a4hub.dashboard.kpi.order.v1';
 
   function installStyles(){
     if(document.getElementById('a4-dashboard-panels-style'))return;
@@ -23,6 +24,24 @@
       .dash-card.is-collapsed .dash-card-head{border-bottom:0!important}
       .dash-card-head-actions{display:flex;align-items:center;gap:8px;min-width:0}
       .dash-card-head-actions>.dashboard-quick{margin-left:0}
+
+      .dash-kpis>.dash-kpi{position:relative}
+      .dash-kpi-drag-handle{
+        position:absolute;top:8px;right:8px;z-index:4;display:grid;place-items:center;
+        width:25px;height:25px;border-radius:8px;color:#a6b3c5;background:rgba(248,250,252,.86);
+        border:1px solid transparent;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+        opacity:.2;transition:opacity .14s ease,color .14s ease,background .14s ease,border-color .14s ease,transform .14s ease;
+      }
+      .dash-kpi:hover .dash-kpi-drag-handle,.dash-kpi:focus-within .dash-kpi-drag-handle{opacity:1}
+      .dash-kpi-drag-handle:hover{color:#2563eb;background:#eef5ff;border-color:#d7e4f7}
+      .dash-kpi-drag-handle:active{cursor:grabbing;transform:scale(.94)}
+      .dash-kpi-drag-handle svg{width:14px;height:14px;fill:currentColor}
+      .dash-kpi.a4-kpi-dragging{z-index:20;opacity:.68;transform:scale(.985);box-shadow:0 14px 32px rgba(37,99,235,.17)!important;border-color:#93b4eb!important;cursor:grabbing}
+      .dash-kpi.a4-kpi-drop-before:before,.dash-kpi.a4-kpi-drop-after:after{
+        content:'';position:absolute;left:-5px;right:-5px;height:3px;border-radius:99px;background:#2563eb;z-index:8;box-shadow:0 0 0 3px rgba(37,99,235,.10);
+      }
+      .dash-kpi.a4-kpi-drop-before:before{top:-6px}.dash-kpi.a4-kpi-drop-after:after{bottom:-6px}
+      body.a4-kpi-is-dragging,body.a4-kpi-is-dragging *{cursor:grabbing!important}
 
       .dash-cash-journal{
         margin:12px 14px 14px!important;padding:0!important;border:1px solid #e2e8f0!important;
@@ -73,6 +92,7 @@
       @media(max-width:700px){
         .dash-card-head{align-items:flex-start!important}
         .dash-card-head-actions{flex-wrap:wrap;justify-content:flex-end}
+        .dash-kpi-drag-handle{opacity:.82;width:28px;height:28px}
         .dash-cash-op{grid-template-columns:minmax(0,1fr) auto!important;gap:7px 10px!important;padding:11px 12px!important}
         .dash-cash-op>b{grid-column:1;justify-self:start}
         .dash-cash-op>span{grid-column:1/-1;grid-row:2}
@@ -132,6 +152,99 @@
     board.append(left,right);
     first.insertAdjacentElement('beforebegin',board);
     grids.forEach(grid=>grid.remove());
+  }
+
+  function kpiId(card,index){
+    if(card.dataset.kpiId)return card.dataset.kpiId;
+    const map=[
+      ['#newOrders','new-orders'],
+      ['#activeOrders','in-work'],
+      ['#readyOrders','ready'],
+      ['#lowStock','low-stock'],
+      ['#revenueToday','cash-today'],
+      ['#hubDigitalClock','clock']
+    ];
+    const hit=map.find(([selector])=>card.querySelector(selector));
+    card.dataset.kpiId=hit?.[1]||`kpi-${index}`;
+    return card.dataset.kpiId;
+  }
+
+  function kpiCards(container){
+    return [...container.children].filter(el=>el.classList?.contains('dash-kpi'));
+  }
+
+  function saveKpiOrder(container){
+    try{localStorage.setItem(KPI_ORDER_KEY,JSON.stringify(kpiCards(container).map(card=>card.dataset.kpiId)))}catch{}
+  }
+
+  function restoreKpiOrder(container){
+    const cards=kpiCards(container);
+    cards.forEach(kpiId);
+    let order=[];
+    try{order=JSON.parse(localStorage.getItem(KPI_ORDER_KEY)||'[]')}catch{}
+    if(!Array.isArray(order)||!order.length)return;
+    const byId=new Map(cards.map(card=>[card.dataset.kpiId,card]));
+    order.forEach(id=>{const card=byId.get(id);if(card)container.appendChild(card)});
+    cards.filter(card=>!order.includes(card.dataset.kpiId)).forEach(card=>container.appendChild(card));
+  }
+
+  function clearKpiDropMarks(container){
+    kpiCards(container).forEach(card=>card.classList.remove('a4-kpi-drop-before','a4-kpi-drop-after'));
+  }
+
+  function enhanceKpis(){
+    const container=document.querySelector('.dash-kpis');
+    if(!container)return;
+    if(container.dataset.a4Sortable!=='1'){
+      restoreKpiOrder(container);
+      container.dataset.a4Sortable='1';
+    }
+    kpiCards(container).forEach((card,index)=>{
+      kpiId(card,index);
+      if(card.querySelector(':scope > .dash-kpi-drag-handle'))return;
+      const handle=document.createElement('span');
+      handle.className='dash-kpi-drag-handle';
+      handle.title='Перетащить блок';
+      handle.setAttribute('aria-label','Перетащить блок');
+      handle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="7" r="1.4"></circle><circle cx="16" cy="7" r="1.4"></circle><circle cx="8" cy="12" r="1.4"></circle><circle cx="16" cy="12" r="1.4"></circle><circle cx="8" cy="17" r="1.4"></circle><circle cx="16" cy="17" r="1.4"></circle></svg>';
+      card.appendChild(handle);
+
+      let drag=null;
+      const finish=()=>{
+        if(!drag)return;
+        try{handle.releasePointerCapture?.(drag.pointerId)}catch{}
+        card.classList.remove('a4-kpi-dragging');
+        document.body.classList.remove('a4-kpi-is-dragging');
+        clearKpiDropMarks(container);
+        if(drag.moved)saveKpiOrder(container);
+        drag=null;
+      };
+      handle.addEventListener('pointerdown',event=>{
+        if(event.button!==undefined&&event.button!==0)return;
+        event.preventDefault();event.stopPropagation();
+        drag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,moved:false};
+        try{handle.setPointerCapture?.(event.pointerId)}catch{}
+        card.classList.add('a4-kpi-dragging');
+        document.body.classList.add('a4-kpi-is-dragging');
+      });
+      handle.addEventListener('pointermove',event=>{
+        if(!drag||event.pointerId!==drag.pointerId)return;
+        const dx=Math.abs(event.clientX-drag.startX),dy=Math.abs(event.clientY-drag.startY);
+        if(!drag.moved&&Math.max(dx,dy)<5)return;
+        drag.moved=true;
+        clearKpiDropMarks(container);
+        const under=document.elementFromPoint(event.clientX,event.clientY)?.closest?.('.dash-kpi');
+        if(!under||under===card||under.parentElement!==container)return;
+        const r=under.getBoundingClientRect();
+        const before=event.clientY<r.top+r.height/2;
+        under.classList.add(before?'a4-kpi-drop-before':'a4-kpi-drop-after');
+        if(before)container.insertBefore(card,under);else container.insertBefore(card,under.nextSibling);
+      });
+      handle.addEventListener('pointerup',event=>{if(drag&&event.pointerId===drag.pointerId)finish()});
+      handle.addEventListener('pointercancel',finish);
+      handle.addEventListener('lostpointercapture',finish);
+      handle.addEventListener('click',event=>{event.preventDefault();event.stopPropagation()});
+    });
   }
 
   function enhanceCard(card,index){
@@ -194,6 +307,7 @@
   }
 
   function enhance(){
+    enhanceKpis();
     document.querySelectorAll('.dash-card').forEach(enhanceCard);
     enhanceCashJournal();
   }
