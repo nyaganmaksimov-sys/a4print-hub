@@ -151,6 +151,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1')}
   load('navigation.js','20260909-equipment1');load('support-access.js','20260908-clean2');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260909-1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
-  if(isPartners){load('partners-search.js','20260905-1');load('partner-invites.js','20260908-2');load('partners-modern.js','20260912-compact1')}
+  if(isPartners){load('partners-search.js','20260912-compact2');load('partner-invites.js','20260908-2');load('partners-modern.js','20260912-compact2')}
   background(()=>{load('chat-notifications.js','20260904-7');load('support-notifications.js','20260905-1');load('push-client.js','20260904-4');if(!isChat)load('chat-widget.js','20260908-2')});
 })();
