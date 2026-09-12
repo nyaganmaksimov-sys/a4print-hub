@@ -34,19 +34,6 @@ function customerMeta(order){
   return c.phone || c.email || '';
 }
 
-function partnerInfo(order){
-  const requester = order.requester || null;
-  const executor = order.executor || null;
-  const partner = requester || executor;
-  if(!partner) return null;
-  const outbound = Boolean(order.fulfillment_partner_id && order.partner_direction === 'OUTBOUND');
-  return {
-    name: partner.name || partner.contact_name || 'Партнёр',
-    outbound,
-    label: outbound ? 'Мы заказали у партнёра' : 'Партнёр заказал у нас'
-  };
-}
-
 function orderTitle(order){
   return order.model_name || order.source || (order.business_unit === '3D_ARTPRINT' ? '3D-заказ' : 'Печать / услуга');
 }
@@ -67,19 +54,31 @@ function paymentSummary(order){
   return { paid, total, label:`Оплачено ${money(paid)} ₽`, tone:'part' };
 }
 
+function isManagerOrder(order){
+  if(!order) return false;
+  if(String(order.source||'').toUpperCase()==='KASSA') return false;
+  if(String(order.partner_direction||'NONE').toUpperCase()!=='NONE') return false;
+  if(order.partner_id||order.fulfillment_partner_id) return false;
+  return true;
+}
+
+function managerQuery(select){
+  return supabase.from('orders')
+    .select(select)
+    .eq('partner_direction','NONE')
+    .or('source.is.null,source.neq.KASSA')
+    .order('created_at',{ascending:false});
+}
+
 async function loadOrders(){
-  const full = '*,customers(full_name,company_name,phone,email),requester:partners!orders_partner_id_fkey(name,contact_name,phone,email),executor:partners!orders_fulfillment_partner_id_fkey(name,contact_name,phone,email)';
-  let result = await supabase.from('orders').select(full).order('created_at',{ascending:false});
-  if(!result.error) return result.data || [];
+  const full = '*,customers(full_name,company_name,phone,email)';
+  let result = await managerQuery(full);
+  if(!result.error) return (result.data || []).filter(isManagerOrder);
 
-  console.warn('Orders full relation query failed, using customer fallback', result.error);
-  result = await supabase.from('orders').select('*,customers(full_name,company_name,phone,email)').order('created_at',{ascending:false});
-  if(!result.error) return result.data || [];
-
-  console.warn('Orders customer query failed, using base fallback', result.error);
-  result = await supabase.from('orders').select('*').order('created_at',{ascending:false});
+  console.warn('Manager orders relation query failed, using base fallback', result.error);
+  result = await managerQuery('*');
   if(result.error) throw result.error;
-  return result.data || [];
+  return (result.data || []).filter(isManagerOrder);
 }
 
 async function loadPayments(){
@@ -95,8 +94,7 @@ function currentFilters(){
   return {
     q: $('search').value.trim().toLowerCase(),
     status: $('status').value,
-    unit: $('unit').value,
-    source: $('source').value
+    unit: $('unit').value
   };
 }
 
@@ -104,11 +102,9 @@ function filteredOrders(){
   const f = currentFilters();
   return state.orders.filter((o) => {
     const c = o.customers || {};
-    const p = o.requester || o.executor || {};
-    const text = [o.order_number,o.model_name,o.source,c.full_name,c.company_name,c.phone,c.email,p.name,p.contact_name].filter(Boolean).join(' ').toLowerCase();
-    const isPartner = Boolean(o.partner_id || o.fulfillment_partner_id);
+    const text = [o.order_number,o.model_name,o.source,c.full_name,c.company_name,c.phone,c.email].filter(Boolean).join(' ').toLowerCase();
     const statusOk = !f.status || (f.status === 'WORK' ? ['CONFIRMED','IN_PROGRESS'].includes(o.status) : o.status === f.status);
-    return (!f.q || text.includes(f.q)) && statusOk && (!f.unit || o.business_unit === f.unit) && (!f.source || (f.source === 'PARTNER' ? isPartner : !isPartner));
+    return (!f.q || text.includes(f.q)) && statusOk && (!f.unit || o.business_unit === f.unit);
   });
 }
 
@@ -119,7 +115,6 @@ function syncUrl(){
   if(f.q) url.searchParams.set('q',$('search').value.trim());
   if(f.status) url.searchParams.set('status',f.status);
   if(f.unit) url.searchParams.set('unit',f.unit);
-  if(f.source) url.searchParams.set('source',f.source);
   history.replaceState(null,'',url.pathname + url.search);
 }
 
@@ -138,17 +133,15 @@ function statusOptions(current){
 }
 
 function rowHtml(order){
-  const partner = partnerInfo(order);
   const payment = paymentSummary(order);
   const client = customerName(order);
   const meta = customerMeta(order);
-  const isPartner = Boolean(partner);
   return `
     <article class="order-work-row" data-order-id="${esc(order.id)}">
       <a class="order-main-link" href="./order.html?id=${encodeURIComponent(order.id)}">
         <span class="order-number"><b>№${esc(order.order_number ?? '—')}</b><small>${esc(orderDate(order.created_at))}</small></span>
-        <span class="order-client"><b>${esc(isPartner ? partner.name : client)}</b><small>${esc(isPartner ? partner.label : (meta || 'Контакт не указан'))}</small></span>
-        <span class="order-service"><b>${esc(orderTitle(order))}</b><small>${esc(unitLabel(order.business_unit))}${isPartner?' · партнёрский':''}</small></span>
+        <span class="order-client"><b>${esc(client)}</b><small>${esc(meta || 'Контакт не указан')}</small></span>
+        <span class="order-service"><b>${esc(orderTitle(order))}</b><small>${esc(unitLabel(order.business_unit))}</small></span>
         <span class="order-payment"><b class="pay-${payment.tone}">${esc(payment.label)}</b><small>${payment.paid > 0 && payment.total > 0 ? `${money(payment.paid)} из ${money(payment.total)} ₽` : 'Оплата заказа'}</small></span>
         <span class="order-total"><b>${money(order.total)} ₽</b><small>${esc(labels[order.status] || order.status || '—')}</small></span>
       </a>
@@ -222,7 +215,7 @@ async function load(){
 function initParams(){
   const params = new URLSearchParams(location.search);
   if(params.get('q')) $('search').value = params.get('q');
-  for(const id of ['status','unit','source']){
+  for(const id of ['status','unit']){
     const value = params.get(id);
     if(value && [...$(id).options].some((o) => o.value === value)) $(id).value = value;
   }
@@ -230,10 +223,10 @@ function initParams(){
 
 function initEvents(){
   $('search').addEventListener('input',render);
-  ['status','unit','source'].forEach((id) => $(id).addEventListener('change',render));
+  ['status','unit'].forEach((id) => $(id).addEventListener('change',render));
   $('refresh').addEventListener('click',load);
   $('clearFilters').addEventListener('click',() => {
-    $('search').value='';$('status').value='';$('unit').value='';$('source').value='';render();
+    $('search').value='';$('status').value='';$('unit').value='';render();
   });
   $('list').addEventListener('change',(event) => {
     const select = event.target.closest('[data-order-status]');
@@ -247,7 +240,7 @@ function initEvents(){
 function initRealtime(){
   if(typeof supabase.channel !== 'function') return;
   const reload = () => { clearTimeout(realtimeTimer); realtimeTimer = setTimeout(load,450); };
-  state.channel = supabase.channel('orders-workspace-v1')
+  state.channel = supabase.channel('manager-orders-workspace-v2')
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},reload)
     .on('postgres_changes',{event:'*',schema:'public',table:'payments'},reload)
     .subscribe();
