@@ -11,17 +11,20 @@
     const gate=window.A4KassaShiftSession;
     return gate?.active?gate:null;
   }
+  function setText(el,text){if(el&&el.textContent!==text)el.textContent=text}
+  function setHidden(el,value){if(el&&el.hidden!==value)el.hidden=value}
+  function setDisabled(el,value){if(el&&el.disabled!==value)el.disabled=value}
 
   function neutralProfileFallback(gate){
     const error=$('shiftProfileError');
     if(!error||error.hidden)return;
     const text=String(error.textContent||'');
     if(!/abort|failed to fetch|network|связ|таймаут/i.test(text))return;
-    error.hidden=true;
+    setHidden(error,true);
     const loading=$('shiftProfileLoading');
     if(loading){
-      loading.hidden=false;
-      loading.textContent=`Смена ${gate.remoteShift?.name||''} открыта · профиль обновится автоматически`.replace(/\s+/g,' ').trim();
+      setHidden(loading,false);
+      setText(loading,`Смена ${gate.remoteShift?.name||''} открыта · профиль обновится автоматически`.replace(/\s+/g,' ').trim());
     }
   }
 
@@ -39,21 +42,22 @@
     const wrap=$('shiftSummaryWrap');
     const loading=$('shiftLoading');
 
-    if(heading)heading.textContent=`Смена${name?' '+name:''}`;
-    if(closed)closed.hidden=true;
+    setText(heading,`Смена${name?' '+name:''}`);
+    setHidden(closed,true);
     if(action){
-      action.dataset.mode=gate.pending==='close'?'close':gate.pending==='open'?'open':'close';
-      action.textContent=gate.pending==='close'?'Закрываю смену…':gate.pending==='open'?'Открываю смену…':'Закрыть смену';
-      action.disabled=Boolean(gate.pending);
+      const mode=gate.pending==='open'?'open':'close';
+      if(action.dataset.mode!==mode)action.dataset.mode=mode;
+      setText(action,gate.pending==='close'?'Закрываю смену…':gate.pending==='open'?'Открываю смену…':'Закрыть смену');
+      setDisabled(action,Boolean(gate.pending));
     }
 
     // If live statistics have not loaded yet, never replace a confirmed open
     // local shift with an error/"Open shift" state. Keep the page usable while
     // the heavy MoySklad summary refresh continues in the background.
     if(wrap?.hidden&&loading){
-      loading.hidden=false;
+      setHidden(loading,false);
       const opened=name?`Смена ${name} открыта`:'Смена открыта';
-      loading.textContent=`${opened} · загружаем статистику…`;
+      setText(loading,`${opened} · загружаем статистику…`);
     }
 
     neutralProfileFallback(gate);
