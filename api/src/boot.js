@@ -18,6 +18,7 @@ const preloads = [
   '--import=./src/pos-cash-balance.js',
   '--import=./src/cbr-rates.js',
   '--import=./src/partner-invites.js',
+  '--import=./src/partners-compat-api.js',
   '--import=./src/partner-admin.js',
   '--import=./src/pos-shift-control.js',
   '--import=./src/warehouse-stock.js',
