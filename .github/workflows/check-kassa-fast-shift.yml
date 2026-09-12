@@ -1,0 +1,46 @@
+name: Check Kassa Fast Shift
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kassa/shift-fast-open.js'
+      - 'kassa/shift-session-gate.js'
+      - 'kassa/shift-state-sync.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - '.github/workflows/check-kassa-fast-shift.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'kassa/shift-fast-open.js'
+      - 'kassa/shift-session-gate.js'
+      - 'kassa/shift-state-sync.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - '.github/workflows/check-kassa-fast-shift.yml'
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check fast shift JavaScript
+        run: |
+          node --check kassa/shift-fast-open.js
+          node --check kassa/shift-session-gate.js
+          node --check kassa/shift-state-sync.js
+          node --check kassa/bootstrap.js
+          node --check kassa/sw.js
+      - name: Check local-first wiring
+        run: |
+          grep -q "loadScript('./shift-fast-open.js')" kassa/bootstrap.js
+          grep -q "'./shift-fast-open.js'" kassa/sw.js
+          grep -q '_local_pending' kassa/shift-fast-open.js
+          grep -q 'waitForConfirmed' kassa/shift-fast-open.js
+          grep -q 'isSaleUrl' kassa/shift-fast-open.js
+          grep -q "pending='sync'" kassa/shift-fast-open.js
+          grep -q 'Смена открыта · синхронизация' kassa/shift-state-sync.js
