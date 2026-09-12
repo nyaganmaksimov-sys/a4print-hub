@@ -8,36 +8,68 @@
   window.addEventListener('pageshow',clearLegacyLayout,{passive:true});
 
   function installStyles(){
-    if(document.getElementById('a4-partners-v2-styles'))return;
+    if(document.getElementById('a4-partners-v3-styles'))return;
     const style=document.createElement('style');
-    style.id='a4-partners-v2-styles';
+    style.id='a4-partners-v3-styles';
     style.textContent=`
       body.partners-modern .main{max-width:none!important}
-      body.partners-modern .main>.topbar{margin-bottom:12px!important}
-      body.partners-modern .main>.topbar h1{font-size:34px!important}
-      body.partners-modern .grid{grid-template-columns:minmax(0,1.35fr) minmax(350px,.65fr)!important;gap:14px!important}
-      body.partners-modern .card{padding:17px!important;border-radius:18px!important;box-shadow:0 5px 18px rgba(31,52,79,.04)!important}
+      body.partners-modern .main>.topbar{margin-bottom:8px!important;padding-bottom:8px!important}
+      body.partners-modern .main>.topbar h1{font-size:32px!important;margin-bottom:3px!important}
+      body.partners-modern .main>.topbar p{font-size:12.5px!important;line-height:1.35!important;max-width:760px!important}
       #resetLayout,.drag-handle{display:none!important}
 
-      .partners-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 14px}
-      .partners-summary-item{min-width:0;padding:12px 14px;border:1px solid #e0e8f2;border-radius:15px;background:#fff;box-shadow:0 4px 14px rgba(31,52,79,.035)}
-      .partners-summary-label{display:block;margin-bottom:4px;color:#7b8ba1;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.045em}
-      .partners-summary-value{display:block;color:#0f172a;font-size:23px;line-height:1;font-weight:900;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
-      .partners-summary-note{display:block;margin-top:5px;color:#94a3b8;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .partners-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 10px}
+      .partners-summary-item{min-width:0;padding:9px 11px;border:1px solid #e0e8f2;border-radius:13px;background:#fff;box-shadow:0 3px 12px rgba(31,52,79,.03)}
+      .partners-summary-label{display:block;margin-bottom:3px;color:#7b8ba1;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}
+      .partners-summary-value{display:block;color:#0f172a;font-size:20px;line-height:1;font-weight:900;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+      .partners-summary-note{display:block;margin-top:4px;color:#94a3b8;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .partners-summary-item.is-good .partners-summary-value{color:#16803b}
       .partners-summary-item.is-blue .partners-summary-value{color:#2563eb}
 
-      .partners-database-card>.row:first-child{align-items:center!important;margin-bottom:10px!important}
-      .partners-database-card>.row:first-child h2{margin:0!important;font-size:23px!important}
+      body.partners-modern .grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-items:stretch!important}
+      body.partners-modern .grid>div{display:contents!important}
+      body.partners-modern .grid article.card{margin:0!important}
+      .partners-database-card{order:1!important;grid-column:span 2!important}
+      .partner-invite-card{order:2!important}
+      .partners-create-card{order:3!important}
+      .partners-outbound-card{order:4!important}
+      .partners-catalog-card{order:5!important}
+
+      .partners-popup-card:not(.is-modal-open){height:148px!important;min-height:148px!important;padding:0!important;border:1px solid #e0e8f2!important;border-radius:16px!important;background:#fff!important;overflow:hidden!important;box-shadow:0 5px 18px rgba(31,52,79,.035)!important;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease!important}
+      .partners-popup-card:not(.is-modal-open):hover{transform:translateY(-2px)!important;border-color:#ccd9e8!important;box-shadow:0 8px 22px rgba(31,52,79,.065)!important}
+      .partners-popup-card:not(.is-modal-open)>.partners-full-content,
+      .partners-popup-card:not(.is-modal-open)>.partners-popup-close{display:none!important}
+      .partners-compact-shell{width:100%;height:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto 1fr auto;gap:0 11px;padding:15px 16px!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;text-align:left!important;box-shadow:none!important;cursor:pointer!important;box-sizing:border-box!important}
+      .partners-compact-icon{grid-row:1/4;width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:#eef5ff;color:#2563eb;font-size:18px;font-weight:900}
+      .partners-compact-title{align-self:center;color:#0f172a;font-size:15px;line-height:1.18;font-weight:900;letter-spacing:-.015em}
+      .partners-compact-desc{grid-column:2/4;align-self:start;margin-top:6px;color:#748398;font-size:10.8px;line-height:1.4;max-width:95%}
+      .partners-compact-bottom{grid-column:2/4;display:flex;align-items:end;justify-content:space-between;gap:10px;margin-top:8px}
+      .partners-compact-stat{min-width:0;color:#52657d;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .partners-compact-open{color:#2563eb;font-size:10.5px;font-weight:850;white-space:nowrap}
+      .partners-database-card .partners-compact-icon{background:#eef5ff;color:#2563eb}
+      .partner-invite-card .partners-compact-icon{background:#f4efff;color:#7c3aed}
+      .partners-create-card .partners-compact-icon{background:#eaf8ef;color:#16803b}
+      .partners-outbound-card .partners-compact-icon{background:#fff5e8;color:#c66a08}
+      .partners-catalog-card .partners-compact-icon{background:#eef8fa;color:#087a89}
+
+      .partners-modal-backdrop{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.38);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .15s ease}
+      .partners-modal-backdrop.is-active{opacity:1;pointer-events:auto}
+      body.partners-popup-open{overflow:hidden!important}
+      .partners-popup-card.is-modal-open{position:fixed!important;top:4vh!important;right:5vw!important;bottom:4vh!important;left:5vw!important;z-index:10001!important;width:auto!important;height:auto!important;max-width:none!important;max-height:none!important;margin:0!important;padding:20px!important;border:1px solid #dce5ef!important;border-radius:20px!important;background:#fff!important;box-shadow:0 24px 80px rgba(15,23,42,.24)!important;overflow:auto!important;transform:none!important}
+      .partners-popup-card.is-modal-open>.partners-compact-shell{display:none!important}
+      .partners-popup-card.is-modal-open>.partners-full-content{display:block!important;max-width:1180px;margin:0 auto}
+      .partners-popup-close{position:sticky;top:0;float:right;z-index:8;width:36px!important;height:36px!important;min-height:36px!important;margin:0 0 8px 12px!important;padding:0!important;display:grid!important;place-items:center;border:1px solid #dce5ef!important;border-radius:11px!important;background:#fff!important;color:#64748b!important;font-size:20px!important;line-height:1!important;box-shadow:0 4px 14px rgba(15,23,42,.08)!important;cursor:pointer!important}
+      .partners-popup-close:hover{background:#f8fafc!important;color:#0f172a!important}
+
+      .partners-database-card .partners-full-content>.row:first-child{align-items:center!important;margin-bottom:10px!important}
+      .partners-database-card .partners-full-content>.row:first-child h2{margin:0!important;font-size:23px!important}
       .partners-card-kicker{margin:1px 0 0;color:#8493a8;font-size:11px;font-weight:650}
       .partners-db-head-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
       .partners-db-head-actions .small{font-size:11px!important;white-space:nowrap}
       .partners-add-shortcut{height:32px!important;min-height:32px!important;padding:0 10px!important;border:1px solid #d9e6f8!important;border-radius:9px!important;background:#eef5ff!important;color:#175ac9!important;font-size:11px!important;font-weight:800!important}
-
       .partners-database-card .toolbar{display:grid!important;grid-template-columns:minmax(220px,1fr) 145px 165px!important;gap:8px!important;margin:0 0 10px!important}
       .partners-database-card .toolbar input,.partners-database-card .toolbar select{height:40px!important;min-height:40px!important;border:1px solid #d8e2ee!important;border-radius:11px!important;background:#fff!important;color:#334155!important;padding:0 11px!important;font:inherit!important;font-size:12px!important;outline:none!important}
       .partners-database-card .toolbar input:focus,.partners-database-card .toolbar select:focus{border-color:#7fb0ff!important;box-shadow:0 0 0 3px rgba(37,99,235,.08)!important}
-
       #partners{display:grid!important;gap:7px!important;margin-top:0!important}
       #partners .partner{position:relative!important;padding:12px 13px!important;border:1px solid #e6edf5!important;border-radius:13px!important;background:#fff!important;cursor:pointer!important;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease!important}
       #partners .partner:hover{border-color:#cfdceb!important;box-shadow:0 5px 14px rgba(43,67,98,.05)!important;transform:translateY(-1px)!important}
@@ -84,13 +116,17 @@
       .partner-invite-stats{gap:4px!important}
       .partner-invite-stat{min-height:22px!important;padding:0 7px!important;font-size:9.8px!important}
 
-      .partners-create-card,.partners-outbound-card,.partners-catalog-card{transition:box-shadow .16s ease}
-      .partners-create-card.flash-focus{box-shadow:0 0 0 3px rgba(37,99,235,.11),0 8px 24px rgba(31,52,79,.06)!important}
-
-      @media(max-width:1180px){body.partners-modern .grid{grid-template-columns:1fr!important}.partners-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+      @media(max-width:1180px){
+        body.partners-modern .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+        .partners-database-card{grid-column:span 2!important}
+      }
       @media(max-width:760px){
-        .partners-summary{grid-template-columns:1fr 1fr;gap:8px}
-        .partners-summary-item{padding:10px 11px}.partners-summary-value{font-size:20px}
+        body.partners-modern .grid{grid-template-columns:1fr!important}
+        .partners-database-card{grid-column:auto!important}
+        .partners-summary{grid-template-columns:1fr 1fr;gap:7px}
+        .partners-summary-item{padding:8px 10px}.partners-summary-value{font-size:18px}
+        .partners-popup-card:not(.is-modal-open){height:132px!important;min-height:132px!important}
+        .partners-popup-card.is-modal-open{top:1.5vh!important;right:2.5vw!important;bottom:1.5vh!important;left:2.5vw!important;padding:14px!important;border-radius:16px!important}
         .partners-database-card .toolbar{grid-template-columns:1fr!important}
         #partners .partner .row{grid-template-columns:1fr!important}
         #partners .partner .row>div:last-child{grid-template-columns:auto 1fr 1fr!important;align-items:center!important}
@@ -105,13 +141,11 @@
     const btn=row.querySelector('[data-toggle],[data-order-partner]');
     return btn?.dataset.toggle||btn?.dataset.orderPartner||'';
   }
-
   function partnerOrders(row){
     const text=row.textContent||'';
     const match=text.match(/Заказов:\s*(\d+)/i);
     return match?Number(match[1]):0;
   }
-
   function partnerName(row){return row.querySelector('.row>div:first-child>b')?.textContent?.trim()||''}
   function partnerActive(row){return !row.querySelector('.badge.off')}
 
@@ -135,6 +169,7 @@
     set('active',rows.filter(partnerActive).length);
     set('orders',rows.reduce((sum,row)=>sum+partnerOrders(row),0));
     set('invites',document.querySelectorAll('.partner-invite-row .partner-invite-badge:not(.off)').length);
+    updatePopupStats();
   }
 
   function ensureControls(partnerCard){
@@ -220,13 +255,7 @@
       if(count){count.remove();actions.appendChild(count)}
       const add=document.createElement('button');
       add.type='button';add.className='partners-add-shortcut';add.textContent='+ Добавить';
-      add.onclick=()=>{
-        const card=document.querySelector('.partners-create-card');
-        if(!card)return;
-        card.scrollIntoView({behavior:'smooth',block:'center'});
-        card.classList.add('flash-focus');setTimeout(()=>card.classList.remove('flash-focus'),1600);
-        setTimeout(()=>card.querySelector('input[name="name"]')?.focus({preventScroll:true}),450);
-      };
+      add.onclick=()=>openPopup(document.querySelector('.partners-create-card'));
       actions.appendChild(add);header.appendChild(actions);
     }
     ensureControls(partnerCard);
@@ -283,6 +312,106 @@
     document.querySelector('#services')?.closest('article.card')?.classList.add('partners-catalog-card');
   }
 
+  function ensureBackdrop(){
+    let backdrop=document.querySelector('.partners-modal-backdrop');
+    if(backdrop)return backdrop;
+    backdrop=document.createElement('div');
+    backdrop.className='partners-modal-backdrop';
+    backdrop.addEventListener('click',closePopup);
+    document.body.appendChild(backdrop);
+    return backdrop;
+  }
+
+  function closePopup(){
+    const current=document.querySelector('.partners-popup-card.is-modal-open');
+    if(!current)return;
+    current.classList.remove('is-modal-open');
+    current.setAttribute('aria-hidden','false');
+    document.querySelector('.partners-modal-backdrop')?.classList.remove('is-active');
+    document.body.classList.remove('partners-popup-open');
+    current.querySelector('.partners-compact-shell')?.focus({preventScroll:true});
+  }
+
+  function openPopup(card){
+    if(!card)return;
+    const current=document.querySelector('.partners-popup-card.is-modal-open');
+    if(current&&current!==card)current.classList.remove('is-modal-open');
+    ensureBackdrop().classList.add('is-active');
+    document.body.classList.add('partners-popup-open');
+    card.classList.add('is-modal-open');
+    card.scrollTop=0;
+    requestAnimationFrame(()=>card.querySelector('.partners-popup-close')?.focus({preventScroll:true}));
+  }
+
+  function popupConfig(card){
+    if(card.classList.contains('partners-database-card'))return{key:'database',icon:'👥',title:'База партнёров',desc:'Контрагенты, контакты, условия, доступ и история заказов'};
+    if(card.classList.contains('partner-invite-card'))return{key:'invites',icon:'🔗',title:'Партнёрские ссылки',desc:'Защищённая регистрация новых партнёров в Partner CRM'};
+    if(card.classList.contains('partners-create-card'))return{key:'create',icon:'＋',title:'Добавить партнёра',desc:'Создание компании, контакта и доступа в Partner CRM'};
+    if(card.classList.contains('partners-outbound-card'))return{key:'outbound',icon:'↗',title:'Заказать у партнёра',desc:'Выбор услуги, тираж, параметры заказа и прикрепление файлов'};
+    if(card.classList.contains('partners-catalog-card'))return{key:'catalog',icon:'▦',title:'Наш каталог',desc:'Розничные и партнёрские цены на услуги A4PRINT'};
+    return null;
+  }
+
+  function preparePopupCard(card){
+    const cfg=popupConfig(card);
+    if(!cfg)return;
+    card.classList.add('partners-popup-card');
+    card.dataset.popupKey=cfg.key;
+    if(card.dataset.popupReady==='1')return;
+    card.dataset.popupReady='1';
+
+    const full=document.createElement('div');
+    full.className='partners-full-content';
+    while(card.firstChild)full.appendChild(card.firstChild);
+
+    const shell=document.createElement('button');
+    shell.type='button';
+    shell.className='partners-compact-shell';
+    shell.setAttribute('aria-label',`Открыть блок «${cfg.title}»`);
+    shell.innerHTML=`<span class="partners-compact-icon" aria-hidden="true">${cfg.icon}</span><span class="partners-compact-title">${cfg.title}</span><span class="partners-compact-desc">${cfg.desc}</span><span class="partners-compact-bottom"><span class="partners-compact-stat" data-popup-stat>Открыть данные</span><span class="partners-compact-open">Открыть полностью →</span></span>`;
+    shell.addEventListener('click',()=>openPopup(card));
+
+    const close=document.createElement('button');
+    close.type='button';
+    close.className='partners-popup-close';
+    close.setAttribute('aria-label','Закрыть окно');
+    close.title='Закрыть';
+    close.textContent='×';
+    close.addEventListener('click',closePopup);
+
+    card.append(shell,close,full);
+  }
+
+  function preparePopupCards(){
+    const cards=[
+      document.querySelector('#partners')?.closest('article.card'),
+      document.querySelector('.partner-invite-card'),
+      document.querySelector('#partnerForm')?.closest('article.card'),
+      document.querySelector('#outboundForm')?.closest('article.card'),
+      document.querySelector('#services')?.closest('article.card')
+    ].filter(Boolean);
+    cards.forEach(preparePopupCard);
+  }
+
+  function updatePopupStats(){
+    const rows=[...document.querySelectorAll('#partners .partner')];
+    const active=rows.filter(partnerActive).length;
+    const invites=[...document.querySelectorAll('.partner-invite-row')];
+    const activeInvites=invites.filter(row=>!row.querySelector('.partner-invite-badge.off')).length;
+    const services=document.querySelectorAll('#services .service').length;
+    const stats={
+      database:`${rows.length} партнёров · ${active} активных`,
+      invites:`${activeInvites} активных · ${invites.length} всего`,
+      create:'Новый контрагент + доступ',
+      outbound:`${active} исполнителей доступны`,
+      catalog:`${services} услуг в каталоге`
+    };
+    document.querySelectorAll('.partners-popup-card').forEach(card=>{
+      const el=card.querySelector(':scope > .partners-compact-shell [data-popup-stat]');
+      if(el)el.textContent=stats[card.dataset.popupKey]||'Открыть данные';
+    });
+  }
+
   function enhance(){
     const main=document.querySelector('.main');
     if(!main)return;
@@ -296,11 +425,13 @@
     enhanceDatabase(partnerCard);
     enhanceOtherCards();
     compactInviteCard();
+    preparePopupCards();
     wirePartnerRows();
     applyControls();
     updateSummary();
   }
 
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')closePopup()});
   let timer=0;
   const schedule=()=>{clearTimeout(timer);timer=setTimeout(enhance,35)};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
