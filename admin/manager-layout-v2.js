@@ -126,16 +126,30 @@
     if(!grid)return;
     grid.querySelectorAll('.calendar-day').forEach(day=>{
       const chips=[...day.querySelectorAll('.day-chip')];
-      const oldNote=[...day.querySelectorAll('.mgr-note,.calendar-more')].find(x=>/^\+\d+/.test((x.textContent||'').trim()));
-      const extraFromNote=oldNote?Number((oldNote.textContent||'').replace(/\D/g,''))||0:0;
-      chips.forEach((chip,index)=>{chip.style.display=index<2?'':'none'});
-      const hidden=Math.max(0,chips.length-2)+extraFromNote;
-      if(oldNote)oldNote.remove();
+      const nativeNote=[...day.children].find(x=>x.classList?.contains('mgr-note')&&/^\+\d+/.test((x.textContent||'').trim()));
+      let total=Number(day.dataset.compactTotal||0);
+      if(!total){
+        const nativeExtra=nativeNote?Number((nativeNote.textContent||'').replace(/\D/g,''))||0:0;
+        total=chips.length+nativeExtra;
+        day.dataset.compactTotal=String(total);
+      }
+      chips.forEach((chip,index)=>{
+        const display=index<2?'':'none';
+        if(chip.style.display!==display)chip.style.display=display;
+      });
+      if(nativeNote)nativeNote.remove();
+      const hidden=Math.max(0,total-2);
+      let more=day.querySelector(':scope > .calendar-more');
       if(hidden>0){
-        const more=document.createElement('div');
-        more.className='calendar-more';
-        more.textContent=`+${hidden}`;
-        day.appendChild(more);
+        if(!more){
+          more=document.createElement('div');
+          more.className='calendar-more';
+          day.appendChild(more);
+        }
+        const text=`+${hidden}`;
+        if(more.textContent!==text)more.textContent=text;
+      }else if(more){
+        more.remove();
       }
     });
   }
