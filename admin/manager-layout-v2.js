@@ -1,11 +1,11 @@
 (()=>{
-  if(window.__A4_MANAGER_LAYOUT_V2__)return;
-  window.__A4_MANAGER_LAYOUT_V2__=true;
+  if(window.__A4_MANAGER_LAYOUT_V3__)return;
+  window.__A4_MANAGER_LAYOUT_V3__=true;
 
   function installStyles(){
-    if(document.getElementById('a4-manager-layout-v2-style'))return;
+    if(document.getElementById('a4-manager-layout-v3-style'))return;
     const s=document.createElement('style');
-    s.id='a4-manager-layout-v2-style';
+    s.id='a4-manager-layout-v3-style';
     s.textContent=`
       body{background:#f6f8fb}
       .main{max-width:none!important;padding-top:18px!important}
@@ -22,17 +22,30 @@
       .manager-kpi small{font-size:10px!important}
       .manager-kpi b{font-size:20px!important;margin-top:3px!important}
 
-      #managerCalendarWrap.manager-calendar-wrap.manager-workspace-v2{
+      #managerCalendarWrap.manager-calendar-wrap.manager-workspace-v3{
+        display:block!important;
+        margin:0 0 14px!important;
+      }
+      .manager-event-card{padding:13px 14px!important;border-radius:16px!important;margin:0 0 12px!important}
+      .manager-workspace-columns{
         display:grid!important;
         grid-template-columns:minmax(0,1.55fr) minmax(300px,.65fr)!important;
-        grid-template-areas:"event event" "calendar side"!important;
-        gap:12px!important;margin:0 0 14px!important;align-items:start!important;
+        gap:12px!important;
+        align-items:start!important;
       }
-      .manager-event-card{grid-area:event!important;padding:13px 14px!important;border-radius:16px!important}
-      .manager-calendar-card{grid-area:calendar!important;padding:13px 14px!important;border-radius:16px!important;min-width:0!important}
-      .manager-side-stack{grid-area:side!important;display:grid!important;gap:12px!important;align-content:start!important;min-width:0!important}
+      .manager-left-flow,.manager-right-flow{
+        display:grid!important;
+        grid-template-columns:minmax(0,1fr)!important;
+        gap:12px!important;
+        align-content:start!important;
+        min-width:0!important;
+      }
+      .manager-calendar-card{padding:13px 14px!important;border-radius:16px!important;min-width:0!important;margin:0!important}
+      .manager-side-stack{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;align-content:start!important;min-width:0!important}
       .manager-side-stack>.mgr-card{margin:0!important;padding:13px 14px!important;border-radius:16px!important}
       .manager-side-stack .workspace-section{margin-top:0!important}
+      .manager-flow-section{display:block!important;min-width:0!important}
+      .manager-grid.manager-grid-absorbed{display:none!important;margin:0!important;padding:0!important;height:0!important;overflow:hidden!important}
 
       .mgr-head{margin-bottom:9px!important;gap:8px!important}
       .mgr-head h2{font-size:18px!important;line-height:1.15!important}
@@ -76,8 +89,8 @@
       .manager-side-stack .nearest-item small{font-size:9.5px!important;line-height:1.35!important}
       #browserNotify{font-size:9.5px!important;padding:5px 7px!important}
 
-      .manager-grid{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important;gap:12px!important;align-items:start!important}
       .manager-panel{padding:14px!important;border-radius:16px!important}
+      .manager-flow-section>.manager-panel:first-child{margin-top:0!important}
       .section-gap{margin-top:12px!important}
       .panel-head2{margin-bottom:10px!important}
       .panel-head2 h2{font-size:17px!important}
@@ -98,8 +111,8 @@
       .chat-card small{font-size:9.5px!important;margin-top:2px!important}
 
       @media(max-width:1220px){
-        #managerCalendarWrap.manager-calendar-wrap.manager-workspace-v2{grid-template-columns:1fr!important;grid-template-areas:"event" "calendar" "side"!important}
-        .manager-side-stack{grid-template-columns:1fr 1fr!important}
+        .manager-workspace-columns{grid-template-columns:1fr!important}
+        .manager-side-stack{grid-template-columns:repeat(3,minmax(0,1fr))!important}
         .manager-event-card .event-form{grid-template-columns:1fr 1fr!important}
         .manager-event-card .field-title,.manager-event-card .field-time,.manager-event-card .field-order,.manager-event-card .field-reminder{grid-column:auto!important}
         .manager-event-card .field-desc{grid-column:1!important}
@@ -107,7 +120,6 @@
       }
       @media(max-width:900px){
         .quick{grid-template-columns:1fr 1fr!important}
-        .manager-grid{grid-template-columns:1fr!important}
         .manager-side-stack{grid-template-columns:1fr!important}
       }
       @media(max-width:650px){
@@ -167,25 +179,7 @@
     }
   }
 
-  function arrange(){
-    installStyles();
-    const wrap=document.getElementById('managerCalendarWrap');
-    if(!wrap||wrap.classList.contains('manager-workspace-v2'))return false;
-    const calendar=wrap.querySelector(':scope > article.mgr-card');
-    const aside=wrap.querySelector(':scope > aside');
-    if(!calendar||!aside||aside.children.length<1)return false;
-    const form=aside.children[0];
-    const rest=[...aside.children].slice(1);
-    const stack=document.createElement('div');
-    stack.className='manager-side-stack';
-    rest.forEach(node=>stack.appendChild(node));
-    form.classList.add('manager-event-card');
-    calendar.classList.add('manager-calendar-card');
-    wrap.insertBefore(form,calendar);
-    wrap.appendChild(stack);
-    aside.remove();
-    wrap.classList.add('manager-workspace-v2');
-
+  function markEventFields(){
     document.getElementById('eventTitle')?.closest('label')?.classList.add('field-title');
     document.querySelector('.manager-event-card .form-row')?.classList.add('field-time');
     document.getElementById('eventOrder')?.closest('label')?.classList.add('field-order');
@@ -193,9 +187,59 @@
     document.getElementById('eventDescription')?.closest('label')?.classList.add('field-desc');
     document.querySelector('.manager-event-card .mgr-actions')?.classList.add('field-actions');
     document.getElementById('eventFormMsg')?.classList.add('field-msg');
-
     const title=document.getElementById('eventFormTitle');
     if(title&&title.textContent.trim()==='Новая запись')title.textContent='Новая запись / задача';
+  }
+
+  function arrange(){
+    installStyles();
+    const wrap=document.getElementById('managerCalendarWrap');
+    if(!wrap)return false;
+    if(wrap.classList.contains('manager-workspace-v3')){
+      compactCalendar();
+      return true;
+    }
+
+    const calendar=wrap.querySelector(':scope > article.mgr-card');
+    const aside=wrap.querySelector(':scope > aside');
+    const legacyGrid=document.querySelector('.manager-grid');
+    if(!calendar||!aside||aside.children.length<1||!legacyGrid)return false;
+
+    const form=aside.children[0];
+    const rest=[...aside.children].slice(1);
+    const stack=document.createElement('div');
+    stack.className='manager-side-stack';
+    rest.forEach(node=>stack.appendChild(node));
+
+    form.classList.add('manager-event-card');
+    calendar.classList.add('manager-calendar-card');
+
+    const columns=document.createElement('div');
+    columns.className='manager-workspace-columns';
+    const left=document.createElement('div');
+    left.className='manager-left-flow';
+    const right=document.createElement('div');
+    right.className='manager-right-flow';
+    columns.append(left,right);
+
+    const lower=[...legacyGrid.children];
+    const lowerLeft=lower[0]||null;
+    const lowerRight=lower[1]||null;
+    if(lowerLeft)lowerLeft.classList.add('manager-flow-section');
+    if(lowerRight)lowerRight.classList.add('manager-flow-section');
+
+    wrap.insertBefore(form,calendar);
+    left.appendChild(calendar);
+    if(lowerLeft)left.appendChild(lowerLeft);
+    right.appendChild(stack);
+    if(lowerRight)right.appendChild(lowerRight);
+    wrap.appendChild(columns);
+    aside.remove();
+    legacyGrid.classList.add('manager-grid-absorbed');
+    wrap.classList.remove('manager-workspace-v2');
+    wrap.classList.add('manager-workspace-v3');
+
+    markEventFields();
     compactCalendar();
     return true;
   }
