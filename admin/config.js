@@ -145,11 +145,11 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
-  if(isManager)load('manager-runtime.js','20260912-manager8');
+  if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1')}
-  load('navigation.js','20260909-equipment1');load('support-access.js','20260908-clean2');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');load('workspace-popup.js','20260912-1');load('workspace-popup-coverage.js','20260912-2');loadModule('equipment-maintenance-badge.js','20260909-1');
+  load('navigation.js','20260909-equipment1');load('support-access.js','20260908-clean2');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');if(!isManager){load('workspace-popup.js','20260912-1');load('workspace-popup-coverage.js','20260912-3')}loadModule('equipment-maintenance-badge.js','20260909-1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){load('partners-search.js','20260912-compact2');load('partner-invites.js','20260908-2');load('partners-modern.js','20260912-compact2')}
   background(()=>{load('chat-notifications.js','20260904-7');load('support-notifications.js','20260905-1');load('push-client.js','20260904-4');if(!isChat)load('chat-widget.js','20260908-2')});
