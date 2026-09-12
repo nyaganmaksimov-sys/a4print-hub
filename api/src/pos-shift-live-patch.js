@@ -1,8 +1,12 @@
 import express from 'express';
+import { createClient } from '@supabase/supabase-js';
 
 const BASE='https://api.moysklad.ru/api/remap/1.2';
-const BUILD='20260905-mslive4';
+const BUILD='20260912-mslive-fast1';
 const token=process.env.MOYSKLAD_TOKEN;
+const supabase=process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY
+  ?createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{autoRefreshToken:false,persistSession:false}})
+  :null;
 
 async function ms(path){
   if(!token)throw new Error('MOYSKLAD_TOKEN is not configured');
@@ -32,14 +36,6 @@ const firstFinite=(...values)=>{
   return null;
 };
 
-async function mapLimit(items,limit,fn){
-  const out=new Array(items.length);let cursor=0;
-  const workers=Array.from({length:Math.min(limit,items.length)},async()=>{
-    while(true){const i=cursor++;if(i>=items.length)return;out[i]=await fn(items[i],i)}
-  });
-  await Promise.all(workers);return out;
-}
-
 async function currentCashBalance(shift,store){
   const direct=firstFinite(store?.cash,store?.state?.cash,shift?.cash);
   if(direct!==null)return cents(direct);
@@ -55,6 +51,22 @@ async function currentCashBalance(shift,store){
   return cents(firstFinite(shift?.receivedCash,0)||0);
 }
 
+async function shiftOperations(shift){
+  const href=shift?.meta?.href;
+  if(!href)return[];
+  const types=['retaildemand','retailsalesreturn','retaildrawercashin','retaildrawercashout'];
+  const out=[];
+  for(const type of types){
+    try{
+      const data=await ms(`/entity/${type}?limit=1000&filter=${encodeURIComponent(`retailShift=${href}`)}`);
+      out.push(...(data?.rows||[]));
+    }catch(error){
+      console.warn(`[POS shift live] ${type} summary unavailable:`,error?.message||error);
+    }
+  }
+  return out;
+}
+
 async function liveShift(){
   const list=await ms('/entity/retailshift?limit=100&order=created,desc');
   const openRows=(list?.rows||[]).filter(x=>!x.closeDate).sort((a,b)=>timeOf(b)-timeOf(a));
@@ -66,13 +78,7 @@ async function liveShift(){
   let store=null;
   if(storeHref){try{store=await ms(storeHref)}catch{}}
 
-  const refs=Array.isArray(shift?.operations)?shift.operations:[];
-  const operations=(await mapLimit(refs,5,async ref=>{
-    const href=ref?.meta?.href;
-    if(!href)return ref;
-    try{return await ms(href)}catch{return ref}
-  })).filter(Boolean);
-
+  const operations=await shiftOperations(shift);
   const d={
     sales_count:0,sales_total:0,sales_cash:0,sales_cashless:0,
     returns_count:0,returns_total:0,returns_cash:0,returns_cashless:0,
@@ -100,8 +106,8 @@ async function liveShift(){
     }
   }
 
-  d.revenue_cash=cents(shift?.proceedsCash);
-  d.revenue_cashless=cents(shift?.proceedsNoCash);
+  d.revenue_cash=Number.isFinite(Number(shift?.proceedsCash))?cents(shift.proceedsCash):Math.max(0,d.sales_cash-d.returns_cash);
+  d.revenue_cashless=Number.isFinite(Number(shift?.proceedsNoCash))?cents(shift.proceedsNoCash):Math.max(0,d.sales_cashless-d.returns_cashless);
   d.revenue_total=d.revenue_cash+d.revenue_cashless;
   d.received_cash=cents(shift?.receivedCash);
   d.received_cashless=cents(shift?.receivedNoCash);
@@ -111,10 +117,30 @@ async function liveShift(){
   const storeId=idOf(shift?.retailStore)||idOf(store);
   return{
     build:BUILD,
-    shift:{id:shift.id,name:shift.name,openDate:shift.moment||shift.openDate||shift.created,closeDate:shift.closeDate||null,updated:shift.updated||null},
+    shift:{id:shift.id,name:shift.name,openDate:shift.openDate||shift.moment||shift.created,closeDate:shift.closeDate||null,updated:shift.updated||null},
     store:{id:storeId,name:store?.name||shift?.retailStore?.name||null},
     summary:d
   };
+}
+
+async function hubFallback(){
+  if(!supabase)return null;
+  try{
+    const {data,error}=await supabase.from('pos_shift_sessions')
+      .select('moysklad_shift_id,moysklad_shift_name,opened_at,status,updated_at')
+      .eq('status','OPEN')
+      .order('opened_at',{ascending:false})
+      .limit(1)
+      .maybeSingle();
+    if(error||!data?.moysklad_shift_id)return null;
+    return{
+      build:BUILD,
+      degraded:true,
+      shift:{id:data.moysklad_shift_id,name:data.moysklad_shift_name||'—',openDate:data.opened_at,closeDate:null,updated:data.updated_at||null},
+      store:null,
+      summary:{source:'HUB_FALLBACK'}
+    };
+  }catch{return null}
 }
 
 const originalGet=express.application.get;
@@ -130,7 +156,14 @@ express.application.get=function patchedGet(path,...handlers){
       try{
         const data=await liveShift();
         return res.json({success:true,...data});
-      }catch(error){return next(error)}
+      }catch(error){
+        const fallback=await hubFallback();
+        if(fallback){
+          console.warn('[POS shift live] MoySklad unavailable, serving HUB open shift fallback:',error?.message||error);
+          return res.json({success:true,...fallback});
+        }
+        return next(error);
+      }
     };
   }
   return originalGet.call(this,path,...handlers);
