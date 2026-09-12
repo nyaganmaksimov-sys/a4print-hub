@@ -37,6 +37,7 @@
     printButton=overlay.querySelector('.sale-finish-print');
     overlay.querySelector('.sale-finish-next').onclick=closeReceipt;
     printButton.onclick=printReceipt;
+    overlay.addEventListener('click',event=>{if(event.target===overlay)closeReceipt()});
   }
 
   function saleNumber(sale){return sale?.backend_result?.moysklad?.name||sale?.backend_result?.moysklad?.id||'—'}
@@ -70,6 +71,11 @@
   function showReceipt(sale){renderReceipt(sale);overlay.hidden=false;document.body.classList.add('sale-finish-open')}
   function closeReceipt(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('sale-finish-open');currentSale=null;setTimeout(()=>{$('search')?.focus();$('search')?.select?.()},0)}
 
+  // Keep a manual API for history/support actions, but never interrupt the
+  // cashier automatically after a sale. The sale screen stays ready for the
+  // next customer while synchronization continues in the background.
+  window.A4KassaSaleFinish={show:showReceipt,close:closeReceipt};
+
   function printReceipt(){
     if(!currentSale)return;
     const sale=currentSale;
@@ -80,14 +86,13 @@
     w.document.close();
   }
 
-  // Observe the same IndexedDB writes the cash register already uses. This
-  // keeps the receipt UI in sync without duplicating sale submission logic.
+  // Observe IndexedDB updates only when a receipt was explicitly opened.
+  // Routine sales must never force a receipt modal over the cashier screen.
   const nativePut=DB.put.bind(DB);
   DB.put=async function(name,value){
     const result=await nativePut(name,value);
     try{
-      if(name==='queue'&&value?.stage==='queued')showReceipt(value);
-      else if(name==='queue'&&currentSale?.id===value?.id)renderReceipt(value);
+      if(name==='queue'&&currentSale?.id===value?.id)renderReceipt(value);
       else if(name==='receipts'&&currentSale?.id===value?.id)renderReceipt(value);
     }catch(error){console.warn('Sale finish UI:',error)}
     return result;
