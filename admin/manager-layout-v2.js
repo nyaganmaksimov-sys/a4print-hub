@@ -61,9 +61,11 @@
       .manager-calendar-card .mgr-head{align-items:center!important}
       .manager-calendar-card .mgr-note{margin-top:3px!important;font-size:9.5px!important}
       .manager-calendar-card .calendar-week div{padding:4px!important;font-size:9px!important}
-      .manager-calendar-card .calendar-day{min-height:70px!important;padding:4px!important;box-sizing:border-box!important}
-      .manager-calendar-card .day-num{width:21px!important;height:21px!important;font-size:9.5px!important;margin-bottom:2px!important}
-      .manager-calendar-card .day-chip{padding:3px 4px!important;margin:2px 0!important;font-size:8px!important;line-height:1.15!important;border-radius:5px!important}
+      .manager-calendar-card .calendar-grid{grid-auto-rows:minmax(60px,auto)!important}
+      .manager-calendar-card .calendar-day{min-height:60px!important;padding:4px!important;box-sizing:border-box!important}
+      .manager-calendar-card .calendar-day.compact-week-hidden{display:none!important}
+      .manager-calendar-card .day-num{width:20px!important;height:20px!important;font-size:9.5px!important;margin-bottom:1px!important}
+      .manager-calendar-card .day-chip{padding:2px 4px!important;margin:2px 0!important;font-size:8px!important;line-height:1.15!important;border-radius:5px!important}
       .manager-calendar-card .calendar-more{font-size:8px!important;color:#64748b!important;font-weight:800!important;line-height:1!important;margin-top:2px!important}
 
       .manager-side-stack .mgr-notifications,
@@ -124,7 +126,9 @@
   function compactCalendar(){
     const grid=document.getElementById('managerCalendarGrid');
     if(!grid)return;
-    grid.querySelectorAll('.calendar-day').forEach(day=>{
+    const days=[...grid.querySelectorAll('.calendar-day')];
+    days.forEach(day=>{
+      day.classList.remove('compact-week-hidden');
       const chips=[...day.querySelectorAll('.day-chip')];
       const nativeNote=[...day.children].find(x=>x.classList?.contains('mgr-note')&&/^\+\d+/.test((x.textContent||'').trim()));
       let total=Number(day.dataset.compactTotal||0);
@@ -152,6 +156,15 @@
         more.remove();
       }
     });
+
+    for(let start=days.length-7;start>=0;start-=7){
+      const week=days.slice(start,start+7);
+      if(week.length!==7)continue;
+      const hasMonthDay=week.some(day=>!day.classList.contains('out'));
+      const hasItems=week.some(day=>day.querySelector('.day-chip'));
+      if(hasMonthDay||hasItems)break;
+      week.forEach(day=>day.classList.add('compact-week-hidden'));
+    }
   }
 
   function arrange(){
