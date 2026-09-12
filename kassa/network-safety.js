@@ -4,48 +4,96 @@
   window.__A4_KASSA_NETWORK_SAFETY__=true;
 
   const nativeFetch=window.fetch.bind(window);
-  const mobile=matchMedia('(max-width:980px)').matches;
-  if(!mobile)return;
-
-  const CLOUDFLARE_API='https://api.a4print-hub.ru';
   const cfg=window.A4PRINT_CONFIG||{};
+  const PRIMARY='https://api.a4print-hub.ru';
+  const RENDER='https://a4print-hub-api.onrender.com';
   const configured=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
-  const API_ORIGINS=[CLOUDFLARE_API,configured].filter((v,i,a)=>v&&a.indexOf(v)===i&&v!=='https://a4print-hub-api.onrender.com');
-  const PREF_KEY='a4_kassa_api_origin';
-  const READ_TIMEOUT=5000;
-  const WRITE_TIMEOUT=12000;
+  const KNOWN=[PRIMARY,configured,RENDER].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const READ_TIMEOUT=6500;
+  const WRITE_TIMEOUT=14000;
+  const STAGGER_MS=250;
 
-  // Old builds could remember direct Render. After Cloudflare activation this is harmful on Russian mobile networks.
-  try{localStorage.removeItem(PREF_KEY)}catch{}
+  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
-  function saveOrigin(v){try{if(v)localStorage.setItem(PREF_KEY,v)}catch{}}
-  function clearOrigin(){try{localStorage.removeItem(PREF_KEY)}catch{}}
   function parse(input,init={}){
     try{
       const req=new Request(input,init);
       const url=new URL(req.url);
-      const known=url.origin===CLOUDFLARE_API||url.origin===configured||url.origin==='https://a4print-hub-api.onrender.com';
-      return known?{req,url,method:req.method.toUpperCase()}:null;
+      return KNOWN.includes(url.origin)?{req,url,method:req.method.toUpperCase()}:null;
     }catch{return null}
   }
-  function routeUrl(url){const target=new URL(url.href);const base=new URL(CLOUDFLARE_API);target.protocol=base.protocol;target.host=base.host;return target.href}
-  async function one(req,url,timeout){
+
+  function routedUrl(url,base){
+    const target=new URL(url.href);
+    const b=new URL(base);
+    target.protocol=b.protocol;
+    target.host=b.host;
+    return target.href;
+  }
+
+  async function one(req,url,base,timeout){
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),timeout);
     try{
-      const routed=new Request(routeUrl(url),req);
-      const r=await nativeFetch(routed,{signal:controller.signal,cache:'no-store'});
-      if(r.ok||r.status<500){saveOrigin(CLOUDFLARE_API);return r}
-      throw new Error(`HTTP ${r.status}`);
-    }catch(e){clearOrigin();throw e}
-    finally{clearTimeout(timer)}
+      const routed=new Request(routedUrl(url,base),req);
+      return await nativeFetch(routed,{signal:controller.signal,cache:'no-store'});
+    }finally{clearTimeout(timer)}
+  }
+
+  function usable(response){return !!response&&(response.ok||response.status<500)}
+
+  function routeOrder(url){
+    const current=url.origin;
+    return [current,PRIMARY,configured,RENDER].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  }
+
+  async function readWithFailover(req,url){
+    const routes=routeOrder(url);
+    const attempts=routes.map((base,index)=>(async()=>{
+      if(index)await sleep(STAGGER_MS*index);
+      const response=await one(req.clone(),url,base,READ_TIMEOUT);
+      if(!usable(response))throw new Error(`HTTP ${response.status}`);
+      return response;
+    })());
+    if(typeof Promise.any==='function')return await Promise.any(attempts);
+    return await new Promise((resolve,reject)=>{
+      let left=attempts.length,lastError;
+      attempts.forEach(p=>p.then(resolve,error=>{lastError=error;if(--left===0)reject(lastError)}));
+    });
+  }
+
+  function isSafeWriteFallback(url){
+    const p=url.pathname;
+    return /\/api\/v1\/mobile\/auth\/(?:password|refresh)\/?$/.test(p)
+      || /\/api\/v1\/pos\/shift\/open\/?$/.test(p)
+      || /\/api\/v1\/supabase\/(?:auth|rest)\/v1\//.test(p);
+  }
+
+  async function writeWithFailover(req,url){
+    const routes=routeOrder(url);
+    const allowFallback=isSafeWriteFallback(url);
+    let lastError=null;
+    for(let i=0;i<routes.length;i++){
+      try{
+        const response=await one(req.clone(),url,routes[i],WRITE_TIMEOUT);
+        if(usable(response))return response;
+        lastError=new Error(`HTTP ${response.status}`);
+        if(!allowFallback)return response;
+      }catch(error){
+        lastError=error;
+        // A timeout after a financial write is ambiguous: the server may have
+        // completed it. Never duplicate those writes on another origin.
+        if(!allowFallback||error?.name==='AbortError')throw error;
+      }
+    }
+    throw lastError||new Error('API_UNREACHABLE');
   }
 
   window.fetch=async function a4SafeFetch(input,init={}){
     const info=parse(input,init);
     if(!info)return nativeFetch(input,init);
     const {req,url,method}=info;
-    const timeout=(method==='GET'||method==='HEAD')?READ_TIMEOUT:WRITE_TIMEOUT;
-    return one(req.clone(),url,timeout);
+    if(method==='GET'||method==='HEAD')return readWithFailover(req,url);
+    return writeWithFailover(req,url);
   };
 })();
