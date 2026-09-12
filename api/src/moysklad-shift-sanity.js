@@ -1,7 +1,7 @@
 const originalFetch=globalThis.fetch;
 const stateKey=Symbol.for('a4print.moysklad.request.queue');
 const queueState=globalThis[stateKey]||(globalThis[stateKey]={tail:Promise.resolve(),lastStarted:0});
-const MIN_GAP_MS=300;
+const MIN_GAP_MS=100;
 const MAX_RATE_RETRIES=4;
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
