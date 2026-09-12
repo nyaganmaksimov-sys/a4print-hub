@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Заказы — A4PRINT HUB</title>
+  <title>Заказы менеджеров — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260909-orders4">
   <link rel="stylesheet" href="./orders-workspace.css?v=20260908-1">
   <link rel="stylesheet" href="./orders-fixes.css?v=20260909-files2">
-  <script src="./config.js?v=20260909-orders4"></script>
+  <script src="./config.js?v=20260912-orders-manager2"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
     <header class="topbar">
-      <div><h1>Заказы</h1><p>Статус, финансы, производство и партнёрские направления в одном списке</p></div>
+      <div><h1>Заказы</h1><p>Только клиентские заказы менеджеров — без кассовых чеков и партнёрских операций</p></div>
       <div class="orders-top-actions">
         <span class="orders-updated" id="updatedAt">загрузка…</span>
         <button id="refresh" type="button">↻ Обновить</button>
@@ -32,21 +32,20 @@
 
     <section class="panel orders-panel">
       <div class="orders-toolbar">
-        <input id="search" autocomplete="off" placeholder="Номер, клиент, телефон, услуга или партнёр">
+        <input id="search" autocomplete="off" placeholder="Номер, клиент, телефон или услуга">
         <select id="status"><option value="">Все статусы</option><option value="NEW">Новые</option><option value="WORK">В работе</option><option value="CONFIRMED">Подтверждённые</option><option value="IN_PROGRESS">В производстве</option><option value="READY">Готовые</option><option value="COMPLETED">Завершённые</option><option value="ON_HOLD">Приостановленные</option><option value="CANCELLED">Отменённые</option></select>
         <select id="unit"><option value="">Все направления</option><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общие</option></select>
-        <select id="source"><option value="">Все источники</option><option value="PARTNER">Партнёрские</option><option value="DIRECT">Прямые</option></select>
         <select id="attention"><option value="">Любое состояние</option><option value="ATTENTION">Требуют внимания</option><option value="UNPAID">Есть долг</option><option value="OVERDUE_PAYMENT">Просрочен счёт</option><option value="OVERDUE_PRODUCTION">Просрочено производство</option><option value="NO_PRODUCTION">Без производственного задания</option></select>
         <button id="clearFilters" class="orders-clear" type="button">Сбросить</button>
       </div>
       <div class="orders-list-meta">
-        <span><b id="visibleCount">0 из 0</b> · оранжевая полоса означает, что заказ требует внимания</span>
+        <span><b id="visibleCount">0 из 0</b> · удаление заказа доступно через запрос на модерацию</span>
         <div class="orders-meta-actions">
           <span class="orders-note" id="roleNote">Загрузка прав…</span>
           <button id="newOrderBtn" class="orders-new-btn" type="button" hidden>+ Новый заказ</button>
         </div>
       </div>
-      <div class="orders-list-head"><span>Заказ</span><span>Клиент / партнёр</span><span>Услуга</span><span>Финансы</span><span>Производство</span><span style="text-align:right">Сумма</span><span>Управление</span></div>
+      <div class="orders-list-head"><span>Заказ</span><span>Клиент</span><span>Услуга</span><span>Финансы</span><span>Производство</span><span style="text-align:right">Сумма</span><span>Управление</span></div>
       <div id="list"><div class="orders-empty">Загрузка заказов…</div></div>
     </section>
   </main>
@@ -91,8 +90,9 @@
     </form>
   </dialog>
 
-  <script type="module" src="./orders.js?v=20260909-orders4"></script>
+  <script type="module" src="./orders.js?v=20260912-manager-only2"></script>
   <script type="module" src="./orders-create.js?v=20260909-files2"></script>
   <script type="module" src="./order-catalog-quick.js?v=20260909-2"></script>
+  <script type="module" src="./order-delete-request.js?v=20260912-moderation2"></script>
 </body>
 </html>
