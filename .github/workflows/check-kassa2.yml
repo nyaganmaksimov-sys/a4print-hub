@@ -108,10 +108,11 @@ jobs:
           grep -q 'network-safety.js' kassa/bootstrap.js
           grep -q 'network-safety.js' kassa/sw.js
           grep -q 'AbortController' kassa/network-safety.js
-          grep -q 'READ_TIMEOUT=5000' kassa/network-safety.js
-          grep -q 'WRITE_TIMEOUT=12000' kassa/network-safety.js
-          grep -q "v!=='https://a4print-hub-api.onrender.com'" kassa/network-safety.js
-          grep -q 'return one(req.clone(),url,timeout)' kassa/network-safety.js
+          grep -q 'READ_TIMEOUT=6500' kassa/network-safety.js
+          grep -q 'WRITE_TIMEOUT=14000' kassa/network-safety.js
+          grep -q "RENDER='https://a4print-hub-api.onrender.com'" kassa/network-safety.js
+          grep -q 'readWithFailover' kassa/network-safety.js
+          grep -q 'isIdempotentWrite' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
           grep -q 'sync-throttle.js' kassa/bootstrap.js
