@@ -22,7 +22,6 @@
       .dash-card-head-actions{display:flex;align-items:center;gap:8px;min-width:0}
       .dash-card-head-actions>.dashboard-quick{margin-left:0}
 
-      /* Cash journal: compact, readable and aligned. */
       .dash-cash-journal{
         margin:12px 14px 14px!important;padding:0!important;border:1px solid #e2e8f0!important;
         border-radius:14px!important;background:#fbfdff!important;overflow:hidden!important;
@@ -31,7 +30,7 @@
         display:flex;align-items:center;justify-content:space-between;gap:12px;
         padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e7edf5;
       }
-      .dash-cash-journal-title{display:flex;align-items:center;gap:10px;min-width:0}
+      .dash-cash-journal-title{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
       .dash-cash-journal-title h3{margin:0!important;color:#172033;font-size:13.5px!important;line-height:1.2;font-weight:850}
       .dash-cash-journal-count{display:inline-flex;align-items:center;min-height:23px;padding:0 8px;border-radius:999px;background:#eaf1fb;color:#52657f;font-size:9.5px;font-weight:800;white-space:nowrap}
       .dash-cash-journal.is-collapsed>.dash-cash-op,
@@ -125,7 +124,7 @@
 
   function enhanceCashJournal(){
     const journal=document.getElementById('cashJournal');
-    if(!journal||journal.dataset.a4Enhanced==='1')return;
+    if(!journal||journal.querySelector(':scope > .dash-cash-journal-head'))return;
     const oldTitle=journal.querySelector(':scope > h3');
     if(!oldTitle)return;
     const rows=journal.querySelectorAll(':scope > .dash-cash-op').length;
@@ -143,8 +142,7 @@
     const btn=button('Свернуть или развернуть движения наличных');
     head.append(title,btn);
     journal.prepend(head);
-    journal.dataset.a4Enhanced='1';
-    if(stored(key))journal.classList.add('is-collapsed');
+    if(stored(key))journal.classList.add('is-collapsed');else journal.classList.remove('is-collapsed');
     btn.setAttribute('aria-expanded',String(!journal.classList.contains('is-collapsed')));
     btn.addEventListener('click',e=>{
       e.preventDefault();e.stopPropagation();
