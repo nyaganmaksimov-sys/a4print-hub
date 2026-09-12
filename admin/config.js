@@ -119,6 +119,8 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const isDashboard=/\/admin\/(?:index\.html)?$/.test(location.pathname);
   const isChat=/\/admin\/messages\.html$/.test(location.pathname);
   const isManager=/\/admin\/manager\.html$/.test(location.pathname);
+  const isOrders=/\/admin\/orders\.html$/.test(location.pathname);
+  const isRequests=/\/admin\/requests\.html$/.test(location.pathname);
   const isPartners=/\/admin\/partners\.html$/.test(location.pathname);
   const isSettings=/\/admin\/settings\.html$/.test(location.pathname);
   const isEmployees=/\/admin\/employees\.html$/.test(location.pathname);
@@ -141,6 +143,8 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
   if(isManager)load('manager-runtime.js','20260912-manager8');
+  if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation1');
+  if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation1');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1')}
   load('navigation.js','20260909-equipment1');load('support-access.js','20260908-clean2');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260909-1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
