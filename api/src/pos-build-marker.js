@@ -1,6 +1,7 @@
 import express from 'express';
 
-const BUILD='20260907-cashops1';
+const renderCommit=String(process.env.RENDER_GIT_COMMIT||'').trim();
+const BUILD=renderCommit?`git-${renderCommit.slice(0,12)}`:'local';
 const originalGet=express.application.get;
 let added=false;
 
@@ -16,7 +17,8 @@ express.application.get=function patchedGet(path,...handlers){
       shiftIdSummary:true,
       paymentBreakdown:true,
       saleIdempotency:true,
-      cashOperations:true
+      cashOperations:true,
+      receiptQueueRecovery:true
     }));
   }
   return originalGet.call(this,path,...handlers);

@@ -33,7 +33,7 @@ jobs:
           grep -q 'get_pos_receipt_history' kassa/history-hub.js
           grep -q 'Печать чека' kassa/history-hub.js
           grep -q 'returned_total' kassa/history-hub.js
-          grep -q "loadScript('./history-hub.js')" kassa/bootstrap.js
+          grep -q "'./history-hub.js'" kassa/bootstrap.js
           grep -q './history-hub.js' kassa/sw.js
           grep -q 'get_pos_receipt_history' database/migrations/108_pos_receipt_history.sql
           grep -q "has_role('POS_OPERATOR')" database/migrations/108_pos_receipt_history.sql

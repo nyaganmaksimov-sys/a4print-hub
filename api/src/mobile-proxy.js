@@ -11,6 +11,8 @@ const internalPort = Number(process.env.MOBILE_INTERNAL_API_PORT || 3001);
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+const renderCommit = String(process.env.RENDER_GIT_COMMIT || '').trim();
+const runtimeBuild = renderCommit ? `git-${renderCommit.slice(0, 12)}` : 'local';
 
 const configuredOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -51,7 +53,7 @@ app.get('/api/v1/health', (_req, res) => res.json({
   success: true,
   service: 'a4print-hub-api',
   status: 'ok',
-  build: '20260905-supabase-fallback-v1',
+  build: runtimeBuild,
   databaseConfigured: Boolean(service),
   moyskladConfigured: Boolean(process.env.MOYSKLAD_TOKEN),
   capabilities: {

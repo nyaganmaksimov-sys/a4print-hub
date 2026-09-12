@@ -94,10 +94,10 @@ jobs:
           grep -q 'network-safety.js' kassa/bootstrap.js
           grep -q 'network-safety.js' kassa/sw.js
           grep -q 'AbortController' kassa/network-safety.js
-          grep -q 'SHIFT_READ_TIMEOUT=20000' kassa/network-safety.js
-          grep -q 'WRITE_TIMEOUT=45000' kassa/network-safety.js
-          grep -q 'sale|returns|cashout' kassa/network-safety.js
-          grep -q 'overrideSignal:isShift||isMoneyWrite' kassa/network-safety.js
+          grep -q 'READ_TIMEOUT=5000' kassa/network-safety.js
+          grep -q 'WRITE_TIMEOUT=12000' kassa/network-safety.js
+          grep -q "v!=='https://a4print-hub-api.onrender.com'" kassa/network-safety.js
+          grep -q 'return one(req.clone(),url,timeout)' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
           grep -q 'sync-throttle.js' kassa/bootstrap.js
@@ -115,7 +115,7 @@ jobs:
           grep -q 'runtime-stability.js' kassa/sw.js
           grep -q 'closeRouteOverlays' kassa/runtime-stability.js
           grep -q 'local queue write failed' kassa/runtime-stability.js
-          grep -q 'nav.click()' kassa/startup-shift.js
+          grep -q 'sale.click()' kassa/startup-shift.js
           grep -q 'app.hidden' kassa/startup-shift.js
           grep -q 'manualRequired' kassa/shift-session-gate.js
           grep -q 'a4:kassa-shift' kassa/shift-session-gate.js
@@ -143,8 +143,9 @@ jobs:
           grep -q 'pos_cash_operations' database/migrations/110_pos_cash_operations.sql
           grep -q 'moysklad-shift-sanity.js' api/src/boot.js
           grep -q 'Europe/Moscow' api/src/moysklad-shift-sanity.js
-          grep -q '20260907-cashops1' api/src/pos-build-marker.js
+          grep -q 'RENDER_GIT_COMMIT' api/src/pos-build-marker.js
           grep -q 'cashOperations:true' api/src/pos-build-marker.js
+          grep -q 'receiptQueueRecovery:true' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
           ! grep -q 'pos-shift-live-patch.js' api/src/boot.js
       - name: Validate manifest JSON
@@ -159,7 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           url='https://a4print-hub-api.onrender.com/api/v1/pos/build'
-          marker='20260907-cashops1'
+          marker="git-${GITHUB_SHA:0:12}"
           for attempt in $(seq 1 45); do
             echo "Render POS build check $attempt/45"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
@@ -172,8 +173,9 @@ jobs:
               && grep -q '"shiftIdSummary":true' /tmp/live.json \
               && grep -q '"paymentBreakdown":true' /tmp/live.json \
               && grep -q '"saleIdempotency":true' /tmp/live.json \
-              && grep -q '"cashOperations":true' /tmp/live.json; then
-              echo 'Render is running the cash operations build.'
+              && grep -q '"cashOperations":true' /tmp/live.json \
+              && grep -q '"receiptQueueRecovery":true' /tmp/live.json; then
+              echo 'Render is running the current commit with queue recovery.'
               exit 0
             fi
             sleep 8
