@@ -1,20 +1,23 @@
 (()=>{
-  if(window.__A4_MANAGER_WIDGETS_V2__)return;
-  window.__A4_MANAGER_WIDGETS_V2__=true;
+  if(window.__A4_MANAGER_WIDGETS_V3__)return;
+  window.__A4_MANAGER_WIDGETS_V3__=true;
 
-  const SIDE_KEY='a4hub.manager.side.order.v2';
-  const KPI_KEY='a4hub.manager.kpi.order.v2';
+  const SIDE_KEY='a4hub.manager.side.order.v3';
+  const KPI_KEY='a4hub.manager.kpi.order.v3';
   const RATES_REFRESH=10*60*1000;
   let ratesTimer=null;
   let clockTimer=null;
+  let ratesStarted=false;
+  let sortActive=false;
 
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const fmt=value=>Number(value||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:4});
+  const directChildren=(container,selector)=>[...container.children].filter(el=>el.matches?.(selector));
 
   function installStyles(){
-    if(document.getElementById('a4-manager-widgets-v2-style'))return;
+    if(document.getElementById('a4-manager-widgets-v3-style'))return;
     const s=document.createElement('style');
-    s.id='a4-manager-widgets-v2-style';
+    s.id='a4-manager-widgets-v3-style';
     s.textContent=`
       .manager-side-stack{align-content:start!important;grid-auto-rows:max-content!important}
       .manager-side-stack>.mgr-card{align-self:start!important;min-height:0!important}
@@ -38,24 +41,20 @@
       .manager-rate-value{display:block;margin-top:1px;color:#0f172a;font-size:11px;font-weight:900;white-space:nowrap}
       .manager-rate-error{grid-column:1/-1;padding:7px 8px;border-radius:8px;background:#fff7f7;border:1px dashed #fecaca;color:#b91c1c;font-size:9px}
 
-      .manager-drag-handle{margin-left:auto;display:inline-grid!important;place-items:center!important;width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;padding:0!important;border:1px solid #dbe4f0!important;background:#fff!important;color:#64748b!important;border-radius:9px!important;cursor:grab!important;font:900 15px/1 system-ui!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important;user-select:none!important;touch-action:none!important}
-      .manager-drag-handle:hover{background:#eff6ff!important;border-color:#bfdbfe!important;color:#2563eb!important}
+      .manager-drag-handle{margin-left:auto;display:inline-grid!important;place-items:center!important;width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;padding:0!important;border:1px solid #dbe4f0!important;background:#fff!important;color:#64748b!important;border-radius:9px!important;cursor:grab!important;font:900 16px/1 system-ui!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important;user-select:none!important;touch-action:none!important}
+      .manager-drag-handle:hover{background:#eff6ff!important;border-color:#93c5fd!important;color:#2563eb!important}
       .manager-drag-handle:active{cursor:grabbing!important;background:#dbeafe!important}
-      .mgr-card.manager-dragging,.manager-kpi.manager-dragging{opacity:.60!important;transform:scale(.99)!important;box-shadow:0 12px 28px rgba(15,23,42,.10)!important;z-index:3!important}
-      .mgr-card.manager-drag-over,.manager-kpi.manager-drag-over{outline:2px dashed #60a5fa!important;outline-offset:3px!important}
+      .mgr-card.manager-dragging,.manager-kpi.manager-dragging{opacity:.66!important;transform:scale(.99)!important;box-shadow:0 14px 32px rgba(15,23,42,.16)!important;z-index:20!important}
+      .mgr-card.manager-drag-over,.manager-kpi.manager-drag-over{outline:2px dashed #3b82f6!important;outline-offset:3px!important}
       .manager-kpi{position:relative!important}
-      .manager-kpi>.manager-drag-handle{position:absolute!important;right:7px!important;top:6px!important;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;font-size:12px!important;border:0!important;background:transparent!important;box-shadow:none!important}
+      .manager-kpi>.manager-drag-handle{position:absolute!important;right:7px!important;top:6px!important;width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;font-size:12px!important;border:0!important;background:transparent!important;box-shadow:none!important}
       .manager-kpi>.manager-drag-handle:hover{background:#eef2ff!important}
-      .manager-kpi small{padding-right:20px!important}
+      .manager-kpi small{padding-right:22px!important}
       body.manager-sort-active{cursor:grabbing!important;user-select:none!important}
+      body.manager-sort-active *{user-select:none!important}
 
-      @media(max-width:1220px){
-        .manager-info-widget{min-height:0!important}
-      }
-      @media(max-width:650px){
-        .manager-rates-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-        .manager-info-clock{font-size:21px}
-      }
+      @media(max-width:1220px){.manager-info-widget{min-height:0!important}}
+      @media(max-width:650px){.manager-info-clock{font-size:21px}}
     `;
     document.head.appendChild(s);
   }
@@ -127,30 +126,77 @@
     }
   }
 
+  function identity(el){return el.dataset.managerWidget||el.dataset.kpiKey||''}
+
   function saveOrder(container,selector,key){
-    const ids=[...container.querySelectorAll(`:scope > ${selector}`)]
-      .map(el=>el.dataset.managerWidget||el.dataset.kpiKey)
-      .filter(Boolean);
+    const ids=directChildren(container,selector).map(identity).filter(Boolean);
     try{localStorage.setItem(key,JSON.stringify(ids))}catch{}
   }
 
-  function restoreOrder(container,selector,key){
+  function restoreOrderOnce(container,selector,key,flag){
+    if(container.dataset[flag]==='1')return;
+    container.dataset[flag]='1';
     try{
       const order=JSON.parse(localStorage.getItem(key)||'[]');
       if(!Array.isArray(order)||!order.length)return;
-      const items=[...container.querySelectorAll(`:scope > ${selector}`)];
-      const map=new Map(items.map(el=>[el.dataset.managerWidget||el.dataset.kpiKey,el]));
+      const items=directChildren(container,selector);
+      const map=new Map(items.map(el=>[identity(el),el]));
       order.forEach(id=>{const el=map.get(id);if(el)container.appendChild(el)});
     }catch{}
   }
 
   function clearTargets(container,selector){
-    [...container.querySelectorAll(`:scope > ${selector}`)].forEach(x=>x.classList.remove('manager-drag-over'));
+    directChildren(container,selector).forEach(x=>x.classList.remove('manager-drag-over'));
+  }
+
+  function moveSide(active,e){
+    const {card,container,selector}=active;
+    const siblings=directChildren(container,selector).filter(el=>el!==card);
+    if(!siblings.length)return;
+    let before=null;
+    for(const sibling of siblings){
+      const rect=sibling.getBoundingClientRect();
+      if(e.clientY<rect.top+rect.height/2){before=sibling;break}
+    }
+    const oldPrev=card.previousElementSibling;
+    const oldNext=card.nextElementSibling;
+    if(before)container.insertBefore(card,before);else container.appendChild(card);
+    if(card.previousElementSibling!==oldPrev||card.nextElementSibling!==oldNext)active.changed=true;
+    clearTargets(container,selector);
+    const marker=before||siblings[siblings.length-1];
+    if(marker&&marker!==card)marker.classList.add('manager-drag-over');
+  }
+
+  function moveGrid(active,e){
+    const {card,container,selector}=active;
+    const siblings=directChildren(container,selector).filter(el=>el!==card);
+    if(!siblings.length)return;
+    const hit=document.elementFromPoint(e.clientX,e.clientY);
+    let target=hit?.closest?.(selector);
+    if(!target||target===card||target.parentElement!==container){
+      target=siblings.map(el=>{
+        const r=el.getBoundingClientRect();
+        const dx=e.clientX-(r.left+r.width/2);
+        const dy=e.clientY-(r.top+r.height/2);
+        return {el,d:dx*dx+dy*dy};
+      }).sort((a,b)=>a.d-b.d)[0]?.el;
+    }
+    if(!target||target===card)return;
+    const rect=target.getBoundingClientRect();
+    const after=e.clientY>rect.top+rect.height*.65||(
+      e.clientY>=rect.top+rect.height*.35&&e.clientY<=rect.top+rect.height*.65&&e.clientX>rect.left+rect.width/2
+    );
+    const oldPrev=card.previousElementSibling;
+    const oldNext=card.nextElementSibling;
+    container.insertBefore(card,after?target.nextSibling:target);
+    if(card.previousElementSibling!==oldPrev||card.nextElementSibling!==oldNext)active.changed=true;
+    clearTargets(container,selector);
+    target.classList.add('manager-drag-over');
   }
 
   function addHandle(card,key,kind,container,selector,storageKey){
     if(!card||!container)return;
-    let handle=card.querySelector(':scope > .manager-drag-handle, :scope > .mgr-head .manager-drag-handle');
+    let handle=card.querySelector('.manager-drag-handle');
     if(!handle){
       handle=document.createElement('button');
       handle.type='button';
@@ -158,75 +204,57 @@
       handle.textContent='⠿';
       handle.title='Зажмите и перетащите блок';
       handle.setAttribute('aria-label','Перетащить блок');
-      handle.dataset.dragKey=key;
-      handle.dataset.dragKind=kind;
       if(kind==='side'){
-        const head=card.querySelector(':scope > .mgr-head');
+        const head=[...card.children].find(el=>el.classList?.contains('mgr-head'));
         if(head)head.appendChild(handle);else card.prepend(handle);
       }else card.appendChild(handle);
     }
-    if(handle.dataset.pointerSortBound==='1')return;
-    handle.dataset.pointerSortBound='1';
+    handle.dataset.dragKey=key;
+    handle.dataset.dragKind=kind;
+    if(handle.dataset.sortV3Bound==='1')return;
+    handle.dataset.sortV3Bound='1';
 
-    let active=null;
-    let suppressClickUntil=0;
-
-    const finish=e=>{
-      if(!active)return;
-      const moved=active.moved;
-      card.classList.remove('manager-dragging');
-      clearTargets(container,selector);
-      document.body.classList.remove('manager-sort-active');
-      try{if(handle.hasPointerCapture?.(active.pointerId))handle.releasePointerCapture(active.pointerId)}catch{}
-      active=null;
-      if(moved){
-        suppressClickUntil=Date.now()+350;
-        saveOrder(container,selector,storageKey);
-      }
-      if(e?.cancelable)e.preventDefault();
-    };
-
-    handle.addEventListener('pointerdown',e=>{
-      if(e.pointerType==='mouse'&&e.button!==0)return;
-      active={pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false};
+    handle.addEventListener('pointerdown',downEvent=>{
+      if(sortActive)return;
+      if(downEvent.pointerType==='mouse'&&downEvent.button!==0)return;
+      sortActive=true;
+      const active={
+        card,container,selector,storageKey,kind,
+        pointerId:downEvent.pointerId,
+        startX:downEvent.clientX,startY:downEvent.clientY,
+        moved:false,changed:false
+      };
       card.classList.add('manager-dragging');
       document.body.classList.add('manager-sort-active');
-      try{handle.setPointerCapture(e.pointerId)}catch{}
-      e.preventDefault();
-      e.stopPropagation();
-    });
 
-    handle.addEventListener('pointermove',e=>{
-      if(!active||e.pointerId!==active.pointerId)return;
-      const distance=Math.hypot(e.clientX-active.startX,e.clientY-active.startY);
-      if(!active.moved&&distance<5)return;
-      active.moved=true;
-      const hit=document.elementFromPoint(e.clientX,e.clientY);
-      const target=hit?.closest(selector);
-      clearTargets(container,selector);
-      if(target&&target!==card&&target.parentElement===container){
-        target.classList.add('manager-drag-over');
-        const rect=target.getBoundingClientRect();
-        let after;
-        if(kind==='side'){
-          after=e.clientY>rect.top+rect.height/2;
-        }else{
-          const cy=rect.top+rect.height/2;
-          const cx=rect.left+rect.width/2;
-          const verticalOffset=e.clientY-cy;
-          after=Math.abs(verticalOffset)>rect.height*.30?verticalOffset>0:e.clientX>cx;
-        }
-        container.insertBefore(card,after?target.nextSibling:target);
-      }
-      e.preventDefault();
-      e.stopPropagation();
-    });
+      const onMove=e=>{
+        if(e.pointerId!==active.pointerId)return;
+        const distance=Math.hypot(e.clientX-active.startX,e.clientY-active.startY);
+        if(!active.moved&&distance<4)return;
+        active.moved=true;
+        if(active.kind==='side')moveSide(active,e);else moveGrid(active,e);
+        if(e.cancelable)e.preventDefault();
+        e.stopPropagation();
+      };
 
-    handle.addEventListener('pointerup',finish);
-    handle.addEventListener('pointercancel',finish);
-    handle.addEventListener('lostpointercapture',()=>finish());
-    handle.addEventListener('click',e=>{
-      if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation()}
+      const finish=e=>{
+        if(e&&e.pointerId!=null&&e.pointerId!==active.pointerId)return;
+        window.removeEventListener('pointermove',onMove,true);
+        window.removeEventListener('pointerup',finish,true);
+        window.removeEventListener('pointercancel',finish,true);
+        card.classList.remove('manager-dragging');
+        clearTargets(container,selector);
+        document.body.classList.remove('manager-sort-active');
+        if(active.changed)saveOrder(container,selector,storageKey);
+        sortActive=false;
+        if(e?.cancelable)e.preventDefault();
+      };
+
+      window.addEventListener('pointermove',onMove,true);
+      window.addEventListener('pointerup',finish,true);
+      window.addEventListener('pointercancel',finish,true);
+      if(downEvent.cancelable)downEvent.preventDefault();
+      downEvent.stopPropagation();
     },true);
   }
 
@@ -234,21 +262,22 @@
     const stack=document.querySelector('.manager-side-stack');
     if(!stack)return false;
     createInfoWidget();
-    const cards=[...stack.querySelectorAll(':scope > .mgr-card')];
-    cards.forEach(card=>{
+    directChildren(stack,'.mgr-card').forEach(card=>{
       const key=widgetKey(card);
-      if(!key)return;
-      card.dataset.managerWidget=key;
+      if(key)card.dataset.managerWidget=key;
     });
-    restoreOrder(stack,'.mgr-card',SIDE_KEY);
-    [...stack.querySelectorAll(':scope > .mgr-card')].forEach(card=>{
+    restoreOrderOnce(stack,'.mgr-card',SIDE_KEY,'sideOrderRestoredV3');
+    directChildren(stack,'.mgr-card').forEach(card=>{
       const key=card.dataset.managerWidget;
       if(key)addHandle(card,key,'side',stack,'.mgr-card',SIDE_KEY);
     });
     renderClock();
     if(!clockTimer)clockTimer=setInterval(renderClock,1000);
-    loadRates();
-    if(!ratesTimer)ratesTimer=setInterval(loadRates,RATES_REFRESH);
+    if(!ratesStarted){
+      ratesStarted=true;
+      loadRates();
+      ratesTimer=setInterval(loadRates,RATES_REFRESH);
+    }
     return true;
   }
 
@@ -261,13 +290,11 @@
   function initKpis(){
     const host=document.getElementById('managerBriefingCards');
     if(!host)return false;
-    const cards=[...host.querySelectorAll(':scope > .manager-kpi')];
+    const cards=directChildren(host,'.manager-kpi');
     if(!cards.length)return false;
-    cards.forEach((card,index)=>{card.dataset.kpiKey=kpiKey(card,index)});
-    restoreOrder(host,'.manager-kpi',KPI_KEY);
-    [...host.querySelectorAll(':scope > .manager-kpi')].forEach(card=>{
-      addHandle(card,card.dataset.kpiKey,'kpi',host,'.manager-kpi',KPI_KEY);
-    });
+    cards.forEach((card,index)=>{if(!card.dataset.kpiKey)card.dataset.kpiKey=kpiKey(card,index)});
+    restoreOrderOnce(host,'.manager-kpi',KPI_KEY,'kpiOrderRestoredV3');
+    directChildren(host,'.manager-kpi').forEach(card=>addHandle(card,card.dataset.kpiKey,'kpi',host,'.manager-kpi',KPI_KEY));
     return true;
   }
 
@@ -277,10 +304,11 @@
     initKpis();
     let queued=false;
     const obs=new MutationObserver(()=>{
-      if(queued)return;
+      if(sortActive||queued)return;
       queued=true;
       requestAnimationFrame(()=>{
         queued=false;
+        if(sortActive)return;
         initSide();
         initKpis();
       });
