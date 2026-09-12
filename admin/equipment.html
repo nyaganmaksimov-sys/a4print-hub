@@ -64,17 +64,17 @@
   </form></dialog>
 
   <dialog id="consumableDlg" class="eq-dialog"><form id="consumableForm">
-    <div class="eq-dialog-head"><div><h2 id="consumableDlgTitle">Новый расходник</h2><p>Карточка материала и минимальный страховой запас.</p></div><button class="eq-close" type="button" data-close="consumableDlg">×</button></div>
+    <div class="eq-dialog-head"><div><h2 id="consumableDlgTitle">Новый расходник</h2><p>Карточка материала, единица измерения и страховой запас.</p></div><button class="eq-close" type="button" data-close="consumableDlg">×</button></div>
     <div class="eq-dialog-body"><input id="consumableId" type="hidden"><div class="eq-form">
-      <label class="eq-field full"><span>Название *</span><input id="conName" required></label><label class="eq-field"><span>Подразделение</span><select id="conOrganization"></select></label><label class="eq-field"><span>Категория</span><input id="conCategory"></label>
-      <label class="eq-field"><span>SKU / артикул</span><input id="conSku"></label><label class="eq-field"><span>Единица</span><input id="conUnit" value="шт"></label><label class="eq-field"><span>Минимальный запас</span><input id="conMinStock" type="number" min="0" step="0.001" value="0"></label><label class="eq-field"><span>Место хранения</span><input id="conStorage"></label>
+      <label class="eq-field full"><span>Название *</span><input id="conName" required placeholder="Например: Чернила Epson 003 Black"></label><label class="eq-field"><span>Подразделение</span><select id="conOrganization"></select></label><label class="eq-field"><span>Категория</span><input id="conCategory" placeholder="Чернила / краска"></label>
+      <label class="eq-field"><span>SKU / артикул</span><input id="conSku"></label><label class="eq-field"><span>Единица измерения *</span><input id="conUnit" value="шт" required placeholder="шт, мл, л, лист…"></label><label class="eq-field"><span>Минимальный запас</span><input id="conMinStock" type="number" min="0" step="0.001" value="0"></label><label class="eq-field"><span>Место хранения</span><input id="conStorage" placeholder="Склад, стеллаж, ящик…"></label>
       <label class="eq-field"><span>Поставщик</span><input id="conSupplier"></label><label class="eq-field"><span>Активен</span><select id="conActive"><option value="1">Да</option><option value="0">Нет</option></select></label><label class="eq-field full"><span>Комментарий</span><textarea id="conNotes"></textarea></label>
     </div><div id="consumableError" class="eq-msg error"></div></div><div class="eq-dialog-foot"><button type="button" data-close="consumableDlg">Отмена</button><button id="saveConsumable" class="primary" type="submit">Сохранить</button></div>
   </form></dialog>
 
   <dialog id="movementDlg" class="eq-dialog"><form id="movementForm">
-    <div class="eq-dialog-head"><div><h2>Движение расходника</h2><p>Исправления проводятся отдельной корректировкой.</p></div><button class="eq-close" type="button" data-close="movementDlg">×</button></div>
-    <div class="eq-dialog-body"><div class="eq-form"><label class="eq-field full"><span>Расходник *</span><select id="moveConsumable" required></select></label><label class="eq-field"><span>Операция *</span><select id="moveType"><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача на оборудование</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка</option></select></label><label class="eq-field"><span>Количество *</span><input id="moveQty" type="number" step="0.001" required value="1"></label><label class="eq-field full"><span>Оборудование</span><select id="moveEquipmentSelect"><option value="">Не привязано</option></select></label><label class="eq-field"><span>Документ / основание</span><input id="moveDocument"></label><label class="eq-field"><span>Комментарий</span><input id="moveNote"></label></div><div id="movementHint" class="eq-msg" style="margin-top:10px"></div><div id="movementError" class="eq-msg error"></div></div>
+    <div class="eq-dialog-head"><div><h2>Движение расходника</h2><p>Приход, расход, списание и корректировка фактического остатка.</p></div><button class="eq-close" type="button" data-close="movementDlg">×</button></div>
+    <div class="eq-dialog-body"><div class="eq-form"><label class="eq-field full"><span>Расходник *</span><select id="moveConsumable" required></select></label><label class="eq-field"><span>Операция *</span><select id="moveType"><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача / расход</option><option value="RETURN">Возврат на склад</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка остатка</option></select></label><label class="eq-field"><span>Количество *</span><input id="moveQty" type="number" step="0.001" required value="1"></label><label class="eq-field full"><span>Оборудование</span><select id="moveEquipmentSelect"><option value="">Не привязано</option></select></label><label class="eq-field"><span>Документ / основание</span><input id="moveDocument"></label><label class="eq-field"><span>Комментарий</span><input id="moveNote"></label></div><div id="movementHint" class="eq-msg" style="margin-top:10px"></div><div id="movementError" class="eq-msg error"></div></div>
     <div class="eq-dialog-foot"><button type="button" data-close="movementDlg">Отмена</button><button id="saveMovement" class="primary" type="submit">Провести</button></div>
   </form></dialog>
 
@@ -87,6 +87,7 @@
   <dialog id="detailDlg" class="eq-dialog"><div class="eq-dialog-head"><div><h2>Карточка оборудования</h2><p>Расходники, ТО, ремонты и история обслуживания.</p></div><button class="eq-close" type="button" data-close="detailDlg">×</button></div><div id="detailBody" class="eq-dialog-body"><div class="eq-empty">Загрузка…</div></div></dialog>
 
   <script type="module" src="./equipment.js?v=20260908-2"></script>
+  <script type="module" src="./equipment-consumables-v2.js?v=20260912-1"></script>
   <script type="module" src="./equipment-calendar.js?v=20260908-1"></script>
 </body>
 </html>
