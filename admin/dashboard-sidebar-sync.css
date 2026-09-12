@@ -1,3 +1,5 @@
+@import url("./dashboard-readable.css?v=20260912-1");
+
 /* Keep the dashboard sidebar visually identical to the shared manager/sidebar glass theme. */
 body.dashboard-home .sidebar,
 body.dashboard-home.a4-side-light .sidebar,
