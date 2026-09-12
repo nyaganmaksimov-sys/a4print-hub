@@ -170,13 +170,21 @@
 
   const startObserver=()=>{
     if(observer||!document.body)return;
+    // Only react to newly inserted layout nodes. Watching every class/style
+    // mutation caused repeated full-page scans whenever chat/notifications
+    // animated or updated their visibility.
     observer=new MutationObserver(mutations=>{
-      const relevant=mutations.some(m=>m.type==='childList'||(m.type==='attributes'&&['class','hidden','style'].includes(m.attributeName)));
-      if(relevant)schedule(110);
+      const relevant=mutations.some(m=>m.type==='childList'&&[...m.addedNodes].some(n=>n instanceof HTMLElement&&!n.matches?.('.a4-pop-summary,.a4-pop-close,.a4-pop-backdrop,#hubChatWidget,#hubChatNotifyCenter')));
+      if(relevant)schedule(90);
     });
-    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','style']});
+    observer.observe(document.body,{childList:true,subtree:true});
   };
   if(document.body)startObserver();else document.addEventListener('DOMContentLoaded',startObserver,{once:true});
+
+  // Tabs can reveal already existing cards without inserting new DOM nodes.
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.eq-tab,[role="tab"],.tab,.tabs button,.reports-periods button'))schedule(80);
+  },true);
 
   document.addEventListener('click',e=>{
     if(!e.target.closest('.a4-pop-close'))return;
