@@ -4,7 +4,7 @@
   let syncing=false;
   let refreshTimer=null;
 
-  function state(){return window.A4KassaShiftSession||{active:false,remoteShift:null,openedAt:null}}
+  function state(){return window.A4KassaShiftSession||{active:false,remoteShift:null,openedAt:null,pending:null}}
   function setText(el,text){if(el&&el.textContent!==text)el.textContent=text}
   function setClass(el,value){if(el&&el.className!==value)el.className=value}
 
@@ -14,21 +14,24 @@
     try{
       const gate=state();
       const active=!!gate.active;
+      const pending=gate.pending||null;
       const hubName=String(window.A4KassaShiftProfileDisplayName||'').trim();
       const officialName=String(gate.remoteShift?.name||'').trim();
       const name=hubName||officialName;
-      const label=active?`Смена${name?' '+name:''}`:'Смена не открыта';
+      const label=pending==='open'?'Открываем смену…':pending==='close'?'Закрываем смену…':active?`Смена${name?' '+name:''}`:'Смена не открыта';
       setText($('shiftInfo'),label);
       setText($('footerShift'),label);
 
       const chip=$('shiftChip');
       if(chip){
-        setClass(chip,'status-chip '+(active?'ok':'warn'));
-        setText(chip.querySelector('span'),active?'Смена открыта':'Смена закрыта');
+        setClass(chip,'status-chip '+(pending?'warn':active?'ok':'warn'));
+        setText(chip.querySelector('span'),pending==='open'?'Открываем…':pending==='close'?'Закрываем…':active?'Смена открыта':'Смена закрыта');
       }
 
       const oldButton=$('shiftButton');
-      setText(oldButton,active?'Закрыть смену':'Открыть смену');
+      if(oldButton){
+        setText(oldButton,pending==='open'?'Открываем…':pending==='close'?'Закрываем…':active?'Закрыть смену':'Открыть смену');
+      }
 
       const toast=$('toast');
       if(toast&&/Подключились к открытой смене/i.test(toast.textContent||''))setText(toast,'Смена открыта');
@@ -42,14 +45,15 @@
     refreshTimer=setTimeout(()=>{
       const view=$('shiftView');
       if(view&&view.hidden===false)$('shiftRefresh')?.click();
-    },120);
+    },250);
   }
 
   function onShiftEvent(event){
-    if(event?.detail?.reason==='close'||event?.detail?.reason==='remote-closed')window.A4KassaShiftProfileDisplayName='';
+    const reason=event?.detail?.reason;
+    if(reason==='close'||reason==='remote-closed')window.A4KassaShiftProfileDisplayName='';
     sync();
-    scheduleShiftViewRefresh();
-    if(event?.detail?.reason==='open'){
+    if(reason==='open'||reason==='close'||reason==='remote-adopted'||reason==='remote-closed')scheduleShiftViewRefresh();
+    if(reason==='open'){
       setTimeout(()=>{
         const toast=$('toast');
         if(toast&&/Подключились к открытой смене/i.test(toast.textContent||''))setText(toast,'Смена открыта');
