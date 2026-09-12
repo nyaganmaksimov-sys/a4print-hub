@@ -63,7 +63,7 @@
   }
 
   async function refresh(){
-    if(busy||$('shiftView')?.hidden!==false)return;
+    if(busy||document.hidden||$('shiftView')?.hidden!==false)return;
     busy=true;
     try{
       const access=await token();
@@ -74,10 +74,10 @@
   }
 
   function init(){
-    $('navShift')?.addEventListener('click',()=>{setTimeout(refresh,250);setTimeout(refresh,1100);setTimeout(refresh,2400)});
-    $('shiftChip')?.addEventListener('click',()=>{setTimeout(refresh,250);setTimeout(refresh,1100)});
-    document.addEventListener('click',e=>{if(e.target?.id==='shiftRefresh')setTimeout(refresh,350)});
-    setInterval(refresh,10000);
+    $('navShift')?.addEventListener('click',()=>setTimeout(refresh,350));
+    $('shiftChip')?.addEventListener('click',()=>setTimeout(refresh,350));
+    document.addEventListener('click',e=>{if(e.target?.id==='shiftRefresh')setTimeout(refresh,150)});
+    setInterval(refresh,30000);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
