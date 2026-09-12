@@ -82,3 +82,80 @@ if(!window.__A4_EQUIPMENT_MAINTENANCE_BADGE__){
   window.addEventListener('hashchange',openCalendarFromHash);
   setInterval(()=>{if(!document.hidden)load()},60000);
 }
+
+// Sidebar order badge: total ordinary HUB/manager orders created in the current
+// Moscow calendar month. POS receipts and partner-direction orders belong to
+// their own workflows and are deliberately excluded from this counter.
+if(!window.__A4_SIDEBAR_MONTH_ORDER_COUNT__){
+  window.__A4_SIDEBAR_MONTH_ORDER_COUNT__=true;
+  let orderBusy=false;
+
+  function moscowMonthBounds(){
+    const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+      timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'
+    }).formatToParts(new Date()).map(x=>[x.type,x.value]));
+    let year=Number(parts.year),month=Number(parts.month);
+    const from=`${year}-${String(month).padStart(2,'0')}-01T00:00:00+03:00`;
+    month+=1;
+    if(month===13){month=1;year+=1}
+    const to=`${year}-${String(month).padStart(2,'0')}-01T00:00:00+03:00`;
+    return{from,to};
+  }
+
+  function monthCaption(){
+    return new Intl.DateTimeFormat('ru-RU',{
+      timeZone:'Europe/Moscow',month:'long',year:'numeric'
+    }).format(new Date());
+  }
+
+  function applyOrderCount(count){
+    const badge=document.getElementById('orderCount');
+    if(!badge)return false;
+    const value=Math.max(0,Number(count)||0);
+    const caption=monthCaption();
+    badge.textContent=String(value);
+    badge.title=`Заказов за ${caption}: ${value}`;
+    const link=badge.closest('a');
+    if(link)link.title=`Заказы · за ${caption}: ${value}`;
+    return true;
+  }
+
+  async function loadOrderCount(){
+    if(orderBusy)return;
+    orderBusy=true;
+    try{
+      const {from,to}=moscowMonthBounds();
+      const {data,error}=await supabase
+        .from('orders')
+        .select('id,source,partner_direction,partner_id,fulfillment_partner_id,created_at')
+        .gte('created_at',from)
+        .lt('created_at',to)
+        .limit(10000);
+      if(error)throw error;
+      const count=(data||[]).filter(order=>{
+        const source=String(order.source||'').trim().toUpperCase();
+        const direction=String(order.partner_direction||'NONE').trim().toUpperCase();
+        return source!=='KASSA'
+          && (direction===''||direction==='NONE')
+          && !order.partner_id
+          && !order.fulfillment_partner_id;
+      }).length;
+      let tries=0;
+      const paint=()=>{
+        if(applyOrderCount(count)||++tries>50)return;
+        setTimeout(paint,100);
+      };
+      paint();
+    }catch(error){
+      console.warn('Sidebar monthly order count unavailable',error);
+    }finally{
+      orderBusy=false;
+    }
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadOrderCount,{once:true});
+  else loadOrderCount();
+  window.addEventListener('focus',loadOrderCount);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadOrderCount()});
+  setInterval(()=>{if(!document.hidden)loadOrderCount()},60000);
+}
