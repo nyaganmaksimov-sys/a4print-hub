@@ -9,6 +9,8 @@
     const s=document.createElement('style');
     s.id='a4-dashboard-panels-style';
     s.textContent=`
+      .dash-panel-columns{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px;align-items:start}
+      .dash-panel-column{display:grid;gap:14px;align-content:start;min-width:0}
       .dash-collapse-btn{
         display:inline-grid;place-items:center;width:34px;height:34px;flex:0 0 34px;
         border:1px solid #dbe3ee;border-radius:10px;background:#f8fafc;color:#64748b;
@@ -57,8 +59,16 @@
       .dash-cash-op>b.in~strong{color:#15803d}
       .dash-cash-op>b.out~strong{color:#b91c1c}
 
+      @media(max-width:1320px){
+        .dash-panel-columns{grid-template-columns:minmax(0,1fr) 300px}
+      }
       @media(max-width:1100px){
         .dash-cash-op{grid-template-columns:100px minmax(0,1fr) 100px!important;gap:10px!important}
+      }
+      @media(max-width:1080px){
+        .dash-panel-columns{grid-template-columns:1fr}
+        .dash-panel-column{display:contents}
+        .dash-panel-columns .dash-card{order:var(--dash-panel-order,0)}
       }
       @media(max-width:700px){
         .dash-card-head{align-items:flex-start!important}
@@ -91,6 +101,37 @@
     btn.title=label;
     btn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
     return btn;
+  }
+
+  function buildIndependentColumns(){
+    if(document.getElementById('a4DashboardPanelColumns'))return;
+    const shell=document.querySelector('.dashboard-shell');
+    if(!shell)return;
+    const grids=[...shell.querySelectorAll(':scope > .dash-grid')].filter(grid=>grid.querySelectorAll(':scope > .dash-card').length>0);
+    if(grids.length<2)return;
+
+    const board=document.createElement('section');
+    board.id='a4DashboardPanelColumns';
+    board.className='dash-panel-columns';
+    board.setAttribute('aria-label','Рабочие блоки главной');
+    const left=document.createElement('div');
+    left.className='dash-panel-column dash-panel-column-left';
+    const right=document.createElement('div');
+    right.className='dash-panel-column dash-panel-column-right';
+    let order=0;
+
+    grids.forEach(grid=>{
+      const cards=[...grid.children].filter(el=>el.classList?.contains('dash-card'));
+      cards.forEach((card,index)=>{
+        card.style.setProperty('--dash-panel-order',String(order++));
+        (index%2===0?left:right).appendChild(card);
+      });
+    });
+
+    const first=grids[0];
+    board.append(left,right);
+    first.insertAdjacentElement('beforebegin',board);
+    grids.forEach(grid=>grid.remove());
   }
 
   function enhanceCard(card,index){
@@ -159,6 +200,7 @@
 
   function init(){
     installStyles();
+    buildIndependentColumns();
     enhance();
     let queued=false;
     const observer=new MutationObserver(()=>{
