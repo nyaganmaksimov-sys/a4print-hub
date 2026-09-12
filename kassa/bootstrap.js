@@ -1,6 +1,6 @@
 (()=>{
   'use strict';
-  const VERSION='20260911-kassa-queue-recovery2';
+  const VERSION='20260912-kassa-fast-shift1';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
@@ -94,6 +94,8 @@
     await soft(()=>loadScript('./network-safety.js',5000),'network-safety');
     await loadScript('./shift-session-gate.js');
     if(window.A4KassaShiftSession?.ready)await soft(()=>withTimeout(window.A4KassaShiftSession.ready,2500,'восстановления смены'),'shift-session-ready');
+    // Local-first shift state must be installed before app.js creates its API/Supabase clients.
+    await loadScript('./shift-fast-open.js');
     await soft(()=>loadScript('./shift-mobile-resilience.js',5000),'shift-mobile-resilience');
     await soft(()=>loadScript('./sync-throttle.js',5000),'sync-throttle');
 
