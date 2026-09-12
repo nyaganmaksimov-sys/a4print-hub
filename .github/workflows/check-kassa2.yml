@@ -15,6 +15,20 @@ on:
       - 'database/migrations/107_pos_sale_idempotency.sql'
       - 'database/migrations/110_pos_cash_operations.sql'
       - '.github/workflows/check-kassa2.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'kassa/**'
+      - 'api/src/moysklad.js'
+      - 'api/src/moysklad-shift-sanity.js'
+      - 'api/src/pos-shift-fresh-open.js'
+      - 'api/src/pos-sale-idempotency.js'
+      - 'api/src/pos-cash-operations.js'
+      - 'api/src/boot.js'
+      - 'api/src/pos-build-marker.js'
+      - 'database/migrations/107_pos_sale_idempotency.sql'
+      - 'database/migrations/110_pos_cash_operations.sql'
+      - '.github/workflows/check-kassa2.yml'
   workflow_dispatch:
 
 jobs:
@@ -152,6 +166,7 @@ jobs:
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
 
   live-backend:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
