@@ -25,6 +25,11 @@ window.A4PRINT_CONFIG = {
     const ordered=[getPref(),...origins].filter((v,i,a)=>v&&a.indexOf(v)===i);
     const safe=x.method==='GET'||x.method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(x.url.pathname);
     const slowPosRead=x.method==='GET'&&/\/api\/v1\/pos\/(?:shift|cash-balance)(?:\/|$)/.test(x.url.pathname);
+    const slowStorage=/\/api\/v1\/supabase\/storage\/v1(?:\/|$)/.test(x.url.pathname);
+    if(slowStorage){
+      const origin=getPref()||x.apiOrigin;
+      try{return await one(x.req.clone(),x.url,origin,70000)}catch(e){const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,70000)}
+    }
     if(safe){
       if(slowPosRead){
         const origin=getPref()||x.apiOrigin;
@@ -46,7 +51,8 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const apiBase = String(cfg.apiBaseUrl || '').replace(/\/$/, '');
   let supabaseOrigin = '';
   try { supabaseOrigin = new URL(cfg.supabaseUrl).origin; } catch {}
-  const isSupabase = target.origin === supabaseOrigin && /^\/(auth|rest|functions)\/v1(?:\/|$)/.test(target.pathname);
+  const isStorage = target.origin === supabaseOrigin && /^\/storage\/v1(?:\/|$)/.test(target.pathname);
+  const isSupabase = target.origin === supabaseOrigin && /^\/(auth|rest|functions|storage)\/v1(?:\/|$)/.test(target.pathname);
   if (!apiBase || !isSupabase) return fetch(request);
   const proxyFetch = async () => {
     const headers = new Headers(request.headers);
@@ -54,7 +60,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     const options = { method, headers, cache: 'no-store', credentials: 'omit', redirect: 'follow' };
     if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6500);
+    const timer = setTimeout(() => controller.abort(), isStorage ? 65000 : 6500);
     options.signal = controller.signal;
     try { return await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options); }
     finally { clearTimeout(timer); }
@@ -62,7 +68,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   try { return await proxyFetch(); }
   catch (proxyError) {
     try {
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5500);
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),isStorage?65000:5500);
       try{return await fetch(request.clone(),{signal:controller.signal})}finally{clearTimeout(timer)}
     }
     catch (directError) { console.warn('A4 Supabase proxy/direct failed', proxyError, directError); throw proxyError; }
