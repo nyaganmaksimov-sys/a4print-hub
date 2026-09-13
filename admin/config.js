@@ -22,7 +22,12 @@ window.A4PRINT_CONFIG = {
   const one=async(req,url,origin,ms)=>{const target=new URL(url.href);target.origin=origin;const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await nativeFetch(new Request(target.href,req),{signal:c.signal});if(r.ok||r.status<500){setPref(origin);return r}throw new Error(`HTTP ${r.status}`)}finally{clearTimeout(t)}};
   const any=promises=>typeof Promise.any==='function'?Promise.any(promises):new Promise((resolve,reject)=>{let left=promises.length,last;promises.forEach(p=>Promise.resolve(p).then(resolve,e=>{last=e;if(--left===0)reject(last)}))});
   window.fetch=async function a4RoutedFetch(input,init={}){
-    const x=parse(input,init);if(!x||!x.apiOrigin)return nativeFetch(input,init);
+    const x=parse(input,init);
+    if(!x)return nativeFetch(input,init);
+    // new Request(input, init) may transfer a streaming/body payload from the
+    // original Request. For non-HUB-API targets (e.g. Supabase Storage uploads)
+    // always send the freshly constructed request instead of reusing input.
+    if(!x.apiOrigin)return nativeFetch(x.req);
     const ordered=[getPref(),...origins].filter((v,i,a)=>v&&a.indexOf(v)===i);
     const safe=x.method==='GET'||x.method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(x.url.pathname);
     const slowPosRead=x.method==='GET'&&/\/api\/v1\/pos\/(?:shift|cash-balance)(?:\/|$)/.test(x.url.pathname);
