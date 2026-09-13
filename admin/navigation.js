@@ -49,6 +49,16 @@ function setJarvisEnabled(enabled){try{localStorage.setItem(A4_JARVIS_KEY,enable
 window.A4JarvisControl={key:A4_JARVIS_KEY,isEnabled:isJarvisEnabled,setEnabled:setJarvisEnabled};
 window.__A4_JARVIS_DISABLED__=!isJarvisEnabled();
 
+function loadHubBranding(){
+  if(window.__A4_HUB_BRANDING_LOADER__)return;
+  window.__A4_HUB_BRANDING_LOADER__=true;
+  const script=document.createElement('script');
+  script.type='module';
+  script.src=`./branding-runtime.js?v=20260913-1`;
+  script.onerror=()=>{window.__A4_HUB_BRANDING_LOADER__=false;console.warn('A4PRINT HUB branding runtime failed to load')};
+  document.head.appendChild(script);
+}
+
 function loadJarvisAssistant(){
   if(window.__A4_JARVIS_LOADER__||!isJarvisEnabled())return;
   window.__A4_JARVIS_LOADER__=true;
@@ -63,4 +73,4 @@ if(!window.__A4_JARVIS_STORAGE_WATCH__){
   window.addEventListener('storage',event=>{if(event.key===A4_JARVIS_KEY)location.reload()});
 }
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{initA4Navigation();loadJarvisAssistant()},{once:true});else{initA4Navigation();loadJarvisAssistant()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{initA4Navigation();loadHubBranding();loadJarvisAssistant()},{once:true});else{initA4Navigation();loadHubBranding();loadJarvisAssistant()}
