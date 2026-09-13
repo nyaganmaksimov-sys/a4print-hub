@@ -7,6 +7,8 @@ on:
       - 'kassa/shift-fast-open.js'
       - 'kassa/shift-session-gate.js'
       - 'kassa/shift-state-sync.js'
+      - 'kassa/shift-mobile.js'
+      - 'kassa/shift-mobile.css'
       - 'kassa/bootstrap.js'
       - 'kassa/sw.js'
       - '.github/workflows/check-kassa-fast-shift.yml'
@@ -16,6 +18,8 @@ on:
       - 'kassa/shift-fast-open.js'
       - 'kassa/shift-session-gate.js'
       - 'kassa/shift-state-sync.js'
+      - 'kassa/shift-mobile.js'
+      - 'kassa/shift-mobile.css'
       - 'kassa/bootstrap.js'
       - 'kassa/sw.js'
       - '.github/workflows/check-kassa-fast-shift.yml'
@@ -33,14 +37,23 @@ jobs:
           node --check kassa/shift-fast-open.js
           node --check kassa/shift-session-gate.js
           node --check kassa/shift-state-sync.js
+          node --check kassa/shift-mobile.js
           node --check kassa/bootstrap.js
           node --check kassa/sw.js
       - name: Check local-first wiring
         run: |
+          test -s kassa/shift-mobile.js
+          test -s kassa/shift-mobile.css
           grep -q "loadScript('./shift-fast-open.js')" kassa/bootstrap.js
           grep -q "'./shift-fast-open.js'" kassa/sw.js
+          grep -q "'./shift-mobile.css'" kassa/bootstrap.js
+          grep -q "'./shift-mobile.js'" kassa/bootstrap.js
+          ! grep -q 'shift-mobile-v2.css' kassa/bootstrap.js
+          ! grep -q 'shift-mobile-v2.js' kassa/bootstrap.js
           grep -q '_local_pending' kassa/shift-fast-open.js
           grep -q 'waitForConfirmed' kassa/shift-fast-open.js
           grep -q 'isSaleUrl' kassa/shift-fast-open.js
           grep -q "pending='sync'" kassa/shift-fast-open.js
           grep -q 'Смена открыта · синхронизация' kassa/shift-state-sync.js
+          grep -q 'a4-shift-quickstats' kassa/shift-mobile.js
+          grep -q 'shift-main-action' kassa/shift-mobile.css
