@@ -66,7 +66,6 @@ function mobileLogin(reason='session') {
 }
 function login(reason='session') {
   if (mobileContext) mobileLogin(reason);
-  else if (page === 'messages.html') location.replace('/chat/start.html?login=1');
   else {
     const ret = location.pathname + location.search + location.hash;
     location.replace(`./login.html?returnTo=${encodeURIComponent(ret)}`);
