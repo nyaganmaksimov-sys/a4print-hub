@@ -18,6 +18,22 @@ on:
       - 'database/migrations/106_pos_dashboard_include_legacy_cash.sql'
       - 'database/migrations/107_pos_sale_idempotency.sql'
       - '.github/workflows/check-pos.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pos/**'
+      - 'admin/pos.html'
+      - 'api/src/server.js'
+      - 'api/src/mobile-proxy.js'
+      - 'api/src/moysklad.js'
+      - 'api/src/boot.js'
+      - 'api/src/pos-sale-idempotency.js'
+      - 'database/migrations/103_pos_shift_sales_analytics.sql'
+      - 'database/migrations/104_pos_rpc_and_cash_sync.sql'
+      - 'database/migrations/105_pos_operator_cash_account_read.sql'
+      - 'database/migrations/106_pos_dashboard_include_legacy_cash.sql'
+      - 'database/migrations/107_pos_sale_idempotency.sql'
+      - '.github/workflows/check-pos.yml'
 
 jobs:
   pos-static:
@@ -30,10 +46,10 @@ jobs:
           set -euo pipefail
           test -s pos/index.html
           test -s pos/login.html
-          test -s pos/app-v2.js
+          test -s pos/app.js
           test -s pos/manual-shift.js
           test -s pos/runtime-guard.js
-          test -s pos/styles-v2.css
+          test -s pos/styles.css
           test -s pos/logo-fix.css
           test -s pos/manifest.webmanifest
           test -s pos/sw.js
@@ -45,7 +61,7 @@ jobs:
           grep -q "location.replace(target.pathname" admin/pos.html
       - name: Check JavaScript syntax
         run: |
-          node --check pos/app-v2.js
+          node --check pos/app.js
           node --check pos/manual-shift.js
           node --check pos/runtime-guard.js
           node --check pos/sw.js
@@ -58,14 +74,18 @@ jobs:
       - name: Verify POS wiring
         run: |
           set -euo pipefail
+          grep -q 'styles.css?v=' pos/index.html
+          grep -q 'app.js?v=' pos/index.html
+          ! grep -q 'styles-v2.css' pos/index.html
+          ! grep -q 'app-v2.js' pos/index.html
           grep -q 'manual-shift.js' pos/index.html
           grep -q 'runtime-guard.js' pos/index.html
           grep -q 'logo-fix.css' pos/index.html
           grep -q 'a4print-hub-logo-white.svg' pos/index.html
-          grep -q 'record_pos_sale' pos/app-v2.js
-          grep -q 'record_pos_shift' pos/app-v2.js
-          grep -q '/api/v1/pos/shift/open' pos/app-v2.js
-          grep -q '/api/v1/pos/shift/close' pos/app-v2.js
+          grep -q 'record_pos_sale' pos/app.js
+          grep -q 'record_pos_shift' pos/app.js
+          grep -q '/api/v1/pos/shift/open' pos/app.js
+          grep -q '/api/v1/pos/shift/close' pos/app.js
           grep -q 'manualActivationRequired' pos/manual-shift.js
           grep -q 'posSale' pos/runtime-guard.js
           grep -q 'createRetailSale' api/src/server.js
@@ -79,6 +99,7 @@ jobs:
           grep -q 'qrSum' api/src/moysklad.js
 
   pos-live:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -91,16 +112,18 @@ jobs:
             page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/index.html?poscheck=${GITHUB_SHA}" || true)
             manual=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/manual-shift.js?poscheck=${GITHUB_SHA}" || true)
             guard=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/runtime-guard.js?poscheck=${GITHUB_SHA}" || true)
-            css=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/styles-v2.css?poscheck=${GITHUB_SHA}" || true)
+            css=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/pos/styles.css?poscheck=${GITHUB_SHA}" || true)
             logo=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/assets/a4print-hub-logo-white.svg?poscheck=${GITHUB_SHA}" || true)
             legacy=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/pos.html?poscheck=${GITHUB_SHA}" || true)
-            if echo "$page" | grep -q 'manual-shift.js' \
+            if echo "$page" | grep -q 'app.js?v=' \
+              && echo "$page" | grep -q 'styles.css?v=' \
+              && echo "$page" | grep -q 'manual-shift.js' \
               && echo "$manual" | grep -q 'manualActivationRequired' \
               && echo "$guard" | grep -q 'posSale' \
               && echo "$css" | grep -q '100dvh' \
               && echo "$logo" | grep -q 'A4PRINT HUB' \
               && echo "$legacy" | grep -q "location.replace(target.pathname"; then
-              echo 'POS responsive build, white logo and manual shift control are live.'
+              echo 'POS responsive build, canonical assets, white logo and manual shift control are live.'
               break
             fi
             if [ "$attempt" = "30" ]; then
