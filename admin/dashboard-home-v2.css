@@ -1,4 +1,4 @@
-/* A4PRINT HUB dashboard v3 — clean command center */
+/* A4PRINT HUB dashboard v4 — compact command center */
 body.dashboard-home .dashboard-shell{gap:10px!important}
 body.dashboard-home .dash-app-launcher{display:none!important}
 
@@ -40,27 +40,40 @@ body.dashboard-home .dash-kpi-drag-handle{display:none!important}
 body.dashboard-home .dash-collapse-btn{display:none!important}
 body.dashboard-home .dash-card.is-collapsed>:not(.dash-card-head){display:block!important}
 body.dashboard-home .dash-card.is-collapsed .dash-card-head{border-bottom:1px solid #edf2f7!important}
-body.dashboard-home .dash-card{border-radius:14px!important;box-shadow:0 2px 10px rgba(15,23,42,.03)!important}
-body.dashboard-home .dash-card-head{min-height:64px!important;padding:13px 15px!important}
+body.dashboard-home .dash-card{border-radius:14px!important;box-shadow:0 2px 10px rgba(15,23,42,.03)!important;overflow:hidden!important}
+body.dashboard-home .dash-card-head{min-height:60px!important;padding:12px 14px!important}
 body.dashboard-home .dash-card-head h2{font-size:15px!important}
 body.dashboard-home .dash-card-head p{font-size:10px!important;margin-top:3px!important}
 body.dashboard-home .dash-card-head-actions{gap:7px!important}
 
-/* Explicit visual hierarchy: operational work first, service blocks second. */
-body.dashboard-home .dash-command-grid{display:grid!important;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr)!important;gap:10px!important;align-items:start!important}
-body.dashboard-home .dash-secondary-grid{display:grid!important;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr)!important;gap:10px!important;align-items:start!important}
-body.dashboard-home .dash-command-grid>.dash-card,
-body.dashboard-home .dash-secondary-grid>.dash-card{min-width:0!important}
+/* Independent columns remove the dead gaps created by uneven row heights. */
+body.dashboard-home .dash-command-columns{display:grid!important;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr)!important;gap:10px!important;align-items:start!important}
+body.dashboard-home .dash-command-column{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;align-content:start!important;min-width:0!important}
+body.dashboard-home .dash-command-column>.dash-card{min-width:0!important;margin:0!important}
+body.dashboard-home .dash-command-grid,
+body.dashboard-home .dash-secondary-grid,
 body.dashboard-home .dash-panel-columns{display:none!important}
+
 body.dashboard-home .dash-order-header{padding:8px 14px!important;font-size:8.5px!important}
 body.dashboard-home .dash-order-row{padding:10px 14px!important;gap:9px!important}
-body.dashboard-home .dash-attention-item{padding:9px 12px!important}
-body.dashboard-home .dash-empty{padding:20px 14px!important}
+body.dashboard-home .dash-attention-item{padding:8px 12px!important;min-height:52px!important;box-sizing:border-box!important}
+body.dashboard-home .dash-attention-icon{width:34px!important;height:34px!important;flex-basis:34px!important}
+body.dashboard-home .dash-attention-copy b{font-size:11.5px!important}
+body.dashboard-home .dash-attention-copy span{font-size:9.5px!important;line-height:1.25!important}
+body.dashboard-home .dash-empty{padding:18px 14px!important}
 
-/* Secondary blocks are deliberately quieter. */
-body.dashboard-home .dash-secondary-grid .dash-card-head{min-height:60px!important}
-body.dashboard-home .dash-secondary-grid .dashboard-quick{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important}
-body.dashboard-home .dash-secondary-grid .dashboard-quick a{min-height:34px!important;padding:0 10px!important;font-size:10.5px!important}
+/* Cash on the home page is a status summary, not a full cash report. */
+body.dashboard-home .dash-card:has(#posControlSummary) .dash-card-head{display:grid!important;grid-template-columns:minmax(180px,.72fr) minmax(0,1.28fr)!important;gap:10px!important;align-items:center!important;min-height:66px!important}
+body.dashboard-home .dash-card:has(#posControlSummary) .dashboard-quick{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important;gap:6px!important}
+body.dashboard-home .dash-card:has(#posControlSummary) .dashboard-quick a{min-height:32px!important;height:32px!important;padding:0 10px!important;font-size:10px!important;border-radius:9px!important}
+body.dashboard-home #syncMoySklad{display:none!important}
+body.dashboard-home #posControlSummary>.dash-attention-item:nth-child(4){display:none!important}
+body.dashboard-home #cashJournal{display:none!important}
+
+/* Production mirrors the compact cash block without forced empty height. */
+body.dashboard-home .dash-card:has(#productionSummary) .dash-card-head{min-height:66px!important}
+body.dashboard-home .dash-card:has(#productionSummary) .dash-attention-item{min-height:52px!important}
+
 body.dashboard-home .dash-units{grid-template-columns:1fr 1fr!important;gap:8px!important}
 body.dashboard-home .dash-unit-card{min-height:64px!important;padding:10px 13px!important;border-radius:13px!important;box-shadow:0 2px 8px rgba(15,23,42,.02)!important}
 body.dashboard-home .dash-unit-mark{width:34px!important;height:34px!important;border-radius:10px!important}
@@ -76,8 +89,9 @@ body.dashboard-home .dashboard-shell{padding-bottom:10px!important}
 
 @media(max-width:1280px){
   body.dashboard-home .dash-kpis{grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  body.dashboard-home .dash-command-grid,
-  body.dashboard-home .dash-secondary-grid{grid-template-columns:minmax(0,1.35fr) minmax(280px,.72fr)!important}
+  body.dashboard-home .dash-command-columns{grid-template-columns:minmax(0,1.35fr) minmax(280px,.72fr)!important}
+  body.dashboard-home .dash-card:has(#posControlSummary) .dash-card-head{grid-template-columns:1fr!important;align-items:start!important}
+  body.dashboard-home .dash-card:has(#posControlSummary) .dashboard-quick{justify-content:flex-start!important}
 }
 @media(max-width:1080px){
   body.dashboard-home .dashboard-actions{grid-template-columns:1fr!important}
@@ -85,8 +99,7 @@ body.dashboard-home .dashboard-shell{padding-bottom:10px!important}
   body.dashboard-home .a4-cbr-rates{grid-template-columns:1fr!important;gap:5px!important}
   body.dashboard-home .a4-cbr-rates-head{display:flex!important;justify-content:space-between!important;gap:12px!important}
   body.dashboard-home .a4-cbr-item:first-child{border-left:0!important}
-  body.dashboard-home .dash-command-grid,
-  body.dashboard-home .dash-secondary-grid{grid-template-columns:1fr!important}
+  body.dashboard-home .dash-command-columns{grid-template-columns:1fr!important}
 }
 @media(max-width:760px){
   body.dashboard-home .main{padding:14px 12px 84px!important}
