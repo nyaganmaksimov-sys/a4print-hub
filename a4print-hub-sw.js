@@ -1,4 +1,4 @@
-const VERSION='a4print-hub-sw-3';
+const VERSION='a4print-hub-sw-4';
 
 self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
@@ -16,18 +16,16 @@ self.addEventListener('fetch',event=>{
 });
 
 function chatTarget(data={}){
-  let target=data.url||'/admin/messages.html?app=1';
+  const fallback='/admin/index.html#hub-chat';
   try{
-    const u=new URL(target,self.location.origin);
-    if(data.room_id){
-      u.pathname='/admin/messages.html';
-      u.searchParams.set('room',data.room_id);
-      if(data.message_id)u.searchParams.set('message',data.message_id);
-      u.searchParams.set('app','1');
-      u.searchParams.set('v','push3');
+    const u=new URL(data.url||fallback,self.location.origin);
+    if(data.room_id||u.pathname==='/admin/messages.html'){
+      u.pathname='/admin/index.html';
+      u.search='';
+      u.hash='hub-chat';
     }
-    return u.pathname+u.search;
-  }catch{return target}
+    return u.pathname+u.search+u.hash;
+  }catch{return fallback}
 }
 
 self.addEventListener('push',event=>{

@@ -20,9 +20,40 @@ on:
       - 'admin/config.js'
       - 'admin/guard.js'
       - 'admin/auth-ui.js'
-      - 'admin/chat-watchdog.js'
-      - 'admin/chat-modern.js'
       - 'admin/messages.html'
+      - 'shared/hub-chat-core.js'
+      - 'shared/hub-chat-drawer.js'
+      - 'shared/hub-chat-enhance.js'
+      - 'admin/support.html'
+      - 'admin/support.js'
+      - 'admin/support-access.js'
+      - 'admin/onboarding.js'
+      - 'api/src/mobile-proxy.js'
+      - 'database/migrations/101_staff_profile_avatar_self_service.sql'
+      - 'a4print-hub-sw.js'
+      - '.github/workflows/check-mobile-pwa.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'admin/login.html'
+      - 'admin/login.js'
+      - 'admin/mobile-auth-route.js'
+      - 'admin/profile.html'
+      - 'admin/profile.js'
+      - 'admin/manager.html'
+      - 'admin/manager-runtime.js'
+      - 'admin/manager-workspace.js'
+      - 'admin/manager-layout-v2.js'
+      - 'admin/manager-widgets.js'
+      - 'admin/mobile-shell.*'
+      - 'admin/config.js'
+      - 'admin/guard.js'
+      - 'admin/auth-ui.js'
+      - 'admin/messages.html'
+      - 'shared/hub-chat-core.js'
+      - 'shared/hub-chat-drawer.js'
+      - 'shared/hub-chat-enhance.js'
       - 'admin/support.html'
       - 'admin/support.js'
       - 'admin/support-access.js'
@@ -57,13 +88,14 @@ jobs:
           node --check admin/manager-layout-v2.js
           node --check admin/manager-widgets.js
           node --check admin/mobile-shell.js
-          node --check admin/chat-watchdog.js
-          node --check admin/chat-modern.js
           node --check admin/guard.js
           node --check admin/auth-ui.js
           node --check admin/support.js
           node --check admin/support-access.js
           node --check admin/onboarding.js
+          node --check shared/hub-chat-core.js
+          node --check shared/hub-chat-drawer.js
+          node --check shared/hub-chat-enhance.js
           node --check api/src/mobile-proxy.js
           node --check a4print-hub-sw.js
 
@@ -85,12 +117,15 @@ jobs:
           grep -q 'quick-menu.js' mobile/index.html
           grep -q 'pwa.js' mobile/index.html
           grep -q '/admin/orders.html?status=NEW&mobile=1' mobile/index.html
-          grep -q '/admin/messages.html?app=1' mobile/index.html
+          grep -q '/admin/index.html?mobile=1#hub-chat' mobile/index.html
+          grep -q 'Сообщения' mobile/index.html
           grep -q '/admin/customers.html?mobile=1' mobile/index.html
           grep -q '/mobile/account.html' mobile/index.html
           grep -q '/admin/profile.html?mobile=1' mobile/account.html
           grep -q 'enforceSupportRole' mobile/pwa.js
           grep -q '/admin/support.html?mobile=1' mobile/pwa.js
+          grep -q 'hub-chat-drawer.js' admin/guard.js
+          grep -q 'installHubChatDrawer' shared/hub-chat-drawer.js
 
       - name: Verify VPN-independent Supabase routing
         run: |
@@ -191,6 +226,8 @@ jobs:
       - name: Verify background Push
         run: |
           grep -q "addEventListener('push'" a4print-hub-sw.js
+          grep -q '/admin/index.html#hub-chat' a4print-hub-sw.js
+          ! grep -q "u.pathname='/admin/messages.html'" a4print-hub-sw.js
           grep -q 'pushManager.subscribe' mobile/pwa.js
           grep -q 'push_subscriptions' mobile/pwa.js
 
