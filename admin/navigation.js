@@ -43,11 +43,24 @@ async function initA4Navigation(){
   nav.innerHTML=items.map(([href,icon,label])=>`<a href="${navHref(href)}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}${href==='requests.html'?'<b id="requestCount" style="display:none">0</b>':''}${href==='messages.html'?'<b id="messageCount" style="display:none;background:#ef4444;color:#fff;min-width:20px;height:20px;border-radius:999px;padding:0 6px;align-items:center;justify-content:center;font-size:11px;margin-left:auto">0</b>':''}${href==='equipment.html'?'<b id="equipmentNavCount" aria-label="Работы по обслуживанию">0</b>':''}</a>`).join('');
 }
 
+const A4_JARVIS_KEY='a4print_jarvis_enabled_v1';
+function isJarvisEnabled(){try{return localStorage.getItem(A4_JARVIS_KEY)!=='0'}catch{return true}}
+function setJarvisEnabled(enabled){try{localStorage.setItem(A4_JARVIS_KEY,enabled?'1':'0')}catch{}return !!enabled}
+window.A4JarvisControl={key:A4_JARVIS_KEY,isEnabled:isJarvisEnabled,setEnabled:setJarvisEnabled};
+window.__A4_JARVIS_DISABLED__=!isJarvisEnabled();
+
 function loadJarvisAssistant(){
-  if(window.__A4_JARVIS_LOADER__)return;window.__A4_JARVIS_LOADER__=true;
-  const version='20260911-manager1';
+  if(window.__A4_JARVIS_LOADER__||!isJarvisEnabled())return;
+  window.__A4_JARVIS_LOADER__=true;
+  window.__A4_JARVIS_DISABLED__=false;
+  const version='20260913-master1';
   const files=['jarvis-assistant.js','jarvis-wake.js','jarvis-sentinel-ui.js','jarvis-sentinel-ai-ui.js','jarvis-sentinel-learning-ui.js','jarvis-login-briefing.js'];
-  for(const file of files){const script=document.createElement('script');script.type='module';script.src=`./${file}?v=${version}`;document.head.appendChild(script)}
+  for(const file of files){const script=document.createElement('script');script.type='module';script.dataset.a4Jarvis='1';script.src=`./${file}?v=${version}`;document.head.appendChild(script)}
+}
+
+if(!window.__A4_JARVIS_STORAGE_WATCH__){
+  window.__A4_JARVIS_STORAGE_WATCH__=true;
+  window.addEventListener('storage',event=>{if(event.key===A4_JARVIS_KEY)location.reload()});
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{initA4Navigation();loadJarvisAssistant()},{once:true});else{initA4Navigation();loadJarvisAssistant()}
