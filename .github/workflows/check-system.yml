@@ -51,7 +51,7 @@ jobs:
             index.html
             admin/login.html admin/register.html admin/profile.html admin/index.html admin/manager.html admin/orders.html admin/order.html admin/requests.html
             admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/settings.html
-            admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js
+            admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js admin/partners-workspace.js
             admin/dashboard-home.js admin/dashboard-home.css
             admin/order-delete-request.js admin/order-delete-moderation.js
             admin/auth-ui.js admin/auth-settings.js
@@ -74,7 +74,7 @@ jobs:
           set -euo pipefail
           scripts=(
             admin/config.js admin/guard.js admin/navigation.js admin/app.js admin/profile.js admin/dashboard-home.js
-            admin/manager-runtime.js admin/order-delete-request.js admin/order-delete-moderation.js admin/partners-api-fallback.js admin/auth-ui.js admin/auth-settings.js
+            admin/manager-runtime.js admin/order-delete-request.js admin/order-delete-moderation.js admin/partners-api-fallback.js admin/partners-workspace.js admin/auth-ui.js admin/auth-settings.js
             admin/login.js admin/register.js admin/push-client.js
             shared/hub-chat-core.js shared/hub-chat-enhance.js shared/hub-chat-drawer.js partner/hub-chat.js
             mobile/app.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js mobile/quick-menu.js
@@ -106,6 +106,7 @@ jobs:
           grep -q 'a4print_mobile_access' admin/manager-runtime.js
           grep -q 'rpc/has_role' admin/manager-runtime.js
           grep -q 'grant_type=refresh_token' admin/manager-runtime.js
+          grep -q 'partners-workspace.js' admin/config.js
           grep -q 'order-delete-request.js' admin/config.js
           grep -q 'order-delete-moderation.js' admin/config.js
           grep -q 'request_order_deletion' admin/order-delete-request.js
