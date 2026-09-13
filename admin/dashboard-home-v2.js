@@ -3,6 +3,7 @@
   window.__A4_DASHBOARD_HOME_V3__=true;
 
   const collapsePrefix='a4hub.dashboard.collapse.';
+  const scriptBase=new URL('./',document.currentScript?.src||location.href);
 
   function clearLegacyCollapse(){
     try{
@@ -11,6 +12,15 @@
         if(key&&key.startsWith(collapsePrefix))localStorage.removeItem(key);
       }
     }catch{}
+  }
+
+  function loadOrderScope(){
+    if(document.getElementById('a4-dashboard-order-scope'))return;
+    const script=document.createElement('script');
+    script.id='a4-dashboard-order-scope';
+    script.type='module';
+    script.src=new URL('dashboard-order-scope.js?v=20260913-1',scriptBase).href;
+    document.head.appendChild(script);
   }
 
   function cardByTitle(title){
@@ -66,6 +76,7 @@
 
   function init(){
     clearLegacyCollapse();
+    loadOrderScope();
     normalize();
     let scheduled=false;
     const observer=new MutationObserver(()=>{
