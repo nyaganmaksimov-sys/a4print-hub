@@ -10,6 +10,7 @@
 - POS использует канонические `pos/app.js` и `pos/styles.css`; старые имена `app-v2.js` и `styles-v2.css` удалены;
 - мобильная смена KASSA использует `kassa/shift-mobile.js` и `kassa/shift-mobile.css`; старые `shift-mobile-v2.js/css` удалены;
 - устаревший `kassa/shift-live.js` удалён: актуальный экран смены и её summary обслуживаются `kassa/ui.js`, а backend live-status — `api/src/pos-shift-live-patch.js`;
+- временный `api/src/shift-debug.js` удалён: он использовался только для вывода диагностического снимка смен МойСклад, не подключался `api/src/boot.js` и не запускался npm scripts;
 - mobile navigation больше не проходит через legacy `admin/messages.html`; открывает встроенный `#hub-chat`;
 - push navigation больше не направляет сообщения на legacy chat page;
 - Mobile PWA и Support CI больше не требуют удалённые `chat-watchdog.js` / `chat-modern.js` и проверяют актуальный shared messenger.
