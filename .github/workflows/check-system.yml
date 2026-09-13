@@ -62,11 +62,11 @@ jobs:
           files=(
             index.html
             admin/login.html admin/register.html admin/profile.html admin/index.html admin/manager.html admin/orders.html admin/order.html admin/requests.html
-            admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/messages.js admin/settings.html
+            admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/settings.html
             admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js admin/hub-chat-indicator.js
             admin/order-delete-request.js admin/order-delete-moderation.js
             admin/auth-ui.js admin/auth-settings.js
-            shared/hub-chat-core.js shared/hub-chat.css shared/hub-chat-enhance.js shared/hub-chat-enhance.css
+            shared/hub-chat-core.js shared/hub-chat.css shared/hub-chat-enhance.js shared/hub-chat-enhance.css shared/hub-chat-drawer.js shared/hub-chat-drawer.css
             mobile/index.html mobile/account.html mobile/manifest.webmanifest mobile/pwa.js mobile/oauth-bridge.js mobile/quick-menu.js
             partner/login.html partner/index.html partner/crm.html partner/crm-messages.html partner/hub-chat.js
             pos/login.html pos/index.html
@@ -86,8 +86,8 @@ jobs:
           scripts=(
             admin/config.js admin/guard.js admin/navigation.js admin/app.js admin/profile.js
             admin/manager-runtime.js admin/order-delete-request.js admin/order-delete-moderation.js admin/partners-api-fallback.js admin/auth-ui.js admin/auth-settings.js
-            admin/login.js admin/register.js admin/messages.js admin/hub-chat-indicator.js admin/push-client.js
-            shared/hub-chat-core.js shared/hub-chat-enhance.js partner/hub-chat.js
+            admin/login.js admin/register.js admin/hub-chat-indicator.js admin/push-client.js
+            shared/hub-chat-core.js shared/hub-chat-enhance.js shared/hub-chat-drawer.js partner/hub-chat.js
             mobile/app-v3.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js mobile/quick-menu.js
             a4print-hub-sw.js
             api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/gateway.js
@@ -136,11 +136,14 @@ jobs:
           grep -q './config.js' admin/partners.html
           grep -q './guard.js' admin/partners.html
           grep -q './config.js?v=20260905-4' admin/manager.html
-          grep -q 'hub-chat-core.js' admin/messages.js
-          grep -q 'hub-chat-indicator.js' admin/config.js
-          grep -q 'hub_chat_contacts' admin/hub-chat-indicator.js
+          grep -q 'hub-chat-drawer.js' admin/guard.js
+          grep -q 'installHubChatDrawer' shared/hub-chat-drawer.js
+          grep -q 'hub_chat_contacts' shared/hub-chat-drawer.js
           grep -q 'hub_chat_contacts' shared/hub-chat-core.js
-          grep -q 'context:.partner.' partner/hub-chat.js
+          grep -q "context:'partner'" partner/hub-chat.js
+          grep -q '#hub-chat' admin/messages.html
+          grep -q '#hub-chat' partner/crm-messages.html
+          ! grep -q '../chat/start.html' admin/apps.html
           ! grep -q 'chat-widget.js' admin/config.js
           ! grep -q 'chat-app-mode.js' admin/config.js
           ! grep -q 'chat-embed.js' admin/config.js
