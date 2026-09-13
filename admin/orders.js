@@ -15,7 +15,7 @@ const labels = {
 };
 
 const statusOrder = ['NEW','CONFIRMED','IN_PROGRESS','READY','COMPLETED','ON_HOLD','CANCELLED'];
-const state = { orders: [], payments: [], loading: false, channel: null };
+const state = { orders: [], payments: [], paymentsAvailable: true, loading: false, channel: null };
 let realtimeTimer = null;
 
 function unitLabel(unit){
@@ -54,6 +54,29 @@ function paymentSummary(order){
   return { paid, total, label:`Оплачено ${money(paid)} ₽`, tone:'part' };
 }
 
+function ageHours(value){
+  const d = new Date(value);
+  return Number.isFinite(d.getTime()) ? Math.max(0,(Date.now()-d.getTime())/36e5) : 0;
+}
+
+function attentionKinds(order){
+  const kinds = new Set();
+  const status = String(order?.status || '').toUpperCase();
+  if(['COMPLETED','DONE','CANCELLED'].includes(status)) return kinds;
+  const hours = ageHours(order?.created_at);
+  const payment = paymentSummary(order);
+  const debt = Math.max(0, Number(payment.total || 0) - Number(payment.paid || 0));
+  if(status === 'ON_HOLD') kinds.add('ATTENTION');
+  if(status === 'NEW' && hours >= 24) kinds.add('ATTENTION');
+  if(['CONFIRMED','IN_PROGRESS'].includes(status) && hours >= 72){ kinds.add('ATTENTION'); kinds.add('OVERDUE_PRODUCTION'); }
+  if(status === 'READY' && hours >= 48) kinds.add('ATTENTION');
+  if(state.paymentsAvailable && debt > .01){
+    kinds.add('UNPAID');
+    if(hours >= 24 || ['READY','ON_HOLD'].includes(status)){ kinds.add('ATTENTION'); kinds.add('OVERDUE_PAYMENT'); }
+  }
+  return kinds;
+}
+
 function isManagerOrder(order){
   if(!order) return false;
   if(String(order.source||'').toUpperCase()==='KASSA') return false;
@@ -84,9 +107,11 @@ async function loadOrders(){
 async function loadPayments(){
   const result = await supabase.from('payments').select('id,order_id,status,amount,payment_method,created_at').order('created_at',{ascending:false}).limit(1000);
   if(result.error){
+    state.paymentsAvailable = false;
     console.warn('Payments summary unavailable', result.error);
     return [];
   }
+  state.paymentsAvailable = true;
   return result.data || [];
 }
 
@@ -94,7 +119,8 @@ function currentFilters(){
   return {
     q: $('search').value.trim().toLowerCase(),
     status: $('status').value,
-    unit: $('unit').value
+    unit: $('unit').value,
+    attention: $('attention')?.value || ''
   };
 }
 
@@ -104,17 +130,19 @@ function filteredOrders(){
     const c = o.customers || {};
     const text = [o.order_number,o.model_name,o.source,c.full_name,c.company_name,c.phone,c.email].filter(Boolean).join(' ').toLowerCase();
     const statusOk = !f.status || (f.status === 'WORK' ? ['CONFIRMED','IN_PROGRESS'].includes(o.status) : o.status === f.status);
-    return (!f.q || text.includes(f.q)) && statusOk && (!f.unit || o.business_unit === f.unit);
+    const attentionOk = !f.attention || attentionKinds(o).has(f.attention);
+    return (!f.q || text.includes(f.q)) && statusOk && (!f.unit || o.business_unit === f.unit) && attentionOk;
   });
 }
 
 function syncUrl(){
   const f = currentFilters();
   const url = new URL(location.href);
-  ['q','status','unit','source'].forEach((key) => url.searchParams.delete(key));
+  ['q','status','unit','source','attention'].forEach((key) => url.searchParams.delete(key));
   if(f.q) url.searchParams.set('q',$('search').value.trim());
   if(f.status) url.searchParams.set('status',f.status);
   if(f.unit) url.searchParams.set('unit',f.unit);
+  if(f.attention) url.searchParams.set('attention',f.attention);
   history.replaceState(null,'',url.pathname + url.search);
 }
 
@@ -125,6 +153,7 @@ function renderStats(){
   $('new').textContent = orders.filter((x) => x.status === 'NEW').length;
   $('work').textContent = orders.filter((x) => ['CONFIRMED','IN_PROGRESS'].includes(x.status)).length;
   $('ready').textContent = orders.filter((x) => x.status === 'READY').length;
+  if($('attentionCount')) $('attentionCount').textContent = orders.filter((x) => attentionKinds(x).has('ATTENTION')).length;
   $('activeTotal').textContent = `${money(active.reduce((sum,x) => sum + Number(x.total || 0),0))} ₽`;
 }
 
@@ -215,18 +244,19 @@ async function load(){
 function initParams(){
   const params = new URLSearchParams(location.search);
   if(params.get('q')) $('search').value = params.get('q');
-  for(const id of ['status','unit']){
+  for(const id of ['status','unit','attention']){
     const value = params.get(id);
-    if(value && [...$(id).options].some((o) => o.value === value)) $(id).value = value;
+    const control = $(id);
+    if(control && value && [...control.options].some((o) => o.value === value)) control.value = value;
   }
 }
 
 function initEvents(){
   $('search').addEventListener('input',render);
-  ['status','unit'].forEach((id) => $(id).addEventListener('change',render));
+  ['status','unit','attention'].forEach((id) => $(id)?.addEventListener('change',render));
   $('refresh').addEventListener('click',load);
   $('clearFilters').addEventListener('click',() => {
-    $('search').value='';$('status').value='';$('unit').value='';render();
+    $('search').value='';$('status').value='';$('unit').value='';if($('attention')) $('attention').value='';render();
   });
   $('list').addEventListener('change',(event) => {
     const select = event.target.closest('[data-order-status]');
@@ -240,7 +270,7 @@ function initEvents(){
 function initRealtime(){
   if(typeof supabase.channel !== 'function') return;
   const reload = () => { clearTimeout(realtimeTimer); realtimeTimer = setTimeout(load,450); };
-  state.channel = supabase.channel('manager-orders-workspace-v2')
+  state.channel = supabase.channel('manager-orders-workspace-v3')
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},reload)
     .on('postgres_changes',{event:'*',schema:'public',table:'payments'},reload)
     .subscribe();
