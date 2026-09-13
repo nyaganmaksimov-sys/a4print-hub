@@ -90,6 +90,7 @@ jobs:
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
           test -f kassa/manifest.webmanifest
+          test ! -e kassa/shift-live.js
           test -f api/src/pos-shift-live-patch.js
           test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
@@ -178,19 +179,53 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Wait for cash operations build
+      - name: Checkout change context
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect whether an API deploy is expected
+        id: api-change
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=false
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            before='${{ github.event.before }}'
+            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+              if ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+                git fetch --no-tags --depth=1 origin "$before" || true
+              fi
+              files=$(git diff --name-only "$before" "$GITHUB_SHA" 2>/dev/null || git show --pretty='' --name-only "$GITHUB_SHA")
+            else
+              files=$(git show --pretty='' --name-only "$GITHUB_SHA")
+            fi
+            printf '%s\n' "$files"
+            if printf '%s\n' "$files" | grep -Eq '^api/src/'; then
+              changed=true
+            fi
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "API source changed: $changed"
+
+      - name: Check live backend capabilities and deployment when required
         shell: bash
         run: |
           set -euo pipefail
           url='https://a4print-hub-api.onrender.com/api/v1/pos/build'
           marker="git-${GITHUB_SHA:0:12}"
+          require_marker='${{ steps.api-change.outputs.changed }}'
           for attempt in $(seq 1 45); do
-            echo "Render POS build check $attempt/45"
+            echo "Render POS build check $attempt/45 (require current commit: $require_marker)"
             code=$(curl -L -sS --max-time 20 -o /tmp/live.json -w '%{http_code}' "$url" || true)
             cat /tmp/live.json 2>/dev/null || true
             echo
+            marker_ok=true
+            if [ "$require_marker" = "true" ] && ! grep -q "$marker" /tmp/live.json; then
+              marker_ok=false
+            fi
             if [ "$code" = "200" ] \
-              && grep -q "$marker" /tmp/live.json \
+              && [ "$marker_ok" = "true" ] \
               && grep -q '"shiftSanity":true' /tmp/live.json \
               && grep -q '"freshManualShift":true' /tmp/live.json \
               && grep -q '"shiftIdSummary":true' /tmp/live.json \
@@ -198,10 +233,18 @@ jobs:
               && grep -q '"saleIdempotency":true' /tmp/live.json \
               && grep -q '"cashOperations":true' /tmp/live.json \
               && grep -q '"receiptQueueRecovery":true' /tmp/live.json; then
-              echo 'Render is running the current commit with queue recovery.'
+              if [ "$require_marker" = "true" ]; then
+                echo 'Render is running the current API commit with required capabilities.'
+              else
+                echo 'No API source changed; the existing live backend has all required capabilities.'
+              fi
               exit 0
             fi
             sleep 8
           done
-          echo 'Render did not deploy the cash operations build in time.'
+          if [ "$require_marker" = "true" ]; then
+            echo 'Render did not deploy the current API commit in time.'
+          else
+            echo 'Live backend capabilities did not become healthy in time.'
+          fi
           exit 1
