@@ -76,7 +76,7 @@ jobs:
             admin/manager-runtime.js admin/order-delete-request.js admin/order-delete-moderation.js admin/partners-api-fallback.js admin/auth-ui.js admin/auth-settings.js
             admin/login.js admin/register.js admin/push-client.js
             shared/hub-chat-core.js shared/hub-chat-enhance.js shared/hub-chat-drawer.js partner/hub-chat.js
-            mobile/app-v3.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js mobile/quick-menu.js
+            mobile/app.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js mobile/quick-menu.js
             a4print-hub-sw.js
             api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/gateway.js
           )
