@@ -70,8 +70,9 @@
     if(attention&&attention.parentElement!==right)right.appendChild(attention);
     if(production&&production.parentElement!==right)right.appendChild(production);
 
+    // Business directions belong directly under the currency strip, before the working columns.
     const units=shell.querySelector('.dash-units');
-    if(units&&units.previousElementSibling!==board)board.insertAdjacentElement('afterend',units);
+    if(units&&units.previousElementSibling!==rates)rates.insertAdjacentElement('afterend',units);
 
     ['a4DashboardPrimary','a4DashboardSecondary','a4DashboardPanelColumns'].forEach(id=>{
       const node=document.getElementById(id);
