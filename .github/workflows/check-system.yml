@@ -18,18 +18,6 @@ on:
       - '.github/workflows/check-system.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'admin/**'
-      - 'shared/**'
-      - 'mobile/**'
-      - 'partner/**'
-      - 'pos/**'
-      - 'marketplace/**'
-      - 'api/**'
-      - 'database/migrations/**'
-      - 'a4print-hub-sw.js'
-      - 'index.html'
-      - '.github/workflows/check-system.yml'
   schedule:
     - cron: '17 3 * * *'
 
