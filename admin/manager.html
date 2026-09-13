@@ -31,7 +31,7 @@ body{background:#f6f8fb}.main{min-width:0}.manager-grid{display:grid;grid-templa
   <a href="./customers.html">👥 База клиентов<span>Поиск и контакты</span></a>
   <a href="./orders.html">🛒 Заказы<span>Открыть все заказы</span></a>
   <a href="#calculator">🧮 Калькулятор<span>Быстрый расчёт по прайсу</span></a>
-  <a href="./messages.html">💬 Чат персонала<span>Рабочие каналы</span></a>
+  <a href="#hub-chat" data-hub-chat-open>💬 Сообщения<span>Персонал и партнёры</span></a>
 </section>
 <section class="manager-grid"><div>
 <article class="manager-panel"><div class="panel-head2"><h2>Клиенты</h2><div class="panel-actions"><button id="toggleClientForm" type="button">＋ Быстро добавить</button><a href="./customers.html">Вся база →</a></div></div>
@@ -68,7 +68,7 @@ body{background:#f6f8fb}.main{min-width:0}.manager-grid{display:grid;grid-templa
 </div>
 <div class="calc-total"><span>Итого</span><strong id="calcTotal">0 ₽</strong></div><div id="serviceHint" class="calc-note">Загружаем действующий прайс A4PRINT HUB…</div>
 </article>
-<article class="manager-panel section-gap"><div class="panel-head2"><h2>Чат персонала</h2><a href="./messages.html">Открыть чат →</a></div><div class="chat-cards"><a class="chat-card" href="./messages.html">💬 Общий чат<small>Для всего персонала</small></a><a class="chat-card" href="./messages.html">🧑‍💼 Менеджеры<small>Продажи и клиенты</small></a><a class="chat-card" href="./messages.html">🏭 Производство<small>Передача задач в работу</small></a><a class="chat-card" href="./messages.html">📦 Склад<small>Материалы и остатки</small></a></div></article>
+<article class="manager-panel section-gap"><div class="panel-head2"><h2>Сообщения</h2><a href="#hub-chat" data-hub-chat-open>Открыть →</a></div><div class="chat-cards"><a class="chat-card" href="#hub-chat" data-hub-chat-open>💬 Общий канал<small>Общая рабочая переписка</small></a><a class="chat-card" href="#hub-chat" data-hub-chat-open>👥 Персонал<small>Личные диалоги сотрудников</small></a><a class="chat-card" href="#hub-chat" data-hub-chat-open>🤝 Партнёры<small>Связь с партнёрами</small></a><a class="chat-card" href="#hub-chat" data-hub-chat-open>🔔 Непрочитанные<small>Открыть список диалогов</small></a></div></article>
 </div></section>
 </main>
 <script src="./manager-runtime.js?v=20260905-4"></script>
