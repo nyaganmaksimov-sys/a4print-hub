@@ -1,96 +1,103 @@
-/* A4PRINT HUB dashboard v2 — compact management workspace */
+/* A4PRINT HUB dashboard v3 — clean command center */
 body.dashboard-home .dashboard-shell{gap:10px!important}
 body.dashboard-home .dash-app-launcher{display:none!important}
 
-/* Quick actions */
-body.dashboard-home .dashboard-actions{gap:8px!important}
-body.dashboard-home .dashboard-search{max-width:none!important}
-body.dashboard-home .dashboard-search-box input{height:42px!important;min-height:42px!important}
-body.dashboard-home .dashboard-quick a{min-height:42px!important}
+body.dashboard-home .dashboard-actions{display:grid!important;grid-template-columns:minmax(320px,1fr) auto!important;gap:10px!important;align-items:center!important}
+body.dashboard-home .dashboard-search{max-width:none!important;min-width:0!important}
+body.dashboard-home .dashboard-search-box input{height:44px!important;min-height:44px!important}
+body.dashboard-home .dashboard-quick{margin-left:0!important;flex-wrap:nowrap!important}
+body.dashboard-home .dashboard-quick a{min-height:44px!important;padding:0 14px!important}
 
-/* Currency is reference data, not the main content. Keep it as a compact strip. */
+/* Reference information must never dominate the command center. */
 body.dashboard-home .a4-cbr-rates{
-  display:flex!important;align-items:center!important;gap:16px!important;
-  min-height:58px!important;padding:9px 14px!important;border-radius:13px!important;
-  box-shadow:0 2px 10px rgba(15,23,42,.025)!important
+  display:grid!important;grid-template-columns:190px minmax(0,1fr)!important;align-items:center!important;gap:10px!important;
+  min-height:48px!important;padding:7px 12px!important;border-radius:13px!important;
+  box-shadow:0 2px 8px rgba(15,23,42,.025)!important
 }
-body.dashboard-home .a4-cbr-rates-head{display:grid!important;gap:2px!important;min-width:205px!important;margin:0!important}
+body.dashboard-home .a4-cbr-rates-head{display:grid!important;gap:1px!important;min-width:0!important;margin:0!important}
 body.dashboard-home .a4-cbr-rates-title{gap:8px!important}
-body.dashboard-home .a4-cbr-rates-title b{font-size:12px!important}
-body.dashboard-home .a4-cbr-rates-meta{font-size:9px!important;white-space:nowrap!important}
+body.dashboard-home .a4-cbr-rates-title b{font-size:11.5px!important}
+body.dashboard-home .a4-cbr-rates-meta{font-size:8.5px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 body.dashboard-home .a4-cbr-live{width:7px!important;height:7px!important;flex-basis:7px!important}
-body.dashboard-home .a4-cbr-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;flex:1!important;min-width:0!important}
-body.dashboard-home .a4-cbr-item{
-  min-height:38px!important;padding:2px 14px!important;border:0!important;border-left:1px solid #e7edf5!important;
-  border-radius:0!important;background:transparent!important;gap:9px!important
-}
-body.dashboard-home .a4-cbr-symbol{width:29px!important;height:29px!important;flex-basis:29px!important;border-radius:9px!important;font-size:14px!important}
-body.dashboard-home .a4-cbr-code{font-size:9px!important}
-body.dashboard-home .a4-cbr-value{font-size:15px!important}
+body.dashboard-home .a4-cbr-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;min-width:0!important}
+body.dashboard-home .a4-cbr-item{min-height:32px!important;padding:0 12px!important;border:0!important;border-left:1px solid #e7edf5!important;border-radius:0!important;background:transparent!important;gap:7px!important}
+body.dashboard-home .a4-cbr-symbol{display:none!important}
+body.dashboard-home .a4-cbr-code{font-size:8.5px!important}
+body.dashboard-home .a4-cbr-value{font-size:14px!important}
 body.dashboard-home .a4-cbr-name{display:none!important}
 
-/* Six operational indicators in one row on a normal desktop. */
-body.dashboard-home .dash-kpis{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:8px!important}
-body.dashboard-home .dash-kpi{min-height:70px!important;padding:11px 13px!important;gap:10px!important;border-radius:13px!important}
+/* One operational row. Clock is intentionally narrower than business KPIs. */
+body.dashboard-home .dash-kpis{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(145px,.72fr)!important;gap:8px!important}
+body.dashboard-home .dash-kpi{min-height:74px!important;padding:11px 13px!important;gap:10px!important;border-radius:13px!important;box-shadow:0 2px 9px rgba(15,23,42,.025)!important}
 body.dashboard-home .dash-kpi-icon{width:34px!important;height:34px!important;flex-basis:34px!important;border-radius:10px!important}
 body.dashboard-home .dash-kpi-icon svg{width:17px!important;height:17px!important}
-body.dashboard-home .dash-kpi-label{font-size:10px!important}
+body.dashboard-home .dash-kpi-label{font-size:9.5px!important}
 body.dashboard-home .dash-kpi-value{font-size:21px!important;margin-top:3px!important}
-body.dashboard-home .dash-kpi-drag-handle{opacity:0!important;top:5px!important;right:5px!important}
-body.dashboard-home .dash-kpi:hover .dash-kpi-drag-handle{opacity:.65!important}
+body.dashboard-home .dash-kpi:last-child .dash-kpi-value{font-size:20px!important;letter-spacing:.025em!important}
+body.dashboard-home .dash-kpi-drag-handle{display:none!important}
 
-/* The dashboard is an overview: important panels stay open. */
+/* Dashboard is an overview. Do not persist accidental collapsed states. */
 body.dashboard-home .dash-collapse-btn{display:none!important}
 body.dashboard-home .dash-card.is-collapsed>:not(.dash-card-head){display:block!important}
 body.dashboard-home .dash-card.is-collapsed .dash-card-head{border-bottom:1px solid #edf2f7!important}
-body.dashboard-home .dash-card{border-radius:14px!important;box-shadow:0 3px 13px rgba(15,23,42,.03)!important}
-body.dashboard-home .dash-card-head{padding:13px 15px!important}
+body.dashboard-home .dash-card{border-radius:14px!important;box-shadow:0 2px 10px rgba(15,23,42,.03)!important}
+body.dashboard-home .dash-card-head{min-height:64px!important;padding:13px 15px!important}
 body.dashboard-home .dash-card-head h2{font-size:15px!important}
 body.dashboard-home .dash-card-head p{font-size:10px!important;margin-top:3px!important}
+body.dashboard-home .dash-card-head-actions{gap:7px!important}
 
-/* Main work area gets most of the screen. */
-body.dashboard-home .dash-panel-columns{grid-template-columns:minmax(0,1.65fr) minmax(320px,.75fr)!important;gap:10px!important}
-body.dashboard-home .dash-panel-column{gap:10px!important}
+/* Explicit visual hierarchy: operational work first, service blocks second. */
+body.dashboard-home .dash-command-grid{display:grid!important;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr)!important;gap:10px!important;align-items:start!important}
+body.dashboard-home .dash-secondary-grid{display:grid!important;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr)!important;gap:10px!important;align-items:start!important}
+body.dashboard-home .dash-command-grid>.dash-card,
+body.dashboard-home .dash-secondary-grid>.dash-card{min-width:0!important}
+body.dashboard-home .dash-panel-columns{display:none!important}
 body.dashboard-home .dash-order-header{padding:8px 14px!important;font-size:8.5px!important}
 body.dashboard-home .dash-order-row{padding:10px 14px!important;gap:9px!important}
 body.dashboard-home .dash-attention-item{padding:9px 12px!important}
-body.dashboard-home .dash-empty{padding:22px 14px!important}
+body.dashboard-home .dash-empty{padding:20px 14px!important}
 
-/* Cash/production and business directions are secondary, compact blocks. */
-body.dashboard-home .dashboard-quick{gap:6px!important}
-body.dashboard-home .dash-unit-card{min-height:68px!important;padding:10px 13px!important;border-radius:13px!important}
-body.dashboard-home .dash-unit-mark{width:36px!important;height:36px!important;border-radius:10px!important}
+/* Secondary blocks are deliberately quieter. */
+body.dashboard-home .dash-secondary-grid .dash-card-head{min-height:60px!important}
+body.dashboard-home .dash-secondary-grid .dashboard-quick{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+body.dashboard-home .dash-secondary-grid .dashboard-quick a{min-height:34px!important;padding:0 10px!important;font-size:10.5px!important}
+body.dashboard-home .dash-units{grid-template-columns:1fr 1fr!important;gap:8px!important}
+body.dashboard-home .dash-unit-card{min-height:64px!important;padding:10px 13px!important;border-radius:13px!important;box-shadow:0 2px 8px rgba(15,23,42,.02)!important}
+body.dashboard-home .dash-unit-mark{width:34px!important;height:34px!important;border-radius:10px!important}
 body.dashboard-home .dash-unit-card-copy b{font-size:12px!important}
 body.dashboard-home .dash-unit-card-copy span{font-size:9px!important}
-body.dashboard-home .dash-unit-metrics strong{font-size:17px!important}
+body.dashboard-home .dash-unit-metrics strong{font-size:16px!important}
 
-/* Keep floating chat away from content. */
+/* Floating chat gets its own safe zone. */
 body.dashboard-home #a4ChatLauncher,
 body.dashboard-home .a4-chat-launcher,
-body.dashboard-home [data-a4-chat-launcher]{right:22px!important;bottom:22px!important}
+body.dashboard-home [data-a4-chat-launcher]{right:18px!important;bottom:18px!important}
+body.dashboard-home .dashboard-shell{padding-bottom:10px!important}
 
-@media(max-width:1380px){
+@media(max-width:1280px){
   body.dashboard-home .dash-kpis{grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  body.dashboard-home .dash-panel-columns{grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr)!important}
+  body.dashboard-home .dash-command-grid,
+  body.dashboard-home .dash-secondary-grid{grid-template-columns:minmax(0,1.35fr) minmax(280px,.72fr)!important}
 }
 @media(max-width:1080px){
-  body.dashboard-home .a4-cbr-rates{display:grid!important;grid-template-columns:1fr!important;gap:7px!important}
-  body.dashboard-home .a4-cbr-rates-head{display:flex!important;justify-content:space-between!important;min-width:0!important}
-  body.dashboard-home .a4-cbr-grid{width:100%!important}
+  body.dashboard-home .dashboard-actions{grid-template-columns:1fr!important}
+  body.dashboard-home .dashboard-quick{justify-content:flex-start!important;overflow-x:auto!important}
+  body.dashboard-home .a4-cbr-rates{grid-template-columns:1fr!important;gap:5px!important}
+  body.dashboard-home .a4-cbr-rates-head{display:flex!important;justify-content:space-between!important;gap:12px!important}
   body.dashboard-home .a4-cbr-item:first-child{border-left:0!important}
-  body.dashboard-home .dash-panel-columns{grid-template-columns:1fr!important}
+  body.dashboard-home .dash-command-grid,
+  body.dashboard-home .dash-secondary-grid{grid-template-columns:1fr!important}
 }
 @media(max-width:760px){
   body.dashboard-home .main{padding:14px 12px 84px!important}
-  body.dashboard-home .dashboard-actions{display:grid!important;grid-template-columns:1fr!important}
-  body.dashboard-home .dashboard-quick{margin-left:0!important;justify-content:flex-start!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:2px!important}
+  body.dashboard-home .topbar h1{font-size:23px!important}
+  body.dashboard-home .dashboard-quick{flex-wrap:nowrap!important;padding-bottom:2px!important}
   body.dashboard-home .dashboard-quick a{flex:0 0 auto!important}
   body.dashboard-home .dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  body.dashboard-home .dash-kpi{min-height:66px!important;padding:10px!important}
+  body.dashboard-home .dash-kpi{min-height:68px!important;padding:10px!important}
   body.dashboard-home .a4-cbr-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  body.dashboard-home .a4-cbr-item{padding:2px 7px!important;gap:6px!important}
-  body.dashboard-home .a4-cbr-symbol{display:none!important}
-  body.dashboard-home .a4-cbr-value{font-size:13px!important}
+  body.dashboard-home .a4-cbr-item{padding:0 6px!important}
+  body.dashboard-home .a4-cbr-value{font-size:12px!important}
   body.dashboard-home .dash-order-header{display:none!important}
   body.dashboard-home .dash-order-row{grid-template-columns:1fr auto!important;gap:5px 10px!important}
   body.dashboard-home .dash-order-row>*{grid-column:1!important}
