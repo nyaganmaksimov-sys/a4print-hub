@@ -7,6 +7,7 @@
   function helpIcon(){return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h6"/></svg>'}
   function profileIcon(){return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>'}
   function equipmentIcon(){return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M9 17h6"/></svg>'}
+  function expensesIcon(){return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h4"/><path d="M16 15v4M14 17h4"/></svg>'}
   function link(href,label,icon,active=false){return `<a href="${href}" class="${active?'active':''}" title="${label}"><span class="a4-nav-icon">${icon}</span><span class="a4-nav-label">${label}</span></a>`}
 
   function ensureSupportLink(){
@@ -47,6 +48,28 @@
     nav.appendChild(a);return true;
   }
 
+  function ensureExpensesLink(){
+    const nav=document.querySelector('.sidebar nav');if(!nav)return false;
+    let a=nav.querySelector('a[href$="expenses.html"]');
+    if(!a){
+      const wrap=document.createElement('div');
+      wrap.innerHTML=link('./expenses.html','Расходы',expensesIcon(),/expenses\.html$/.test(location.pathname));
+      a=wrap.firstElementChild;
+    }
+    const payments=[...nav.querySelectorAll('a')].find(x=>/payments\.html/.test(x.getAttribute('href')||''));
+    const parent=payments?.parentElement||nav;
+    if(a.parentElement!==parent){
+      if(payments?.parentElement===parent)parent.insertBefore(a,payments.nextSibling);
+      else parent.appendChild(a);
+    }else if(payments&&payments.nextSibling!==a){parent.insertBefore(a,payments.nextSibling)}
+    if(/expenses\.html$/.test(location.pathname)){
+      a.classList.add('active');
+      const group=a.closest('.a4-nav-group');
+      group?.classList.add('has-active','open');
+    }
+    return true;
+  }
+
   function loadContextModules(){
     const path=location.pathname;
     const add=(src,id)=>{
@@ -62,6 +85,7 @@
     const nav=document.querySelector('.sidebar nav');if(!nav)return false;
     nav.innerHTML=[
       link('./support.html','Поддержка',supportIcon(),/support\.html$/.test(location.pathname)),
+      link('./expenses.html','Расходы',expensesIcon(),/expenses\.html$/.test(location.pathname)),
       link('./help.html','Инструкция',helpIcon(),/help\.html$/.test(location.pathname)),
       link('./profile.html','Мой профиль',profileIcon(),/profile\.html$/.test(location.pathname))
     ].join('');
@@ -76,11 +100,11 @@
     const timer=setInterval(()=>{
       tries++;
       try{
-        const ok=supportOnly?isolateSupportNav():(ensureSupportLink()&&ensureEquipmentLink());
+        const ok=supportOnly?isolateSupportNav():(ensureSupportLink()&&ensureEquipmentLink()&&ensureExpensesLink());
         if(ok||tries>30)clearInterval(timer);
       }catch(error){console.warn('Support navigation init failed',error);clearInterval(timer)}
     },100);
-    if(!supportOnly){setTimeout(ensureEquipmentLink,500);setTimeout(ensureEquipmentLink,1400)}
+    if(!supportOnly){setTimeout(ensureEquipmentLink,500);setTimeout(ensureEquipmentLink,1400);setTimeout(ensureExpensesLink,500);setTimeout(ensureExpensesLink,1400)}
   }
 
   function apply(){
