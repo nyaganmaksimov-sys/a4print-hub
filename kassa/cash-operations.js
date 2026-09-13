@@ -74,7 +74,7 @@
       if(r.ok&&data?.success){applyExactBalance(data);return data}
       applyExactBalance({available:false,cash:null,shift:data?.shift||null,source:data?.source||data?.error||'CASH_BALANCE_UNAVAILABLE'});
       return data;
-    }catch(error){console.warn('A4PRINT cash balance:',error);return null}
+    }catch(error){console.warn('A4PRINT cash balance:',error);applyExactBalance({available:false,cash:null,shift:null,source:'CASH_BALANCE_NETWORK_ERROR'});return null}
     finally{balanceBusy=false}
   }
   function scheduleBalance(delay=250){clearTimeout(balanceTimer);balanceTimer=setTimeout(()=>refreshBalance().catch(()=>{}),delay)}
@@ -89,30 +89,40 @@
   }
   async function open(){
     close();ensureStyles();
-    await refreshBalance().catch(()=>{});
-    const available=currentCash();
-    const hasShift=Boolean(window.A4KassaCashBalance?.shift?.id);
-    const canWithdraw=Number.isFinite(available)&&available>0&&hasShift;
-    const initialError=!Number.isFinite(available)
-      ?'Не удалось получить точный остаток из МойСклад. Изъятие временно заблокировано.'
-      :!hasShift
-        ?'Для изъятия сначала откройте смену.'
-        :available<=0?'В кассе нет наличных для изъятия.':'';
-    const overlay=document.createElement('div');overlay.id='cashOpOverlay';overlay.className='cashop-overlay';overlay.innerHTML=`<div class="cashop-card" role="dialog" aria-modal="true" aria-labelledby="cashOpTitle"><div class="cashop-head"><div><h2 id="cashOpTitle">Изъятие денег</h2><p>Выплата будет создана в текущей смене МойСклад.</p></div><button class="cashop-close" type="button" aria-label="Закрыть">×</button></div><div class="cashop-body"><div class="cashop-balance"><span>Наличных сейчас</span><strong>${Number.isFinite(available)?money(available):'—'}</strong></div><label class="cashop-field"><span>Сумма изъятия</span><input id="cashOpAmount" inputmode="decimal" autocomplete="off" placeholder="0,00"></label><label class="cashop-field"><span>Причина / комментарий</span><textarea id="cashOpReason" placeholder="Например: инкассация, передано руководителю"></textarea></label><div id="cashOpError" class="cashop-error">${initialError}</div></div><div class="cashop-actions"><button class="cashop-cancel" type="button">Отмена</button><button id="cashOpSubmit" class="cashop-submit" type="button" ${canWithdraw?'':'disabled'}>Изъять деньги</button></div></div>`;
+    const cached=currentCash();
+    const overlay=document.createElement('div');overlay.id='cashOpOverlay';overlay.className='cashop-overlay';overlay.innerHTML=`<div class="cashop-card" role="dialog" aria-modal="true" aria-labelledby="cashOpTitle"><div class="cashop-head"><div><h2 id="cashOpTitle">Изъятие денег</h2><p>Выплата будет создана в текущей смене МойСклад.</p></div><button class="cashop-close" type="button" aria-label="Закрыть">×</button></div><div class="cashop-body"><div class="cashop-balance"><span>Наличных сейчас</span><strong>${Number.isFinite(cached)?money(cached):'—'}</strong></div><label class="cashop-field"><span>Сумма изъятия</span><input id="cashOpAmount" inputmode="decimal" autocomplete="off" placeholder="0,00"></label><label class="cashop-field"><span>Причина / комментарий</span><textarea id="cashOpReason" placeholder="Например: инкассация, передано руководителю"></textarea></label><div id="cashOpError" class="cashop-error">Проверяем точный остаток в МойСклад…</div></div><div class="cashop-actions"><button class="cashop-cancel" type="button">Отмена</button><button id="cashOpSubmit" class="cashop-submit" type="button" disabled>Изъять деньги</button></div></div>`;
     document.body.append(overlay);
     overlay.querySelector('.cashop-close').onclick=close;overlay.querySelector('.cashop-cancel').onclick=close;overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
-    const amount=$('cashOpAmount');amount.focus();
-    $('cashOpSubmit').onclick=async()=>{
+    const amount=$('cashOpAmount');const btn=$('cashOpSubmit');const err=$('cashOpError');const balance=overlay.querySelector('.cashop-balance strong');amount.focus();
+
+    // The dialog is usable immediately. Exact cash is verified in the
+    // background; withdrawal stays locked until MoySklad confirms the balance.
+    refreshBalance().then(data=>{
+      if(!overlay.isConnected)return;
+      const verified=Boolean(data?.success)&&Boolean(data?.available)&&Number.isFinite(Number(data?.cash));
+      const exact=verified?Number(data.cash):Number.NaN;
+      const shiftOpen=Boolean(data?.shift?.id);
+      balance.textContent=Number.isFinite(exact)?money(exact):'—';
+      if(!verified){btn.disabled=true;err.textContent='Не удалось получить точный остаток из МойСклад. Изъятие временно заблокировано.';return}
+      if(!shiftOpen){btn.disabled=true;err.textContent='Для изъятия сначала откройте смену.';return}
+      if(exact<=0){btn.disabled=true;err.textContent='В кассе нет наличных для изъятия.';return}
+      btn.disabled=false;err.textContent='';
+    }).catch(error=>{
+      if(!overlay.isConnected)return;
+      console.warn('A4PRINT cash withdrawal balance:',error);btn.disabled=true;err.textContent='Не удалось проверить остаток. Обновите данные и повторите.';
+    });
+
+    btn.onclick=async()=>{
       const exact=currentCash();
       const shiftOpen=Boolean(window.A4KassaCashBalance?.shift?.id);
       const value=Number(String(amount.value||'').replace(/\s/g,'').replace(',','.'));
-      const reason=String($('cashOpReason').value||'').trim();const err=$('cashOpError');err.textContent='';
+      const reason=String($('cashOpReason').value||'').trim();err.textContent='';
       if(!Number.isFinite(exact)){err.textContent='Точный остаток кассы недоступен. Обновите данные и повторите.';return}
       if(!shiftOpen){err.textContent='Для изъятия сначала откройте смену.';return}
       if(exact<=0){err.textContent='В кассе нет наличных для изъятия.';return}
       if(!Number.isFinite(value)||value<=0){err.textContent='Введите сумму больше нуля.';return}
       if(value>exact){err.textContent=`В кассе сейчас ${money(exact)}. Нельзя изъять больше.`;return}
-      const operator=$('operatorSelect')?.value||null;const btn=$('cashOpSubmit');btn.disabled=true;btn.textContent='Провожу…';
+      const operator=$('operatorSelect')?.value||null;btn.disabled=true;btn.textContent='Провожу…';
       try{
         const result=await api({amount:value,reason,operator_id:operator});
         if(Number.isFinite(Number(result.cash_after)))applyExactBalance({available:true,cash:Number(result.cash_after),shift:result.shift||window.A4KassaCashBalance?.shift,store:window.A4KassaCashBalance?.store,source:'MOYSKLAD_RETAILSTORE_CASH'});
