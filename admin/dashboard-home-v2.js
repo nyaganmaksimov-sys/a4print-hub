@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__A4_DASHBOARD_HOME_V2__)return;
-  window.__A4_DASHBOARD_HOME_V2__=true;
+  if(window.__A4_DASHBOARD_HOME_V3__)return;
+  window.__A4_DASHBOARD_HOME_V3__=true;
 
   const collapsePrefix='a4hub.dashboard.collapse.';
 
