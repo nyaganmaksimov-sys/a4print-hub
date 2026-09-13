@@ -1,6 +1,13 @@
 (()=>{
   'use strict';
-  const VERSION='20260913-kassa-fast-cash1';
+
+  if(location.hostname.toLowerCase().endsWith('.github.io')){
+    const suffix=(location.search||'')+(location.hash||'');
+    location.replace(`https://a4print-hub.ru/kassa/${suffix}`);
+    return;
+  }
+
+  const VERSION='20260913-kassa-app-url-repair1';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
