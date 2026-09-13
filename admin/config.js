@@ -127,7 +127,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
-  if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1');load('manager-clean-v4.js','20260913-manager1')}
+  if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1');load('manager-clean.js','20260913-manager2')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');load('jarvis-settings.js','20260913-1')}
