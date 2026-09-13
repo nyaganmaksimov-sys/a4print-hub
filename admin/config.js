@@ -106,7 +106,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const isAuthPage=/\/admin\/(login|register|pending|invite|reset-password)\.html$/.test(location.pathname);
   const isAdmin=/\/admin\//.test(location.pathname)&&!isAuthPage;
   const isDashboard=/\/admin\/(?:index\.html)?$/.test(location.pathname);
-  const isChat=/\/admin\/messages\.html$/.test(location.pathname);
   const isManager=/\/admin\/manager\.html$/.test(location.pathname);
   const isOrders=/\/admin\/orders\.html$/.test(location.pathname);
   const isRequests=/\/admin\/requests\.html$/.test(location.pathname);
@@ -124,7 +123,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     const logoStyle=document.createElement('style');logoStyle.id='a4-logo-transparent-fix';logoStyle.textContent=`html body .sidebar .hub-logo-wrap,html body .sidebar .brand{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;min-height:0!important;height:auto!important;margin:4px 8px 20px!important}html body .sidebar .hub-logo,html body .sidebar .brand img{display:block!important;opacity:1!important;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;width:100%!important;max-width:190px!important;height:auto!important;max-height:126px!important;object-fit:contain!important;filter:none!important;border-radius:0!important}html body.a4-sidebar-collapsed .sidebar .hub-logo-wrap,html body.a4-sidebar-collapsed .sidebar .brand{margin:4px 0 14px!important}html body.a4-sidebar-collapsed .sidebar .hub-logo,html body.a4-sidebar-collapsed .sidebar .brand img{width:54px!important;max-width:54px!important;height:auto!important;max-height:54px!important}`;document.head.appendChild(logoStyle);
     const useConfiguredLogo=()=>{let saved='';try{saved=localStorage.getItem('a4print_hub_logo')||''}catch{}const src=saved||new URL('assets/logo_bd_transparent.svg?v=20260913-branding1',base).href;const logo=document.getElementById('hubLogo');if(logo)logo.src=src;document.querySelectorAll('.brand img').forEach(img=>{img.src=src})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',useConfiguredLogo,{once:true});else useConfiguredLogo();
   }
-  if(mobileContext&&!isChat)load('mobile-shell.js','20260905-4');
+  if(mobileContext)load('mobile-shell.js','20260905-4');
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
   load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
@@ -133,7 +132,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');load('jarvis-settings.js','20260913-1')}
   load('navigation.js','20260913-branding1');load('support-access.js','20260913-clean1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260913-actions1');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260912-orders1');
-  if(!isChat)background(()=>loadModule('hub-chat-indicator.js','20260913-hubchat2'));
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){
     load('partner-invites.js','20260913-partners4');

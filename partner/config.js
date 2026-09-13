@@ -7,6 +7,7 @@ window.A4PRINT_PARTNER_CONFIG={
 (function loadPartnerUi(){
   const scripts=['./pwa.js?v=20260901-2','../admin/theme.js?v=20260831-15','../admin/ui-fixes.js?v=20260831-15'];
   const isAuthPage=/\/partner\/(login|register|set-password)\.html$/.test(location.pathname);
+  const isCrmPage=/\/partner\/crm(?:-[^/]*)?\.html$/.test(location.pathname);
   if(!isAuthPage)scripts.push('../admin/layout.js?v=20260831-15','./help.js?v=20260831-2','./crm-entry.js?v=20260831-2','./marketplace-nav.js?v=20260831-2','./courier-orders.js?v=20260901-1');
   scripts.forEach(src=>{
     const s=document.createElement('script');
@@ -14,4 +15,10 @@ window.A4PRINT_PARTNER_CONFIG={
     s.defer=true;
     document.head.appendChild(s);
   });
+  if(isCrmPage){
+    const chat=document.createElement('script');
+    chat.type='module';
+    chat.src='./hub-chat.js?v=20260913-drawer1';
+    document.head.appendChild(chat);
+  }
 })();
