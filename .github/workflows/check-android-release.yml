@@ -1,0 +1,42 @@
+name: Check Android Release Wiring
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'mobile-app/**'
+      - 'download/index.html'
+      - '.github/workflows/build-android-apk.yml'
+      - '.github/workflows/check-android-release.yml'
+  workflow_dispatch:
+
+jobs:
+  android-release-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify protected-main-safe Android publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/build-android-apk.yml'
+          page='download/index.html'
+
+          test -s "$workflow"
+          test -s "$page"
+
+          grep -Fq "TAG='android-latest'" "$workflow"
+          grep -Fq 'STABLE_APK="$RUNNER_TEMP/A4PRINT-HUB.apk"' "$workflow"
+          grep -Fq 'gh release upload "$TAG" "$STABLE_APK" --clobber' "$workflow"
+          grep -Fq "grep -qx 'A4PRINT-HUB.apk'" "$workflow"
+          ! grep -Fq 'git push origin HEAD:main' "$workflow"
+
+          grep -Fq 'https://github.com/nyaganmaksimov-sys/a4print-hub/releases/download/android-latest/A4PRINT-HUB.apk' "$page"
+
+      - name: Android release wiring result
+        run: echo 'Protected-main-safe Android release wiring is valid.'
