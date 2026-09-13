@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__A4_DASHBOARD_HOME_V3__)return;
-  window.__A4_DASHBOARD_HOME_V3__=true;
+  if(window.__A4_DASHBOARD_HOME_V4__)return;
+  window.__A4_DASHBOARD_HOME_V4__=true;
 
   const collapsePrefix='a4hub.dashboard.collapse.';
   const scriptBase=new URL('./',document.currentScript?.src||location.href);
@@ -27,15 +27,21 @@
     return [...document.querySelectorAll('.dash-card')].find(card=>card.querySelector(':scope > .dash-card-head h2')?.textContent?.trim()===title)||null;
   }
 
-  function ensureZone(id,className,label,anchor){
-    let zone=document.getElementById(id);
-    if(zone)return zone;
-    zone=document.createElement('section');
-    zone.id=id;
-    zone.className=className;
-    zone.setAttribute('aria-label',label);
-    anchor?.insertAdjacentElement('afterend',zone);
-    return zone;
+  function ensureColumns(rates){
+    let board=document.getElementById('a4DashboardColumns');
+    if(!board){
+      board=document.createElement('section');
+      board.id='a4DashboardColumns';
+      board.className='dash-command-columns';
+      board.setAttribute('aria-label','Оперативная работа');
+      board.innerHTML='<div class="dash-command-column" data-dashboard-column="left"></div><div class="dash-command-column" data-dashboard-column="right"></div>';
+      rates.insertAdjacentElement('afterend',board);
+    }
+    return {
+      board,
+      left:board.querySelector('[data-dashboard-column="left"]'),
+      right:board.querySelector('[data-dashboard-column="right"]')
+    };
   }
 
   function normalize(){
@@ -51,26 +57,26 @@
     const kpis=shell?.querySelector('.dash-kpis');
     const rates=document.getElementById('a4CbrRates');
     if(shell&&kpis&&rates&&rates.previousElementSibling!==kpis)kpis.insertAdjacentElement('afterend',rates);
-
     if(!shell||!rates)return;
-    const primary=ensureZone('a4DashboardPrimary','dash-command-grid','Оперативная работа',rates);
-    const secondary=ensureZone('a4DashboardSecondary','dash-secondary-grid','Служебные блоки',primary);
 
+    const {board,left,right}=ensureColumns(rates);
     const orders=cardByTitle('Последние заказы');
     const attention=cardByTitle('Требует внимания');
     const cash=cardByTitle('Касса и синхронизация');
     const production=cardByTitle('Производство');
 
-    if(orders&&orders.parentElement!==primary)primary.appendChild(orders);
-    if(attention&&attention.parentElement!==primary)primary.appendChild(attention);
-    if(cash&&cash.parentElement!==secondary)secondary.appendChild(cash);
-    if(production&&production.parentElement!==secondary)secondary.appendChild(production);
+    if(orders&&orders.parentElement!==left)left.appendChild(orders);
+    if(cash&&cash.parentElement!==left)left.appendChild(cash);
+    if(attention&&attention.parentElement!==right)right.appendChild(attention);
+    if(production&&production.parentElement!==right)right.appendChild(production);
 
     const units=shell.querySelector('.dash-units');
-    if(units&&units.previousElementSibling!==secondary)secondary.insertAdjacentElement('afterend',units);
+    if(units&&units.previousElementSibling!==board)board.insertAdjacentElement('afterend',units);
 
-    const legacyBoard=document.getElementById('a4DashboardPanelColumns');
-    if(legacyBoard&&!legacyBoard.querySelector('.dash-card'))legacyBoard.remove();
+    ['a4DashboardPrimary','a4DashboardSecondary','a4DashboardPanelColumns'].forEach(id=>{
+      const node=document.getElementById(id);
+      if(node&&!node.querySelector('.dash-card'))node.remove();
+    });
     [...shell.querySelectorAll(':scope > .dash-grid')].forEach(grid=>{if(!grid.querySelector('.dash-card'))grid.remove()});
   }
 
