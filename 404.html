@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>A4PRINT HUB — страница не найдена</title>
+  <style>
+    body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f7fb;color:#162033;display:grid;min-height:100vh;place-items:center}
+    main{max-width:680px;padding:32px;text-align:center}h1{font-size:44px;margin:0 0 8px}p{color:#667085}a{color:#078c99;font-weight:700}
+  </style>
+  <script>
+    (()=>{
+      const path=location.pathname.toLowerCase();
+      const legacyHost=location.hostname.toLowerCase().endsWith('.github.io');
+      const looksLikeKassa=/(^|\/)kassa(?:\/|$)|a4print[-_]?kassa|kassa2|kassa-2/.test(path);
+      if(looksLikeKassa){
+        const target='https://a4print-hub.ru/kassa/'+location.search+location.hash;
+        if(location.href!==target)location.replace(target);
+        return;
+      }
+      if(legacyHost&&/(a4print|hub)/.test(path)){
+        location.replace('https://a4print-hub.ru/');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <main>
+    <h1>404</h1>
+    <p>Страница не найдена.</p>
+    <p><a href="https://a4print-hub.ru/">Открыть A4PRINT HUB</a> · <a href="https://a4print-hub.ru/kassa/">Открыть KASSA 2.1</a></p>
+  </main>
+</body>
+</html>
