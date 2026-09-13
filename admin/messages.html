@@ -6,24 +6,27 @@
   <meta name="theme-color" content="#f8fafc">
   <title>Сообщения — A4PRINT HUB</title>
   <link rel="stylesheet" href="./styles.css?v=20260908-chat-shell1">
-  <link rel="stylesheet" href="../shared/hub-chat.css?v=20260913-hubchat1">
-  <script src="./config.js?v=20260913-hubchat1"></script>
+  <link rel="stylesheet" href="../shared/hub-chat.css?v=20260913-hubchat2">
+  <link rel="stylesheet" href="../shared/hub-chat-enhance.css?v=20260913-hubchat2">
+  <script src="./config.js?v=20260913-hubchat2"></script>
   <style>
     body{overflow:hidden;background:#f6f8fb}
-    .main{padding-bottom:0!important}
-    .topbar{margin-bottom:12px!important}
+    .main{padding-bottom:0!important;min-width:0!important}
+    .topbar{margin-bottom:10px!important}
     .topbar h1{margin-bottom:3px!important}
-    @media(max-width:760px){body{overflow:hidden}.main{padding:10px!important}.topbar{display:none!important}}
+    .hub-chat-app .hc-shell{height:calc(100dvh - 124px);min-height:560px}
+    @media(max-width:760px){body{overflow:hidden}.main{padding:8px!important}.topbar{display:none!important}.hub-chat-app .hc-shell{height:calc(100dvh - 16px);min-height:0}}
   </style>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
     <header class="topbar">
-      <div><h1>Сообщения</h1><p>Персонал и партнёры A4PRINT HUB</p></div>
+      <div><h1>Сообщения</h1><p>Один чат для персонала и партнёров A4PRINT HUB</p></div>
     </header>
     <div id="hubChatApp" aria-live="polite"></div>
   </main>
-  <script type="module" src="./messages.js?v=20260913-hubchat1"></script>
+  <script type="module" src="./messages.js?v=20260913-hubchat2"></script>
+  <script src="../shared/hub-chat-enhance.js?v=20260913-hubchat2"></script>
 </body>
 </html>
