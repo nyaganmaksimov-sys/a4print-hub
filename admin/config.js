@@ -7,6 +7,20 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://api.a4print-hub.ru'
 };
 
+window.A4StorageProxyUrl = function a4StorageProxyUrl(rawUrl) {
+  const value=String(rawUrl||'').trim();
+  if(!value)return value;
+  const cfg=window.A4PRINT_CONFIG||{};
+  const apiBase=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
+  if(!apiBase)return value;
+  try{
+    const target=new URL(value,location.href);
+    const supabaseOrigin=new URL(cfg.supabaseUrl).origin;
+    if(target.origin!==supabaseOrigin||!/^\/storage\/v1(?:\/|$)/.test(target.pathname))return value;
+    return `${apiBase}/api/v1/supabase${target.pathname}${target.search}${target.hash}`;
+  }catch{return value}
+};
+
 (function installA4ApiRouting(){
   if(window.__A4_API_ROUTING__)return;window.__A4_API_ROUTING__=true;
   const nativeFetch=window.fetch.bind(window);

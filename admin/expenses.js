@@ -146,8 +146,12 @@ function openDetail(x){
 }
 async function openReceipt(x){
   if(!x?.receipt_path)return;const win=window.open('about:blank','_blank');
-  try{const {data,error}=await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(x.receipt_path,180);if(error)throw error;if(!data?.signedUrl)throw new Error('Не удалось получить ссылку на чек');if(win)win.location.href=data.signedUrl;else window.location.href=data.signedUrl}
-  catch(error){try{win?.close()}catch{}window.alert(`Не удалось открыть чек: ${error.message||error}`)}
+  try{
+    const {data,error}=await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(x.receipt_path,180);if(error)throw error;
+    if(!data?.signedUrl)throw new Error('Не удалось получить ссылку на чек');
+    const target=window.A4StorageProxyUrl?window.A4StorageProxyUrl(data.signedUrl):data.signedUrl;
+    if(win)win.location.href=target;else window.location.href=target;
+  }catch(error){try{win?.close()}catch{}window.alert(`Не удалось открыть чек: ${error.message||error}`)}
 }
 
 async function reimburseSelected(){

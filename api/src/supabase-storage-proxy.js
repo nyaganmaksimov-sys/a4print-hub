@@ -14,8 +14,8 @@ const requestHeaders=new Set([
   'if-match','if-none-match','if-modified-since','if-unmodified-since'
 ]);
 const responseHeaders=new Set([
-  'content-type','content-range','content-length','etag','last-modified','location',
-  'cache-control','www-authenticate','x-supabase-api-version'
+  'content-type','content-range','content-length','content-disposition','accept-ranges',
+  'etag','last-modified','location','cache-control','www-authenticate','x-supabase-api-version'
 ]);
 
 export function storageRequestBody(req,method=String(req?.method||'GET').toUpperCase()){
