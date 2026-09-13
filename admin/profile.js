@@ -92,9 +92,19 @@
   function initials(name){return String(name||'A4').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'A4'}
   function drawAvatar(url,name){
     const box=$('avatar');if(!box)return;
-    if(url)box.innerHTML=`<img src="${esc(url)}" alt="Аватар">`;
-    else box.textContent=initials(name);
-    if($('removeAvatar'))$('removeAvatar').hidden=!url;
+    const raw=String(url||'').trim();
+    if(raw){
+      const proxied=window.A4StorageProxyUrl?window.A4StorageProxyUrl(raw):raw;
+      box.innerHTML='<img alt="Аватар">';
+      const img=box.querySelector('img');
+      let triedDirect=false;
+      img.onerror=()=>{
+        if(!triedDirect&&proxied!==raw){triedDirect=true;img.src=raw;return}
+        img.onerror=null;box.textContent=initials(name);
+      };
+      img.src=proxied;
+    }else box.textContent=initials(name);
+    if($('removeAvatar'))$('removeAvatar').hidden=!raw;
   }
   function providerValue(){return profile?.provider||authUser?.app_metadata?.provider||'email'}
   function render(){
