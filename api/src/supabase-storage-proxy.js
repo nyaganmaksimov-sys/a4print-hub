@@ -18,6 +18,16 @@ const responseHeaders=new Set([
   'cache-control','www-authenticate','x-supabase-api-version'
 ]);
 
+export function storageRequestBody(req,method=String(req?.method||'GET').toUpperCase()){
+  if(['GET','HEAD'].includes(String(method).toUpperCase()))return undefined;
+  const body=req?.body;
+  if(body==null)return undefined;
+  if(Buffer.isBuffer(body)||typeof body==='string'||body instanceof Uint8Array)return body;
+  if(body instanceof ArrayBuffer)return Buffer.from(body);
+  if(typeof body==='object')return JSON.stringify(body);
+  return body;
+}
+
 async function storageProxy(req,res){
   try{
     if(!supabaseUrl)return res.status(503).json({success:false,error:'SUPABASE_PROXY_NOT_CONFIGURED'});
@@ -34,7 +44,7 @@ async function storageProxy(req,res){
     if(!headers.apikey&&publishableKey)headers.apikey=publishableKey;
 
     const method=req.method.toUpperCase();
-    const body=['GET','HEAD'].includes(method)?undefined:req.body;
+    const body=storageRequestBody(req,method);
     const response=await fetch(upstream,{method,headers,body,redirect:'manual',signal:AbortSignal.timeout(70000)});
     res.status(response.status);
     response.headers.forEach((value,key)=>{if(responseHeaders.has(key.toLowerCase()))res.setHeader(key,value)});
@@ -52,7 +62,6 @@ function installStaticFrontend(app){
   app[staticInstalled]=true;
   const root=path.resolve(process.cwd(),'..');
   const blocked=/^\/(?:api|database|supabase|\.git|\.github)(?:\/|$)|^\/(?:\.env(?:\.|$)|README\.md$|CNAME$)/i;
-  const deny=(req,res,next)=>blocked.test(req.path||'')?next():next();
   originalUse.call(app,(req,res,next)=>{
     if(blocked.test(req.path||''))return next();
     return express.static(root,{index:['index.html'],fallthrough:true,etag:true,maxAge:'5m'})(req,res,next);
