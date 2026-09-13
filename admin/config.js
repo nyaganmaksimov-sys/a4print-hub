@@ -7,9 +7,6 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://api.a4print-hub.ru'
 };
 
-// Resilient API routing for networks where one backend hostname is slow/unreachable.
-// Safe reads and password/refresh auth race both public API hostnames; successful
-// origin is remembered and then used for writes to avoid duplicate operations.
 (function installA4ApiRouting(){
   if(window.__A4_API_ROUTING__)return;window.__A4_API_ROUTING__=true;
   const nativeFetch=window.fetch.bind(window);
@@ -24,9 +21,6 @@ window.A4PRINT_CONFIG = {
   window.fetch=async function a4RoutedFetch(input,init={}){
     const x=parse(input,init);
     if(!x)return nativeFetch(input,init);
-    // new Request(input, init) may transfer a streaming/body payload from the
-    // original Request. For non-HUB-API targets (e.g. Supabase Storage uploads)
-    // always send the freshly constructed request instead of reusing input.
     if(!x.apiOrigin)return nativeFetch(x.req);
     const ordered=[getPref(),...origins].filter((v,i,a)=>v&&a.indexOf(v)===i);
     const safe=x.method==='GET'||x.method==='HEAD'||/\/api\/v1\/mobile\/auth\/(?:password|refresh)(?:\/|$)/.test(x.url.pathname);
@@ -34,26 +28,19 @@ window.A4PRINT_CONFIG = {
     if(safe){
       if(slowPosRead){
         const origin=getPref()||x.apiOrigin;
-        try{return await one(x.req.clone(),x.url,origin,30000)}catch(e){
-          const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,30000);
-        }
+        try{return await one(x.req.clone(),x.url,origin,30000)}catch(e){const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,30000)}
       }
       return any(ordered.map(origin=>one(x.req.clone(),x.url,origin,5500)));
     }
     const origin=getPref()||x.apiOrigin;
-    try{return await one(x.req.clone(),x.url,origin,9000)}catch(e){
-      const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,9000);
-    }
+    try{return await one(x.req.clone(),x.url,origin,9000)}catch(e){const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,9000)}
   };
 })();
 
-// In some networks direct access to *.supabase.co is unstable or unavailable.
-// HUB therefore uses our backend proxy first for Auth / REST / Functions.
 window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const cfg = window.A4PRINT_CONFIG || {};
   let request;
   try { request = new Request(input, init); } catch { return fetch(input, init); }
-
   let target;
   try { target = new URL(request.url); } catch { return fetch(request); }
   const apiBase = String(cfg.apiBaseUrl || '').replace(/\/$/, '');
@@ -61,7 +48,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   try { supabaseOrigin = new URL(cfg.supabaseUrl).origin; } catch {}
   const isSupabase = target.origin === supabaseOrigin && /^\/(auth|rest|functions)\/v1(?:\/|$)/.test(target.pathname);
   if (!apiBase || !isSupabase) return fetch(request);
-
   const proxyFetch = async () => {
     const headers = new Headers(request.headers);
     const method = request.method.toUpperCase();
@@ -70,11 +56,9 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 6500);
     options.signal = controller.signal;
-    try {
-      return await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options);
-    } finally { clearTimeout(timer); }
+    try { return await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options); }
+    finally { clearTimeout(timer); }
   };
-
   try { return await proxyFetch(); }
   catch (proxyError) {
     try {
@@ -85,9 +69,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
 };
 
-// The manager workspace shows only ordinary office/customer orders.
-// POS receipts and partner-direction orders live in their own workflows and must
-// not pollute the manager's compact "Recent orders" widget.
 (function installManagerRecentOrdersFilter(){
   if(window.__A4_MANAGER_ORDER_FILTER__)return;
   if(!/\/admin\/manager\.html$/.test(location.pathname))return;
@@ -118,16 +99,15 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
   window.__A4_MOBILE__ = !!isMobile;
-  const load=(file,version='20260910-1')=>{const s=document.createElement('script');s.src=new URL(file,base).href+'?v='+version;s.async=false;document.head.appendChild(s)};
-  const loadModule=(file,version='20260910-1')=>{const s=document.createElement('script');s.type='module';s.src=new URL(file,base).href+'?v='+version;document.head.appendChild(s)};
-  const loadCss=(file,version='20260910-1')=>{const l=document.createElement('link');l.rel='stylesheet';l.href=new URL(file,base).href+'?v='+version;document.head.appendChild(l)};
+  const load=(file,version='20260913-1')=>{const s=document.createElement('script');s.src=new URL(file,base).href+'?v='+version;s.async=false;document.head.appendChild(s)};
+  const loadModule=(file,version='20260913-1')=>{const s=document.createElement('script');s.type='module';s.src=new URL(file,base).href+'?v='+version;document.head.appendChild(s)};
+  const loadCss=(file,version='20260913-1')=>{const l=document.createElement('link');l.rel='stylesheet';l.href=new URL(file,base).href+'?v='+version;document.head.appendChild(l)};
   const background=fn=>{const schedule=()=>{const run=()=>{try{fn()}catch(e){console.warn('A4 background module failed',e)}};if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:isMobile?4200:1800});else setTimeout(run,isMobile?1800:500)};if(document.readyState==='complete')schedule();else window.addEventListener('load',schedule,{once:true})};
   const isAuthPage=/\/admin\/(login|register|pending|invite|reset-password)\.html$/.test(location.pathname);
   const isAdmin=/\/admin\//.test(location.pathname)&&!isAuthPage;
   const isDashboard=/\/admin\/(?:index\.html)?$/.test(location.pathname);
   const isChat=/\/admin\/messages\.html$/.test(location.pathname);
   const isManager=/\/admin\/manager\.html$/.test(location.pathname);
-  const isReports=/\/admin\/reports\.html$/.test(location.pathname);
   const isOrders=/\/admin\/orders\.html$/.test(location.pathname);
   const isRequests=/\/admin\/requests\.html$/.test(location.pathname);
   const isPartners=/\/admin\/partners\.html$/.test(location.pathname);
@@ -154,8 +134,8 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
-  if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1')}
-  load('navigation.js','20260913-reports4');load('support-access.js','20260913-expenses1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');if(!isManager&&!isReports){load('workspace-popup.js','20260912-1');load('workspace-popup-coverage.js','20260912-3')}loadModule('equipment-maintenance-badge.js','20260912-orders1');
+  if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');load('jarvis-settings.js','20260913-1')}
+  load('navigation.js','20260913-jarvis1');load('support-access.js','20260913-clean1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260908-3');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260912-orders1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){load('partners-search.js','20260912-compact2');load('partner-invites.js','20260908-2');load('partners-modern.js','20260912-compact2')}
   background(()=>{load('chat-notifications.js','20260904-7');load('support-notifications.js','20260905-1');load('push-client.js','20260904-4');if(!isChat)load('chat-widget.js','20260908-2')});
