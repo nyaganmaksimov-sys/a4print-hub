@@ -12,7 +12,7 @@
         {id:'manager',icon:'＋',label:'Создать заказ',href:'/admin/manager.html?mobile=1'},
         {id:'orders',icon:'▣',label:'Все заказы',href:'/admin/orders.html?mobile=1'},
         {id:'new',icon:'●',label:'Новые заказы',href:'/admin/orders.html?status=NEW&mobile=1'},
-        {id:'chat',icon:'✉',label:'Чат',href:'/admin/messages.html?app=1'},
+        {id:'chat',icon:'✉',label:'Сообщения',href:'/admin/index.html?mobile=1#hub-chat'},
         {id:'customers',icon:'◉',label:'Клиенты',href:'/admin/customers.html?mobile=1'}
       ]
     },
