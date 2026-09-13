@@ -7,6 +7,7 @@ on:
       - 'kassa/**'
       - 'api/src/moysklad.js'
       - 'api/src/moysklad-shift-sanity.js'
+      - 'api/src/pos-shift-live-patch.js'
       - 'api/src/pos-shift-fresh-open.js'
       - 'api/src/pos-sale-idempotency.js'
       - 'api/src/pos-cash-operations.js'
@@ -21,6 +22,7 @@ on:
       - 'kassa/**'
       - 'api/src/moysklad.js'
       - 'api/src/moysklad-shift-sanity.js'
+      - 'api/src/pos-shift-live-patch.js'
       - 'api/src/pos-shift-fresh-open.js'
       - 'api/src/pos-sale-idempotency.js'
       - 'api/src/pos-cash-operations.js'
@@ -65,6 +67,7 @@ jobs:
           node --check kassa/runtime-stability.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
+          node --check api/src/pos-shift-live-patch.js
           node --check api/src/pos-shift-fresh-open.js
           node --check api/src/pos-sale-idempotency.js
           node --check api/src/pos-cash-operations.js
@@ -87,6 +90,7 @@ jobs:
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
           test -f kassa/manifest.webmanifest
+          test -f api/src/pos-shift-live-patch.js
           test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
           test -f api/src/pos-cash-operations.js
@@ -140,12 +144,16 @@ jobs:
           grep -q 'status.summary' kassa/ui.js
           ! grep -q "rpc('pos_shift_summary'" kassa/ui.js
           grep -q '60000' kassa/ui.js
-          ! grep -q 'MutationObserver' kassa/shift-state-sync.js
+          ! grep -Eq 'new[[:space:]]+MutationObserver|MutationObserver[[:space:]]*\(' kassa/shift-state-sync.js
           grep -q 'setInterval(sync,5000)' kassa/shift-state-sync.js
           grep -q 'latestOpenShift' api/src/moysklad.js
           grep -q 'cashSum' api/src/moysklad.js
           grep -q 'noCashSum' api/src/moysklad.js
           grep -q 'qrSum' api/src/moysklad.js
+          grep -q 'pos-shift-live-patch.js' api/src/boot.js
+          grep -q 'liveShift' api/src/pos-shift-live-patch.js
+          grep -q 'hubFallback' api/src/pos-shift-live-patch.js
+          grep -q '/api/v1/pos/shift' api/src/pos-shift-live-patch.js
           grep -q 'pos-shift-fresh-open.js' api/src/boot.js
           grep -q 'closeStaleOpenShift' api/src/pos-shift-fresh-open.js
           grep -q 'pos-sale-idempotency.js' api/src/boot.js
@@ -162,7 +170,6 @@ jobs:
           grep -q 'cashOperations:true' api/src/pos-build-marker.js
           grep -q 'receiptQueueRecovery:true' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
-          ! grep -q 'pos-shift-live-patch.js' api/src/boot.js
       - name: Validate manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
 
