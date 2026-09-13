@@ -8,8 +8,11 @@ on:
       - 'admin/equipment-ownership.js'
       - 'admin/equipment-ownership.css'
       - 'admin/equipment.html'
+      - 'admin/production-farm-runtime.js'
+      - 'admin/production-farm-runtime.css'
+      - 'admin/production.html'
       - 'database/migrations/*production_farm*'
-      - 'docs/PRODUCTION_FARM_PHASE1.md'
+      - 'docs/PRODUCTION_FARM_PHASE*.md'
       - '.github/workflows/check-production-farm.yml'
   push:
     branches: [main]
@@ -17,8 +20,11 @@ on:
       - 'admin/equipment-ownership.js'
       - 'admin/equipment-ownership.css'
       - 'admin/equipment.html'
+      - 'admin/production-farm-runtime.js'
+      - 'admin/production-farm-runtime.css'
+      - 'admin/production.html'
       - 'database/migrations/*production_farm*'
-      - 'docs/PRODUCTION_FARM_PHASE1.md'
+      - 'docs/PRODUCTION_FARM_PHASE*.md'
       - '.github/workflows/check-production-farm.yml'
 
 jobs:
@@ -40,13 +46,20 @@ jobs:
           set -euo pipefail
           test -s admin/equipment-ownership.js
           test -s admin/equipment-ownership.css
+          test -s admin/production-farm-runtime.js
+          test -s admin/production-farm-runtime.css
           test -s database/migrations/20260914_production_farm_foundation.sql
           test -s database/migrations/20260914_production_farm_foundation_hardening.sql
           test -s database/migrations/20260914_production_farm_management_rpcs.sql
+          test -s database/migrations/20260914_production_farm_job_execution.sql
+          test -s database/migrations/20260914_production_farm_job_execution_clock_fix.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
+          test -s docs/PRODUCTION_FARM_PHASE2.md
 
       - name: Check JavaScript syntax
-        run: node --check admin/equipment-ownership.js
+        run: |
+          node --check admin/equipment-ownership.js
+          node --check admin/production-farm-runtime.js
 
       - name: Verify UI wiring
         shell: bash
@@ -57,6 +70,11 @@ jobs:
           grep -q "save_equipment_ownership" admin/equipment-ownership.js
           grep -q "save_equipment_contract" admin/equipment-ownership.js
           grep -q 'Собственность и договоры' admin/equipment-ownership.js
+          grep -q 'production-farm-runtime.js?v=' admin/production.html
+          grep -q "configure_production_job" admin/production-farm-runtime.js
+          grep -q "transition_production_job" admin/production-farm-runtime.js
+          grep -q 'production_job_runs' admin/production-farm-runtime.js
+          grep -q 'Производственная ферма' admin/production-farm-runtime.js
 
       - name: Verify database foundation
         shell: bash
@@ -69,3 +87,8 @@ jobs:
           grep -q 'SHARES_MUST_TOTAL_100' database/migrations/20260914_production_farm_management_rpcs.sql
           grep -q 'PERMISSION_DENIED' database/migrations/20260914_production_farm_management_rpcs.sql
           grep -q 'revoke all on function public.audit_row_change' database/migrations/20260914_production_farm_foundation_hardening.sql
+          grep -q 'create table if not exists public.production_job_runs' database/migrations/20260914_production_farm_job_execution.sql
+          grep -q 'production_jobs_one_running_per_equipment_idx' database/migrations/20260914_production_farm_job_execution.sql
+          grep -q 'configure_production_job' database/migrations/20260914_production_farm_job_execution.sql
+          grep -q 'transition_production_job' database/migrations/20260914_production_farm_job_execution.sql
+          grep -q 'clock_timestamp()' database/migrations/20260914_production_farm_job_execution_clock_fix.sql
