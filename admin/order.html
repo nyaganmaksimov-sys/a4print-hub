@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Заказ — A4PRINT HUB</title>
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260908-order6">
-  <link rel="stylesheet" href="./order-modern.css?v=20260909-files1">
+  <link rel="stylesheet" href="./order-modern.css?v=20260913-native1">
   <link rel="stylesheet" href="./order-edit.css?v=20260909-1">
-  <script src="./config.js?v=20260908-order6"></script>
+  <script src="./config.js?v=20260913-order-native1"></script>
   <script src="./storage-network-fix.js?v=20260910-1"></script>
 </head>
 <body>
@@ -20,7 +23,7 @@
     </header>
 
     <div class="order-shell">
-      <section class="order-card">
+      <section class="order-card" data-a4-popup="off">
         <div class="order-card-head"><div><h2>Состояние заказа</h2><p>Стоимость, этап, клиент и финансовое состояние</p></div><span id="status" class="order-badge gray">—</span></div>
         <div class="order-card-body">
           <div class="order-summary">
@@ -42,7 +45,7 @@
 
       <div class="order-grid">
         <div class="order-stack">
-          <section class="order-card">
+          <section class="order-card" data-a4-popup="off">
             <div class="order-card-head"><div><h2>Заказ</h2><p>Заказчик, работа, позиции и комментарии</p></div><span id="orderDirection" class="order-badge">HUB</span></div>
             <div class="order-card-body">
               <div id="partnerBlock"></div>
@@ -62,14 +65,14 @@
             </div>
           </section>
 
-          <section class="order-card">
+          <section class="order-card" data-a4-popup="off">
             <div class="order-card-head"><div><h2>История статусов</h2><p>Изменения этапов заказа</p></div><span class="order-badge gray">HISTORY</span></div>
             <div class="order-card-body" id="history"><div class="order-empty">История пока пуста</div></div>
           </section>
         </div>
 
         <aside class="order-stack">
-          <section class="order-card" id="financeCard">
+          <section class="order-card" id="financeCard" data-a4-popup="off">
             <div class="order-card-head"><div><h2 id="financeTitle">Финансы</h2><p id="financeSubtitle">Счета и оплаты по заказу</p></div><span id="financeBadge" class="order-badge green">₽</span></div>
             <div class="order-card-body">
               <div id="financeMessage"></div>
@@ -83,7 +86,7 @@
             </div>
           </section>
 
-          <section class="order-card">
+          <section class="order-card" data-a4-popup="off">
             <div class="order-card-head"><div><h2>Производство</h2><p>Задания, связанные с этим заказом</p></div><span id="productionCount" class="order-badge gray">0</span></div>
             <div class="order-card-body"><div id="productionJobs" class="order-production-state"><div class="order-empty">Проверка…</div></div><div class="order-finance-actions"><button id="productionBtn" class="primary" type="button">Передать в производство</button><a href="./production.html">Открыть производство</a></div></div>
           </section>
