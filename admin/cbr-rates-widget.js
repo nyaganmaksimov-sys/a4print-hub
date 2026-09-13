@@ -1,4 +1,20 @@
 (()=>{
+  if(window.__A4_DASHBOARD_HOME_V2_LOADER__)return;
+  window.__A4_DASHBOARD_HOME_V2_LOADER__=true;
+  const base=new URL('./',document.currentScript?.src||location.href);
+  if(!document.getElementById('a4-dashboard-home-v2-css')){
+    const link=document.createElement('link');
+    link.id='a4-dashboard-home-v2-css';link.rel='stylesheet';
+    link.href=new URL('dashboard-home-v2.css?v=20260913-1',base).href;
+    document.head.appendChild(link);
+  }
+  const script=document.createElement('script');
+  script.src=new URL('dashboard-home-v2.js?v=20260913-1',base).href;
+  script.async=false;
+  document.head.appendChild(script);
+})();
+
+(()=>{
   if(window.__A4_CBR_RATES_WIDGET__)return;
   window.__A4_CBR_RATES_WIDGET__=true;
 
@@ -106,13 +122,4 @@
 
   function init(){installStyles();ensureRoot();loadRates();clearInterval(timer);timer=setInterval(loadRates,REFRESH_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadRates()});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-})();
-
-(()=>{
-  if(window.__A4_DASHBOARD_PANELS_LOADER__)return;
-  window.__A4_DASHBOARD_PANELS_LOADER__=true;
-  const script=document.createElement('script');
-  script.src='./dashboard-panels.js?v=20260912-1';
-  script.defer=true;
-  document.head.appendChild(script);
 })();
