@@ -23,23 +23,6 @@ on:
       - '.github/workflows/check-support.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'admin/support.html'
-      - 'admin/support.js'
-      - 'admin/support-access.js'
-      - 'admin/support-notifications.js'
-      - 'admin/support-employee-helper.js'
-      - 'admin/onboarding.js'
-      - 'admin/settings-collapsible.js'
-      - 'admin/config.js'
-      - 'admin/guard.js'
-      - 'shared/hub-chat-core.js'
-      - 'shared/hub-chat-drawer.js'
-      - 'mobile/pwa.js'
-      - 'database/migrations/108_support_center_and_support_role.sql'
-      - 'database/migrations/109_isolate_support_from_internal_chat.sql'
-      - 'database/migrations/110_support_role_least_privilege.sql'
-      - '.github/workflows/check-support.yml'
 
 jobs:
   support-static:
