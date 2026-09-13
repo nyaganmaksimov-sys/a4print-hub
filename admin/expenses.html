@@ -7,6 +7,7 @@
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260908-payments3">
   <link rel="stylesheet" href="./expenses.css?v=20260913-1">
+  <link rel="stylesheet" href="./expenses-receipts.css?v=20260913-1">
   <script src="./config.js?v=20260912-sidebar-orders2"></script>
 </head>
 <body>
@@ -28,7 +29,7 @@
       <section class="ex-card" data-a4-popup="off">
         <div class="ex-head">
           <div><h2>Журнал расходов</h2><p id="accessHint">Суммы и права доступа зависят от должности сотрудника.</p></div>
-          <div class="ex-head-actions"><button id="addExpenseInline" class="ex-btn primary" type="button" onclick="document.getElementById('addExpense')?.click()">+ Внести расход</button></div>
+          <div class="ex-head-actions"><button id="addExpenseInline" class="ex-btn primary" type="button">+ Внести расход</button></div>
         </div>
         <div class="ex-toolbar">
           <input id="search" type="search" autocomplete="off" placeholder="Название, категория, сотрудник, контрагент…">
@@ -56,7 +57,25 @@
           <label class="ex-field"><span>Контрагент / магазин</span><input id="expenseCounterparty" type="text" maxlength="160" placeholder="Необязательно"></label>
           <label class="ex-field"><span>Статус</span><select id="expenseStatus"><option value="PAID">Оплачен</option><option value="PLANNED">Запланирован</option><option value="CANCELLED">Отменён</option></select></label>
           <label class="ex-field full"><span>Комментарий</span><textarea id="expenseNote" maxlength="1000" placeholder="Что купили, для какого заказа или подразделения"></textarea></label>
-          <label class="ex-field full"><span>Ссылка на чек / документ</span><input id="expenseDocument" type="url" maxlength="1000" placeholder="https://… (необязательно)"></label>
+
+          <div class="ex-field full">
+            <span>Чек / скан</span>
+            <div class="ex-receipt-box">
+              <input id="expenseReceipt" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/tiff,application/pdf" hidden>
+              <input id="expenseReceiptCamera" type="file" accept="image/*" capture="environment" hidden>
+              <div class="ex-receipt-actions">
+                <button id="pickReceipt" class="ex-btn" type="button">📎 Выбрать файл</button>
+                <button id="cameraReceipt" class="ex-btn" type="button">📷 Сфотографировать чек</button>
+                <button id="clearReceipt" class="ex-btn danger" type="button" hidden>Убрать вложение</button>
+              </div>
+              <div class="ex-receipt-info">
+                <div class="ex-receipt-icon">📄</div>
+                <div class="ex-receipt-text"><b id="receiptInfoName">Чек не прикреплён</b><small id="receiptInfoMeta">JPG, PNG, WebP, HEIC, TIFF или PDF · до 15 МБ</small></div>
+              </div>
+              <img id="receiptPreview" class="ex-receipt-preview" alt="Предпросмотр чека">
+              <div class="ex-receipt-hint">Файл хранится приватно. Свой чек видит сотрудник, все чеки — руководитель. Другим сотрудникам вложение недоступно.</div>
+            </div>
+          </div>
         </div>
         <div id="expenseError" class="ex-msg"></div>
       </div>
@@ -66,10 +85,10 @@
 
   <dialog id="detailDlg" class="ex-dialog">
     <div class="ex-dialog-head"><div><h2 id="detailTitle">Расход</h2><p id="detailSubtitle">Подробная информация</p></div><button id="closeDetailDlg" class="ex-close" type="button">×</button></div>
-    <div class="ex-dialog-body"><div id="detailPrivacy" class="ex-private-note" style="display:none;margin-bottom:10px">Сумма этого расхода доступна только автору записи и руководителям.</div><div id="detailBody" class="ex-details"></div></div>
+    <div class="ex-dialog-body"><div id="detailPrivacy" class="ex-private-note" style="display:none;margin-bottom:10px">Сумма и чек этого расхода доступны только автору записи и руководителям.</div><div id="detailBody" class="ex-details"></div></div>
     <div class="ex-dialog-footer"><button id="deleteExpense" class="ex-btn danger" type="button" hidden>Удалить</button><button id="editExpense" class="ex-btn" type="button" hidden>Редактировать</button><button id="closeDetailBtn" class="ex-btn primary" type="button">Закрыть</button></div>
   </dialog>
 
-  <script type="module" src="./expenses.js?v=20260913-2"></script>
+  <script type="module" src="./expenses-v2.js?v=20260913-1"></script>
 </body>
 </html>
