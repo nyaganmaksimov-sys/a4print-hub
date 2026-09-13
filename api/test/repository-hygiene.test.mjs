@@ -31,6 +31,16 @@ test('HUB uses one canonical push service worker',()=>{
   assert.match(serviceWorker,/\/admin\/index\.html#hub-chat/,'chat notifications must target the integrated HUB chat');
 });
 
+test('HUB sidebar opens the integrated chat without legacy navigation',()=>{
+  const navigation=read('admin/navigation.js');
+  const redirect=read('admin/messages.html');
+
+  assert.match(navigation,/\['#hub-chat','messages','Сообщения'\]/,'sidebar must target the integrated HUB chat');
+  assert.doesNotMatch(navigation,/\['messages\.html','messages','Сообщения'\]/,'sidebar must not route through the legacy chat page');
+  assert.match(navigation,/href==='\#hub-chat'/,'chat badge must stay attached to the integrated chat trigger');
+  assert.match(redirect,/index\.html#hub-chat/,'legacy messages.html must remain a compatibility redirect for old bookmarks');
+});
+
 test('HUB keeps canonical logo assets and excludes obsolete raster uploads',()=>{
   assert.equal(existsSync(repoPath('admin/assets/logo_bd.png')),false,'obsolete logo_bd.png must not return');
   assert.equal(existsSync(repoPath('admin/assets/logo_bd1.png')),false,'obsolete logo_bd1.png must not return');
