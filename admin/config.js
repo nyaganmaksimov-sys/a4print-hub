@@ -137,7 +137,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('partner-invites.js','20260913-partners4');
     load('partners-modern.js','20260913-partners4');
     load('partners-search.js','20260913-partners4');
-    load('partners-workspace-v4.js','20260913-partners4-2');
+    load('partners-workspace.js','20260913-partners5');
   }
   background(()=>{load('support-notifications.js','20260905-1');load('push-client.js','20260904-4')});
 })();
