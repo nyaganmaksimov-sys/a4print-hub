@@ -76,7 +76,7 @@
 
   <dialog id="movementDlg" class="eq-dialog"><form id="movementForm">
     <div class="eq-dialog-head"><div><h2>Движение расходника</h2><p>Приход, расход, списание и корректировка фактического остатка.</p></div><button class="eq-close" type="button" data-close="movementDlg">×</button></div>
-    <div class="eq-dialog-body"><div class="eq-form"><label class="eq-field full"><span>Расходник *</span><select id="moveConsumable" required></select></label><label class="eq-field"><span>Операция *</span><select id="moveType"><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача / расход</option><option value="RETURN">Возврат на склад</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка остатка</option></select></label><label class="eq-field"><span>Количество *</span><input id="moveQty" type="number" step="0.001" min="0.001" required value="1"></label><label class="eq-field full"><span>Оборудование</span><select id="moveEquipmentSelect"><option value="">Не привязано</option></select></label><label class="eq-field"><span>Документ / основание</span><input id="moveDocument"></label><label class="eq-field"><span>Комментарий</span><input id="moveNote"></label></div><div id="movementHint" class="eq-msg" style="margin-top:10px"></div><div id="movementError" class="eq-msg error"></div></div>
+    <div class="eq-dialog-body"><div class="eq-form"><label class="eq-field full"><span>Расходник *</span><select id="moveConsumable" required></select></label><label class="eq-field"><span>Операция *</span><select id="moveType"><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача / расход</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка остатка</option></select></label><label class="eq-field"><span>Количество *</span><input id="moveQty" type="number" step="0.001" min="0.001" required value="1"></label><label class="eq-field full"><span>Оборудование</span><select id="moveEquipmentSelect"><option value="">Не привязано</option></select></label><label class="eq-field"><span>Документ / основание</span><input id="moveDocument"></label><label class="eq-field"><span>Комментарий</span><input id="moveNote"></label></div><div id="movementHint" class="eq-msg" style="margin-top:10px"></div><div id="movementError" class="eq-msg error"></div></div>
     <div class="eq-dialog-foot"><button type="button" data-close="movementDlg">Отмена</button><button id="saveMovement" class="primary" type="submit">Провести</button></div>
   </form></dialog>
 
@@ -89,8 +89,7 @@
   <dialog id="detailDlg" class="eq-dialog"><div class="eq-dialog-head"><div><h2>Карточка оборудования</h2><p>Расходники, ТО, ремонты и история обслуживания.</p></div><button class="eq-close" type="button" data-close="detailDlg">×</button></div><div id="detailBody" class="eq-dialog-body"><div class="eq-empty">Загрузка…</div></div></dialog>
 
   <script type="module" src="./equipment.js?v=20260908-2"></script>
-  <script type="module" src="./equipment-consumables-v2.js?v=20260912-2"></script>
-  <script type="module" src="./equipment-consumables-units-fix.js?v=20260912-1"></script>
+  <script type="module" src="./equipment-consumables.js?v=20260913-clean1"></script>
   <script type="module" src="./equipment-calendar.js?v=20260908-1"></script>
 </body>
 </html>

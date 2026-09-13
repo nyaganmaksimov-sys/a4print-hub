@@ -138,7 +138,7 @@ async function saveConsumableV2(e){
 
 function movementPreview(){
   const id=$('moveConsumable')?.value;const c=item(id);if(!c)return;
-  const unit=normalizeUnit(c.unit),stock=current(id),type=$('moveType').value,input=$('moveQty'),raw=Number(input.value||0);input.step=stepFor(unit);input.min=type==='ADJUSTMENT'?'0':'0.001';
+  const unit=normalizeUnit(c.unit),stock=current(id),type=$('moveType').value,input=$('moveQty'),raw=Number(input.value||0);input.step=stepFor(unit);input.min=type==='ADJUSTMENT'?'0':stepFor(unit);
   const label=input.closest('.eq-field')?.querySelector(':scope > span');if(label)label.textContent=type==='ADJUSTMENT'?'Фактический остаток *':'Количество *';
   $('moveUnitSuffix').textContent=type==='ADJUSTMENT'?`Укажите, сколько ${unit} реально осталось. Система рассчитает корректировку.`:`Единица: ${unit}. Текущий остаток: ${qty(stock)} ${unit}.`;
   let next=stock;
