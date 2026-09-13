@@ -26,7 +26,10 @@
       </section>
 
       <section class="ex-card" data-a4-popup="off">
-        <div class="ex-head"><div><h2>Журнал расходов</h2><p id="accessHint">Суммы и права доступа зависят от должности сотрудника.</p></div></div>
+        <div class="ex-head">
+          <div><h2>Журнал расходов</h2><p id="accessHint">Суммы и права доступа зависят от должности сотрудника.</p></div>
+          <div class="ex-head-actions"><button id="addExpenseInline" class="ex-btn primary" type="button">+ Внести расход</button></div>
+        </div>
         <div class="ex-toolbar">
           <input id="search" type="search" autocomplete="off" placeholder="Название, категория, сотрудник, контрагент…">
           <input id="monthFilter" type="month" aria-label="Месяц">
@@ -67,6 +70,6 @@
     <div class="ex-dialog-footer"><button id="deleteExpense" class="ex-btn danger" type="button" hidden>Удалить</button><button id="editExpense" class="ex-btn" type="button" hidden>Редактировать</button><button id="closeDetailBtn" class="ex-btn primary" type="button">Закрыть</button></div>
   </dialog>
 
-  <script type="module" src="./expenses.js?v=20260913-1"></script>
+  <script type="module" src="./expenses.js?v=20260913-2"></script>
 </body>
 </html>
