@@ -24,7 +24,12 @@
     const rank={queued:0,backend_done:1,done:2};
     const guarded=async function(name,value){
       let next=value;
-      if(name==='queue'&&value?.id){
+      const freshQueuedSale=name==='queue'&&value?.id&&value?.stage==='queued'&&Number(value?.tries||0)===0&&!value?.backend_result&&!value?.last_error;
+      // A freshly created sale always has a new client UUID. There cannot be a
+      // previous stage to protect, so avoid an extra IndexedDB read on the
+      // cashier's critical payment path. Retries and recovery writes still go
+      // through the monotonic stage check below.
+      if(name==='queue'&&value?.id&&!freshQueuedSale){
         try{
           const existing=await DB.get('queue',value.id);
           const existingRank=rank[existing?.stage]??-1;
