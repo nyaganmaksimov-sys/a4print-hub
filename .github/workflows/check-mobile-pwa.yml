@@ -14,7 +14,8 @@ on:
       - 'admin/manager.html'
       - 'admin/manager-runtime.js'
       - 'admin/manager-workspace.js'
-      - 'admin/manager-layout-v2.js'
+      - 'admin/manager-layout.js'
+      - 'admin/manager-clean.js'
       - 'admin/manager-widgets.js'
       - 'admin/mobile-shell.*'
       - 'admin/config.js'
@@ -57,7 +58,8 @@ jobs:
           node --check admin/profile.js
           node --check admin/manager-runtime.js
           node --check admin/manager-workspace.js
-          node --check admin/manager-layout-v2.js
+          node --check admin/manager-layout.js
+          node --check admin/manager-clean.js
           node --check admin/manager-widgets.js
           node --check admin/mobile-shell.js
           node --check admin/guard.js
@@ -143,9 +145,11 @@ jobs:
 
       - name: Verify manager workspace assets
         run: |
-          grep -q 'manager-layout-v2.js?v=' admin/manager.html
+          grep -q 'manager-layout.js?v=' admin/manager.html
+          grep -q 'manager-clean.js?v=' admin/manager.html
           grep -q 'manager-widgets.js?v=' admin/manager.html
-          grep -q 'manager-side-stack' admin/manager-layout-v2.js
+          grep -q 'manager-side-stack' admin/manager-layout.js
+          grep -q 'manager-clean-v4-style' admin/manager-clean.js
           grep -q 'managerDigitalClock' admin/manager-widgets.js
           grep -q 'pointerdown' admin/manager-widgets.js
           grep -q 'pointermove' admin/manager-widgets.js
