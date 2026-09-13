@@ -1,0 +1,71 @@
+name: Check Production Farm
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-ownership.js'
+      - 'admin/equipment-ownership.css'
+      - 'admin/equipment.html'
+      - 'database/migrations/*production_farm*'
+      - 'docs/PRODUCTION_FARM_PHASE1.md'
+      - '.github/workflows/check-production-farm.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/equipment-ownership.js'
+      - 'admin/equipment-ownership.css'
+      - 'admin/equipment.html'
+      - 'database/migrations/*production_farm*'
+      - 'docs/PRODUCTION_FARM_PHASE1.md'
+      - '.github/workflows/check-production-farm.yml'
+
+jobs:
+  farm-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-ownership.js
+          test -s admin/equipment-ownership.css
+          test -s database/migrations/20260914_production_farm_foundation.sql
+          test -s database/migrations/20260914_production_farm_foundation_hardening.sql
+          test -s database/migrations/20260914_production_farm_management_rpcs.sql
+          test -s docs/PRODUCTION_FARM_PHASE1.md
+
+      - name: Check JavaScript syntax
+        run: node --check admin/equipment-ownership.js
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-ownership.js?v=' admin/equipment.html
+          grep -q "get_my_permissions" admin/equipment-ownership.js
+          grep -q "save_equipment_ownership" admin/equipment-ownership.js
+          grep -q "save_equipment_contract" admin/equipment-ownership.js
+          grep -q 'Собственность и договоры' admin/equipment-ownership.js
+
+      - name: Verify database foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'create table if not exists public.permissions' database/migrations/20260914_production_farm_foundation.sql
+          grep -q 'create table if not exists public.equipment_contracts' database/migrations/20260914_production_farm_foundation.sql
+          grep -q 'create table if not exists public.equipment_ownership_history' database/migrations/20260914_production_farm_foundation.sql
+          grep -q 'create table if not exists public.audit_log' database/migrations/20260914_production_farm_foundation.sql
+          grep -q 'SHARES_MUST_TOTAL_100' database/migrations/20260914_production_farm_management_rpcs.sql
+          grep -q 'PERMISSION_DENIED' database/migrations/20260914_production_farm_management_rpcs.sql
+          grep -q 'revoke all on function public.audit_row_change' database/migrations/20260914_production_farm_foundation_hardening.sql
