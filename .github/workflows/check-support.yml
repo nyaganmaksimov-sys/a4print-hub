@@ -14,7 +14,27 @@ on:
       - 'admin/settings-collapsible.js'
       - 'admin/config.js'
       - 'admin/guard.js'
-      - 'admin/chat-watchdog.js'
+      - 'shared/hub-chat-core.js'
+      - 'shared/hub-chat-drawer.js'
+      - 'mobile/pwa.js'
+      - 'database/migrations/108_support_center_and_support_role.sql'
+      - 'database/migrations/109_isolate_support_from_internal_chat.sql'
+      - 'database/migrations/110_support_role_least_privilege.sql'
+      - '.github/workflows/check-support.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/support.html'
+      - 'admin/support.js'
+      - 'admin/support-access.js'
+      - 'admin/support-notifications.js'
+      - 'admin/support-employee-helper.js'
+      - 'admin/onboarding.js'
+      - 'admin/settings-collapsible.js'
+      - 'admin/config.js'
+      - 'admin/guard.js'
+      - 'shared/hub-chat-core.js'
+      - 'shared/hub-chat-drawer.js'
       - 'mobile/pwa.js'
       - 'database/migrations/108_support_center_and_support_role.sql'
       - 'database/migrations/109_isolate_support_from_internal_chat.sql'
@@ -37,6 +57,8 @@ jobs:
           test -s admin/support-employee-helper.js
           test -s admin/onboarding.js
           test -s admin/settings-collapsible.js
+          test -s shared/hub-chat-core.js
+          test -s shared/hub-chat-drawer.js
           test -s database/migrations/108_support_center_and_support_role.sql
           test -s database/migrations/109_isolate_support_from_internal_chat.sql
           test -s database/migrations/110_support_role_least_privilege.sql
@@ -48,7 +70,9 @@ jobs:
           node --check admin/support-employee-helper.js
           node --check admin/onboarding.js
           node --check admin/settings-collapsible.js
-          node --check admin/chat-watchdog.js
+          node --check admin/guard.js
+          node --check shared/hub-chat-core.js
+          node --check shared/hub-chat-drawer.js
           node --check mobile/pwa.js
       - name: Verify wiring and isolation
         run: |
@@ -66,10 +90,13 @@ jobs:
           grep -q 'onboarding.js' admin/config.js
           grep -q 'settings-collapsible.js' admin/config.js
           grep -q 'support.html' admin/guard.js
-          grep -q 'Поддержка' admin/chat-watchdog.js
+          grep -q 'window.__A4_SUPPORT_ONLY__' admin/guard.js
+          grep -q 'hub-chat-drawer.js' admin/guard.js
+          grep -q 'window.__A4_SUPPORT_ONLY__) return' admin/guard.js
           grep -q 'enforceSupportRole' mobile/pwa.js
 
   support-live:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -81,9 +108,9 @@ jobs:
           for attempt in $(seq 1 24); do
             page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.html?check=${GITHUB_SHA}" || true)
             js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.js?check=${GITHUB_SHA}" || true)
-            cfg=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/config.js?check=${GITHUB_SHA}" || true)
-            if echo "$page" | grep -q 'Чат-бот поддержки' && echo "$js" | grep -q 'open_support_ticket' && echo "$cfg" | grep -q 'settings-collapsible.js'; then
-              echo 'Support center, onboarding, role isolation and collapsible settings are live.'
+            guard=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/guard.js?check=${GITHUB_SHA}" || true)
+            if echo "$page" | grep -q 'Джарвис · служба поддержки' && echo "$js" | grep -q 'open_support_ticket' && echo "$guard" | grep -q 'window.__A4_SUPPORT_ONLY__' && echo "$guard" | grep -q 'hub-chat-drawer.js'; then
+              echo 'Support center and support-only chat isolation are live.'
               exit 0
             fi
             sleep 5
