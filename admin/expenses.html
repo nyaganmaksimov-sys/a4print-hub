@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Расходы — A4PRINT HUB</title>
+  <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260908-payments3">
+  <link rel="stylesheet" href="./expenses.css?v=20260913-1">
+  <script src="./config.js?v=20260912-sidebar-orders2"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Расходы</h1><p id="pageSubtitle">Рабочие расходы компании</p></div>
+      <div class="ex-head-actions"><span id="updatedAt" style="color:#94a3b8;font-size:10px;font-weight:700">загрузка…</span><button id="refresh" class="ex-btn" type="button">↻ Обновить</button><button id="addExpense" class="ex-btn primary" type="button">+ Внести расход</button></div>
+    </header>
+
+    <div class="ex-shell">
+      <section class="ex-kpis" aria-label="Сводка расходов">
+        <article class="ex-kpi red"><span id="kpi1Label">Расходы за месяц</span><strong id="kpi1">—</strong><small id="kpi1Hint">по выбранному месяцу</small></article>
+        <article class="ex-kpi"><span id="kpi2Label">Сегодня</span><strong id="kpi2">—</strong><small id="kpi2Hint">расходы за сегодня</small></article>
+        <article class="ex-kpi"><span>Операций</span><strong id="kpi3">0</strong><small>записей в выбранном месяце</small></article>
+        <article class="ex-kpi"><span id="kpi4Label">Средний расход</span><strong id="kpi4">—</strong><small id="kpi4Hint">по видимым суммам</small></article>
+      </section>
+
+      <section class="ex-card" data-a4-popup="off">
+        <div class="ex-head"><div><h2>Журнал расходов</h2><p id="accessHint">Суммы и права доступа зависят от должности сотрудника.</p></div></div>
+        <div class="ex-toolbar">
+          <input id="search" type="search" autocomplete="off" placeholder="Название, категория, сотрудник, контрагент…">
+          <input id="monthFilter" type="month" aria-label="Месяц">
+          <select id="categoryFilter" aria-label="Категория"><option value="">Все категории</option></select>
+          <select id="statusFilter" aria-label="Статус"><option value="">Все статусы</option><option value="PAID">Оплачен</option><option value="PLANNED">Запланирован</option><option value="CANCELLED">Отменён</option></select>
+          <button id="clearFilters" class="ex-btn" type="button">Сбросить</button>
+        </div>
+        <div class="ex-meta"><span><b id="visibleCount">0</b></span><span id="privacyMeta">Чужие суммы защищены</span></div>
+        <div id="expenseList" class="ex-list"><div class="ex-empty">Загрузка расходов…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="expenseDlg" class="ex-dialog">
+    <form id="expenseForm">
+      <div class="ex-dialog-head"><div><h2 id="expenseDlgTitle">Новый расход</h2><p>Внесите фактический или запланированный рабочий расход.</p></div><button id="closeExpenseDlg" class="ex-close" type="button">×</button></div>
+      <div class="ex-dialog-body">
+        <div class="ex-form-grid">
+          <label class="ex-field"><span>Дата</span><input id="expenseDate" type="date" required></label>
+          <label class="ex-field"><span>Сумма, ₽</span><input id="expenseAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+          <label class="ex-field"><span>Категория</span><select id="expenseCategory" required></select></label>
+          <label class="ex-field"><span>Способ оплаты</span><select id="expenseMethod"><option>Наличные</option><option>Карта</option><option>СБП</option><option>Банк / счёт</option><option>Корпоративная карта</option><option>Другое</option></select></label>
+          <label class="ex-field full"><span>На что потратили</span><input id="expenseTitle" type="text" maxlength="180" placeholder="Например: бумага А4, доставка заказа, ремонт принтера" required></label>
+          <label class="ex-field"><span>Контрагент / магазин</span><input id="expenseCounterparty" type="text" maxlength="160" placeholder="Необязательно"></label>
+          <label class="ex-field"><span>Статус</span><select id="expenseStatus"><option value="PAID">Оплачен</option><option value="PLANNED">Запланирован</option><option value="CANCELLED">Отменён</option></select></label>
+          <label class="ex-field full"><span>Комментарий</span><textarea id="expenseNote" maxlength="1000" placeholder="Что купили, для какого заказа или подразделения"></textarea></label>
+          <label class="ex-field full"><span>Ссылка на чек / документ</span><input id="expenseDocument" type="url" maxlength="1000" placeholder="https://… (необязательно)"></label>
+        </div>
+        <div id="expenseError" class="ex-msg"></div>
+      </div>
+      <div class="ex-dialog-footer"><button id="cancelExpense" class="ex-btn" type="button">Отмена</button><button id="saveExpense" class="ex-btn primary" type="submit">Сохранить расход</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="detailDlg" class="ex-dialog">
+    <div class="ex-dialog-head"><div><h2 id="detailTitle">Расход</h2><p id="detailSubtitle">Подробная информация</p></div><button id="closeDetailDlg" class="ex-close" type="button">×</button></div>
+    <div class="ex-dialog-body"><div id="detailPrivacy" class="ex-private-note" style="display:none;margin-bottom:10px">Сумма этого расхода доступна только автору записи и руководителям.</div><div id="detailBody" class="ex-details"></div></div>
+    <div class="ex-dialog-footer"><button id="deleteExpense" class="ex-btn danger" type="button" hidden>Удалить</button><button id="editExpense" class="ex-btn" type="button" hidden>Редактировать</button><button id="closeDetailBtn" class="ex-btn primary" type="button">Закрыть</button></div>
+  </dialog>
+
+  <script type="module" src="./expenses.js?v=20260913-1"></script>
+</body>
+</html>
