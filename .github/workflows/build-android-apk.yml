@@ -94,31 +94,21 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish stable APK download
+      - name: Publish stable APK release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
+          set -euo pipefail
           APK_PATH="$PWD/mobile-app/android/app/build/outputs/apk/debug/app-debug.apk"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TAG='android-latest'
+          ASSET='A4PRINT-HUB.apk'
 
-          for attempt in 1 2 3; do
-            echo "Publish attempt $attempt"
-            git fetch origin main
-            git reset --hard origin/main
-            mkdir -p download
-            cp "$APK_PATH" download/A4PRINT-HUB.apk
-            git add download/A4PRINT-HUB.apk
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK_PATH#$ASSET" --clobber
+          else
+            gh release create "$TAG" "$APK_PATH#$ASSET" \
+              --title 'A4PRINT HUB Android' \
+              --notes 'Автоматически обновляемая тестовая сборка Android.'
+          fi
 
-            if git diff --cached --quiet; then
-              echo "Stable APK is already current"
-              exit 0
-            fi
-
-            git commit -m "Publish latest Android APK [skip ci]"
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-          done
-
-          echo "Could not publish stable APK after 3 attempts"
-          exit 1
+          gh release view "$TAG" --json tagName,url --jq '.tagName + " " + .url'
