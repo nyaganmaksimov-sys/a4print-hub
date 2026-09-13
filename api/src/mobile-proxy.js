@@ -37,9 +37,14 @@ const corsOptions = {
   allowedHeaders: [
     'Authorization', 'Content-Type', 'Accept', 'X-Telegram-Bot-Api-Secret-Token',
     'apikey', 'x-client-info', 'prefer', 'accept-profile', 'content-profile',
-    'range', 'range-unit', 'x-supabase-api-version'
+    'range', 'range-unit', 'x-supabase-api-version', 'x-upsert', 'cache-control',
+    'if-match', 'if-none-match', 'if-modified-since', 'if-unmodified-since'
   ],
-  exposedHeaders: ['content-range', 'preference-applied', 'location', 'www-authenticate'],
+  exposedHeaders: [
+    'content-range', 'preference-applied', 'location', 'www-authenticate',
+    'etag', 'last-modified', 'cache-control', 'content-length', 'content-type',
+    'x-supabase-api-version'
+  ],
   maxAge: 86400
 };
 app.use(cors(corsOptions));
@@ -61,7 +66,8 @@ app.get('/api/v1/health', (_req, res) => res.json({
     posShift: true,
     posReturns: true,
     telegram: true,
-    supabaseFallback: true
+    supabaseFallback: true,
+    supabaseStorageProxy: true
   }
 }));
 

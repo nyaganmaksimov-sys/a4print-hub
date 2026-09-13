@@ -50,8 +50,8 @@ jobs:
           files=(
             index.html
             admin/login.html admin/register.html admin/profile.html admin/index.html admin/manager.html admin/orders.html admin/order.html admin/requests.html
-            admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/settings.html admin/equipment.html
-            admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js admin/partners-workspace.js
+            admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/settings.html admin/equipment.html admin/expenses.html
+            admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js admin/partners-workspace.js admin/expenses.js
             admin/dashboard-home.js admin/dashboard-home.css admin/equipment-consumables.js
             admin/order-delete-request.js admin/order-delete-moderation.js
             admin/auth-ui.js admin/auth-settings.js
@@ -60,26 +60,29 @@ jobs:
             partner/login.html partner/index.html partner/crm.html partner/crm-messages.html partner/hub-chat.js
             pos/login.html pos/index.html
             a4print-hub-sw.js
-            api/package.json api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js
+            api/package.json api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/supabase-storage-proxy.js
+            api/test/supabase-storage-proxy.test.mjs
             database/migrations/100_system_e2e_self_test.sql database/migrations/023_auth_ui_admin_settings.sql database/migrations/101_staff_profile_avatar_self_service.sql
             database/migrations/20260912_order_deletion_moderation.sql database/migrations/20260913_unified_hub_chat.sql database/migrations/20260913_unified_hub_chat_attachments.sql
           )
           for f in "${files[@]}"; do
             test -s "$f" || { echo "Missing or empty: $f"; exit 1; }
           done
+          test ! -e admin/storage-network-fix.js || { echo 'Retired storage-network-fix.js must not return'; exit 1; }
 
       - name: Check JavaScript syntax
         shell: bash
         run: |
           set -euo pipefail
           scripts=(
-            admin/config.js admin/guard.js admin/navigation.js admin/app.js admin/profile.js admin/dashboard-home.js admin/equipment-consumables.js
+            admin/config.js admin/guard.js admin/navigation.js admin/app.js admin/profile.js admin/dashboard-home.js admin/equipment-consumables.js admin/expenses.js
             admin/manager-runtime.js admin/order-delete-request.js admin/order-delete-moderation.js admin/partners-api-fallback.js admin/partners-workspace.js admin/auth-ui.js admin/auth-settings.js
             admin/login.js admin/register.js admin/push-client.js
             shared/hub-chat-core.js shared/hub-chat-enhance.js shared/hub-chat-drawer.js partner/hub-chat.js
             mobile/app.js mobile/pwa.js mobile/updates-client.js mobile/oauth-bridge.js mobile/quick-menu.js
             a4print-hub-sw.js
-            api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/gateway.js
+            api/src/mobile-proxy.js api/src/server.js api/src/gateway-users.js api/src/gateway.js api/src/supabase-storage-proxy.js
+            api/test/supabase-storage-proxy.test.mjs
           )
           for f in "${scripts[@]}"; do
             echo "checking $f"
@@ -126,6 +129,22 @@ jobs:
           grep -q 'oauth-bridge.js' mobile/index.html
           grep -q 'staff-avatars' admin/profile.js
           grep -q 'staff-avatars' database/migrations/101_staff_profile_avatar_self_service.sql
+          grep -q 'expense-receipts' admin/expenses.js
+          grep -q "supabase.storage.from(RECEIPT_BUCKET)" admin/expenses.js
+          grep -q "supabase.storage.from('hub-chat')" shared/hub-chat-core.js
+          grep -q 'const isStorage' admin/config.js
+          grep -q '/storage\\/v1' admin/config.js
+          grep -q 'slowStorage=' admin/config.js
+          grep -q '65000' admin/config.js
+          grep -q '70000' admin/config.js
+          grep -q 'supabase-storage-proxy.js' api/src/boot.js
+          grep -q '/api/v1/supabase/storage/v1' api/src/supabase-storage-proxy.js
+          grep -q 'express.raw' api/src/supabase-storage-proxy.js
+          grep -q 'storageRequestBody' api/src/supabase-storage-proxy.js
+          grep -q 'JSON.stringify(body)' api/src/supabase-storage-proxy.js
+          grep -q "'x-upsert'" api/src/mobile-proxy.js
+          grep -q 'supabaseStorageProxy: true' api/src/mobile-proxy.js
+          grep -q 'storageRequestBody serializes JSON' api/test/supabase-storage-proxy.test.mjs
           grep -q "addEventListener('push'" a4print-hub-sw.js
           grep -q 'pushManager.subscribe' mobile/pwa.js
           grep -q 'manifest.webmanifest' mobile/index.html
@@ -153,6 +172,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
+      - name: Checkout change context
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect whether an API deploy is expected
+        id: api-change
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=false
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            before='${{ github.event.before }}'
+            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+              if ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+                git fetch --no-tags --depth=1 origin "$before" || true
+              fi
+              files=$(git diff --name-only "$before" "$GITHUB_SHA" 2>/dev/null || git show --pretty='' --name-only "$GITHUB_SHA")
+            else
+              files=$(git show --pretty='' --name-only "$GITHUB_SHA")
+            fi
+            printf '%s\n' "$files"
+            if printf '%s\n' "$files" | grep -Eq '^api/'; then
+              changed=true
+            fi
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "API changed: $changed"
+
       - name: Wait briefly for Pages deploy
         run: sleep 25
 
@@ -207,14 +255,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          require_api_marker='${{ steps.api-change.outputs.changed }}'
+          expected_build="git-${GITHUB_SHA:0:12}"
+
+          for attempt in $(seq 1 30); do
+            echo "Backend build/capability check $attempt/30 (require current build: $require_api_marker)"
+            code=$(curl -L -sS --max-time 20 -o /tmp/health.json -w '%{http_code}' 'https://a4print-hub-api.onrender.com/api/v1/health' || true)
+            cat /tmp/health.json 2>/dev/null || true
+            echo
+            build_ok=true
+            if [ "$require_api_marker" = "true" ] && ! grep -q "\"build\":\"$expected_build\"" /tmp/health.json; then
+              build_ok=false
+            fi
+            if [ "$code" = "200" ] \
+              && [ "$build_ok" = "true" ] \
+              && grep -q '"success":true' /tmp/health.json \
+              && grep -q '"supabaseStorageProxy":true' /tmp/health.json; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              echo 'Backend did not reach the expected build/capability state.'
+              exit 1
+            fi
+            sleep 8
+          done
+
           check_json() {
             local url="$1" marker="$2"
             for attempt in $(seq 1 30); do
               echo "Backend check $attempt/30: $url"
-              code=$(curl -L -sS --max-time 20 -o /tmp/health.json -w '%{http_code}' "$url" || true)
-              cat /tmp/health.json 2>/dev/null || true
+              code=$(curl -L -sS --max-time 20 -o /tmp/check.json -w '%{http_code}' "$url" || true)
+              cat /tmp/check.json 2>/dev/null || true
               echo
-              if [ "$code" = "200" ] && grep -q "$marker" /tmp/health.json; then
+              if [ "$code" = "200" ] && grep -q "$marker" /tmp/check.json; then
                 return 0
               fi
               sleep 8
@@ -222,9 +295,22 @@ jobs:
             echo "Backend health failed: $url"
             exit 1
           }
-          check_json 'https://a4print-hub-api.onrender.com/api/v1/health' '"success":true'
           check_json 'https://a4print-hub-api.onrender.com/api/v1/mobile/health' '"mobileAuth":true'
           check_json 'https://a4print-hub-api.onrender.com/api/v1/system/health' '"status":"PASS"'
 
+      - name: Check live Supabase Storage CORS preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl -sS --max-time 20 -D /tmp/cors.headers -o /tmp/cors.body -w '%{http_code}' \
+            -X OPTIONS 'https://a4print-hub-api.onrender.com/api/v1/supabase/storage/v1/object' \
+            -H 'Origin: https://a4print-hub.ru' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: authorization,apikey,content-type,x-upsert')
+          cat /tmp/cors.headers
+          test "$code" = "204" -o "$code" = "200"
+          grep -qi '^access-control-allow-origin: https://a4print-hub.ru' /tmp/cors.headers
+          grep -qi '^access-control-allow-headers:.*x-upsert' /tmp/cors.headers
+
       - name: System smoke result
-        run: echo 'A4PRINT HUB full system and E2E health checks passed.'
+        run: echo 'A4PRINT HUB full system, Storage proxy and E2E health checks passed.'
