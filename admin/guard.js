@@ -98,7 +98,7 @@ if (!publicPages.has(page)) {
   if (!session) {
     login('session');
   } else {
-    if (page !== 'profile.html' && page !== 'messages.html') {
+    if (page !== 'profile.html') {
       const { data, error } = await supabase.rpc('get_my_staff_profile');
       if (error || data?.status !== 'ACTIVE') {
         if (mobileContext) mobileLogin(data?.status || 'access');
@@ -122,5 +122,18 @@ if (!publicPages.has(page)) {
     }
   }
 }
+
+async function installIntegratedChat() {
+  if (publicPages.has(page)) return;
+  try {
+    const { installHubChatDrawer } = await import('../shared/hub-chat-drawer.js?v=20260913-drawer1');
+    await installHubChatDrawer({ supabase, context:'staff', loginUrl:'./login.html' });
+  } catch (error) {
+    console.warn('Integrated HUB chat failed to load', error);
+  }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installIntegratedChat, { once:true });
+else queueMicrotask(installIntegratedChat);
 
 export { supabase };
