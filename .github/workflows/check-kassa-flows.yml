@@ -1,0 +1,147 @@
+name: Check Kassa Flows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kassa/shift-fast-open.js'
+      - 'kassa/shift-session-gate.js'
+      - 'kassa/shift-state-sync.js'
+      - 'kassa/shift-mobile.js'
+      - 'kassa/shift-mobile.css'
+      - 'kassa/sale-finish.js'
+      - 'kassa/sale-finish.css'
+      - 'kassa/sale-submit-guard.js'
+      - 'kassa/return-finish.js'
+      - 'kassa/history-hub.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - 'database/migrations/108_pos_receipt_history.sql'
+      - '.github/workflows/check-kassa-flows.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'kassa/shift-fast-open.js'
+      - 'kassa/shift-session-gate.js'
+      - 'kassa/shift-state-sync.js'
+      - 'kassa/shift-mobile.js'
+      - 'kassa/shift-mobile.css'
+      - 'kassa/sale-finish.js'
+      - 'kassa/sale-finish.css'
+      - 'kassa/sale-submit-guard.js'
+      - 'kassa/return-finish.js'
+      - 'kassa/history-hub.js'
+      - 'kassa/bootstrap.js'
+      - 'kassa/sw.js'
+      - 'database/migrations/108_pos_receipt_history.sql'
+      - '.github/workflows/check-kassa-flows.yml'
+  workflow_dispatch:
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check specialized flow JavaScript
+        run: |
+          set -euo pipefail
+          node --check kassa/shift-fast-open.js
+          node --check kassa/shift-session-gate.js
+          node --check kassa/shift-state-sync.js
+          node --check kassa/shift-mobile.js
+          node --check kassa/sale-finish.js
+          node --check kassa/sale-submit-guard.js
+          node --check kassa/return-finish.js
+          node --check kassa/history-hub.js
+          node --check kassa/bootstrap.js
+          node --check kassa/sw.js
+
+      - name: Verify fast shift wiring
+        run: |
+          set -euo pipefail
+          test -s kassa/shift-mobile.js
+          test -s kassa/shift-mobile.css
+          grep -q "loadScript('./shift-fast-open.js')" kassa/bootstrap.js
+          grep -q "'./shift-fast-open.js'" kassa/sw.js
+          grep -q "'./shift-mobile.css'" kassa/bootstrap.js
+          grep -q "'./shift-mobile.js'" kassa/bootstrap.js
+          ! grep -q 'shift-mobile-v2.css' kassa/bootstrap.js
+          ! grep -q 'shift-mobile-v2.js' kassa/bootstrap.js
+          grep -q '_local_pending' kassa/shift-fast-open.js
+          grep -q 'waitForConfirmed' kassa/shift-fast-open.js
+          grep -q 'isSaleUrl' kassa/shift-fast-open.js
+          grep -q "pending='sync'" kassa/shift-fast-open.js
+          grep -q 'Смена открыта · синхронизация' kassa/shift-state-sync.js
+          grep -q 'a4-shift-quickstats' kassa/shift-mobile.js
+          grep -q 'shift-main-action' kassa/shift-mobile.css
+
+      - name: Verify sale completion wiring
+        run: |
+          set -euo pipefail
+          test -s kassa/sale-finish.css
+          grep -q "loadScript('./sale-finish.js')" kassa/bootstrap.js
+          grep -q "loadStyle('./sale-finish.css')" kassa/bootstrap.js
+          grep -q 'sale-finish.js' kassa/sw.js
+          grep -q 'sale-finish.css' kassa/sw.js
+          grep -q 'DB.put=async function' kassa/sale-finish.js
+          grep -q "name==='receipts'" kassa/sale-finish.js
+          grep -q 'Печать чека' kassa/sale-finish.js
+          grep -q 'Новый покупатель' kassa/sale-finish.js
+          grep -q '/api/v1/pos/customers' kassa/sale-finish.js
+          grep -q 'A4_KASSA_SALE_SUBMIT_GUARD' kassa/sale-submit-guard.js
+
+      - name: Verify return completion wiring
+        run: |
+          set -euo pipefail
+          grep -q 'api.*v1.*pos.*returns' kassa/return-finish.js
+          grep -q 'Возврат проведён' kassa/return-finish.js
+          grep -q 'Печать возврата' kassa/return-finish.js
+          grep -q "loadScript('./return-finish.js')" kassa/bootstrap.js
+          grep -q './return-finish.js' kassa/sw.js
+
+      - name: Verify receipt history wiring
+        run: |
+          set -euo pipefail
+          test -s database/migrations/108_pos_receipt_history.sql
+          grep -q 'get_pos_receipt_history' kassa/history-hub.js
+          grep -q 'Печать чека' kassa/history-hub.js
+          grep -q 'returned_total' kassa/history-hub.js
+          grep -q "'./history-hub.js'" kassa/bootstrap.js
+          grep -q './history-hub.js' kassa/sw.js
+          grep -q 'get_pos_receipt_history' database/migrations/108_pos_receipt_history.sql
+          grep -q "has_role('POS_OPERATOR')" database/migrations/108_pos_receipt_history.sql
+          grep -qi 'security definer' database/migrations/108_pos_receipt_history.sql
+
+  live-frontend:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for Pages deployment
+        run: sleep 25
+
+      - name: Check live history and return modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            history=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/history-hub.js?flows=${GITHUB_SHA}" || true)
+            returns=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/return-finish.js?flows=${GITHUB_SHA}" || true)
+            boot=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/bootstrap.js?flows=${GITHUB_SHA}" || true)
+            if echo "$history" | grep -q 'get_pos_receipt_history' \
+              && echo "$history" | grep -q 'Печать чека' \
+              && echo "$returns" | grep -q 'Возврат проведён' \
+              && echo "$boot" | grep -q 'history-hub.js' \
+              && echo "$boot" | grep -q 'return-finish.js'; then
+              echo 'Specialized KASSA frontend flows are live.'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Specialized KASSA frontend flows did not become live in time.'
+          exit 1
