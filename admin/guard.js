@@ -124,7 +124,7 @@ if (!publicPages.has(page)) {
 }
 
 async function installIntegratedChat() {
-  if (publicPages.has(page)) return;
+  if (publicPages.has(page) || window.__A4_SUPPORT_ONLY__) return;
   try {
     const { installHubChatDrawer } = await import('../shared/hub-chat-drawer.js?v=20260913-drawer1');
     await installHubChatDrawer({ supabase, context:'staff', loginUrl:'./login.html' });
