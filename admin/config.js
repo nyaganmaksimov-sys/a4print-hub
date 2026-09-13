@@ -120,7 +120,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAdmin&&!document.querySelector('link[rel="icon"]')){const icon=document.createElement('link');icon.rel='icon';icon.type='image/svg+xml';icon.href=new URL('assets/logo_bd_transparent.svg?v=20260908-favicon1',base).href;document.head.appendChild(icon)}
   if(isAdmin&&!document.querySelector('link[rel="manifest"]')){const manifest=document.createElement('link');manifest.rel='manifest';manifest.href=new URL('manifest.webmanifest?v=20260908-2',base).href;document.head.appendChild(manifest)}
   if(isAdmin)loadCss('button-system.css','20260908-1');
-  if(isPartners)loadCss('partners-modern.css','20260908-2');
+  if(isPartners)loadCss('partners-modern.css','20260913-partners4');
   if(isAdmin&&!mobileContext){loadCss('sidebar-light.css','20260908-2');loadCss('logo-clean.css','20260908-2')}
   if(isAdmin){
     const logoStyle=document.createElement('style');logoStyle.id='a4-logo-transparent-fix';logoStyle.textContent=`html body .sidebar .hub-logo-wrap,html body .sidebar .brand{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;min-height:0!important;height:auto!important;margin:4px 8px 20px!important}html body .sidebar .hub-logo,html body .sidebar .brand img{display:block!important;opacity:1!important;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;width:100%!important;max-width:190px!important;height:auto!important;max-height:126px!important;object-fit:contain!important;filter:none!important;border-radius:0!important}html body.a4-sidebar-collapsed .sidebar .hub-logo-wrap,html body.a4-sidebar-collapsed .sidebar .brand{margin:4px 0 14px!important}html body.a4-sidebar-collapsed .sidebar .hub-logo,html body.a4-sidebar-collapsed .sidebar .brand img{width:54px!important;max-width:54px!important;height:auto!important;max-height:54px!important}`;document.head.appendChild(logoStyle);
@@ -137,6 +137,11 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');load('jarvis-settings.js','20260913-1')}
   load('navigation.js','20260913-branding1');load('support-access.js','20260913-clean1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260913-actions1');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260912-orders1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
-  if(isPartners){load('partners-search.js','20260912-compact2');load('partner-invites.js','20260908-2');load('partners-modern.js','20260912-compact2')}
+  if(isPartners){
+    load('partner-invites.js','20260913-partners4');
+    load('partners-modern.js','20260913-partners4');
+    load('partners-search.js','20260913-partners4');
+    load('partners-workspace-v4.js','20260913-partners4-2');
+  }
   background(()=>{load('chat-notifications.js','20260904-7');load('support-notifications.js','20260905-1');load('push-client.js','20260904-4');if(!isChat)load('chat-widget.js','20260908-2')});
 })();
