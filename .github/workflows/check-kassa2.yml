@@ -90,6 +90,7 @@ jobs:
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
           test -f kassa/manifest.webmanifest
+          test ! -e kassa/shift-live.js
           test -f api/src/pos-shift-live-patch.js
           test -f api/src/pos-shift-fresh-open.js
           test -f api/src/pos-sale-idempotency.js
