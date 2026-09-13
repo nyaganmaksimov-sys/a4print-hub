@@ -7,7 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>`${Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})} ₽`;
 const statusLabels={NEW:'Новые',CONFIRMED:'Подтверждённые',IN_PROGRESS:'В работе',READY:'Готовы',COMPLETED:'Завершённые',DONE:'Завершённые',ON_HOLD:'Приостановленные',CANCELLED:'Отменённые'};
 const successPaymentStatuses=new Set(['PAID','COMPLETED','SUCCESS','SUCCESSFUL','CONFIRMED','CAPTURED']);
-const state={period:'MONTH',orders:[],payments:[],sales:[],returns:[],cash:null,loading:false,channel:null,warnings:[]};
+const state={period:'MONTH',orders:[],payments:[],sales:[],returns:[],cash:null,loading:false,channel:null,warnings:[],paymentsAvailable:true};
 let realtimeTimer=null;
 
 function periodStart(){
@@ -37,6 +37,25 @@ function saleValid(row){return !['FAILED','ERROR','CANCELLED'].includes(String(r
 function returnValid(row){return !['FAILED','ERROR','CANCELLED'].includes(String(row.sync_status||'').toUpperCase())}
 function pct(value,max){return max>0?Math.max(3,Math.min(100,(Number(value||0)/max)*100)):0}
 function fmtDate(value){const d=new Date(value);if(!Number.isFinite(d.getTime()))return'—';return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}
+function ageHours(value){const d=new Date(value);return Number.isFinite(d.getTime())?Math.max(0,(Date.now()-d.getTime())/36e5):0}
+function paidForOrder(orderId){
+  if(!state.paymentsAvailable)return 0;
+  return state.payments.filter(x=>String(x.order_id||'')===String(orderId)&&paymentIsSuccessful(x)).reduce((s,x)=>s+Number(x.amount||0),0);
+}
+function attentionReasons(order){
+  const status=String(order?.status||'').toUpperCase();
+  if(['COMPLETED','DONE','CANCELLED'].includes(status))return[];
+  const hours=ageHours(order?.created_at),reasons=[];
+  if(status==='ON_HOLD')reasons.push('Приостановлен');
+  if(status==='NEW'&&hours>=24)reasons.push('Новый больше суток');
+  if(['CONFIRMED','IN_PROGRESS'].includes(status)&&hours>=72)reasons.push('В работе больше 3 дней');
+  if(status==='READY'&&hours>=48)reasons.push('Готов больше 2 дней');
+  if(state.paymentsAvailable&&Number(order?.total||0)>0){
+    const debt=Math.max(0,Number(order.total||0)-paidForOrder(order.id));
+    if(debt>.01&&(hours>=24||['READY','ON_HOLD'].includes(status)))reasons.push(`Долг ${money(debt)}`);
+  }
+  return reasons;
+}
 
 async function cashBalance(){
   try{
@@ -70,6 +89,7 @@ async function load(){
     state.orders=(orders.data||[]).filter(ordinaryOrder);
     const orderIds=new Set(state.orders.map(x=>String(x.id)));
     state.payments=(payments.data||[]).filter(x=>!x.order_id||orderIds.has(String(x.order_id)));
+    state.paymentsAvailable=!state.warnings.some(x=>x.startsWith('payments:'));
     state.sales=sales.data||[];state.returns=returns.data||[];state.cash=cash;
     render();
     $('updatedAt').textContent=`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
@@ -100,9 +120,17 @@ function renderKpis(data){
 }
 
 function renderStatuses(data){
-  const map={};for(const o of data.orders){const key=String(o.status||'UNKNOWN').toUpperCase();map[key]=(map[key]||0)+1}
+  const map={};
+  for(const o of data.orders){
+    let key=String(o.status||'UNKNOWN').toUpperCase();
+    if(key==='DONE')key='COMPLETED';
+    map[key]=(map[key]||0)+1;
+  }
   const max=Math.max(0,...Object.values(map));
-  $('statusRows').innerHTML=Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([key,value])=>`<div class="report-row"><div class="report-row-main"><div class="report-row-title">${esc(statusLabels[key]||key)}</div><div class="report-bar"><i style="width:${pct(value,max)}%"></i></div></div><div class="report-row-value">${value}</div></div>`).join('')||'<div class="reports-empty">За выбранный период обычных заказов HUB нет</div>';
+  const attention=data.orders.filter(o=>attentionReasons(o).length>0).length;
+  const attentionRow=attention?`<div class="report-row report-row-attention" data-report-status="ATTENTION"><div class="report-row-main"><div class="report-row-title">Требуют внимания</div><div class="report-bar"><i style="width:${pct(attention,Math.max(max,attention))}%"></i></div></div><div class="report-row-value">${attention}</div></div>`:'';
+  const statusHtml=Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([key,value])=>`<div class="report-row" data-report-status="${esc(key)}"><div class="report-row-main"><div class="report-row-title">${esc(statusLabels[key]||key)}</div><div class="report-bar"><i style="width:${pct(value,max)}%"></i></div></div><div class="report-row-value">${value}</div></div>`).join('');
+  $('statusRows').innerHTML=(attentionRow+statusHtml)||'<div class="reports-empty">За выбранный период обычных заказов HUB нет</div>';
 }
 
 function renderKassa(data){
@@ -142,7 +170,7 @@ function initPeriod(){
 function initRealtime(){
   if(typeof supabase.channel!=='function')return;
   const reload=()=>{clearTimeout(realtimeTimer);realtimeTimer=setTimeout(load,900)};
-  let ch=supabase.channel('reports-live-v3');
+  let ch=supabase.channel('reports-live-v4');
   for(const table of ['orders','payments','pos_sales','pos_returns'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);
   state.channel=ch.subscribe();
   window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true});
