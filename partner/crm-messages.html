@@ -3,22 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Сообщения — Partner CRM</title>
-  <script src="./config.js?v=20260913-hubchat1"></script>
-  <link rel="stylesheet" href="./crm.css?v=20260913-hubchat1">
-  <link rel="stylesheet" href="../shared/hub-chat.css?v=20260913-hubchat1">
+  <title>Сообщения HUB — Partner CRM</title>
+  <script src="./config.js?v=20260913-hubchat2"></script>
+  <link rel="stylesheet" href="./crm.css?v=20260913-hubchat2">
+  <link rel="stylesheet" href="../shared/hub-chat.css?v=20260913-hubchat2">
   <style>
     body{overflow:hidden;background:#f6f8fb}
     .crm-main{min-width:0;overflow:hidden;padding-bottom:0!important}
-    .crm-top{margin-bottom:12px!important}
+    .crm-top{margin-bottom:10px!important}
     .crm-top h1{margin-bottom:3px!important}
-    @media(max-width:760px){body{overflow:hidden}.crm-main{padding:10px!important}.crm-top{display:none!important}.hub-chat-app .hc-shell{height:calc(100dvh - 20px)}}
+    .hub-chat-app .hc-shell{height:calc(100dvh - 112px);min-height:560px}
+    @media(max-width:760px){body{overflow:hidden}.crm-main{padding:8px!important}.crm-top{display:none!important}.hub-chat-app .hc-shell{height:calc(100dvh - 16px);min-height:0}}
   </style>
 </head>
 <body>
   <div class="crm-shell">
     <aside class="crm-side">
-      <div class="crm-brand"><b>Partner CRM</b><small>Связь с A4PRINT HUB</small></div>
+      <div class="crm-brand"><b>Partner CRM</b><small>A4PRINT HUB</small></div>
       <nav class="crm-nav">
         <a href="./crm.html">Главная</a>
         <a href="./crm-customers.html">Мои клиенты</a>
@@ -28,10 +29,10 @@
       </nav>
     </aside>
     <main class="crm-main">
-      <header class="crm-top"><div><h1>Сообщения HUB</h1><p>Прямой диалог с командой A4PRINT HUB</p></div></header>
+      <header class="crm-top"><div><h1>Сообщения HUB</h1><p>Один прямой диалог с командой A4PRINT HUB</p></div></header>
       <div id="hubChatApp" aria-live="polite"></div>
     </main>
   </div>
-  <script type="module" src="./hub-chat.js?v=20260913-hubchat1"></script>
+  <script type="module" src="./hub-chat.js?v=20260913-hubchat2"></script>
 </body>
 </html>
