@@ -34,34 +34,6 @@ on:
       - '.github/workflows/check-mobile-pwa.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'mobile/**'
-      - 'admin/login.html'
-      - 'admin/login.js'
-      - 'admin/mobile-auth-route.js'
-      - 'admin/profile.html'
-      - 'admin/profile.js'
-      - 'admin/manager.html'
-      - 'admin/manager-runtime.js'
-      - 'admin/manager-workspace.js'
-      - 'admin/manager-layout-v2.js'
-      - 'admin/manager-widgets.js'
-      - 'admin/mobile-shell.*'
-      - 'admin/config.js'
-      - 'admin/guard.js'
-      - 'admin/auth-ui.js'
-      - 'admin/messages.html'
-      - 'shared/hub-chat-core.js'
-      - 'shared/hub-chat-drawer.js'
-      - 'shared/hub-chat-enhance.js'
-      - 'admin/support.html'
-      - 'admin/support.js'
-      - 'admin/support-access.js'
-      - 'admin/onboarding.js'
-      - 'api/src/mobile-proxy.js'
-      - 'database/migrations/101_staff_profile_avatar_self_service.sql'
-      - 'a4print-hub-sw.js'
-      - '.github/workflows/check-mobile-pwa.yml'
 
 jobs:
   smoke:
