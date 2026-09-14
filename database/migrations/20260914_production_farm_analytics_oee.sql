@@ -157,29 +157,28 @@ begin
   ), planned as (
     select e.id as equipment_id,
            round(coalesce(sum(
-             extract(epoch from (
-               least(j.planned_end,v_range_end)-greatest(j.planned_start,v_range_start)
-             ))/60
+             extract(epoch from (least(j.planned_end,v_range_end)-greatest(j.planned_start,v_range_start)))/60
            ),0)::numeric,2) as planned_minutes
     from public.equipment_assets e
     left join public.production_jobs j
       on j.equipment_id=e.id
      and j.status<>'CANCELLED'::public.production_status
-     and j.planned_start is not null and j.planned_end is not null
-     and j.planned_start<v_range_end and j.planned_end>v_range_start
+     and j.planned_start is not null
+     and j.planned_end is not null
+     and j.planned_start<v_range_end
+     and j.planned_end>v_range_start
     where e.status<>'WRITTEN_OFF'
     group by e.id
   ), runs as (
     select e.id as equipment_id,
            round(coalesce(sum(
-             extract(epoch from (
-               least(coalesce(r.ended_at,clock_timestamp()),v_range_end)-greatest(r.started_at,v_range_start)
-             ))
-           ) filter(where r.started_at<v_range_end and coalesce(r.ended_at,clock_timestamp())>v_range_start),0)::numeric/60,2) as run_minutes,
+             extract(epoch from (least(coalesce(r.ended_at,clock_timestamp()),v_range_end)-greatest(r.started_at,v_range_start)))
+           ) filter(
+             where r.started_at<v_range_end
+               and coalesce(r.ended_at,clock_timestamp())>v_range_start
+           ),0)::numeric/60,2) as run_minutes,
            round(coalesce(sum(
-             extract(epoch from (
-               least(coalesce(r.ended_at,clock_timestamp()),v_range_end)-greatest(r.started_at,v_range_start)
-             ))
+             extract(epoch from (least(coalesce(r.ended_at,clock_timestamp()),v_range_end)-greatest(r.started_at,v_range_start)))
            ) filter(
              where r.started_at<v_range_end
                and coalesce(r.ended_at,clock_timestamp())>v_range_start
@@ -189,7 +188,9 @@ begin
     left join public.production_job_runs r on r.equipment_id=e.id
     left join public.production_jobs j on j.id=r.production_job_id
     left join public.production_equipment_standards s
-      on s.equipment_id=r.equipment_id and s.operation_type=upper(btrim(coalesce(j.operation_type,''))) and s.is_active
+      on s.equipment_id=r.equipment_id
+     and s.operation_type=upper(btrim(coalesce(j.operation_type,'')))
+     and s.is_active
     where e.status<>'WRITTEN_OFF'
     group by e.id
   ), pauses as (
@@ -200,7 +201,7 @@ begin
                  case when pe.duration_seconds is null then clock_timestamp()
                       else pe.created_at+make_interval(secs=>pe.duration_seconds::double precision) end,
                  v_range_end
-               ) - greatest(pe.created_at,v_range_start)
+               )-greatest(pe.created_at,v_range_start)
              ))
            ) filter(
              where pe.event_type='PAUSE'
@@ -220,22 +221,27 @@ begin
            coalesce(sum(
              (coalesce(pe.good_quantity,0)+coalesce(pe.scrap_quantity,0))*s.ideal_cycle_seconds_per_unit
            ) filter(
-             where pe.created_at>=v_range_start and pe.created_at<v_range_end
+             where pe.created_at>=v_range_start
+               and pe.created_at<v_range_end
                and s.equipment_id is not null
            ),0)::numeric as ideal_seconds
     from public.equipment_assets e
     left join public.production_job_events pe on pe.equipment_id=e.id
     left join public.production_jobs j on j.id=pe.production_job_id
     left join public.production_equipment_standards s
-      on s.equipment_id=e.id and s.operation_type=upper(btrim(coalesce(j.operation_type,''))) and s.is_active
+      on s.equipment_id=e.id
+     and s.operation_type=upper(btrim(coalesce(j.operation_type,'')))
+     and s.is_active
     where e.status<>'WRITTEN_OFF'
     group by e.id
   ), jobs as (
     select e.id as equipment_id,
            count(j.id) filter(where j.completed_at>=v_range_start and j.completed_at<v_range_end)::integer as completed_jobs,
            count(j.id) filter(
-             where j.completed_at>=v_range_start and j.completed_at<v_range_end
-               and j.deadline_at is not null and j.completed_at>j.deadline_at
+             where j.completed_at>=v_range_start
+               and j.completed_at<v_range_end
+               and j.deadline_at is not null
+               and j.completed_at>j.deadline_at
            )::integer as late_jobs,
            coalesce(sum(j.production_cost) filter(where j.completed_at>=v_range_start and j.completed_at<v_range_end),0)::numeric as production_cost
     from public.equipment_assets e
@@ -285,7 +291,7 @@ begin
          case
            when m.available_minutes>0
             and m.run_minutes>0
-            and m.standard_run_minutes/m.run_minutes>=0.99
+            and m.standard_run_minutes/nullif(m.run_minutes,0)>=0.99
             and m.standard_run_minutes>0
             and m.ideal_seconds>0
             and m.good_quantity+m.scrap_quantity>0
@@ -344,13 +350,15 @@ begin
   with rows as (
     select coalesce(nullif(pe.reason_code,''),'OTHER') as reason_code,
            count(*)::integer as event_count,
-           sum(extract(epoch from (
-             least(
-               case when pe.duration_seconds is null then clock_timestamp()
-                    else pe.created_at+make_interval(secs=>pe.duration_seconds::double precision) end,
-               v_range_end
-             )-greatest(pe.created_at,v_range_start)
-           ))/60::numeric as downtime_minutes
+           sum(
+             extract(epoch from (
+               least(
+                 case when pe.duration_seconds is null then clock_timestamp()
+                      else pe.created_at+make_interval(secs=>pe.duration_seconds::double precision) end,
+                 v_range_end
+               )-greatest(pe.created_at,v_range_start)
+             ))/60
+           )::numeric as downtime_minutes
     from public.production_job_events pe
     where pe.event_type='PAUSE'
       and pe.created_at<v_range_end
@@ -360,7 +368,9 @@ begin
   ), total as (
     select coalesce(sum(r.downtime_minutes),0)::numeric as minutes from rows r
   )
-  select r.reason_code,r.event_count,round(r.downtime_minutes,2),
+  select r.reason_code,
+         r.event_count,
+         round(r.downtime_minutes,2),
          case when t.minutes>0 then round(r.downtime_minutes/t.minutes*100,1) else 0 end
   from rows r cross join total t
   order by r.downtime_minutes desc,r.reason_code;
@@ -423,13 +433,17 @@ begin
     'oee_percent',(
       select case
         when sum(run_minutes)>0
-         and sum(standard_run_minutes)/sum(run_minutes)>=0.99
+         and sum(standard_run_minutes)/nullif(sum(run_minutes),0)>=0.99
          and count(*) filter(where run_minutes>0 and oee_percent is null)=0
-        then round(sum(coalesce(oee_percent,0)*available_minutes)/nullif(sum(available_minutes) filter(where oee_percent is not null),0),1)
+        then round(
+          sum(coalesce(oee_percent,0)*available_minutes)
+          / nullif(sum(available_minutes) filter(where oee_percent is not null),0),1
+        )
         else null end
       from a
     )
-  ) into v_result from sums s;
+  ) into v_result
+  from sums s;
 
   return coalesce(v_result,'{}'::jsonb);
 end
