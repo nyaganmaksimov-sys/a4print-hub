@@ -1,7 +1,7 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
 
 const $=id=>document.getElementById(id);
-const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const operationLabels={PRINT_2D:'2D-печать',PRINT_3D_FDM:'3D FDM',PRINT_3D_RESIN:'3D фотополимер',LASER_CUT:'Лазерная резка',LASER_ENGRAVE:'Лазерная гравировка',CNC:'ЧПУ',LAMINATION:'Ламинация',POSTPRESS:'Постпечатная обработка',ASSEMBLY:'Сборка',OTHER:'Другое'};
 const machineStatusLabels={FREE:'Свободно',WORKING:'В работе',QUEUED:'В очереди',MAINTENANCE:'ТО',REPAIR:'Ремонт',FAULT:'Неисправность',WAITING_PARTS:'Ждёт запчасти',OFFLINE:'Не используется',RETIRED:'Выведено'};
 const unavailable=new Set(['MAINTENANCE','REPAIR','FAULT','WAITING_PARTS','OFFLINE','RETIRED']);
