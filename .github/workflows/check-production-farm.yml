@@ -69,6 +69,9 @@ jobs:
           test -s database/migrations/20260914_production_farm_materials_bridge.sql
           test -s database/migrations/20260914_production_farm_material_cost_updates.sql
           test -s database/migrations/20260914_production_farm_owner_settlements.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
           test -s docs/PRODUCTION_FARM_PHASE2.md
           test -s docs/PRODUCTION_FARM_PHASE3.md
@@ -133,3 +136,10 @@ jobs:
           grep -q 'generate_equipment_owner_settlement' database/migrations/20260914_production_farm_owner_settlements.sql
           grep -q 'set_equipment_owner_settlement_status' database/migrations/20260914_production_farm_owner_settlements.sql
           grep -q 'equipment_owner_settlement_overview' database/migrations/20260914_production_farm_owner_settlements.sql
+          grep -q 'PRODUCTION_JOB_ALREADY_SETTLED' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          grep -q 'PAYMENT_REFERENCE_REQUIRED' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          grep -q 'SETTLEMENT_PERIOD_OVERLAP' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          grep -q 'equipment_owner_settlement_lines_equipment_idx' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+          grep -q 'owner_settlements_read' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+          grep -q 'revoke all on public.equipment_owner_settlements from authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
+          grep -q 'grant select on public.equipment_owner_settlements to authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
