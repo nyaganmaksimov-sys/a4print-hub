@@ -40,7 +40,7 @@
       </section>
       <section id="movementsTab" class="eq-card eq-hidden">
         <div class="eq-head"><div><h2>Журнал движений</h2><p>Приход, выдача на оборудование, возврат, списание и корректировки.</p></div><div class="eq-actions"><button id="addMovement2" class="green" type="button">+ Движение</button></div></div>
-        <div class="eq-toolbar"><input id="movementSearch" type="search" placeholder="Расходник, оборудование, документ или комментарий…"><select id="movementType"><option value="">Все операции</option><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка</option></select><select id="movementEquipment"><option value="">Любое оборудование</option></select></div>
+        <div class="eq-toolbar"><input id="movementSearch" type="search" placeholder="Расходник, оборудование, документ или комментарий…"><select id="movementType"><option value="">Все операции</option><option value="RECEIPT">Приход</option><option value="ISSUE">Выдача / расход</option><option value="RETURN">Возврат</option><option value="WRITE_OFF">Списание</option><option value="ADJUSTMENT">Корректировка остатка</option></select><select id="movementEquipment"><option value="">Любое оборудование</option></select></div>
         <div id="movementsList" class="eq-list"><div class="eq-empty">Загрузка движений…</div></div>
       </section>
     </div>
@@ -92,5 +92,6 @@
   <script type="module" src="./equipment-consumables.js?v=20260913-clean1"></script>
   <script type="module" src="./equipment-calendar.js?v=20260908-1"></script>
   <script type="module" src="./equipment-ownership.js?v=20260914-1"></script>
+  <script type="module" src="./equipment-buyout.js?v=20260914-1"></script>
 </body>
 </html>
