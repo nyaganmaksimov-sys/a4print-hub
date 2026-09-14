@@ -23,6 +23,8 @@ on:
       - 'admin/production-farm-capacity.css'
       - 'admin/production-farm-dispatcher.js'
       - 'admin/production-farm-dispatcher.css'
+      - 'admin/production-farm-operator.js'
+      - 'admin/production-farm-operator.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -48,6 +50,8 @@ on:
       - 'admin/production-farm-capacity.css'
       - 'admin/production-farm-dispatcher.js'
       - 'admin/production-farm-dispatcher.css'
+      - 'admin/production-farm-operator.js'
+      - 'admin/production-farm-operator.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -80,6 +84,7 @@ jobs:
             admin/production-farm-settlements.js admin/production-farm-settlements.css
             admin/production-farm-capacity.js admin/production-farm-capacity.css
             admin/production-farm-dispatcher.js admin/production-farm-dispatcher.css
+            admin/production-farm-operator.js admin/production-farm-operator.css
             admin/production.html
             database/migrations/20260914_production_farm_foundation.sql
             database/migrations/20260914_production_farm_foundation_hardening.sql
@@ -99,10 +104,12 @@ jobs:
             database/migrations/20260914_production_farm_equipment_economics_hardening.sql
             database/migrations/20260914_production_farm_capacity_planning.sql
             database/migrations/20260914_production_farm_dispatcher.sql
+            database/migrations/20260914_production_farm_operator_station.sql
             docs/PRODUCTION_FARM_PHASE1.md docs/PRODUCTION_FARM_PHASE2.md
             docs/PRODUCTION_FARM_PHASE3.md docs/PRODUCTION_FARM_PHASE4.md
             docs/PRODUCTION_FARM_PHASE5.md docs/PRODUCTION_FARM_PHASE6.md
             docs/PRODUCTION_FARM_PHASE7.md docs/PRODUCTION_FARM_PHASE8.md
+            docs/PRODUCTION_FARM_PHASE9.md
           )
           for f in "${files[@]}"; do test -s "$f" || { echo "Missing/empty: $f"; exit 1; }; done
 
@@ -117,6 +124,7 @@ jobs:
           node --check admin/production-farm-settlements.js
           node --check admin/production-farm-capacity.js
           node --check admin/production-farm-dispatcher.js
+          node --check admin/production-farm-operator.js
 
       - name: Verify UI wiring
         shell: bash
@@ -131,6 +139,8 @@ jobs:
           grep -q 'production-farm-capacity.js?v=' admin/production.html
           grep -q 'production-farm-dispatcher.js?v=' admin/production.html
           grep -q 'production-farm-dispatcher.css?v=' admin/production.html
+          grep -q 'production-farm-operator.js?v=' admin/production.html
+          grep -q 'production-farm-operator.css?v=' admin/production.html
           grep -q 'jobDuration' admin/production.html
           grep -q 'jobOperation' admin/production.html
           grep -q 'deadline_at' admin/production-modern.js
@@ -142,6 +152,10 @@ jobs:
           grep -q 'save_production_equipment_capabilities' admin/production-farm-dispatcher.js
           grep -q 'draggable=' admin/production-farm-dispatcher.js
           grep -q 'Диспетчер производства' admin/production-farm-dispatcher.js
+          grep -q 'production_operator_action' admin/production-farm-operator.js
+          grep -q 'production_operator_overview' admin/production-farm-operator.js
+          grep -q 'data-farm-action' admin/production-farm-operator.js
+          grep -q 'Оператор производства' admin/production-farm-operator.js
 
       - name: Verify production database safety markers
         shell: bash
@@ -165,3 +179,10 @@ jobs:
           grep -q 'trg_replan_production_jobs_after_equipment_fault' database/migrations/20260914_production_farm_dispatcher.sql
           grep -q "dispatch_locked=true" database/migrations/20260914_production_farm_dispatcher.sql
           grep -q "status in ('NEW','QUEUED','PAUSED')" database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'create table if not exists public.production_job_events' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'production_operator_action' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'production_operator_overview' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'trg_log_production_job_run_event' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'PAUSE_REASON_REQUIRED' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'security_invoker=true' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'revoke all on public.production_job_events from public,anon,authenticated' database/migrations/20260914_production_farm_operator_station.sql
