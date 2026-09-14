@@ -27,6 +27,8 @@ on:
       - 'admin/production-farm-operator.css'
       - 'admin/production-farm-analytics.js'
       - 'admin/production-farm-analytics.css'
+      - 'admin/production-farm-monitoring.js'
+      - 'admin/production-farm-monitoring.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -56,6 +58,8 @@ on:
       - 'admin/production-farm-operator.css'
       - 'admin/production-farm-analytics.js'
       - 'admin/production-farm-analytics.css'
+      - 'admin/production-farm-monitoring.js'
+      - 'admin/production-farm-monitoring.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -90,6 +94,7 @@ jobs:
             admin/production-farm-dispatcher.js admin/production-farm-dispatcher.css
             admin/production-farm-operator.js admin/production-farm-operator.css
             admin/production-farm-analytics.js admin/production-farm-analytics.css
+            admin/production-farm-monitoring.js admin/production-farm-monitoring.css
             admin/production.html
             database/migrations/20260914_production_farm_foundation.sql
             database/migrations/20260914_production_farm_foundation_hardening.sql
@@ -111,11 +116,14 @@ jobs:
             database/migrations/20260914_production_farm_dispatcher.sql
             database/migrations/20260914_production_farm_operator_station.sql
             database/migrations/20260914_production_farm_oee_analytics.sql
+            database/migrations/20260914_production_farm_monitoring.sql
+            database/migrations/20260914_production_farm_monitoring_hardening.sql
             docs/PRODUCTION_FARM_PHASE1.md docs/PRODUCTION_FARM_PHASE2.md
             docs/PRODUCTION_FARM_PHASE3.md docs/PRODUCTION_FARM_PHASE4.md
             docs/PRODUCTION_FARM_PHASE5.md docs/PRODUCTION_FARM_PHASE6.md
             docs/PRODUCTION_FARM_PHASE7.md docs/PRODUCTION_FARM_PHASE8.md
             docs/PRODUCTION_FARM_PHASE9.md docs/PRODUCTION_FARM_PHASE10.md
+            docs/PRODUCTION_FARM_PHASE11.md
           )
           for f in "${files[@]}"; do test -s "$f" || { echo "Missing/empty: $f"; exit 1; }; done
 
@@ -132,6 +140,7 @@ jobs:
           node --check admin/production-farm-dispatcher.js
           node --check admin/production-farm-operator.js
           node --check admin/production-farm-analytics.js
+          node --check admin/production-farm-monitoring.js
 
       - name: Verify UI wiring
         shell: bash
@@ -150,6 +159,8 @@ jobs:
           grep -q 'production-farm-operator.css?v=' admin/production.html
           grep -q 'production-farm-analytics.js?v=' admin/production.html
           grep -q 'production-farm-analytics.css?v=' admin/production.html
+          grep -q 'production-farm-monitoring.js?v=' admin/production.html
+          grep -q 'production-farm-monitoring.css?v=' admin/production.html
           grep -q 'jobDuration' admin/production.html
           grep -q 'jobOperation' admin/production.html
           grep -q 'deadline_at' admin/production-modern.js
@@ -169,6 +180,10 @@ jobs:
           grep -q 'production_downtime_pareto_daily' admin/production-farm-analytics.js
           grep -q 'production_capacity_between' admin/production-farm-analytics.js
           grep -q 'Производственная аналитика / OEE' admin/production-farm-analytics.js
+          grep -q 'production_equipment_monitor' admin/production-farm-monitoring.js
+          grep -q 'production_monitor_settings' admin/production-farm-monitoring.js
+          grep -q 'save_production_monitor_settings' admin/production-farm-monitoring.js
+          grep -q 'Контроль производства' admin/production-farm-monitoring.js
 
       - name: Verify production database safety markers
         shell: bash
@@ -203,3 +218,10 @@ jobs:
           grep -q 'create or replace view public.production_downtime_pareto_daily' database/migrations/20260914_production_farm_oee_analytics.sql
           grep -q 'security_invoker=true' database/migrations/20260914_production_farm_oee_analytics.sql
           grep -q 'revoke all on public.production_oee_daily from public,anon' database/migrations/20260914_production_farm_oee_analytics.sql
+          grep -q 'create table if not exists public.production_monitor_settings' database/migrations/20260914_production_farm_monitoring.sql
+          grep -q 'save_production_monitor_settings' database/migrations/20260914_production_farm_monitoring.sql
+          grep -q 'create or replace view public.production_equipment_monitor' database/migrations/20260914_production_farm_monitoring.sql
+          grep -q 'security definer' database/migrations/20260914_production_farm_monitoring.sql
+          grep -q 'revoke all on public.production_monitor_settings from public,anon,authenticated' database/migrations/20260914_production_farm_monitoring.sql
+          grep -q 'equipment_capacity_rules' database/migrations/20260914_production_farm_monitoring_hardening.sql
+          test "$(grep -c 'production_capacity_between' database/migrations/20260914_production_farm_monitoring_hardening.sql)" -eq 1
