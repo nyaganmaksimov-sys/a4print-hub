@@ -12,6 +12,8 @@ on:
       - 'admin/production-farm-runtime.css'
       - 'admin/production-farm-materials.js'
       - 'admin/production-farm-materials.css'
+      - 'admin/production-farm-settlements.js'
+      - 'admin/production-farm-settlements.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -26,6 +28,8 @@ on:
       - 'admin/production-farm-runtime.css'
       - 'admin/production-farm-materials.js'
       - 'admin/production-farm-materials.css'
+      - 'admin/production-farm-settlements.js'
+      - 'admin/production-farm-settlements.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -54,6 +58,8 @@ jobs:
           test -s admin/production-farm-runtime.css
           test -s admin/production-farm-materials.js
           test -s admin/production-farm-materials.css
+          test -s admin/production-farm-settlements.js
+          test -s admin/production-farm-settlements.css
           test -s database/migrations/20260914_production_farm_foundation.sql
           test -s database/migrations/20260914_production_farm_foundation_hardening.sql
           test -s database/migrations/20260914_production_farm_management_rpcs.sql
@@ -61,15 +67,22 @@ jobs:
           test -s database/migrations/20260914_production_farm_job_execution_clock_fix.sql
           test -s database/migrations/20260914_production_farm_materials_costing.sql
           test -s database/migrations/20260914_production_farm_materials_bridge.sql
+          test -s database/migrations/20260914_production_farm_material_cost_updates.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+          test -s database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
           test -s docs/PRODUCTION_FARM_PHASE2.md
           test -s docs/PRODUCTION_FARM_PHASE3.md
+          test -s docs/PRODUCTION_FARM_PHASE4.md
 
       - name: Check JavaScript syntax
         run: |
           node --check admin/equipment-ownership.js
           node --check admin/production-farm-runtime.js
           node --check admin/production-farm-materials.js
+          node --check admin/production-farm-settlements.js
 
       - name: Verify UI wiring
         shell: bash
@@ -82,6 +95,7 @@ jobs:
           grep -q 'Собственность и договоры' admin/equipment-ownership.js
           grep -q 'production-farm-runtime.js?v=' admin/production.html
           grep -q 'production-farm-materials.js?v=' admin/production.html
+          grep -q 'production-farm-settlements.js?v=' admin/production.html
           grep -q "configure_production_job" admin/production-farm-runtime.js
           grep -q "transition_production_job" admin/production-farm-runtime.js
           grep -q 'production_job_runs' admin/production-farm-runtime.js
@@ -89,6 +103,9 @@ jobs:
           grep -q "save_production_job_material_plan" admin/production-farm-materials.js
           grep -q "production_material_action" admin/production-farm-materials.js
           grep -q 'Материалы производства' admin/production-farm-materials.js
+          grep -q "generate_equipment_owner_settlement" admin/production-farm-settlements.js
+          grep -q "set_equipment_owner_settlement_status" admin/production-farm-settlements.js
+          grep -q 'Расчёты с владельцами оборудования' admin/production-farm-settlements.js
 
       - name: Verify database foundation
         shell: bash
@@ -113,3 +130,16 @@ jobs:
           grep -q 'production_job_cost_breakdown' database/migrations/20260914_production_farm_materials_costing.sql
           grep -q 'sync_equipment_consumable_to_catalog' database/migrations/20260914_production_farm_materials_bridge.sql
           grep -q 'mirror_equipment_consumable_movement_to_inventory' database/migrations/20260914_production_farm_materials_bridge.sql
+          grep -q 'set_production_material_cost' database/migrations/20260914_production_farm_material_cost_updates.sql
+          grep -q 'create table if not exists public.equipment_owner_settlements' database/migrations/20260914_production_farm_owner_settlements.sql
+          grep -q 'create table if not exists public.equipment_owner_settlement_lines' database/migrations/20260914_production_farm_owner_settlements.sql
+          grep -q 'generate_equipment_owner_settlement' database/migrations/20260914_production_farm_owner_settlements.sql
+          grep -q 'set_equipment_owner_settlement_status' database/migrations/20260914_production_farm_owner_settlements.sql
+          grep -q 'equipment_owner_settlement_overview' database/migrations/20260914_production_farm_owner_settlements.sql
+          grep -q 'PRODUCTION_JOB_ALREADY_SETTLED' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          grep -q 'PAYMENT_REFERENCE_REQUIRED' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          grep -q 'SETTLEMENT_PERIOD_OVERLAP' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+          grep -q 'equipment_owner_settlement_lines_equipment_idx' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+          grep -q 'owner_settlements_read' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+          grep -q 'revoke all on public.equipment_owner_settlements from authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
+          grep -q 'grant select on public.equipment_owner_settlements to authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
