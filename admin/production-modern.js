@@ -1,7 +1,7 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
 
 const $=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 const statusLabels={NEW:'Новая',QUEUED:'В очереди',IN_PROGRESS:'В работе',PAUSED:'Пауза',DONE:'Готово',CANCELLED:'Отменена'};
 const unitLabels={A4_PRINT:'А4-Принт','3D_ARTPRINT':'3D-ARTPRINT',COMMON:'Общее'};
 const statusOrder=['NEW','QUEUED','IN_PROGRESS','PAUSED','DONE','CANCELLED'];
@@ -11,17 +11,19 @@ let reloadTimer=null;
 function canManage(){return ['ADMIN','MANAGER','PRODUCTION'].some(x=>state.roles.includes(x))}
 function fmtDate(value){if(!value)return'—';const d=new Date(value);if(!Number.isFinite(d.getTime()))return'—';return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}
 function inputDate(value){if(!value)return'';const d=new Date(value);if(!Number.isFinite(d.getTime()))return'';const off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,16)}
-function overdue(job){return Boolean(job.planned_end)&&!['DONE','CANCELLED'].includes(job.status)&&new Date(job.planned_end).getTime()<Date.now()}
 function userName(id){const u=state.users.find(x=>x.id===id);return u?.full_name||u?.email||'Не назначен'}
 function orderOf(id){return state.orders.find(x=>x.id===id)||null}
+function deadlineOf(job){return job?.deadline_at||orderOf(job?.order_id)?.due_at||null}
+function overdue(job){const deadline=deadlineOf(job);return Boolean(deadline)&&!['DONE','CANCELLED'].includes(job.status)&&new Date(deadline).getTime()<Date.now()}
 function orderLabel(order){if(!order)return'Без заказа';return `№${order.order_number} · ${unitLabels[order.business_unit]||order.business_unit||'Общее'} · ${order.model_name||order.source||'заказ'}`}
+function scheduleLabel(job){return job?.equipment_id&&job?.planned_start&&job?.planned_end?`${fmtDate(job.planned_start)} → ${fmtDate(job.planned_end)}`:'не запланировано'}
 
 async function load(){
   if(state.loading)return;state.loading=true;$('refresh').disabled=true;$('refresh').textContent='Обновление…';
   try{
     const [jobs,orders,users,roles]=await Promise.all([
       supabase.from('production_jobs').select('*').order('priority',{ascending:false}).order('created_at',{ascending:false}),
-      supabase.from('orders').select('id,order_number,status,total,business_unit,model_name,source,created_at').order('created_at',{ascending:false}).limit(1000),
+      supabase.from('orders').select('id,order_number,status,total,business_unit,model_name,source,created_at,due_at').order('created_at',{ascending:false}).limit(1000),
       supabase.from('users').select('id,full_name,email,is_active').eq('is_active',true).order('full_name'),
       supabase.rpc('get_my_roles')
     ]);
@@ -50,7 +52,7 @@ function fillFormOptions(){
 function filters(){return{q:$('search').value.trim().toLowerCase(),unit:$('unit').value,assignee:$('assignee').value,priority:$('priorityFilter').value}}
 function visibleJobs(){
   const f=filters();return state.jobs.filter(job=>{
-    const order=orderOf(job.order_id);const text=[job.title,job.notes,order?.order_number,order?.model_name,order?.source,userName(job.assigned_to)].filter(Boolean).join(' ').toLowerCase();
+    const order=orderOf(job.order_id);const text=[job.title,job.notes,job.operation_type,order?.order_number,order?.model_name,order?.source,userName(job.assigned_to)].filter(Boolean).join(' ').toLowerCase();
     if(f.q&&!text.includes(f.q))return false;
     if(f.unit&&order?.business_unit!==f.unit)return false;
     if(f.assignee&&job.assigned_to!==f.assignee)return false;
@@ -61,11 +63,12 @@ function visibleJobs(){
 }
 function statusOptions(current){return statusOrder.map(s=>`<option value="${s}" ${s===current?'selected':''}>${statusLabels[s]}</option>`).join('')}
 function jobHtml(job){
-  const order=orderOf(job.order_id),late=overdue(job),priority=Number(job.priority||0),high=priority>=70;
+  const order=orderOf(job.order_id),late=overdue(job),priority=Number(job.priority||0),high=priority>=70,deadline=deadlineOf(job);
   const controls=canManage()?`<select class="production-status-select" data-status data-id="${job.id}">${statusOptions(job.status)}</select><button class="production-edit" type="button" data-edit="${job.id}">Изменить</button>`:`<span style="font-size:11px;font-weight:800;color:#64748b">${esc(statusLabels[job.status]||job.status)}</span>`;
   return `<article class="production-job ${late?'overdue':''}">
-    <div class="production-job-top"><div class="production-job-title"><b>${esc(job.title||'Производственное задание')}</b><small>${order?`Заказ №${esc(order.order_number)} · ${esc(unitLabels[order.business_unit]||order.business_unit||'Общее')}`:'Внутреннее задание'}</small></div><span class="production-priority ${high?'high':''}" title="Приоритет">${priority}</span></div>
-    <div class="production-job-meta"><div class="production-meta-cell"><span>Исполнитель</span><b>${esc(userName(job.assigned_to))}</b></div><div class="production-meta-cell ${late?'danger':''}"><span>Срок</span><b>${esc(fmtDate(job.planned_end))}</b></div></div>
+    <div class="production-job-top"><div class="production-job-title"><b>${esc(job.title||'Производственное задание')}</b><small>${order?`Заказ №${esc(order.order_number)} · ${esc(unitLabels[order.business_unit]||order.business_unit||'Общее')}`:'Внутреннее задание'}${job.operation_type?` · ${esc(job.operation_type)}`:''}</small></div><span class="production-priority ${high?'high':''}" title="Приоритет">${priority}</span></div>
+    <div class="production-job-meta"><div class="production-meta-cell"><span>Исполнитель</span><b>${esc(userName(job.assigned_to))}</b></div><div class="production-meta-cell ${late?'danger':''}"><span>Срок</span><b>${esc(fmtDate(deadline))}</b></div></div>
+    <div class="production-job-meta"><div class="production-meta-cell"><span>Машинное время</span><b>${job.planned_machine_minutes?`${esc(Math.round(Number(job.planned_machine_minutes)))} мин`:'не задано'}</b></div><div class="production-meta-cell"><span>План станка</span><b>${esc(scheduleLabel(job))}</b></div></div>
     <div class="production-job-actions">${controls}</div>
   </article>`
 }
@@ -85,8 +88,8 @@ function render(){
 
 function openJob(id=''){
   if(!canManage())return;const job=state.jobs.find(x=>x.id===id)||null;
-  $('jobForm').reset();$('jobId').value=job?.id||'';$('jobDlgTitle').textContent=job?'Изменить задание':'Новое производственное задание';$('jobDlgText').textContent=job?'Измените срок, исполнителя, приоритет или описание.':'Создайте задание и привяжите его к заказу при необходимости.';
-  fillFormOptions();$('jobOrder').value=job?.order_id||'';$('jobTitle').value=job?.title||'';$('jobAssignee').value=job?.assigned_to||'';$('jobPriority').value=Number(job?.priority||50);$('jobStart').value=inputDate(job?.planned_start);$('jobEnd').value=inputDate(job?.planned_end);$('jobNotes').value=job?.notes||'';$('jobError').textContent='';$('jobDlg').showModal();
+  $('jobForm').reset();$('jobId').value=job?.id||'';$('jobDlgTitle').textContent=job?'Изменить задание':'Новое производственное задание';$('jobDlgText').textContent=job?'Измените дедлайн, машинное время, тип операции, исполнителя или описание. Само окно станка меняется в диспетчере.':'Создайте задание, задайте длительность и дедлайн — диспетчер сможет поставить его в свободное окно.';
+  fillFormOptions();$('jobOrder').value=job?.order_id||'';$('jobTitle').value=job?.title||'';$('jobAssignee').value=job?.assigned_to||'';$('jobPriority').value=Number(job?.priority??50);$('jobOperation').value=job?.operation_type||'';$('jobDuration').value=job?.planned_machine_minutes?Math.round(Number(job.planned_machine_minutes)):'';$('jobEnd').value=inputDate(deadlineOf(job));$('jobNotes').value=job?.notes||'';$('jobError').textContent='';$('jobDlg').showModal();
 }
 
 async function syncOrderForJob(job,nextStatus){
@@ -118,11 +121,26 @@ for(const id of ['search','unit','assignee','priorityFilter'])$(id).addEventList
 $('clearFilters').addEventListener('click',()=>{$('search').value='';$('unit').value='';$('assignee').value='';$('priorityFilter').value='';render()});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-edit]');if(b)openJob(b.dataset.edit)});
 document.addEventListener('change',e=>{const s=e.target.closest('[data-status]');if(s)changeStatus(s.dataset.id,s.value,s)});
-$('jobOrder').addEventListener('change',()=>{if($('jobTitle').value.trim())return;const order=orderOf($('jobOrder').value);if(order)$('jobTitle').value=order.model_name||order.source||`Заказ №${order.order_number}`});
+$('jobOrder').addEventListener('change',()=>{
+  const order=orderOf($('jobOrder').value);if(!order)return;
+  if(!$('jobTitle').value.trim())$('jobTitle').value=order.model_name||order.source||`Заказ №${order.order_number}`;
+  if(!$('jobEnd').value&&order.due_at)$('jobEnd').value=inputDate(order.due_at);
+});
 
 $('jobForm').addEventListener('submit',async event=>{
   event.preventDefault();if(!canManage())return;$('saveJob').disabled=true;$('jobError').textContent='';
-  const id=$('jobId').value;const payload={order_id:$('jobOrder').value||null,assigned_to:$('jobAssignee').value||null,title:$('jobTitle').value.trim(),priority:Math.max(0,Math.min(100,Number($('jobPriority').value)||0)),planned_start:$('jobStart').value?new Date($('jobStart').value).toISOString():null,planned_end:$('jobEnd').value?new Date($('jobEnd').value).toISOString():null,notes:$('jobNotes').value.trim()||null,updated_at:new Date().toISOString()};
+  const id=$('jobId').value,order=orderOf($('jobOrder').value);const duration=Number($('jobDuration').value||0);
+  const payload={
+    order_id:$('jobOrder').value||null,
+    assigned_to:$('jobAssignee').value||null,
+    title:$('jobTitle').value.trim(),
+    priority:Math.max(0,Math.min(100,Number($('jobPriority').value)||0)),
+    operation_type:$('jobOperation').value.trim()||null,
+    planned_machine_minutes:duration>0?Math.min(43200,Math.round(duration)):null,
+    deadline_at:$('jobEnd').value?new Date($('jobEnd').value).toISOString():(order?.due_at||null),
+    notes:$('jobNotes').value.trim()||null,
+    updated_at:new Date().toISOString()
+  };
   if(!payload.title){$('jobError').textContent='Укажите название задания.';$('saveJob').disabled=false;return}
   try{
     const result=id?await supabase.from('production_jobs').update(payload).eq('id',id):await supabase.from('production_jobs').insert({...payload,status:'NEW'});if(result.error)throw result.error;$('jobDlg').close();await load();
@@ -131,7 +149,7 @@ $('jobForm').addEventListener('submit',async event=>{
 
 function initRealtime(){
   if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,650)};
-  state.channel=supabase.channel('production-live-v2').on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'orders'},reload).subscribe();
+  state.channel=supabase.channel('production-live-v3').on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'orders'},reload).subscribe();
   window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true});
 }
 
