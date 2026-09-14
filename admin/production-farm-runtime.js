@@ -6,7 +6,7 @@ const operationLabels={PRINT_2D:'2D-печать',PRINT_3D_FDM:'3D FDM',PRINT_3D
 const machineStatusLabels={FREE:'Свободно',WORKING:'В работе',QUEUED:'В очереди',MAINTENANCE:'ТО',REPAIR:'Ремонт',FAULT:'Неисправность',WAITING_PARTS:'Ждёт запчасти',OFFLINE:'Не используется',RETIRED:'Выведено'};
 const unavailable=new Set(['MAINTENANCE','REPAIR','FAULT','WAITING_PARTS','OFFLINE','RETIRED']);
 const state={jobs:new Map(),equipment:new Map(),runs:[],permissions:[],channel:null,loading:false,materials:[],reloadTimer:null};
-let observer=null,timer=null;
+let observer=null,timer=null,enhanceScheduled=false;
 
 function can(code){return state.permissions.includes(code)}
 function machine(id){return state.equipment.get(id)||null}
@@ -90,8 +90,10 @@ function enhanceCards(){
   document.querySelectorAll('article.production-job').forEach(card=>{
     const control=card.querySelector('[data-status][data-id], [data-edit]');const id=control?.dataset.id||control?.dataset.edit;if(!id)return;
     const job=state.jobs.get(id);if(!job)return;
-    card.querySelector('[data-farm-runtime-for]')?.remove();
-    const holder=document.createElement('div');holder.innerHTML=runtimeHtml(job);const runtime=holder.firstElementChild;
+    const html=runtimeHtml(job);const existing=card.querySelector('[data-farm-runtime-for]');
+    if(existing?.outerHTML===html)return;
+    existing?.remove();
+    const holder=document.createElement('div');holder.innerHTML=html;const runtime=holder.firstElementChild;
     const actions=card.querySelector('.production-job-actions');if(actions)actions.insertAdjacentElement('beforebegin',runtime);else card.appendChild(runtime);
   });
 }
@@ -158,8 +160,18 @@ function bindDelegatedActions(){
     const action=event.target.closest('[data-farm-action]');if(action){event.preventDefault();const[id,verb]=action.dataset.farmAction.split('|');runAction(id,verb,action)}
   });
 }
+function isRuntimeOnlyMutation(mutation){
+  const nodes=[...mutation.addedNodes,...mutation.removedNodes].filter(node=>node.nodeType===1);
+  return nodes.length>0&&nodes.every(node=>node.matches?.('[data-farm-runtime-for]')||node.closest?.('[data-farm-runtime-for]'));
+}
+function scheduleEnhanceCards(){
+  if(enhanceScheduled)return;enhanceScheduled=true;
+  requestAnimationFrame(()=>{enhanceScheduled=false;enhanceCards()});
+}
 function observeBoard(){
-  const board=document.querySelector('.production-board');if(!board)return;observer=new MutationObserver(()=>enhanceCards());observer.observe(board,{subtree:true,childList:true});
+  const board=document.querySelector('.production-board');if(!board)return;
+  observer=new MutationObserver(mutations=>{if(mutations.length&&mutations.every(isRuntimeOnlyMutation))return;scheduleEnhanceCards()});
+  observer.observe(board,{subtree:true,childList:true});
 }
 function initRealtime(){
   if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(loadData,300)};
