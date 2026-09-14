@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="./styles.css?v=20260908-production3">
   <link rel="stylesheet" href="./production-modern.css?v=20260908-1">
   <link rel="stylesheet" href="./production-farm-capacity.css?v=20260914-1">
+  <link rel="stylesheet" href="./production-farm-dispatcher.css?v=20260914-1">
   <script src="./config.js?v=20260908-production3"></script>
 </head>
 <body>
@@ -61,8 +62,9 @@
         <div class="production-field wide"><label>Название задания</label><input id="jobTitle" maxlength="250" required placeholder="Например: печать тиража, ламинация, 3D-печать модели"></div>
         <div class="production-field"><label>Исполнитель</label><select id="jobAssignee"><option value="">Не назначен</option></select></div>
         <div class="production-field"><label>Приоритет 0–100</label><input id="jobPriority" type="number" min="0" max="100" value="50"></div>
-        <div class="production-field"><label>Плановый старт</label><input id="jobStart" type="datetime-local"></div>
-        <div class="production-field"><label>Срок готовности</label><input id="jobEnd" type="datetime-local"></div>
+        <div class="production-field"><label>Тип операции</label><input id="jobOperation" maxlength="120" placeholder="Например: 3D_PRINT, LASER_CUT"></div>
+        <div class="production-field"><label>Машинное время, минут</label><input id="jobDuration" type="number" min="1" max="43200" step="1" placeholder="60"></div>
+        <div class="production-field wide"><label>Срок готовности</label><input id="jobEnd" type="datetime-local"><small style="color:#64748b">Это дедлайн заказа, а не конец занятого окна станка. Окно планирует диспетчер.</small></div>
         <div class="production-field wide"><label>Примечание</label><textarea id="jobNotes" rows="4" maxlength="3000" placeholder="Материал, оборудование, параметры, особые требования…"></textarea></div>
       </div>
       <div id="jobError" class="production-form-error"></div>
@@ -70,10 +72,11 @@
     </form>
   </dialog>
 
-  <script type="module" src="./production-modern.js?v=20260908-1"></script>
+  <script type="module" src="./production-modern.js?v=20260914-dispatch1"></script>
   <script type="module" src="./production-farm-runtime.js?v=20260914-1"></script>
   <script type="module" src="./production-farm-materials.js?v=20260914-1"></script>
   <script type="module" src="./production-farm-settlements.js?v=20260914-1"></script>
   <script type="module" src="./production-farm-capacity.js?v=20260914-1"></script>
+  <script type="module" src="./production-farm-dispatcher.js?v=20260914-1"></script>
 </body>
 </html>
