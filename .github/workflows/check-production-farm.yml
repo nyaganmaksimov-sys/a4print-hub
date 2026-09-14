@@ -10,6 +10,8 @@ on:
       - 'admin/equipment.html'
       - 'admin/production-farm-runtime.js'
       - 'admin/production-farm-runtime.css'
+      - 'admin/production-farm-materials.js'
+      - 'admin/production-farm-materials.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -22,6 +24,8 @@ on:
       - 'admin/equipment.html'
       - 'admin/production-farm-runtime.js'
       - 'admin/production-farm-runtime.css'
+      - 'admin/production-farm-materials.js'
+      - 'admin/production-farm-materials.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -48,18 +52,24 @@ jobs:
           test -s admin/equipment-ownership.css
           test -s admin/production-farm-runtime.js
           test -s admin/production-farm-runtime.css
+          test -s admin/production-farm-materials.js
+          test -s admin/production-farm-materials.css
           test -s database/migrations/20260914_production_farm_foundation.sql
           test -s database/migrations/20260914_production_farm_foundation_hardening.sql
           test -s database/migrations/20260914_production_farm_management_rpcs.sql
           test -s database/migrations/20260914_production_farm_job_execution.sql
           test -s database/migrations/20260914_production_farm_job_execution_clock_fix.sql
+          test -s database/migrations/20260914_production_farm_materials_costing.sql
+          test -s database/migrations/20260914_production_farm_materials_bridge.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
           test -s docs/PRODUCTION_FARM_PHASE2.md
+          test -s docs/PRODUCTION_FARM_PHASE3.md
 
       - name: Check JavaScript syntax
         run: |
           node --check admin/equipment-ownership.js
           node --check admin/production-farm-runtime.js
+          node --check admin/production-farm-materials.js
 
       - name: Verify UI wiring
         shell: bash
@@ -71,10 +81,14 @@ jobs:
           grep -q "save_equipment_contract" admin/equipment-ownership.js
           grep -q 'Собственность и договоры' admin/equipment-ownership.js
           grep -q 'production-farm-runtime.js?v=' admin/production.html
+          grep -q 'production-farm-materials.js?v=' admin/production.html
           grep -q "configure_production_job" admin/production-farm-runtime.js
           grep -q "transition_production_job" admin/production-farm-runtime.js
           grep -q 'production_job_runs' admin/production-farm-runtime.js
           grep -q 'Производственная ферма' admin/production-farm-runtime.js
+          grep -q "save_production_job_material_plan" admin/production-farm-materials.js
+          grep -q "production_material_action" admin/production-farm-materials.js
+          grep -q 'Материалы производства' admin/production-farm-materials.js
 
       - name: Verify database foundation
         shell: bash
@@ -92,3 +106,10 @@ jobs:
           grep -q 'configure_production_job' database/migrations/20260914_production_farm_job_execution.sql
           grep -q 'transition_production_job' database/migrations/20260914_production_farm_job_execution.sql
           grep -q 'clock_timestamp()' database/migrations/20260914_production_farm_job_execution_clock_fix.sql
+          grep -q 'create table if not exists public.production_job_materials' database/migrations/20260914_production_farm_materials_costing.sql
+          grep -q 'production_inventory_balance' database/migrations/20260914_production_farm_materials_costing.sql
+          grep -q 'save_production_job_material_plan' database/migrations/20260914_production_farm_materials_costing.sql
+          grep -q 'production_material_action' database/migrations/20260914_production_farm_materials_costing.sql
+          grep -q 'production_job_cost_breakdown' database/migrations/20260914_production_farm_materials_costing.sql
+          grep -q 'sync_equipment_consumable_to_catalog' database/migrations/20260914_production_farm_materials_bridge.sql
+          grep -q 'mirror_equipment_consumable_movement_to_inventory' database/migrations/20260914_production_farm_materials_bridge.sql
