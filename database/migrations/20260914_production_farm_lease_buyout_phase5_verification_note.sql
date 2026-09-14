@@ -1,0 +1,3 @@
+-- Phase 5 verification marker.
+-- The lease/buyout schema and RPCs were transaction-tested against the working database.
+-- No additional DDL is required in this migration.
