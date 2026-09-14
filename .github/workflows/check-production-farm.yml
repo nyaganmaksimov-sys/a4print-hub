@@ -7,6 +7,8 @@ on:
     paths:
       - 'admin/equipment-ownership.js'
       - 'admin/equipment-ownership.css'
+      - 'admin/equipment-buyout.js'
+      - 'admin/equipment-buyout.css'
       - 'admin/equipment.html'
       - 'admin/production-farm-runtime.js'
       - 'admin/production-farm-runtime.css'
@@ -23,6 +25,8 @@ on:
     paths:
       - 'admin/equipment-ownership.js'
       - 'admin/equipment-ownership.css'
+      - 'admin/equipment-buyout.js'
+      - 'admin/equipment-buyout.css'
       - 'admin/equipment.html'
       - 'admin/production-farm-runtime.js'
       - 'admin/production-farm-runtime.css'
@@ -54,6 +58,8 @@ jobs:
           set -euo pipefail
           test -s admin/equipment-ownership.js
           test -s admin/equipment-ownership.css
+          test -s admin/equipment-buyout.js
+          test -s admin/equipment-buyout.css
           test -s admin/production-farm-runtime.js
           test -s admin/production-farm-runtime.css
           test -s admin/production-farm-materials.js
@@ -72,14 +78,18 @@ jobs:
           test -s database/migrations/20260914_production_farm_owner_settlements_hardening.sql
           test -s database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
           test -s database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
+          test -s database/migrations/20260914_production_farm_lease_buyout.sql
+          test -s database/migrations/20260914_production_farm_lease_buyout_hardening.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
           test -s docs/PRODUCTION_FARM_PHASE2.md
           test -s docs/PRODUCTION_FARM_PHASE3.md
           test -s docs/PRODUCTION_FARM_PHASE4.md
+          test -s docs/PRODUCTION_FARM_PHASE5.md
 
       - name: Check JavaScript syntax
         run: |
           node --check admin/equipment-ownership.js
+          node --check admin/equipment-buyout.js
           node --check admin/production-farm-runtime.js
           node --check admin/production-farm-materials.js
           node --check admin/production-farm-settlements.js
@@ -89,10 +99,18 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'equipment-ownership.js?v=' admin/equipment.html
+          grep -q 'equipment-buyout.js?v=' admin/equipment.html
           grep -q "get_my_permissions" admin/equipment-ownership.js
           grep -q "save_equipment_ownership" admin/equipment-ownership.js
           grep -q "save_equipment_contract" admin/equipment-ownership.js
           grep -q 'Собственность и договоры' admin/equipment-ownership.js
+          grep -q "equipment_buyout_overview" admin/equipment-buyout.js
+          grep -q "configure_equipment_lease_terms" admin/equipment-buyout.js
+          grep -q "generate_equipment_lease_charge" admin/equipment-buyout.js
+          grep -q "record_equipment_buyout_payment" admin/equipment-buyout.js
+          grep -q "set_equipment_lease_charge_status" admin/equipment-buyout.js
+          grep -q "complete_equipment_buyout" admin/equipment-buyout.js
+          grep -q 'Аренда и выкуп оборудования' admin/equipment-buyout.js
           grep -q 'production-farm-runtime.js?v=' admin/production.html
           grep -q 'production-farm-materials.js?v=' admin/production.html
           grep -q 'production-farm-settlements.js?v=' admin/production.html
@@ -143,3 +161,12 @@ jobs:
           grep -q 'owner_settlements_read' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
           grep -q 'revoke all on public.equipment_owner_settlements from authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
           grep -q 'grant select on public.equipment_owner_settlements to authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
+          grep -q 'create table if not exists public.equipment_lease_charges' database/migrations/20260914_production_farm_lease_buyout.sql
+          grep -q 'configure_equipment_lease_terms' database/migrations/20260914_production_farm_lease_buyout.sql
+          grep -q 'generate_equipment_lease_charge' database/migrations/20260914_production_farm_lease_buyout.sql
+          grep -q 'record_equipment_buyout_payment' database/migrations/20260914_production_farm_lease_buyout.sql
+          grep -q 'set_equipment_lease_charge_status' database/migrations/20260914_production_farm_lease_buyout.sql
+          grep -q 'complete_equipment_buyout' database/migrations/20260914_production_farm_lease_buyout.sql
+          grep -q 'BUYOUT_PRICE_BELOW_PAID_CREDIT' database/migrations/20260914_production_farm_lease_buyout_hardening.sql
+          grep -q 'EQUIPMENT_HAS_OPEN_PRODUCTION' database/migrations/20260914_production_farm_lease_buyout_hardening.sql
+          grep -q 'BUYOUT_COMPLETED_LOCKED' database/migrations/20260914_production_farm_lease_buyout_hardening.sql
