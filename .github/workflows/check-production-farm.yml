@@ -87,6 +87,7 @@ jobs:
           test -s database/migrations/20260914_production_farm_lease_buyout.sql
           test -s database/migrations/20260914_production_farm_lease_buyout_hardening.sql
           test -s database/migrations/20260914_production_farm_equipment_economics.sql
+          test -s database/migrations/20260914_production_farm_equipment_economics_hardening.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
           test -s docs/PRODUCTION_FARM_PHASE2.md
           test -s docs/PRODUCTION_FARM_PHASE3.md
@@ -189,3 +190,6 @@ jobs:
           grep -q 'equipment_economics_daily' database/migrations/20260914_production_farm_equipment_economics.sql
           grep -q 'equipment_owner_obligations' database/migrations/20260914_production_farm_equipment_economics.sql
           grep -q 'revoke all on public.equipment_economics_daily from public, anon' database/migrations/20260914_production_farm_equipment_economics.sql
+          grep -q 'allocation_weight' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
+          grep -q 'weight_total' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
+          grep -q 'asset_count' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
