@@ -43,11 +43,11 @@ RPC `production_material_action(...)` поддерживает:
 
 Выдать больше текущего остатка нельзя. Вернуть или отправить в отход больше фактически выданного количества тоже нельзя.
 
-RPC `save_production_job_material_plan(...)` создаёт/обновляет план материала для задания. Оба RPC требуют permission `production.manage`.
+RPC `save_production_job_material_plan(...)` создаёт/обновляет план материала для задания. RPC `set_production_material_cost(...)` позволяет permission-checked способом задавать себестоимость единицы канонического материала. Управляющие RPC требуют permission `production.manage`.
 
 ## Остатки
 
-`production_inventory_balance(material, warehouse)` считает баланс по `inventory_transactions`:
+`production_inventory_balance(material, warehouse)` считает баланс по `inventory_transactions` и выполняется как `SECURITY INVOKER`, то есть прямой вызов соблюдает RLS вызывающего пользователя.
 
 Приход:
 - `RECEIPT`
@@ -111,3 +111,4 @@ RPC `save_production_job_material_plan(...)` создаёт/обновляет �
 
 1. `20260914_production_farm_materials_costing.sql`
 2. `20260914_production_farm_materials_bridge.sql`
+3. `20260914_production_farm_material_cost_updates.sql`
