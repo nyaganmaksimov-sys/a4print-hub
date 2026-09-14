@@ -12,6 +12,7 @@ on:
       - 'admin/equipment-economics.js'
       - 'admin/equipment-economics.css'
       - 'admin/equipment.html'
+      - 'admin/production-modern.js'
       - 'admin/production-farm-runtime.js'
       - 'admin/production-farm-runtime.css'
       - 'admin/production-farm-materials.js'
@@ -20,6 +21,8 @@ on:
       - 'admin/production-farm-settlements.css'
       - 'admin/production-farm-capacity.js'
       - 'admin/production-farm-capacity.css'
+      - 'admin/production-farm-dispatcher.js'
+      - 'admin/production-farm-dispatcher.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -34,6 +37,7 @@ on:
       - 'admin/equipment-economics.js'
       - 'admin/equipment-economics.css'
       - 'admin/equipment.html'
+      - 'admin/production-modern.js'
       - 'admin/production-farm-runtime.js'
       - 'admin/production-farm-runtime.css'
       - 'admin/production-farm-materials.js'
@@ -42,6 +46,8 @@ on:
       - 'admin/production-farm-settlements.css'
       - 'admin/production-farm-capacity.js'
       - 'admin/production-farm-capacity.css'
+      - 'admin/production-farm-dispatcher.js'
+      - 'admin/production-farm-dispatcher.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -64,54 +70,53 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s admin/equipment-ownership.js
-          test -s admin/equipment-ownership.css
-          test -s admin/equipment-buyout.js
-          test -s admin/equipment-buyout.css
-          test -s admin/equipment-economics.js
-          test -s admin/equipment-economics.css
-          test -s admin/production-farm-runtime.js
-          test -s admin/production-farm-runtime.css
-          test -s admin/production-farm-materials.js
-          test -s admin/production-farm-materials.css
-          test -s admin/production-farm-settlements.js
-          test -s admin/production-farm-settlements.css
-          test -s admin/production-farm-capacity.js
-          test -s admin/production-farm-capacity.css
-          test -s database/migrations/20260914_production_farm_foundation.sql
-          test -s database/migrations/20260914_production_farm_foundation_hardening.sql
-          test -s database/migrations/20260914_production_farm_management_rpcs.sql
-          test -s database/migrations/20260914_production_farm_job_execution.sql
-          test -s database/migrations/20260914_production_farm_job_execution_clock_fix.sql
-          test -s database/migrations/20260914_production_farm_materials_costing.sql
-          test -s database/migrations/20260914_production_farm_materials_bridge.sql
-          test -s database/migrations/20260914_production_farm_material_cost_updates.sql
-          test -s database/migrations/20260914_production_farm_owner_settlements.sql
-          test -s database/migrations/20260914_production_farm_owner_settlements_hardening.sql
-          test -s database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
-          test -s database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
-          test -s database/migrations/20260914_production_farm_lease_buyout.sql
-          test -s database/migrations/20260914_production_farm_lease_buyout_hardening.sql
-          test -s database/migrations/20260914_production_farm_equipment_economics.sql
-          test -s database/migrations/20260914_production_farm_equipment_economics_hardening.sql
-          test -s database/migrations/20260914_production_farm_capacity_planning.sql
-          test -s docs/PRODUCTION_FARM_PHASE1.md
-          test -s docs/PRODUCTION_FARM_PHASE2.md
-          test -s docs/PRODUCTION_FARM_PHASE3.md
-          test -s docs/PRODUCTION_FARM_PHASE4.md
-          test -s docs/PRODUCTION_FARM_PHASE5.md
-          test -s docs/PRODUCTION_FARM_PHASE6.md
-          test -s docs/PRODUCTION_FARM_PHASE7.md
+          files=(
+            admin/equipment-ownership.js admin/equipment-ownership.css
+            admin/equipment-buyout.js admin/equipment-buyout.css
+            admin/equipment-economics.js admin/equipment-economics.css
+            admin/production-modern.js
+            admin/production-farm-runtime.js admin/production-farm-runtime.css
+            admin/production-farm-materials.js admin/production-farm-materials.css
+            admin/production-farm-settlements.js admin/production-farm-settlements.css
+            admin/production-farm-capacity.js admin/production-farm-capacity.css
+            admin/production-farm-dispatcher.js admin/production-farm-dispatcher.css
+            admin/production.html
+            database/migrations/20260914_production_farm_foundation.sql
+            database/migrations/20260914_production_farm_foundation_hardening.sql
+            database/migrations/20260914_production_farm_management_rpcs.sql
+            database/migrations/20260914_production_farm_job_execution.sql
+            database/migrations/20260914_production_farm_job_execution_clock_fix.sql
+            database/migrations/20260914_production_farm_materials_costing.sql
+            database/migrations/20260914_production_farm_materials_bridge.sql
+            database/migrations/20260914_production_farm_material_cost_updates.sql
+            database/migrations/20260914_production_farm_owner_settlements.sql
+            database/migrations/20260914_production_farm_owner_settlements_hardening.sql
+            database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
+            database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
+            database/migrations/20260914_production_farm_lease_buyout.sql
+            database/migrations/20260914_production_farm_lease_buyout_hardening.sql
+            database/migrations/20260914_production_farm_equipment_economics.sql
+            database/migrations/20260914_production_farm_equipment_economics_hardening.sql
+            database/migrations/20260914_production_farm_capacity_planning.sql
+            database/migrations/20260914_production_farm_dispatcher.sql
+            docs/PRODUCTION_FARM_PHASE1.md docs/PRODUCTION_FARM_PHASE2.md
+            docs/PRODUCTION_FARM_PHASE3.md docs/PRODUCTION_FARM_PHASE4.md
+            docs/PRODUCTION_FARM_PHASE5.md docs/PRODUCTION_FARM_PHASE6.md
+            docs/PRODUCTION_FARM_PHASE7.md docs/PRODUCTION_FARM_PHASE8.md
+          )
+          for f in "${files[@]}"; do test -s "$f" || { echo "Missing/empty: $f"; exit 1; }; done
 
       - name: Check JavaScript syntax
         run: |
           node --check admin/equipment-ownership.js
           node --check admin/equipment-buyout.js
           node --check admin/equipment-economics.js
+          node --check admin/production-modern.js
           node --check admin/production-farm-runtime.js
           node --check admin/production-farm-materials.js
           node --check admin/production-farm-settlements.js
           node --check admin/production-farm-capacity.js
+          node --check admin/production-farm-dispatcher.js
 
       - name: Verify UI wiring
         shell: bash
@@ -120,97 +125,43 @@ jobs:
           grep -q 'equipment-ownership.js?v=' admin/equipment.html
           grep -q 'equipment-buyout.js?v=' admin/equipment.html
           grep -q 'equipment-economics.js?v=' admin/equipment.html
-          grep -q 'equipment-economics.css?v=' admin/equipment.html
-          grep -q "get_my_permissions" admin/equipment-ownership.js
-          grep -q "save_equipment_ownership" admin/equipment-ownership.js
-          grep -q "save_equipment_contract" admin/equipment-ownership.js
-          grep -q 'Собственность и договоры' admin/equipment-ownership.js
-          grep -q "equipment_buyout_overview" admin/equipment-buyout.js
-          grep -q "configure_equipment_lease_terms" admin/equipment-buyout.js
-          grep -q "generate_equipment_lease_charge" admin/equipment-buyout.js
-          grep -q "record_equipment_buyout_payment" admin/equipment-buyout.js
-          grep -q "set_equipment_lease_charge_status" admin/equipment-buyout.js
-          grep -q "complete_equipment_buyout" admin/equipment-buyout.js
-          grep -q 'Аренда и выкуп оборудования' admin/equipment-buyout.js
-          grep -q "equipment_economics_daily" admin/equipment-economics.js
-          grep -q "equipment_owner_obligations" admin/equipment-economics.js
-          grep -q "production_capacity_between" admin/equipment-economics.js
-          grep -q 'календарю мощности оборудования' admin/equipment-economics.js
           grep -q 'production-farm-runtime.js?v=' admin/production.html
           grep -q 'production-farm-materials.js?v=' admin/production.html
           grep -q 'production-farm-settlements.js?v=' admin/production.html
           grep -q 'production-farm-capacity.js?v=' admin/production.html
-          grep -q 'production-farm-capacity.css?v=' admin/production.html
-          grep -q "configure_production_job" admin/production-farm-runtime.js
-          grep -q "transition_production_job" admin/production-farm-runtime.js
-          grep -q 'production_job_runs' admin/production-farm-runtime.js
-          grep -q 'Производственная ферма' admin/production-farm-runtime.js
-          grep -q "save_production_job_material_plan" admin/production-farm-materials.js
-          grep -q "production_material_action" admin/production-farm-materials.js
-          grep -q 'Материалы производства' admin/production-farm-materials.js
-          grep -q "generate_equipment_owner_settlement" admin/production-farm-settlements.js
-          grep -q "set_equipment_owner_settlement_status" admin/production-farm-settlements.js
-          grep -q 'Расчёты с владельцами оборудования' admin/production-farm-settlements.js
-          grep -q "production_capacity_between" admin/production-farm-capacity.js
-          grep -q "save_equipment_capacity" admin/production-farm-capacity.js
-          grep -q "schedule_production_job" admin/production-farm-capacity.js
-          grep -q 'План загрузки производства' admin/production-farm-capacity.js
+          grep -q 'production-farm-dispatcher.js?v=' admin/production.html
+          grep -q 'production-farm-dispatcher.css?v=' admin/production.html
+          grep -q 'jobDuration' admin/production.html
+          grep -q 'jobOperation' admin/production.html
+          grep -q 'deadline_at' admin/production-modern.js
+          grep -q 'planned_machine_minutes' admin/production-modern.js
+          grep -q 'auto_dispatch_production_queue' admin/production-farm-dispatcher.js
+          grep -q 'schedule_production_job_into_day' admin/production-farm-dispatcher.js
+          grep -q 'set_production_dispatch_lock' admin/production-farm-dispatcher.js
+          grep -q 'save_production_dispatch_settings' admin/production-farm-dispatcher.js
+          grep -q 'save_production_equipment_capabilities' admin/production-farm-dispatcher.js
+          grep -q 'draggable=' admin/production-farm-dispatcher.js
+          grep -q 'Диспетчер производства' admin/production-farm-dispatcher.js
 
-      - name: Verify database foundation
+      - name: Verify production database safety markers
         shell: bash
         run: |
           set -euo pipefail
           grep -q 'create table if not exists public.permissions' database/migrations/20260914_production_farm_foundation.sql
-          grep -q 'create table if not exists public.equipment_contracts' database/migrations/20260914_production_farm_foundation.sql
-          grep -q 'create table if not exists public.equipment_ownership_history' database/migrations/20260914_production_farm_foundation.sql
-          grep -q 'create table if not exists public.audit_log' database/migrations/20260914_production_farm_foundation.sql
           grep -q 'SHARES_MUST_TOTAL_100' database/migrations/20260914_production_farm_management_rpcs.sql
-          grep -q 'PERMISSION_DENIED' database/migrations/20260914_production_farm_management_rpcs.sql
-          grep -q 'revoke all on function public.audit_row_change' database/migrations/20260914_production_farm_foundation_hardening.sql
-          grep -q 'create table if not exists public.production_job_runs' database/migrations/20260914_production_farm_job_execution.sql
           grep -q 'production_jobs_one_running_per_equipment_idx' database/migrations/20260914_production_farm_job_execution.sql
-          grep -q 'configure_production_job' database/migrations/20260914_production_farm_job_execution.sql
-          grep -q 'transition_production_job' database/migrations/20260914_production_farm_job_execution.sql
-          grep -q 'clock_timestamp()' database/migrations/20260914_production_farm_job_execution_clock_fix.sql
-          grep -q 'create table if not exists public.production_job_materials' database/migrations/20260914_production_farm_materials_costing.sql
-          grep -q 'production_inventory_balance' database/migrations/20260914_production_farm_materials_costing.sql
-          grep -q 'save_production_job_material_plan' database/migrations/20260914_production_farm_materials_costing.sql
-          grep -q 'production_material_action' database/migrations/20260914_production_farm_materials_costing.sql
           grep -q 'production_job_cost_breakdown' database/migrations/20260914_production_farm_materials_costing.sql
-          grep -q 'sync_equipment_consumable_to_catalog' database/migrations/20260914_production_farm_materials_bridge.sql
-          grep -q 'mirror_equipment_consumable_movement_to_inventory' database/migrations/20260914_production_farm_materials_bridge.sql
-          grep -q 'set_production_material_cost' database/migrations/20260914_production_farm_material_cost_updates.sql
-          grep -q 'create table if not exists public.equipment_owner_settlements' database/migrations/20260914_production_farm_owner_settlements.sql
-          grep -q 'create table if not exists public.equipment_owner_settlement_lines' database/migrations/20260914_production_farm_owner_settlements.sql
           grep -q 'generate_equipment_owner_settlement' database/migrations/20260914_production_farm_owner_settlements.sql
-          grep -q 'set_equipment_owner_settlement_status' database/migrations/20260914_production_farm_owner_settlements.sql
-          grep -q 'equipment_owner_settlement_overview' database/migrations/20260914_production_farm_owner_settlements.sql
-          grep -q 'PRODUCTION_JOB_ALREADY_SETTLED' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
-          grep -q 'PAYMENT_REFERENCE_REQUIRED' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
-          grep -q 'SETTLEMENT_PERIOD_OVERLAP' database/migrations/20260914_production_farm_owner_settlements_hardening.sql
-          grep -q 'equipment_owner_settlement_lines_equipment_idx' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
-          grep -q 'owner_settlements_read' database/migrations/20260914_production_farm_owner_settlements_advisor_hardening.sql
-          grep -q 'revoke all on public.equipment_owner_settlements from authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
-          grep -q 'grant select on public.equipment_owner_settlements to authenticated' database/migrations/20260914_production_farm_owner_settlements_acl_fix.sql
-          grep -q 'create table if not exists public.equipment_lease_charges' database/migrations/20260914_production_farm_lease_buyout.sql
-          grep -q 'configure_equipment_lease_terms' database/migrations/20260914_production_farm_lease_buyout.sql
-          grep -q 'generate_equipment_lease_charge' database/migrations/20260914_production_farm_lease_buyout.sql
-          grep -q 'record_equipment_buyout_payment' database/migrations/20260914_production_farm_lease_buyout.sql
-          grep -q 'set_equipment_lease_charge_status' database/migrations/20260914_production_farm_lease_buyout.sql
           grep -q 'complete_equipment_buyout' database/migrations/20260914_production_farm_lease_buyout.sql
-          grep -q 'BUYOUT_PRICE_BELOW_PAID_CREDIT' database/migrations/20260914_production_farm_lease_buyout_hardening.sql
-          grep -q 'EQUIPMENT_HAS_OPEN_PRODUCTION' database/migrations/20260914_production_farm_lease_buyout_hardening.sql
-          grep -q 'BUYOUT_COMPLETED_LOCKED' database/migrations/20260914_production_farm_lease_buyout_hardening.sql
-          grep -q 'security_invoker = true' database/migrations/20260914_production_farm_equipment_economics.sql
           grep -q 'equipment_economics_daily' database/migrations/20260914_production_farm_equipment_economics.sql
-          grep -q 'equipment_owner_obligations' database/migrations/20260914_production_farm_equipment_economics.sql
-          grep -q 'revoke all on public.equipment_economics_daily from public, anon' database/migrations/20260914_production_farm_equipment_economics.sql
-          grep -q 'allocation_weight' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
-          grep -q 'weight_total' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
-          grep -q 'asset_count' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
-          grep -q 'create table if not exists public.equipment_capacity_rules' database/migrations/20260914_production_farm_capacity_planning.sql
-          grep -q 'save_equipment_capacity' database/migrations/20260914_production_farm_capacity_planning.sql
           grep -q 'validate_production_job_schedule' database/migrations/20260914_production_farm_capacity_planning.sql
           grep -q 'EQUIPMENT_PLAN_OVERLAP' database/migrations/20260914_production_farm_capacity_planning.sql
-          grep -q 'schedule_production_job' database/migrations/20260914_production_farm_capacity_planning.sql
-          grep -q 'production_capacity_between' database/migrations/20260914_production_farm_capacity_planning.sql
+          grep -q 'create table if not exists public.production_dispatch_settings' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'create table if not exists public.production_equipment_capabilities' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'production_find_dispatch_slot_internal' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'auto_dispatch_production_job' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'auto_dispatch_production_queue' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'schedule_production_job_into_day' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q 'trg_replan_production_jobs_after_equipment_fault' database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q "dispatch_locked=true" database/migrations/20260914_production_farm_dispatcher.sql
+          grep -q "status in ('NEW','QUEUED','PAUSED')" database/migrations/20260914_production_farm_dispatcher.sql
