@@ -95,8 +95,8 @@ lease_assets as (
   join public.equipment_contracts c on c.id = ca.contract_id
   join public.equipment_lease_charges ch on ch.contract_id = c.id
   where c.contract_type in ('LEASE','LEASE_BUYOUT')
-    and (ca.detached_at is null or ch.period_start <= ca.detached_at)
-    and (ca.attached_at is null or ch.period_end >= ca.attached_at)
+    and (ca.ends_on is null or ch.period_start <= ca.ends_on)
+    and (ca.starts_on is null or ch.period_end >= ca.starts_on)
   group by ca.equipment_id
 )
 select
