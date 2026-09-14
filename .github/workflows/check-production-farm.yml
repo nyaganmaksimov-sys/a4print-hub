@@ -18,6 +18,8 @@ on:
       - 'admin/production-farm-materials.css'
       - 'admin/production-farm-settlements.js'
       - 'admin/production-farm-settlements.css'
+      - 'admin/production-farm-capacity.js'
+      - 'admin/production-farm-capacity.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -38,6 +40,8 @@ on:
       - 'admin/production-farm-materials.css'
       - 'admin/production-farm-settlements.js'
       - 'admin/production-farm-settlements.css'
+      - 'admin/production-farm-capacity.js'
+      - 'admin/production-farm-capacity.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -72,6 +76,8 @@ jobs:
           test -s admin/production-farm-materials.css
           test -s admin/production-farm-settlements.js
           test -s admin/production-farm-settlements.css
+          test -s admin/production-farm-capacity.js
+          test -s admin/production-farm-capacity.css
           test -s database/migrations/20260914_production_farm_foundation.sql
           test -s database/migrations/20260914_production_farm_foundation_hardening.sql
           test -s database/migrations/20260914_production_farm_management_rpcs.sql
@@ -88,12 +94,14 @@ jobs:
           test -s database/migrations/20260914_production_farm_lease_buyout_hardening.sql
           test -s database/migrations/20260914_production_farm_equipment_economics.sql
           test -s database/migrations/20260914_production_farm_equipment_economics_hardening.sql
+          test -s database/migrations/20260914_production_farm_capacity_planning.sql
           test -s docs/PRODUCTION_FARM_PHASE1.md
           test -s docs/PRODUCTION_FARM_PHASE2.md
           test -s docs/PRODUCTION_FARM_PHASE3.md
           test -s docs/PRODUCTION_FARM_PHASE4.md
           test -s docs/PRODUCTION_FARM_PHASE5.md
           test -s docs/PRODUCTION_FARM_PHASE6.md
+          test -s docs/PRODUCTION_FARM_PHASE7.md
 
       - name: Check JavaScript syntax
         run: |
@@ -103,6 +111,7 @@ jobs:
           node --check admin/production-farm-runtime.js
           node --check admin/production-farm-materials.js
           node --check admin/production-farm-settlements.js
+          node --check admin/production-farm-capacity.js
 
       - name: Verify UI wiring
         shell: bash
@@ -125,11 +134,13 @@ jobs:
           grep -q 'Аренда и выкуп оборудования' admin/equipment-buyout.js
           grep -q "equipment_economics_daily" admin/equipment-economics.js
           grep -q "equipment_owner_obligations" admin/equipment-economics.js
-          grep -q 'Экономика производственной фермы' admin/equipment-economics.js
-          grep -q '8 часов × рабочий день' admin/equipment-economics.js
+          grep -q "production_capacity_between" admin/equipment-economics.js
+          grep -q 'календарю мощности оборудования' admin/equipment-economics.js
           grep -q 'production-farm-runtime.js?v=' admin/production.html
           grep -q 'production-farm-materials.js?v=' admin/production.html
           grep -q 'production-farm-settlements.js?v=' admin/production.html
+          grep -q 'production-farm-capacity.js?v=' admin/production.html
+          grep -q 'production-farm-capacity.css?v=' admin/production.html
           grep -q "configure_production_job" admin/production-farm-runtime.js
           grep -q "transition_production_job" admin/production-farm-runtime.js
           grep -q 'production_job_runs' admin/production-farm-runtime.js
@@ -140,6 +151,10 @@ jobs:
           grep -q "generate_equipment_owner_settlement" admin/production-farm-settlements.js
           grep -q "set_equipment_owner_settlement_status" admin/production-farm-settlements.js
           grep -q 'Расчёты с владельцами оборудования' admin/production-farm-settlements.js
+          grep -q "production_capacity_between" admin/production-farm-capacity.js
+          grep -q "save_equipment_capacity" admin/production-farm-capacity.js
+          grep -q "schedule_production_job" admin/production-farm-capacity.js
+          grep -q 'План загрузки производства' admin/production-farm-capacity.js
 
       - name: Verify database foundation
         shell: bash
@@ -193,3 +208,9 @@ jobs:
           grep -q 'allocation_weight' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
           grep -q 'weight_total' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
           grep -q 'asset_count' database/migrations/20260914_production_farm_equipment_economics_hardening.sql
+          grep -q 'create table if not exists public.equipment_capacity_rules' database/migrations/20260914_production_farm_capacity_planning.sql
+          grep -q 'save_equipment_capacity' database/migrations/20260914_production_farm_capacity_planning.sql
+          grep -q 'validate_production_job_schedule' database/migrations/20260914_production_farm_capacity_planning.sql
+          grep -q 'EQUIPMENT_PLAN_OVERLAP' database/migrations/20260914_production_farm_capacity_planning.sql
+          grep -q 'schedule_production_job' database/migrations/20260914_production_farm_capacity_planning.sql
+          grep -q 'production_capacity_between' database/migrations/20260914_production_farm_capacity_planning.sql
