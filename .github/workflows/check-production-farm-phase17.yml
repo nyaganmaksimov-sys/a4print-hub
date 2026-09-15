@@ -1,0 +1,82 @@
+name: Check Production Farm Phase 17
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-responses.js'
+      - 'admin/equipment-partner-responses.html'
+      - 'admin/equipment-partner-responses.js'
+      - 'admin/navigation.js'
+      - 'database/migrations/20260915_production_farm_partner_responses.sql'
+      - 'database/migrations/20260915_production_farm_partner_responses_ordering.sql'
+      - 'docs/PRODUCTION_FARM_PHASE17.md'
+      - '.github/workflows/check-production-farm-phase17.yml'
+
+jobs:
+  phase17-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check partner/equipment-owner-responses.js
+          node --check admin/equipment-partner-responses.js
+          node --check admin/navigation.js
+
+      - name: Verify partner UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-owner-responses.js?v=' partner/equipment.html
+          grep -q 'get_my_equipment_partner_responses' partner/equipment-owner-responses.js
+          grep -q 'submit_equipment_partner_response' partner/equipment-owner-responses.js
+          grep -q 'Подтверждения' partner/equipment-owner-responses.js
+          grep -q 'DISPUTED' partner/equipment-owner-responses.js
+
+      - name: Verify admin dispute queue wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-partner-responses.js?v=' admin/equipment-partner-responses.html
+          grep -q 'list_equipment_partner_disputes' admin/equipment-partner-responses.js
+          grep -q 'resolve_equipment_partner_dispute' admin/equipment-partner-responses.js
+          grep -q "equipment-partner-responses.html','equipment','Ответы владельцев" admin/navigation.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql1='database/migrations/20260915_production_farm_partner_responses.sql'
+          sql2='database/migrations/20260915_production_farm_partner_responses_ordering.sql'
+          test -s "$sql1" && test -s "$sql2"
+          grep -q 'create table if not exists public.equipment_partner_responses' "$sql1"
+          grep -q 'DISPUTE_COMMENT_REQUIRED' "$sql1"
+          grep -q 'RESPONSE_ALREADY_CURRENT' "$sql1"
+          grep -q 'resolve_equipment_partner_dispute' "$sql1"
+          grep -q "set search_path=''" "$sql1"
+          grep -q 'current_partner_id()' "$sql1"
+          grep -q 'current_partner_user_id()' "$sql1"
+          grep -q 'revoke all on function public.submit_equipment_partner_response' "$sql1"
+          grep -q 'grant execute on function public.submit_equipment_partner_response' "$sql1"
+          grep -q 'event_sequence bigint generated always as identity' "$sql2"
+          grep -q 'order by event_sequence desc' "$sql2"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/PRODUCTION_FARM_PHASE17.md
+          grep -qi 'append-only' docs/PRODUCTION_FARM_PHASE17.md
+          grep -q 'phase17_response_lifecycle_ok' docs/PRODUCTION_FARM_PHASE17.md
+          grep -q 'event_sequence' docs/PRODUCTION_FARM_PHASE17.md
