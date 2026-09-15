@@ -2,13 +2,18 @@
 
 Phase 30 добавляет независимую read-only проверку финансовых цепочек, созданных Phase 27–29. Она не исправляет деньги автоматически и не меняет `cash_transactions`.
 
-## Что контролируется
+## Что считается финансовой правдой
 
-Для каждого `SETTLED`-требования и каждой цепочки, где уже есть финансовые операции, система сверяет:
+Фактический денежный эффект считается непосредственно по реальным source-tagged строкам `cash_transactions`, независимо от audit-таблиц:
 
-- исходную операцию `EQUIPMENT_CONDITION_CLAIM`;
-- audit и операцию сторно `EQUIPMENT_CONDITION_CLAIM_REVERSAL`;
-- audit и исправленную операцию `EQUIPMENT_CONDITION_CLAIM_REPOST`;
+- original: `external_source='EQUIPMENT_CONDITION_CLAIM'` + `external_id=claim_id`;
+- reversal: `external_source='EQUIPMENT_CONDITION_CLAIM_REVERSAL'` + `external_id=original_transaction_id`;
+- repost: `external_source='EQUIPMENT_CONDITION_CLAIM_REPOST'` + `external_id=claim_id`.
+
+Audit-записи reversals/reposts проверяются отдельно как доказательство корректной связи и процедуры. Поэтому потерянный audit не скрывает реально прошедшее движение денег и не искажает actual net effect.
+
+Для каждого `SETTLED`-требования и каждой цепочки, где уже есть финансовые операции, система также сверяет:
+
 - согласованную `settled_amount`;
 - организацию оборудования;
 - валюту cash account;
@@ -21,8 +26,8 @@ Phase 30 добавляет независимую read-only проверку ф
 
 - `PENDING_POSTING` — требование урегулировано, финансовой проводки ещё нет;
 - `ACTIVE` — действует исходная Phase 27-проводка;
-- `REVERSED` — исходная операция компенсирована сторно, ожидаемый net effect равен 0;
-- `REPOSTED` — после сторно создана исправленная Phase 29-проводка.
+- `REVERSED` — исходная операция компенсирована фактическим сторно, ожидаемый net effect равен 0;
+- `REPOSTED` — после сторно существует фактическая исправленная Phase 29-проводка.
 
 `PENDING_POSTING` само по себе не является нарушением.
 
@@ -33,18 +38,22 @@ Integrity checker выявляет в том числе:
 - финансовую операцию у требования не в `SETTLED`;
 - потерянный original;
 - несовпадение суммы, организации, валюты или направления original;
-- reversal без audit или audit без reversal transaction;
+- reversal без audit;
+- audit reversal, который ссылается на отсутствующую transaction;
+- `REVERSAL_EXTERNAL_TRANSACTION_MISSING` — audit reversal есть, а фактической source-tagged reversal transaction нет;
 - неправильную связь reversal с original;
 - неверную сумму, направление, счёт или организацию сторно;
 - repost без reversal;
-- repost без audit или audit без transaction;
+- repost без audit;
+- audit repost, который ссылается на отсутствующую transaction;
+- `REPOST_EXTERNAL_TRANSACTION_MISSING` — audit repost есть, а фактической source-tagged repost transaction нет;
 - неправильную связь repost с reversal;
 - несовпадение суммы, организации, валюты или направления repost;
-- `NET_EFFECT_MISMATCH` — фактический финансовый эффект не совпадает с ожидаемым.
+- `NET_EFFECT_MISMATCH` — фактический денежный эффект по source-tagged `cash_transactions` не совпадает с ожидаемым.
 
 ## Серверные функции
 
-Внутренний helper `equipment_condition_claim_financial_integrity_rows()` строит проверочную модель по фактическим таблицам. EXECUTE для `anon` и `authenticated` у helper закрыт.
+Внутренний helper `equipment_condition_claim_financial_integrity_rows()` строит проверочную модель. EXECUTE для `anon` и `authenticated` у helper закрыт.
 
 Пользовательский read-RPC:
 
@@ -89,7 +98,7 @@ Cron:
 
 ## Transaction test
 
-Инъекционный тест выполнен внутри `BEGIN ... ROLLBACK` штатной полной цепочкой inspection → comparison → claim → cash transactions.
+Основной инъекционный тест выполнен внутри `BEGIN ... ROLLBACK` штатной полной цепочкой inspection → comparison → claim → cash transactions.
 
 В reversal намеренно было поставлено то же направление, что и у original. Контроль обнаружил:
 
@@ -101,5 +110,7 @@ Cron:
 Первый вызов background emitter создал событие, повторный вызов создал 0 дублей.
 
 Результат: `phase30_claim_financial_integrity_ok`.
+
+Отдельный hardening-сценарий проверяет реальную source-tagged reversal transaction без audit-записи: фактический net effect остаётся равным 0, система сообщает `REVERSAL_AUDIT_MISSING`, но не создаёт ложный `NET_EFFECT_MISMATCH`.
 
 После rollback: residual assets = 0, contracts = 0, claims = 0, cash transactions = 0, integrity events = 0.
