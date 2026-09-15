@@ -1,0 +1,87 @@
+name: Check Production Farm Phase 29
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-condition-claim-reversals.html'
+      - 'admin/equipment-condition-claim-reversals.js'
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-condition-claim-reversals.js'
+      - 'database/migrations/20260915_production_farm_condition_claim_corrected_repost.sql'
+      - 'docs/PRODUCTION_FARM_PHASE29.md'
+      - '.github/workflows/check-production-farm-phase29.yml'
+
+jobs:
+  phase29-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/equipment-condition-claim-reversals.js
+          node --check partner/equipment-owner-condition-claim-reversals.js
+
+      - name: Verify HUB and partner wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-condition-claim-reversals.html
+          test -s admin/equipment-condition-claim-reversals.js
+          grep -q 'equipment-condition-claim-reversals.js?v=20260915-phase29-1' admin/equipment-condition-claim-reversals.html
+          grep -q 'list_equipment_condition_claim_financial_reposts' admin/equipment-condition-claim-reversals.js
+          grep -q 'get_equipment_condition_claim_financial_repost_options' admin/equipment-condition-claim-reversals.js
+          grep -q 'repost_equipment_condition_claim_financial_transaction' admin/equipment-condition-claim-reversals.js
+          grep -q 'Исправить проводку' admin/equipment-condition-claim-reversals.js
+          grep -q 'Провести исправление' admin/equipment-condition-claim-reversals.html
+          grep -q 'equipment-owner-condition-claim-reversals.js?v=20260915-phase29-1' partner/equipment.html
+          grep -q 'get_my_equipment_condition_claim_financial_reposts' partner/equipment-owner-condition-claim-reversals.js
+          grep -q 'Исправленная проводка создана' partner/equipment-owner-condition-claim-reversals.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_condition_claim_corrected_repost.sql'
+          test -s "$sql"
+          grep -q 'create table if not exists public.equipment_condition_claim_financial_reposts' "$sql"
+          grep -q 'CONDITION_CLAIM_FINANCIAL_REPOST_APPEND_ONLY' "$sql"
+          grep -q 'uq_cash_transactions_equipment_condition_claim_repost' "$sql"
+          grep -q 'EQUIPMENT_CONDITION_CLAIM_REPOST' "$sql"
+          grep -q 'get_equipment_condition_claim_financial_repost_options' "$sql"
+          grep -q 'repost_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q 'list_equipment_condition_claim_financial_reposts' "$sql"
+          grep -q 'get_my_equipment_condition_claim_financial_reposts' "$sql"
+          grep -q "public.has_permission('equipment.contracts.manage')" "$sql"
+          grep -q "public.has_permission('production.settlements.manage')" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'CLAIM_FINANCIAL_REVERSAL_REQUIRED' "$sql"
+          grep -q 'CLAIM_FINANCIAL_REVERSAL_PAIR_INVALID' "$sql"
+          grep -q 'CLAIM_FINANCIAL_REPOST_EXISTS' "$sql"
+          grep -q 'REPOST_REASON_REQUIRED' "$sql"
+          grep -q 'REPOST_REFERENCE_REQUIRED' "$sql"
+          grep -q 'FINANCIAL_REPOST' "$sql"
+          grep -q 'revoke all on public.equipment_condition_claim_financial_reposts from public,anon,authenticated' "$sql"
+          grep -q 'grant select on public.equipment_condition_claim_financial_reposts to authenticated' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE29.md'
+          test -s "$doc"
+          grep -q 'phase29_claim_financial_repost_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'original → reversal → repost' "$doc"
+          grep -q 'append-only' "$doc"
+          grep -q 'Repost без сторно запрещён' "$doc"
+          grep -q 'residual Phase 29 cash transactions: `0`' "$doc"
