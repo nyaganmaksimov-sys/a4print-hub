@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Целостность финансовых требований — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
+  <script src="./config.js?v=20260915-phase30"></script>
+  <style>
+    .efi-shell{padding:22px;max-width:1480px;margin:0 auto}.efi-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}.efi-kpis article,.efi-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:15px}.efi-kpis span,.efi-kpis small{display:block;color:#64748b}.efi-kpis strong{display:block;font-size:25px;margin:4px 0}.efi-kpis .danger{border-color:#fecaca;background:#fffafa}.efi-kpis .success{border-color:#bbf7d0}.efi-head-actions{display:flex;gap:8px;flex-wrap:wrap}.efi-btn,.efi-head-actions a{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:9px 11px;font:inherit;font-weight:800;cursor:pointer;color:#0f172a;text-decoration:none}.efi-toolbar{display:grid;grid-template-columns:minmax(240px,1fr) 220px auto;gap:10px;align-items:center;margin-bottom:14px}.efi-toolbar input,.efi-toolbar select{border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font:inherit;box-sizing:border-box;width:100%}.efi-list{display:grid;gap:10px}.efi-row{border:1px solid #e2e8f0;border-radius:14px;padding:14px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(170px,.55fr) minmax(230px,.75fr) minmax(260px,1fr);gap:12px;align-items:start}.efi-row.ERROR{border-color:#fecaca;background:#fffafa}.efi-row h3{margin:0 0 4px;font-size:15px}.efi-row p,.efi-row small{margin:0;color:#64748b;font-size:12px}.efi-pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:900;background:#f1f5f9;color:#475569;margin:0 4px 4px 0}.efi-pill.OK{background:#dcfce7;color:#166534}.efi-pill.ERROR{background:#fee2e2;color:#991b1b}.efi-pill.ACTIVE{background:#dcfce7;color:#166534}.efi-pill.REVERSED{background:#fef3c7;color:#92400e}.efi-pill.REPOSTED{background:#dbeafe;color:#1d4ed8}.efi-pill.PENDING_POSTING{background:#f1f5f9;color:#475569}.efi-issues{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.efi-issue{font-size:10px;padding:4px 6px;border-radius:7px;background:#fee2e2;color:#991b1b;font-weight:800}.efi-money{font-size:15px;font-weight:900}.efi-money.bad{color:#b91c1c}.efi-empty{padding:32px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:12px}.efi-error{padding:10px 12px;margin-bottom:12px;border-radius:10px;background:#fef2f2;color:#991b1b}.efi-note{padding:11px 13px;border-radius:10px;background:#eff6ff;color:#1e40af;margin-bottom:12px}.efi-chain{display:grid;gap:4px;margin-top:6px}.efi-chain span{font-size:11px;color:#475569}.efi-chain b{color:#0f172a}@media(max-width:1100px){.efi-kpis{grid-template-columns:repeat(3,1fr)}.efi-row{grid-template-columns:1fr 1fr}}@media(max-width:700px){.efi-shell{padding:12px}.efi-kpis{grid-template-columns:1fr 1fr}.efi-toolbar,.efi-row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar"><div><h1>Целостность финансовых требований</h1><p>Контроль цепочки original → reversal → repost по фактическим финансовым операциям.</p></div><div class="efi-head-actions"><a href="./equipment-condition-claim-reversals.html">← Финансовые корректировки</a><button id="efiRefresh" class="efi-btn" type="button">↻ Проверить сейчас</button></div></header>
+    <div class="efi-shell">
+      <div class="efi-note">Экран ничего не исправляет автоматически. Он сверяет `cash_transactions`, audit-связи, сумму, направление, организацию, валюту, счёт и итоговый net effect. При нарушении ежедневный серверный контроль создаёт одно дедуплицированное предупреждение для ответственных сотрудников.</div>
+      <section class="efi-kpis">
+        <article><span>Всего цепочек</span><strong id="efiTotal">0</strong><small>SETTLED или с финансами</small></article>
+        <article class="success"><span>Целостны</span><strong id="efiOk">0</strong><small>ошибок не найдено</small></article>
+        <article class="danger"><span>Нарушения</span><strong id="efiErrors">0</strong><small>требуют проверки</small></article>
+        <article><span>Ожидают проводки</span><strong id="efiPending">0</strong><small>финансовой операции ещё нет</small></article>
+        <article><span>Сторнировано</span><strong id="efiReversed">0</strong><small>net effect должен быть 0</small></article>
+        <article><span>Исправлено</span><strong id="efiReposted">0</strong><small>действует repost</small></article>
+      </section>
+      <section class="efi-card">
+        <div class="efi-toolbar"><input id="efiSearch" type="search" placeholder="Партнёр, договор, оборудование, ошибка…"><select id="efiState"><option value="">Все состояния</option><option value="PENDING_POSTING">Ожидает проводки</option><option value="ACTIVE">Активная</option><option value="REVERSED">Сторнирована</option><option value="REPOSTED">Исправлена</option></select><label><input id="efiOnlyIssues" type="checkbox"> Только нарушения</label></div>
+        <div id="efiError"></div><div id="efiList" class="efi-list"><div class="efi-empty">Проверка…</div></div>
+      </section>
+    </div>
+  </main>
+  <script src="./navigation.js?v=20260915-phase30"></script>
+  <script type="module" src="./equipment-condition-claim-integrity.js?v=20260915-phase30-1"></script>
+</body>
+</html>
