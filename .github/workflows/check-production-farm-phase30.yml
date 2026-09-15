@@ -11,6 +11,7 @@ on:
       - 'database/migrations/20260915_production_farm_claim_financial_integrity.sql'
       - 'database/migrations/20260915_production_farm_claim_financial_integrity_append_only.sql'
       - 'database/migrations/20260915_production_farm_claim_financial_integrity_function_names.sql'
+      - 'database/migrations/20260915_production_farm_claim_financial_integrity_external_truth.sql'
       - 'docs/PRODUCTION_FARM_PHASE30.md'
       - '.github/workflows/check-production-farm-phase30.yml'
 
@@ -40,6 +41,8 @@ jobs:
           grep -q 'get_equipment_condition_claim_financial_integrity' admin/equipment-condition-claim-integrity.js
           grep -q 'Контроль целостности' admin/equipment-condition-claim-reversals.html
           grep -q 'equipment-condition-claim-integrity.html' admin/equipment-condition-claim-reversals.html
+          grep -q 'REVERSAL_EXTERNAL_TRANSACTION_MISSING' admin/equipment-condition-claim-integrity.js
+          grep -q 'REPOST_EXTERNAL_TRANSACTION_MISSING' admin/equipment-condition-claim-integrity.js
           grep -q 'NET_EFFECT_MISMATCH' admin/equipment-condition-claim-integrity.js
           grep -q 'Только нарушения' admin/equipment-condition-claim-integrity.html
           grep -q 'Фактический net effect' admin/equipment-condition-claim-integrity.html
@@ -51,7 +54,8 @@ jobs:
           sql='database/migrations/20260915_production_farm_claim_financial_integrity.sql'
           imm='database/migrations/20260915_production_farm_claim_financial_integrity_append_only.sql'
           names='database/migrations/20260915_production_farm_claim_financial_integrity_function_names.sql'
-          test -s "$sql"; test -s "$imm"; test -s "$names"
+          truth='database/migrations/20260915_production_farm_claim_financial_integrity_external_truth.sql'
+          test -s "$sql"; test -s "$imm"; test -s "$names"; test -s "$truth"
           grep -q 'create table if not exists public.equipment_condition_claim_financial_integrity_events' "$sql"
           grep -q 'equipment_condition_claim_financial_integrity_rows' "$sql"
           grep -q 'get_equipment_condition_claim_financial_integrity' "$sql"
@@ -69,6 +73,12 @@ jobs:
           grep -q "equipment-claim-financial-integrity-daily" "$names"
           grep -q "'30 6 \* \* \*'" "$names"
           grep -q 'revoke all on function public.emit_equipment_claim_financial_integrity_notifications() from public,anon,authenticated' "$names"
+          grep -q 'REVERSAL_EXTERNAL_TRANSACTION_MISSING' "$truth"
+          grep -q 'REPOST_EXTERNAL_TRANSACTION_MISSING' "$truth"
+          grep -q "external_source='EQUIPMENT_CONDITION_CLAIM_REVERSAL'" "$truth"
+          grep -q "external_source='EQUIPMENT_CONDITION_CLAIM_REPOST'" "$truth"
+          grep -q 'actual_net' "$truth"
+          grep -q "revoke all on function public.equipment_condition_claim_financial_integrity_rows() from public,anon,authenticated" "$truth"
 
       - name: Verify documentation
         shell: bash
@@ -78,10 +88,14 @@ jobs:
           test -s "$doc"
           grep -q 'phase30_claim_financial_integrity_ok' "$doc"
           grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'source-tagged' "$doc"
+          grep -q 'REVERSAL_EXTERNAL_TRANSACTION_MISSING' "$doc"
+          grep -q 'REPOST_EXTERNAL_TRANSACTION_MISSING' "$doc"
           grep -q 'REVERSAL_DIRECTION_MISMATCH' "$doc"
           grep -q 'NET_EFFECT_MISMATCH' "$doc"
           grep -q 'actual net effect = 200' "$doc"
           grep -q 'expected net effect = 0' "$doc"
           grep -q 'повторный вызов создал 0 дублей' "$doc"
+          grep -q 'REVERSAL_AUDIT_MISSING' "$doc"
           grep -q 'residual assets = 0' "$doc"
           grep -q '06:30 UTC' "$doc"
