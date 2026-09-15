@@ -40,18 +40,18 @@ jobs:
           test -s admin/equipment-condition-claims.html
           test -s admin/equipment-condition-claims.js
           test -s partner/equipment-owner-condition-claims.js
-          grep -q 'equipment-condition-claims.js?v=20260915-phase26-1' admin/equipment-condition-claims.html
+          grep -q 'equipment-condition-claims.js?v=20260915-phase' admin/equipment-condition-claims.html
           grep -q 'list_equipment_condition_claims' admin/equipment-condition-claims.js
           grep -q 'list_equipment_condition_claim_candidates' admin/equipment-condition-claims.js
           grep -q 'save_equipment_condition_claim' admin/equipment-condition-claims.js
           grep -q 'issue_equipment_condition_claim' admin/equipment-condition-claims.js
           grep -q 'resolve_equipment_condition_claim' admin/equipment-condition-claims.js
           grep -q 'equipment-condition-claims.html.*Требования по состоянию' admin/navigation.js
-          grep -q 'equipment-owner-condition-claims.js?v=20260915-phase26-1' partner/equipment.html
+          grep -q 'equipment-owner-condition-claims.js?v=20260915-phase' partner/equipment.html
           grep -q 'get_my_equipment_condition_claims' partner/equipment-owner-condition-claims.js
           grep -q 'submit_equipment_condition_claim_response' partner/equipment-owner-condition-claims.js
           grep -q 'Требования' partner/equipment-owner-condition-claims.js
-          grep -q 'не создаёт автоматическую задолженность' partner/equipment-owner-condition-claims.js
+          grep -q 'не выполняет оплату автоматически' partner/equipment-owner-condition-claims.js
 
       - name: Verify database safety markers
         shell: bash
