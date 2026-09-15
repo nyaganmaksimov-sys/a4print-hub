@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Моё оборудование — A4PRINT Partner Portal</title>
+  <script src="./config.js?v=20260915-phase16"></script>
+  <link rel="stylesheet" href="./equipment-owner.css?v=20260915-1">
+</head>
+<body>
+  <header class="eo-top">
+    <div><h1>Моё оборудование в A4PRINT HUB</h1><p id="eoPartner">Загрузка данных владельца…</p></div>
+    <div class="eo-top-actions"><a href="./index.html">← Партнёрский портал</a><button id="eoRefresh" type="button">↻ Обновить</button><button id="eoLogout" type="button">Выйти</button></div>
+  </header>
+
+  <main class="eo-wrap" id="eoRoot">
+    <div id="eoError"></div>
+    <section class="eo-kpis">
+      <article class="eo-kpi"><span>Оборудование</span><strong id="eoEquipmentCount">0</strong><small>в договорах с HUB</small></article>
+      <article class="eo-kpi"><span>Активные договоры</span><strong id="eoContractCount">0</strong><small>действуют сейчас</small></article>
+      <article class="eo-kpi"><span>Начислено владельцу</span><strong id="eoOwnerTotal">0 ₽</strong><small>по доле с выручки</small></article>
+      <article class="eo-kpi"><span>Выплачено владельцу</span><strong id="eoOwnerPaid">0 ₽</strong><small>подтверждённые выплаты</small></article>
+      <article class="eo-kpi"><span>Открытые ремонты</span><strong id="eoIncidentCount">0</strong><small>требуют внимания</small></article>
+    </section>
+
+    <nav class="eo-tabs" aria-label="Разделы кабинета">
+      <button class="eo-tab active" data-tab="equipment" type="button">Оборудование</button>
+      <button class="eo-tab" data-tab="contracts" type="button">Договоры</button>
+      <button class="eo-tab" data-tab="money" type="button">Начисления и выплаты</button>
+      <button class="eo-tab" data-tab="repairs" type="button">Ремонты</button>
+      <button class="eo-tab" data-tab="documents" type="button">Документы</button>
+      <button class="eo-tab" data-tab="termination" type="button">Расторжение</button>
+    </nav>
+
+    <section class="eo-panel active" data-panel="equipment"><div id="eoEquipment" class="eo-grid"><div class="eo-empty">Загрузка…</div></div></section>
+    <section class="eo-panel" data-panel="contracts"><div id="eoContracts" class="eo-grid"></div></section>
+    <section class="eo-panel" data-panel="money"><div id="eoMoney" class="eo-list"></div></section>
+    <section class="eo-panel" data-panel="repairs"><div id="eoRepairs" class="eo-list"></div></section>
+    <section class="eo-panel" data-panel="documents"><div id="eoDocuments" class="eo-list"></div></section>
+    <section class="eo-panel" data-panel="termination"><div id="eoTermination" class="eo-list"></div></section>
+  </main>
+
+  <dialog id="eoDocumentDlg" class="eo-dialog">
+    <div class="eo-doc">
+      <header class="eo-doc-head"><strong id="eoDocTitle">Документ</strong><div><button id="eoPrint" type="button">Печать</button><button id="eoDocClose" type="button">Закрыть</button></div></header>
+      <div id="eoDocBody" class="eo-doc-body"><div class="eo-empty">Загрузка…</div></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./equipment-owner.js?v=20260915-1"></script>
+</body>
+</html>
