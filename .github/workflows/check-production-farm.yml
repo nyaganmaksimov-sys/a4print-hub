@@ -11,6 +11,8 @@ on:
       - 'admin/equipment-buyout.css'
       - 'admin/equipment-economics.js'
       - 'admin/equipment-economics.css'
+      - 'admin/equipment-incidents.js'
+      - 'admin/equipment-incidents.css'
       - 'admin/equipment.html'
       - 'admin/production-modern.js'
       - 'admin/production-farm-runtime.js'
@@ -42,6 +44,8 @@ on:
       - 'admin/equipment-buyout.css'
       - 'admin/equipment-economics.js'
       - 'admin/equipment-economics.css'
+      - 'admin/equipment-incidents.js'
+      - 'admin/equipment-incidents.css'
       - 'admin/equipment.html'
       - 'admin/production-modern.js'
       - 'admin/production-farm-runtime.js'
@@ -86,6 +90,7 @@ jobs:
             admin/equipment-ownership.js admin/equipment-ownership.css
             admin/equipment-buyout.js admin/equipment-buyout.css
             admin/equipment-economics.js admin/equipment-economics.css
+            admin/equipment-incidents.js admin/equipment-incidents.css
             admin/production-modern.js
             admin/production-farm-runtime.js admin/production-farm-runtime.css
             admin/production-farm-materials.js admin/production-farm-materials.css
@@ -95,7 +100,7 @@ jobs:
             admin/production-farm-operator.js admin/production-farm-operator.css
             admin/production-farm-analytics.js admin/production-farm-analytics.css
             admin/production-farm-monitoring.js admin/production-farm-monitoring.css
-            admin/production.html
+            admin/production.html admin/equipment.html
             database/migrations/20260914_production_farm_foundation.sql
             database/migrations/20260914_production_farm_foundation_hardening.sql
             database/migrations/20260914_production_farm_management_rpcs.sql
@@ -118,12 +123,17 @@ jobs:
             database/migrations/20260914_production_farm_oee_analytics.sql
             database/migrations/20260914_production_farm_monitoring.sql
             database/migrations/20260914_production_farm_monitoring_hardening.sql
+            database/migrations/20260914_production_farm_maintenance_monitor_integration.sql
+            database/migrations/20260915_production_farm_incidents_repairs.sql
+            database/migrations/20260915_production_farm_incidents_repairs_hardening.sql
+            database/migrations/20260915_production_farm_incidents_acl_hardening.sql
             docs/PRODUCTION_FARM_PHASE1.md docs/PRODUCTION_FARM_PHASE2.md
             docs/PRODUCTION_FARM_PHASE3.md docs/PRODUCTION_FARM_PHASE4.md
             docs/PRODUCTION_FARM_PHASE5.md docs/PRODUCTION_FARM_PHASE6.md
             docs/PRODUCTION_FARM_PHASE7.md docs/PRODUCTION_FARM_PHASE8.md
             docs/PRODUCTION_FARM_PHASE9.md docs/PRODUCTION_FARM_PHASE10.md
-            docs/PRODUCTION_FARM_PHASE11.md
+            docs/PRODUCTION_FARM_PHASE11.md docs/PRODUCTION_FARM_PHASE12.md
+            docs/PRODUCTION_FARM_PHASE13.md
           )
           for f in "${files[@]}"; do test -s "$f" || { echo "Missing/empty: $f"; exit 1; }; done
 
@@ -132,6 +142,7 @@ jobs:
           node --check admin/equipment-ownership.js
           node --check admin/equipment-buyout.js
           node --check admin/equipment-economics.js
+          node --check admin/equipment-incidents.js
           node --check admin/production-modern.js
           node --check admin/production-farm-runtime.js
           node --check admin/production-farm-materials.js
@@ -149,6 +160,10 @@ jobs:
           grep -q 'equipment-ownership.js?v=' admin/equipment.html
           grep -q 'equipment-buyout.js?v=' admin/equipment.html
           grep -q 'equipment-economics.js?v=' admin/equipment.html
+          grep -q 'equipment-incidents.js?v=' admin/equipment.html
+          grep -q 'equipment-incidents.css?v=' admin/equipment.html
+          grep -q 'equipment-incidents.js?v=' admin/production.html
+          grep -q 'equipment-incidents.css?v=' admin/production.html
           grep -q 'production-farm-runtime.js?v=' admin/production.html
           grep -q 'production-farm-materials.js?v=' admin/production.html
           grep -q 'production-farm-settlements.js?v=' admin/production.html
@@ -184,6 +199,11 @@ jobs:
           grep -q 'production_monitor_settings' admin/production-farm-monitoring.js
           grep -q 'save_production_monitor_settings' admin/production-farm-monitoring.js
           grep -q 'Контроль производства' admin/production-farm-monitoring.js
+          grep -q 'report_equipment_incident' admin/equipment-incidents.js
+          grep -q 'record_equipment_incident_repair' admin/equipment-incidents.js
+          grep -q 'link_equipment_incident_document' admin/equipment-incidents.js
+          grep -q 'data-report-job-incident' admin/equipment-incidents.js
+          grep -q 'Инциденты и ремонты' admin/equipment-incidents.js
 
       - name: Verify production database safety markers
         shell: bash
@@ -225,3 +245,15 @@ jobs:
           grep -q 'revoke all on public.production_monitor_settings from public,anon,authenticated' database/migrations/20260914_production_farm_monitoring.sql
           grep -q 'equipment_capacity_rules' database/migrations/20260914_production_farm_monitoring_hardening.sql
           test "$(grep -c 'production_capacity_between' database/migrations/20260914_production_farm_monitoring_hardening.sql)" -eq 1
+          grep -q 'equipment_maintenance_plans' database/migrations/20260914_production_farm_maintenance_monitor_integration.sql
+          grep -q 'create table if not exists public.equipment_incidents' database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q "pause_reason='EQUIPMENT'" database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q 'report_equipment_incident' database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q 'record_equipment_incident_repair' database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q 'link_equipment_incident_document' database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q 'equipment_incident_overview' database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q "values('equipment.repair'" database/migrations/20260915_production_farm_incidents_repairs.sql
+          grep -q 'previous_operational_status' database/migrations/20260915_production_farm_incidents_repairs_hardening.sql
+          grep -q 'x.id=i.production_job_id' database/migrations/20260915_production_farm_incidents_repairs_hardening.sql
+          grep -q 'revoke all on public.equipment_incidents from public,anon,authenticated' database/migrations/20260915_production_farm_incidents_acl_hardening.sql
+          grep -q 'revoke all on public.equipment_incident_overview from public,anon,authenticated' database/migrations/20260915_production_farm_incidents_acl_hardening.sql
