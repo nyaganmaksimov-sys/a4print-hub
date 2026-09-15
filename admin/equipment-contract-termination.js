@@ -11,6 +11,7 @@ const state={permissions:[],terminations:[],contracts:[],partners:[],loading:fal
 const can=code=>state.permissions.includes(code);
 const partnerName=id=>{const p=state.partners.find(x=>x.id===id);return p?.legal_name||p?.name||'—'};
 const blockerCount=row=>['open_jobs_count','open_incidents_count','open_settlements_count','open_lease_charges_count','unsettled_jobs_count'].reduce((s,k)=>s+Number(row?.[k]||0),0);
+const equipmentNames=items=>(Array.isArray(items)?items:[]).map(x=>x?.inventory_number||x?.equipment_name||'оборудование').filter(Boolean).join(', ');
 
 function addStyle(){
   if(document.querySelector('link[data-contract-termination-style]'))return;
@@ -164,13 +165,26 @@ async function handleListAction(e){
   if(btn.dataset.act==='cancel'){
     const note=prompt('Причина отмены процедуры расторжения:');if(note===null)return;btn.disabled=true;const {error}=await supabase.rpc('set_equipment_contract_termination_status',{p_termination_id:row.termination_id,p_status:'CANCELLED',p_note:note.trim()||'Отменено оператором'});if(error)alert(friendlyError(error));await load();return;
   }
-  if(btn.dataset.act==='finish')openFinish(row);
+  if(btn.dataset.act==='finish')await openFinish(row);
 }
 
-function openFinish(row){
-  document.getElementById('ctFinishForm').reset();document.getElementById('ctFinishId').value=row.termination_id;document.getElementById('ctFinishSubtitle').textContent=`${row.contract_number} · ${row.partner_name} · прекращение ${date(row.effective_end_date)}`;
-  const blockers=blockerCount(row);document.getElementById('ctFinishBlockers').innerHTML=blockers?`<b>Закрытие заблокировано:</b> ${blockers} незавершённых элементов.`:'<b>Проверка пройдена:</b> активных работ, аварий и незакрытых расчётов нет.';
-  document.getElementById('ctFinishSave').disabled=!!blockers||todayIso()<String(row.effective_end_date||'');showError('ctFinishError','');document.getElementById('ctFinishDlg').showModal();
+async function openFinish(row){
+  document.getElementById('ctFinishForm').reset();
+  document.getElementById('ctFinishId').value=row.termination_id;
+  document.getElementById('ctFinishSubtitle').textContent=`${row.contract_number} · ${row.partner_name} · прекращение ${date(row.effective_end_date)}`;
+  const baseBlockers=blockerCount(row);const dateReached=todayIso()>=String(row.effective_end_date||'');const box=document.getElementById('ctFinishBlockers');const save=document.getElementById('ctFinishSave');
+  box.innerHTML='<b>Проверяю возвратные осмотры и сверки состояния…</b>';save.disabled=true;showError('ctFinishError','');document.getElementById('ctFinishDlg').showModal();
+  try{
+    const {data,error}=await supabase.rpc('get_equipment_contract_termination_condition_preflight',{p_termination_id:row.termination_id});if(error)throw error;
+    const pre=data||{};const missingReturns=Number(pre.missing_return_inspections_count||0);const missingComparisons=Number(pre.missing_condition_comparisons_count||0);const openComparisons=Number(pre.open_condition_comparisons_count||0);const conditionBlockers=missingReturns+missingComparisons+openComparisons;const notes=[];
+    if(baseBlockers)notes.push(`<div class="ct-note danger"><b>Производственные/финансовые блокировки:</b> ${baseBlockers}. Сначала закройте работы, аварии и расчёты.</div>`);
+    if(!dateReached)notes.push(`<div class="ct-note warn"><b>Дата прекращения ещё не наступила:</b> ${date(row.effective_end_date)}.</div>`);
+    if(missingReturns)notes.push(`<div class="ct-note danger"><b>Нет завершённого возвратного осмотра:</b> ${missingReturns} ед.${equipmentNames(pre.missing_return_inspections)?` — ${esc(equipmentNames(pre.missing_return_inspections))}`:''}. <a href="./equipment-condition-inspections.html" target="_blank" rel="noopener">Открыть осмотры состояния</a>.</div>`);
+    if(missingComparisons)notes.push(`<div class="ct-note danger"><b>Не сформирована сверка состояния:</b> ${missingComparisons} ед.${equipmentNames(pre.missing_condition_comparisons)?` — ${esc(equipmentNames(pre.missing_condition_comparisons))}`:''}. Завершите возвратный осмотр и проверьте автоматическую сверку.</div>`);
+    if(openComparisons)notes.push(`<div class="ct-note danger"><b>Есть неразрешённые расхождения состояния:</b> ${openComparisons}. Финализация запрещена, пока HUB не зафиксирует решение. <a href="./equipment-condition-comparisons.html" target="_blank" rel="noopener">Открыть сверку состояния</a>. Система сама не назначает виновного и не создаёт долг.</div>`);
+    if(!baseBlockers&&dateReached&&!conditionBlockers)notes.push('<div class="ct-note" style="background:#ecfdf5;color:#166534"><b>Проверка пройдена:</b> возвратные осмотры завершены, сверки состояния сформированы, открытых материальных расхождений нет.</div>');
+    box.innerHTML=notes.join('');save.disabled=!!baseBlockers||!dateReached||conditionBlockers>0;
+  }catch(err){box.innerHTML='<div class="ct-note danger"><b>Не удалось выполнить preflight.</b> Финализация отключена до успешной проверки.</div>';showError('ctFinishError',friendlyError(err));save.disabled=true}
 }
 
 async function submitFinish(e){
@@ -184,7 +198,7 @@ async function submitFinish(e){
 function showError(id,text){const el=document.getElementById(id);if(!el)return;el.innerHTML=text?`<div class="ct-error">${esc(text)}</div>`:''}
 function friendlyError(err){
   const msg=String(err?.message||err||'Ошибка');
-  const map=[['PERMISSION_DENIED','Недостаточно прав для этой операции.'],['NOTICE_PERIOD_REQUIRED:','Выбранная дата нарушает срок уведомления по договору. Укажите допустимую дату либо оформите сокращение срока по соглашению сторон.'],['ACTIVE_TERMINATION_EXISTS','По этому договору уже есть незавершённая процедура расторжения.'],['CONTRACT_TERMINATION_OPEN_JOBS:','Есть незавершённые производственные задания на оборудовании договора.'],['CONTRACT_TERMINATION_OPEN_INCIDENTS:','Есть незакрытые аварии или ремонты оборудования.'],['CONTRACT_TERMINATION_OPEN_SETTLEMENTS:','Есть незакрытые расчёты с владельцем.'],['CONTRACT_TERMINATION_OPEN_LEASE_CHARGES:','Есть незакрытые арендные начисления.'],['CONTRACT_TERMINATION_UNSETTLED_JOBS:','Есть завершённые операции, ещё не включённые в оплаченный расчёт владельца.'],['TERMINATION_DATE_NOT_REACHED','Дата прекращения договора ещё не наступила.'],['RETURN_REFERENCE_REQUIRED','Укажите акт возврата / передачи.'],['FINANCIAL_CLEARANCE_REQUIRED','Укажите документ финальной сверки расчётов.'],['DOCUMENT_NOT_FOUND','Документ с указанным ID не найден.']];
+  const map=[['PERMISSION_DENIED','Недостаточно прав для этой операции.'],['NOTICE_PERIOD_REQUIRED:','Выбранная дата нарушает срок уведомления по договору. Укажите допустимую дату либо оформите сокращение срока по соглашению сторон.'],['ACTIVE_TERMINATION_EXISTS','По этому договору уже есть незавершённая процедура расторжения.'],['CONTRACT_TERMINATION_OPEN_JOBS:','Есть незавершённые производственные задания на оборудовании договора.'],['CONTRACT_TERMINATION_OPEN_INCIDENTS:','Есть незакрытые аварии или ремонты оборудования.'],['CONTRACT_TERMINATION_OPEN_SETTLEMENTS:','Есть незакрытые расчёты с владельцем.'],['CONTRACT_TERMINATION_OPEN_LEASE_CHARGES:','Есть незакрытые арендные начисления.'],['CONTRACT_TERMINATION_UNSETTLED_JOBS:','Есть завершённые операции, ещё не включённые в оплаченный расчёт владельца.'],['CONDITION_COMPARISON_RESOLUTION_REQUIRED:','Есть неразрешённая сверка состояния с материальными расхождениями. Сначала зафиксируйте решение в разделе «Сверка состояния».'],['CONDITION_COMPARISON_REQUIRED:','По завершённому возвратному осмотру не сформирована сверка состояния. Проверьте возвратный осмотр перед закрытием договора.'],['RETURN_INSPECTION_REQUIRED','Не по всему оборудованию завершён возвратный осмотр. Сначала оформите акты осмотра состояния.'],['TERMINATION_DATE_NOT_REACHED','Дата прекращения договора ещё не наступила.'],['RETURN_REFERENCE_REQUIRED','Укажите акт возврата / передачи.'],['FINANCIAL_CLEARANCE_REQUIRED','Укажите документ финальной сверки расчётов.'],['DOCUMENT_NOT_FOUND','Документ с указанным ID не найден.']];
   for(const [key,text] of map)if(msg.includes(key))return text;return msg;
 }
 

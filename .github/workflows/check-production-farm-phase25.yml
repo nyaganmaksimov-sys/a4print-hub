@@ -1,0 +1,74 @@
+name: Check Production Farm Phase 25
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-contract-termination.js'
+      - 'database/migrations/20260915_production_farm_termination_condition_gate.sql'
+      - 'docs/PRODUCTION_FARM_PHASE25.md'
+      - '.github/workflows/check-production-farm-phase25.yml'
+
+jobs:
+  phase25-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: node --check admin/equipment-contract-termination.js
+
+      - name: Verify termination preflight UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          js='admin/equipment-contract-termination.js'
+          test -s "$js"
+          grep -q 'get_equipment_contract_termination_condition_preflight' "$js"
+          grep -q 'missing_return_inspections_count' "$js"
+          grep -q 'missing_condition_comparisons_count' "$js"
+          grep -q 'open_condition_comparisons_count' "$js"
+          grep -q 'equipment-condition-inspections.html' "$js"
+          grep -q 'equipment-condition-comparisons.html' "$js"
+          grep -q 'CONDITION_COMPARISON_RESOLUTION_REQUIRED:' "$js"
+          grep -q 'Система сама не назначает виновного и не создаёт долг' "$js"
+
+      - name: Verify database guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_termination_condition_gate.sql'
+          test -s "$sql"
+          grep -q 'get_equipment_contract_termination_condition_preflight' "$sql"
+          grep -q 'guard_equipment_termination_condition_comparisons' "$sql"
+          grep -q 'trg_guard_equipment_termination_condition_comparisons' "$sql"
+          grep -q 'CONDITION_COMPARISON_REQUIRED:' "$sql"
+          grep -q 'CONDITION_COMPARISON_RESOLUTION_REQUIRED:' "$sql"
+          grep -q 'RETURN_INSPECTION_REQUIRED:' "$sql"
+          grep -q "comparison_status='OPEN'" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'revoke all on function public.guard_equipment_termination_condition_comparisons' "$sql"
+          grep -q 'grant execute on function public.get_equipment_contract_termination_condition_preflight' "$sql"
+          grep -q 'finalize_equipment_contract_termination' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE25.md'
+          test -s "$doc"
+          grep -q 'phase25_termination_condition_gate_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'NO_DISCREPANCY' "$doc"
+          grep -q 'NO_BASELINE' "$doc"
+          grep -q 'RESOLVED' "$doc"
+          grep -q 'не создаёт долг' "$doc"
+          grep -q 'не создаёт платёж' "$doc"
