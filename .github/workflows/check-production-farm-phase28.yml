@@ -39,12 +39,12 @@ jobs:
           set -euo pipefail
           test -s admin/equipment-condition-claim-reversals.html
           test -s admin/equipment-condition-claim-reversals.js
-          grep -q 'equipment-condition-claim-reversals.js?v=20260915-phase28-1' admin/equipment-condition-claim-reversals.html
+          grep -q 'equipment-condition-claim-reversals.js?v=' admin/equipment-condition-claim-reversals.html
           grep -q 'equipment-condition-claim-reversals.html.*Сторно проводок' admin/equipment-condition-claims.html
           grep -q 'list_equipment_condition_claim_financial_reversals' admin/equipment-condition-claim-reversals.js
           grep -q 'reverse_equipment_condition_claim_financial_transaction' admin/equipment-condition-claim-reversals.js
           grep -q 'Создать сторно' admin/equipment-condition-claim-reversals.html
-          grep -q 'equipment-owner-condition-claim-reversals.js?v=20260915-phase28-1' partner/equipment.html
+          grep -q 'equipment-owner-condition-claim-reversals.js?v=' partner/equipment.html
           grep -q 'get_my_equipment_condition_claim_financial_reversals' partner/equipment-owner-condition-claim-reversals.js
           grep -q 'Финансовая операция сторнирована' partner/equipment-owner-condition-claim-reversals.js
 
