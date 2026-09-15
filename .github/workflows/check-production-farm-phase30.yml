@@ -45,7 +45,7 @@ jobs:
           grep -q 'REPOST_EXTERNAL_TRANSACTION_MISSING' admin/equipment-condition-claim-integrity.js
           grep -q 'NET_EFFECT_MISMATCH' admin/equipment-condition-claim-integrity.js
           grep -q 'Только нарушения' admin/equipment-condition-claim-integrity.html
-          grep -q 'Фактический net effect' admin/equipment-condition-claim-integrity.html
+          grep -q 'фактический и ожидаемый net effect' admin/equipment-condition-claim-integrity.html
 
       - name: Verify database integrity markers
         shell: bash
