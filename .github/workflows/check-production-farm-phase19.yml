@@ -9,6 +9,7 @@ on:
       - 'admin/equipment-risk-assets.js'
       - 'admin/equipment-risk-assets.css'
       - 'database/migrations/20260915_production_farm_insurance_improvements.sql'
+      - 'database/migrations/20260915_production_farm_insurance_improvements_hardening.sql'
       - 'docs/PRODUCTION_FARM_PHASE19.md'
       - '.github/workflows/check-production-farm-phase19.yml'
 
@@ -46,7 +47,9 @@ jobs:
         run: |
           set -euo pipefail
           sql='database/migrations/20260915_production_farm_insurance_improvements.sql'
+          hard='database/migrations/20260915_production_farm_insurance_improvements_hardening.sql'
           test -s "$sql"
+          test -s "$hard"
           grep -q 'create table if not exists public.equipment_insurance_policies' "$sql"
           grep -q 'create table if not exists public.equipment_improvements' "$sql"
           grep -q 'equipment_risk_overview' "$sql"
@@ -59,6 +62,9 @@ jobs:
           grep -q "equipment-insurance-daily'" "$sql"
           grep -q "'15 6 \* \* \*'" "$sql"
           grep -q 'revoke all on function public.emit_equipment_insurance_notifications() from public,anon,authenticated' "$sql"
+          grep -q 'equipment_insurance_notice_events_browser_deny' "$hard"
+          grep -q 'using(false)' "$hard"
+          grep -q 'revoke insert,update,delete on public.equipment_insurance_notice_events from authenticated' "$hard"
 
       - name: Verify documentation
         shell: bash
@@ -67,4 +73,5 @@ jobs:
           test -s docs/PRODUCTION_FARM_PHASE19.md
           grep -q 'POLICY_EXPIRING' docs/PRODUCTION_FARM_PHASE19.md
           grep -q 'pg_cron' docs/PRODUCTION_FARM_PHASE19.md
+          grep -q 'phase19_insurance_improvements_ok' docs/PRODUCTION_FARM_PHASE19.md
           grep -q 'ROLLBACK' docs/PRODUCTION_FARM_PHASE19.md
