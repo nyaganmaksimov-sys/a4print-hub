@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ответы владельцев оборудования — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
+  <script src="./config.js?v=20260915-phase17"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Ответы владельцев оборудования</h1><p>Расхождения по расчётам, аренде и опубликованным документам</p></div>
+      <div class="eq-actions"><a href="./equipment.html" class="button">← Оборудование</a><button id="eprRefresh" type="button">↻ Обновить</button></div>
+    </header>
+    <div class="epr-shell">
+      <section class="epr-kpis">
+        <article><span>Открытые расхождения</span><strong id="eprOpen">0</strong><small>требуют разбора</small></article>
+        <article><span>Показано</span><strong id="eprShown">0</strong><small>записей в очереди</small></article>
+      </section>
+      <section class="epr-card">
+        <div class="epr-toolbar"><label><input id="eprResolved" type="checkbox"> Показать рассмотренные</label><input id="eprSearch" type="search" placeholder="Партнёр, пользователь, комментарий…"></div>
+        <div id="eprError"></div>
+        <div id="eprList" class="epr-list"><div class="epr-empty">Загрузка…</div></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./equipment-partner-responses.js?v=20260915-1"></script>
+</body>
+</html>
