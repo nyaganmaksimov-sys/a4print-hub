@@ -87,6 +87,7 @@ jobs:
           doc='docs/PRODUCTION_FARM_PHASE30.md'
           test -s "$doc"
           grep -q 'phase30_claim_financial_integrity_ok' "$doc"
+          grep -q 'phase30_external_truth_without_audit_ok' "$doc"
           grep -q 'BEGIN ... ROLLBACK' "$doc"
           grep -q 'source-tagged' "$doc"
           grep -q 'REVERSAL_EXTERNAL_TRANSACTION_MISSING' "$doc"
