@@ -1,0 +1,87 @@
+name: Check Production Farm Phase 28
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-condition-claims.html'
+      - 'admin/equipment-condition-claim-reversals.html'
+      - 'admin/equipment-condition-claim-reversals.js'
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-condition-claim-reversals.js'
+      - 'database/migrations/20260915_production_farm_condition_claim_posting_reversal.sql'
+      - 'database/migrations/20260915_production_farm_claim_reversal_allow_inactive_original_account.sql'
+      - 'docs/PRODUCTION_FARM_PHASE28.md'
+      - '.github/workflows/check-production-farm-phase28.yml'
+
+jobs:
+  phase28-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/equipment-condition-claim-reversals.js
+          node --check partner/equipment-owner-condition-claim-reversals.js
+
+      - name: Verify HUB and partner wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-condition-claim-reversals.html
+          test -s admin/equipment-condition-claim-reversals.js
+          grep -q 'equipment-condition-claim-reversals.js?v=20260915-phase28-1' admin/equipment-condition-claim-reversals.html
+          grep -q 'equipment-condition-claim-reversals.html.*Сторно проводок' admin/equipment-condition-claims.html
+          grep -q 'list_equipment_condition_claim_financial_reversals' admin/equipment-condition-claim-reversals.js
+          grep -q 'reverse_equipment_condition_claim_financial_transaction' admin/equipment-condition-claim-reversals.js
+          grep -q 'Создать сторно' admin/equipment-condition-claim-reversals.html
+          grep -q 'equipment-owner-condition-claim-reversals.js?v=20260915-phase28-1' partner/equipment.html
+          grep -q 'get_my_equipment_condition_claim_financial_reversals' partner/equipment-owner-condition-claim-reversals.js
+          grep -q 'Финансовая операция сторнирована' partner/equipment-owner-condition-claim-reversals.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_condition_claim_posting_reversal.sql'
+          fix='database/migrations/20260915_production_farm_claim_reversal_allow_inactive_original_account.sql'
+          test -s "$sql"
+          test -s "$fix"
+          grep -q 'create table if not exists public.equipment_condition_claim_financial_reversals' "$sql"
+          grep -q 'CONDITION_CLAIM_FINANCIAL_REVERSAL_APPEND_ONLY' "$sql"
+          grep -q 'uq_cash_transactions_equipment_condition_claim_reversal' "$sql"
+          grep -q 'EQUIPMENT_CONDITION_CLAIM_REVERSAL' "$sql"
+          grep -q 'reverse_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q 'list_equipment_condition_claim_financial_reversals' "$sql"
+          grep -q 'get_my_equipment_condition_claim_financial_reversals' "$sql"
+          grep -q "public.has_permission('equipment.contracts.manage')" "$sql"
+          grep -q "public.has_permission('production.settlements.manage')" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'FINANCIAL_REVERSAL' "$sql"
+          grep -q 'REVERSAL_REASON_REQUIRED' "$sql"
+          grep -q 'REVERSAL_REFERENCE_REQUIRED' "$sql"
+          grep -q "where id=v_original.cash_account_id;" "$fix"
+          grep -q 'REVERSAL_CASH_ACCOUNT_NOT_FOUND' "$fix"
+          ! grep -q 'where id=v_original.cash_account_id and is_active=true' "$fix"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE28.md'
+          test -s "$doc"
+          grep -q 'phase28_claim_financial_reversal_ok' "$doc"
+          grep -q 'ROLLBACK' "$doc"
+          grep -q 'не изменяется и не удаляется' "$doc"
+          grep -q 'нулевой финансовый эффект' "$doc"
+          grep -q 'append-only' "$doc"
+          grep -q 'деактивирован' "$doc"
