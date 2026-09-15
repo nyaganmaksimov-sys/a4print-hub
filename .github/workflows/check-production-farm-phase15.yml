@@ -1,0 +1,77 @@
+name: Check Production Farm Phase 15
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-contract-documents.js'
+      - 'admin/equipment-contract-documents.css'
+      - 'admin/equipment.html'
+      - 'database/migrations/20260915_production_farm_contract_documents.sql'
+      - 'database/migrations/20260915_production_farm_contract_documents_org_fix.sql'
+      - 'database/migrations/20260915_production_farm_contract_documents_rls_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE15.md'
+      - '.github/workflows/check-production-farm-phase15.yml'
+
+jobs:
+  phase15-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: node --check admin/equipment-contract-documents.js
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-contract-documents.css?v=' admin/equipment.html
+          grep -q 'equipment-contract-documents.js?v=' admin/equipment.html
+          grep -q 'generate_equipment_contract_document' admin/equipment-contract-documents.js
+          grep -q 'set_equipment_contract_document_status' admin/equipment-contract-documents.js
+          grep -q 'equipment_contract_document_overview' admin/equipment-contract-documents.js
+          grep -q 'Печать / сохранить PDF' admin/equipment-contract-documents.js
+          grep -q 'equipment_contract_document_v1' database/migrations/20260915_production_farm_contract_documents.sql
+
+      - name: Verify document types and safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_contract_documents.sql'
+          fix='database/migrations/20260915_production_farm_contract_documents_org_fix.sql'
+          hard='database/migrations/20260915_production_farm_contract_documents_rls_hardening.sql'
+          test -s "$sql"
+          test -s "$fix"
+          test -s "$hard"
+          for code in EQ_ACCEPTANCE_ACT EQ_ASSET_LIST EQ_TERMS_APPENDIX EQ_RETURN_ACT EQ_RECONCILIATION_ACT; do grep -q "$code" "$sql"; done
+          grep -q 'security_invoker=true' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'auth.uid() is null' "$sql"
+          grep -q "has_permission('equipment.contracts.manage')" "$sql"
+          grep -q 'TERMINATION_REQUIRED' "$sql"
+          grep -q 'SIGNED_DOCUMENT_CANNOT_REOPEN' "$sql"
+          grep -q 'ARCHIVED_DOCUMENT_IMMUTABLE' "$sql"
+          grep -q 'revoke all on function public.generate_equipment_contract_document' "$sql"
+          grep -q 'revoke all on function public.set_equipment_contract_document_status' "$sql"
+          grep -q 'min(a.organization_id::text)::uuid' "$fix"
+          grep -q 'document_types_hub_staff_read' "$hard"
+          grep -q 'grant select on public.documents to authenticated' "$hard"
+          grep -q 'grant select on public.document_types to authenticated' "$hard"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/PRODUCTION_FARM_PHASE15.md
+          grep -qi 'документы' docs/PRODUCTION_FARM_PHASE15.md
+          grep -q 'ROLLBACK' docs/PRODUCTION_FARM_PHASE15.md
+          grep -q 'security_invoker' docs/PRODUCTION_FARM_PHASE15.md
