@@ -25,6 +25,8 @@ on:
       - 'admin/production-farm-dispatcher.css'
       - 'admin/production-farm-operator.js'
       - 'admin/production-farm-operator.css'
+      - 'admin/production-farm-analytics.js'
+      - 'admin/production-farm-analytics.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -52,6 +54,8 @@ on:
       - 'admin/production-farm-dispatcher.css'
       - 'admin/production-farm-operator.js'
       - 'admin/production-farm-operator.css'
+      - 'admin/production-farm-analytics.js'
+      - 'admin/production-farm-analytics.css'
       - 'admin/production.html'
       - 'database/migrations/*production_farm*'
       - 'docs/PRODUCTION_FARM_PHASE*.md'
@@ -85,6 +89,7 @@ jobs:
             admin/production-farm-capacity.js admin/production-farm-capacity.css
             admin/production-farm-dispatcher.js admin/production-farm-dispatcher.css
             admin/production-farm-operator.js admin/production-farm-operator.css
+            admin/production-farm-analytics.js admin/production-farm-analytics.css
             admin/production.html
             database/migrations/20260914_production_farm_foundation.sql
             database/migrations/20260914_production_farm_foundation_hardening.sql
@@ -105,11 +110,13 @@ jobs:
             database/migrations/20260914_production_farm_capacity_planning.sql
             database/migrations/20260914_production_farm_dispatcher.sql
             database/migrations/20260914_production_farm_operator_station.sql
+            database/migrations/20260914_production_farm_analytics_oee.sql
+            database/migrations/20260914_production_farm_analytics_oee_hardening.sql
             docs/PRODUCTION_FARM_PHASE1.md docs/PRODUCTION_FARM_PHASE2.md
             docs/PRODUCTION_FARM_PHASE3.md docs/PRODUCTION_FARM_PHASE4.md
             docs/PRODUCTION_FARM_PHASE5.md docs/PRODUCTION_FARM_PHASE6.md
             docs/PRODUCTION_FARM_PHASE7.md docs/PRODUCTION_FARM_PHASE8.md
-            docs/PRODUCTION_FARM_PHASE9.md
+            docs/PRODUCTION_FARM_PHASE9.md docs/PRODUCTION_FARM_PHASE10.md
           )
           for f in "${files[@]}"; do test -s "$f" || { echo "Missing/empty: $f"; exit 1; }; done
 
@@ -125,6 +132,7 @@ jobs:
           node --check admin/production-farm-capacity.js
           node --check admin/production-farm-dispatcher.js
           node --check admin/production-farm-operator.js
+          node --check admin/production-farm-analytics.js
 
       - name: Verify UI wiring
         shell: bash
@@ -141,6 +149,8 @@ jobs:
           grep -q 'production-farm-dispatcher.css?v=' admin/production.html
           grep -q 'production-farm-operator.js?v=' admin/production.html
           grep -q 'production-farm-operator.css?v=' admin/production.html
+          grep -q 'production-farm-analytics.js?v=' admin/production.html
+          grep -q 'production-farm-analytics.css?v=' admin/production.html
           grep -q 'jobDuration' admin/production.html
           grep -q 'jobOperation' admin/production.html
           grep -q 'deadline_at' admin/production-modern.js
@@ -156,6 +166,11 @@ jobs:
           grep -q 'production_operator_overview' admin/production-farm-operator.js
           grep -q 'data-farm-action' admin/production-farm-operator.js
           grep -q 'Оператор производства' admin/production-farm-operator.js
+          grep -q 'production_analytics_summary' admin/production-farm-analytics.js
+          grep -q 'production_equipment_analytics' admin/production-farm-analytics.js
+          grep -q 'production_downtime_pareto' admin/production-farm-analytics.js
+          grep -q 'save_production_equipment_standard' admin/production-farm-analytics.js
+          grep -q 'Аналитика производства' admin/production-farm-analytics.js
 
       - name: Verify production database safety markers
         shell: bash
@@ -186,3 +201,10 @@ jobs:
           grep -q 'PAUSE_REASON_REQUIRED' database/migrations/20260914_production_farm_operator_station.sql
           grep -q 'security_invoker=true' database/migrations/20260914_production_farm_operator_station.sql
           grep -q 'revoke all on public.production_job_events from public,anon,authenticated' database/migrations/20260914_production_farm_operator_station.sql
+          grep -q 'create table if not exists public.production_equipment_standards' database/migrations/20260914_production_farm_analytics_oee.sql
+          grep -q 'save_production_equipment_standard' database/migrations/20260914_production_farm_analytics_oee.sql
+          grep -q 'production_equipment_analytics' database/migrations/20260914_production_farm_analytics_oee.sql
+          grep -q 'production_downtime_pareto' database/migrations/20260914_production_farm_analytics_oee.sql
+          grep -q 'production_analytics_summary' database/migrations/20260914_production_farm_analytics_oee.sql
+          grep -q 'standard_run_minutes/nullif(m.run_minutes,0)>=0.99' database/migrations/20260914_production_farm_analytics_oee.sql
+          grep -q 'filter(where j.id is not null)' database/migrations/20260914_production_farm_analytics_oee_hardening.sql
