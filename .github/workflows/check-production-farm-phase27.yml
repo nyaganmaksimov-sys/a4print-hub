@@ -1,0 +1,96 @@
+name: Check Production Farm Phase 27
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-condition-claims.html'
+      - 'admin/equipment-condition-claims.js'
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-condition-claims.js'
+      - 'database/migrations/20260915_production_farm_condition_claim_financial_posting.sql'
+      - 'docs/PRODUCTION_FARM_PHASE27.md'
+      - '.github/workflows/check-production-farm-phase27.yml'
+
+jobs:
+  phase27-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/equipment-condition-claims.js
+          node --check partner/equipment-owner-condition-claims.js
+
+      - name: Verify HUB wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-condition-claims.html
+          test -s admin/equipment-condition-claims.js
+          grep -q 'equipment-condition-claims.js?v=20260915-phase27-1' admin/equipment-condition-claims.html
+          grep -q 'Провести в финансах' admin/equipment-condition-claims.html
+          grep -q 'get_equipment_condition_claim_financial_options' admin/equipment-condition-claims.js
+          grep -q 'post_equipment_condition_claim_financial_transaction' admin/equipment-condition-claims.js
+          grep -q 'list_equipment_condition_claim_financial_postings' admin/equipment-condition-claims.js
+          grep -q 'equipment.contracts.manage' admin/equipment-condition-claims.js
+          grep -q 'production.settlements.manage' admin/equipment-condition-claims.js
+          grep -q 'CLAIM_FINANCIAL_POSTING_EXISTS' admin/equipment-condition-claims.js
+
+      - name: Verify partner wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s partner/equipment-owner-condition-claims.js
+          grep -q 'equipment-owner-condition-claims.js?v=20260915-phase27-1' partner/equipment.html
+          grep -q 'get_my_equipment_condition_claim_financial_postings' partner/equipment-owner-condition-claims.js
+          grep -q 'Финансовое исполнение зафиксировано' partner/equipment-owner-condition-claims.js
+          grep -q 'Платёж владельца в HUB' partner/equipment-owner-condition-claims.js
+          grep -q 'Выплата HUB владельцу' partner/equipment-owner-condition-claims.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_condition_claim_financial_posting.sql'
+          test -s "$sql"
+          grep -q 'uq_cash_transactions_equipment_condition_claim' "$sql"
+          grep -q "external_source='EQUIPMENT_CONDITION_CLAIM'" "$sql"
+          grep -q 'get_equipment_condition_claim_financial_options' "$sql"
+          grep -q 'post_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q 'list_equipment_condition_claim_financial_postings' "$sql"
+          grep -q 'get_my_equipment_condition_claim_financial_postings' "$sql"
+          grep -q "when 'HUB_TO_OWNER' then 'INCOME'" "$sql"
+          grep -q "when 'OWNER_TO_HUB' then 'EXPENSE'" "$sql"
+          grep -q "v_claim.status<>'SETTLED'" "$sql"
+          grep -q 'CLAIM_FINANCIAL_ORGANIZATION_REQUIRED' "$sql"
+          grep -q 'CLAIM_CASH_ACCOUNT_INVALID' "$sql"
+          grep -q 'CLAIM_CASH_ACCOUNT_CURRENCY_MISMATCH' "$sql"
+          grep -q 'CLAIM_FINANCIAL_POSTING_EXISTS' "$sql"
+          grep -q "public.has_permission('equipment.contracts.manage')" "$sql"
+          grep -q "public.has_permission('production.settlements.manage')" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'revoke all on function public.post_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q "'CASH_TRANSACTION'.*'FINANCIAL_POSTING'" "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE27.md'
+          test -s "$doc"
+          grep -q 'phase27_claim_financial_posting_ok' "$doc"
+          grep -q 'ROLLBACK' "$doc"
+          grep -q 'HUB_TO_OWNER.*INCOME' "$doc"
+          grep -q 'OWNER_TO_HUB.*EXPENSE' "$doc"
+          grep -q 'не создаёт деньги автоматически' "$doc"
+          grep -q 'один claim' "$doc"
