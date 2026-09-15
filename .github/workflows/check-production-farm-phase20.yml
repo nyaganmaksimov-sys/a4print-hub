@@ -1,0 +1,77 @@
+name: Check Production Farm Phase 20
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment.html'
+      - 'admin/equipment-risk-documents.js'
+      - 'admin/equipment-risk-documents.css'
+      - 'database/migrations/20260915_production_farm_risk_documents_audit.sql'
+      - 'database/migrations/20260915_production_farm_risk_documents_audit_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE20.md'
+      - '.github/workflows/check-production-farm-phase20.yml'
+
+jobs:
+  phase20-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: node --check admin/equipment-risk-documents.js
+
+      - name: Verify equipment document UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-risk-documents.js
+          test -s admin/equipment-risk-documents.css
+          grep -q 'equipment-risk-documents.css?v=' admin/equipment.html
+          grep -q 'equipment-risk-documents.js?v=' admin/equipment.html
+          grep -q "storage.from('hub-documents')" admin/equipment-risk-documents.js
+          grep -q 'register_equipment_risk_document' admin/equipment-risk-documents.js
+          grep -q 'get_equipment_risk_documents' admin/equipment-risk-documents.js
+          grep -q 'createSignedUrl' admin/equipment-risk-documents.js
+          grep -q 'A4StorageProxyUrl' admin/equipment-risk-documents.js
+
+      - name: Verify database contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_risk_documents_audit.sql'
+          hard='database/migrations/20260915_production_farm_risk_documents_audit_hardening.sql'
+          test -s "$sql"
+          test -s "$hard"
+          grep -q "'hub-documents'" "$sql"
+          grep -q "'EQUIPMENT_INSURANCE'" "$sql"
+          grep -q "'EQUIPMENT_IMPROVEMENT'" "$sql"
+          grep -q 'hub_documents_equipment_manager_insert' "$sql"
+          grep -q "public.has_permission('equipment.manage')" "$sql"
+          grep -q 'register_equipment_risk_document' "$sql"
+          grep -q 'get_equipment_risk_documents' "$sql"
+          grep -q "p_storage_path not like 'equipment-risk/%'" "$sql"
+          grep -q 'document_versions' "$sql"
+          grep -q 'document_links' "$sql"
+          grep -q 'audit_equipment_risk_record' "$sql"
+          grep -q 'old_data' "$hard"
+          grep -q 'new_data' "$hard"
+          grep -q 'actor_auth_user_id' "$hard"
+          grep -q "set search_path=''" "$hard"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/PRODUCTION_FARM_PHASE20.md
+          grep -q 'phase20_risk_documents_audit_ok' docs/PRODUCTION_FARM_PHASE20.md
+          grep -q 'ROLLBACK' docs/PRODUCTION_FARM_PHASE20.md
+          grep -q 'hub-documents' docs/PRODUCTION_FARM_PHASE20.md
