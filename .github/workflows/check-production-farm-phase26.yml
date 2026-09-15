@@ -1,0 +1,101 @@
+name: Check Production Farm Phase 26
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-condition-claims.html'
+      - 'admin/equipment-condition-claims.js'
+      - 'admin/navigation.js'
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-condition-claims.js'
+      - 'database/migrations/20260915_production_farm_condition_claims.sql'
+      - 'docs/PRODUCTION_FARM_PHASE26.md'
+      - '.github/workflows/check-production-farm-phase26.yml'
+
+jobs:
+  phase26-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/equipment-condition-claims.js
+          node --check partner/equipment-owner-condition-claims.js
+          node --check admin/navigation.js
+
+      - name: Verify HUB and partner wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-condition-claims.html
+          test -s admin/equipment-condition-claims.js
+          test -s partner/equipment-owner-condition-claims.js
+          grep -q 'equipment-condition-claims.js?v=20260915-phase26-1' admin/equipment-condition-claims.html
+          grep -q 'list_equipment_condition_claims' admin/equipment-condition-claims.js
+          grep -q 'list_equipment_condition_claim_candidates' admin/equipment-condition-claims.js
+          grep -q 'save_equipment_condition_claim' admin/equipment-condition-claims.js
+          grep -q 'issue_equipment_condition_claim' admin/equipment-condition-claims.js
+          grep -q 'resolve_equipment_condition_claim' admin/equipment-condition-claims.js
+          grep -q 'equipment-condition-claims.html.*Требования по состоянию' admin/navigation.js
+          grep -q 'equipment-owner-condition-claims.js?v=20260915-phase26-1' partner/equipment.html
+          grep -q 'get_my_equipment_condition_claims' partner/equipment-owner-condition-claims.js
+          grep -q 'submit_equipment_condition_claim_response' partner/equipment-owner-condition-claims.js
+          grep -q 'Требования' partner/equipment-owner-condition-claims.js
+          grep -q 'не создаёт автоматическую задолженность' partner/equipment-owner-condition-claims.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_condition_claims.sql'
+          test -s "$sql"
+          grep -q 'EQ_CONDITION_CLAIM' "$sql"
+          grep -q 'create table if not exists public.equipment_condition_claims' "$sql"
+          grep -q 'create table if not exists public.equipment_condition_claim_responses' "$sql"
+          grep -q "'HUB_TO_OWNER'" "$sql"
+          grep -q "'OWNER_TO_HUB'" "$sql"
+          grep -q "'MUTUAL'" "$sql"
+          grep -q "'DRAFT'" "$sql"
+          grep -q "'ISSUED'" "$sql"
+          grep -q "'DISPUTED'" "$sql"
+          grep -q "'SETTLED'" "$sql"
+          grep -q 'save_equipment_condition_claim' "$sql"
+          grep -q 'issue_equipment_condition_claim' "$sql"
+          grep -q 'submit_equipment_condition_claim_response' "$sql"
+          grep -q 'resolve_equipment_condition_claim' "$sql"
+          grep -q 'list_equipment_condition_claims' "$sql"
+          grep -q 'get_my_equipment_condition_claims' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'CONDITION_CLAIM_RESPONSE_APPEND_ONLY' "$sql"
+          grep -q 'financial_posting_created' "$sql"
+          grep -q 'revoke all on function public.guard_equipment_condition_claim_core' "$sql"
+          grep -q 'revoke all on function public.guard_equipment_condition_claim_response_append_only' "$sql"
+          grep -q 'revoke all on public.equipment_condition_claims from public,anon,authenticated' "$sql"
+          grep -q 'grant select on public.equipment_condition_claims to authenticated' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE26.md'
+          test -s "$doc"
+          grep -q 'phase26_condition_claim_lifecycle_ok' "$doc"
+          grep -q 'ROLLBACK' "$doc"
+          grep -q 'OWNER_RESPONSIBILITY' "$doc"
+          grep -q 'HUB_TO_OWNER' "$doc"
+          grep -q 'CONDITION_CLAIM_RESPONSE_APPEND_ONLY' "$doc"
+          grep -q 'financial_posting_created=false' "$doc"
+          grep -q 'не создаёт долг' "$doc"
+          grep -q 'не создаёт платёж' "$doc"
+          grep -q 'equipment_owner_settlements' "$doc"
+          grep -q 'equipment_lease_charges' "$doc"
