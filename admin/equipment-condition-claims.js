@@ -1,5 +1,5 @@
 import{supabase}from'./guard.js?v=20260905-netfix1';
-const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m])),date=v=>v?new Date(`${String(v).slice(0,10)}T00:00:00`).toLocaleDateString('ru-RU'):'—',money=(v,c='RUB')=>`${Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})} ${c==='RUB'?'₽':c}`;
+const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),date=v=>v?new Date(`${String(v).slice(0,10)}T00:00:00`).toLocaleDateString('ru-RU'):'—',money=(v,c='RUB')=>`${Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})} ${c==='RUB'?'₽':c}`;
 const STATUS={DRAFT:'Черновик',ISSUED:'Выпущено',ACKNOWLEDGED:'Подтверждено',DISPUTED:'Оспорено',SETTLED:'Урегулировано',WAIVED:'Снято',CANCELLED:'Отменено'};
 const DIR={HUB_TO_OWNER:'HUB → владелец',OWNER_TO_HUB:'Владелец → HUB',MUTUAL:'Взаимное / совместное'};
 const FIN={INCOME:'Поступление в HUB',EXPENSE:'Выплата из HUB'};
