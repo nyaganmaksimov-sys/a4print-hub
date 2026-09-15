@@ -1,0 +1,68 @@
+name: Check Production Farm Phase 14
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-contract-termination.js'
+      - 'admin/equipment-contract-termination.css'
+      - 'admin/equipment.html'
+      - 'database/migrations/20260915_production_farm_contract_termination.sql'
+      - 'docs/PRODUCTION_FARM_PHASE14.md'
+      - '.github/workflows/check-production-farm-phase14.yml'
+
+jobs:
+  phase14-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: node --check admin/equipment-contract-termination.js
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-contract-termination.css?v=' admin/equipment.html
+          grep -q 'equipment-contract-termination.js?v=' admin/equipment.html
+          grep -q 'start_equipment_contract_termination' admin/equipment-contract-termination.js
+          grep -q 'finalize_equipment_contract_termination' admin/equipment-contract-termination.js
+          grep -q 'equipment_contract_termination_overview' admin/equipment-contract-termination.js
+          grep -q 'CONTRACT_TERMINATION_OPEN_JOBS' admin/equipment-contract-termination.js
+          grep -q 'CONTRACT_TERMINATION_UNSETTLED_JOBS' admin/equipment-contract-termination.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_contract_termination.sql'
+          test -s "$sql"
+          grep -q 'create table if not exists public.equipment_contract_terminations' "$sql"
+          grep -q 'security_invoker=true' "$sql"
+          grep -q 'USE_CONTRACT_TERMINATION_WORKFLOW' "$sql"
+          grep -q 'TERMINATED_CONTRACT_IMMUTABLE' "$sql"
+          grep -q 'CONTRACT_TERMINATION_OPEN_JOBS' "$sql"
+          grep -q 'CONTRACT_TERMINATION_OPEN_INCIDENTS' "$sql"
+          grep -q 'CONTRACT_TERMINATION_OPEN_SETTLEMENTS' "$sql"
+          grep -q 'CONTRACT_TERMINATION_OPEN_LEASE_CHARGES' "$sql"
+          grep -q 'CONTRACT_TERMINATION_UNSETTLED_JOBS' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'revoke all on function public.notify_equipment_contract_termination' "$sql"
+          grep -q 'grant execute on function public.finalize_equipment_contract_termination' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/PRODUCTION_FARM_PHASE14.md
+          grep -q 'Расторжение' docs/PRODUCTION_FARM_PHASE14.md
+          grep -q 'ROLLBACK' docs/PRODUCTION_FARM_PHASE14.md
