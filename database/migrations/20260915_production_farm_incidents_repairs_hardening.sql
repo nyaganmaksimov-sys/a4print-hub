@@ -143,7 +143,10 @@ $$;
 revoke all on function public.report_equipment_incident(uuid,uuid,text,text,text,uuid) from public,anon;
 grant execute on function public.report_equipment_incident(uuid,uuid,text,text,text,uuid) to authenticated;
 
-create or replace view public.equipment_incident_overview
+-- Adding columns to equipment_incidents changes i.* expansion. Rebuild this new
+-- phase-13 view explicitly instead of relying on CREATE OR REPLACE column order.
+drop view if exists public.equipment_incident_overview;
+create view public.equipment_incident_overview
 with (security_invoker=true)
 as
 select
