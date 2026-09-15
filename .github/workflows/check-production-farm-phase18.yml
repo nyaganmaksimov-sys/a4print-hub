@@ -1,0 +1,80 @@
+name: Check Production Farm Phase 18
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-deadlines.js'
+      - 'admin/equipment-payment-control.html'
+      - 'admin/equipment-payment-control.js'
+      - 'admin/navigation.js'
+      - 'database/migrations/20260915_production_farm_payment_deadlines.sql'
+      - 'docs/PRODUCTION_FARM_PHASE18.md'
+      - '.github/workflows/check-production-farm-phase18.yml'
+
+jobs:
+  phase18-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check partner/equipment-owner-deadlines.js
+          node --check admin/equipment-payment-control.js
+          node --check admin/navigation.js
+
+      - name: Verify partner deadline UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-owner-deadlines.js?v=' partner/equipment.html
+          grep -q 'get_my_equipment_payment_obligations' partner/equipment-owner-deadlines.js
+          grep -q 'Сроки выплат' partner/equipment-owner-deadlines.js
+          grep -q 'days_overdue' partner/equipment-owner-deadlines.js
+
+      - name: Verify admin payment control UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-payment-control.js?v=' admin/equipment-payment-control.html
+          grep -q 'list_equipment_payment_obligations' admin/equipment-payment-control.js
+          grep -q 'set_equipment_payment_due_date' admin/equipment-payment-control.js
+          grep -q "equipment-payment-control.html','payments','Контроль выплат" admin/navigation.js
+
+      - name: Verify database deadline safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_payment_deadlines.sql'
+          test -s "$sql"
+          grep -q 'payment_due_date date' "$sql"
+          grep -q 'equipment_payment_default_due_date' "$sql"
+          grep -q 'PAYMENT_DUE_BEFORE_PERIOD_END' "$sql"
+          grep -q 'PAYMENT_ALREADY_PAID' "$sql"
+          grep -q 'get_my_equipment_payment_obligations' "$sql"
+          grep -q 'list_equipment_payment_obligations' "$sql"
+          grep -q 'emit_equipment_payment_deadline_notifications' "$sql"
+          grep -q 'equipment_payment_deadline_events' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q "equipment-payment-deadlines-daily'" "$sql"
+          grep -q "'0 6 \* \* \*'" "$sql"
+          grep -q 'revoke all on function public.emit_equipment_payment_deadline_notifications() from public,anon,authenticated' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/PRODUCTION_FARM_PHASE18.md
+          grep -q 'phase18_payment_deadlines_ok' docs/PRODUCTION_FARM_PHASE18.md
+          grep -q 'DUE_SOON' docs/PRODUCTION_FARM_PHASE18.md
+          grep -q 'pg_cron' docs/PRODUCTION_FARM_PHASE18.md
