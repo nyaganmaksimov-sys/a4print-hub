@@ -1,0 +1,47 @@
+name: Check Production Farm Phase 19
+
+on:
+  pull_request:
+    paths:
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-contract-deadlines.js'
+      - 'admin/equipment-contract-deadlines.html'
+      - 'admin/equipment-contract-deadlines.js'
+      - 'admin/navigation.js'
+      - 'database/migrations/20260915_production_farm_contract_deadlines.sql'
+      - 'docs/PRODUCTION_FARM_PHASE19.md'
+      - '.github/workflows/check-production-farm-phase19.yml'
+
+jobs:
+  phase19-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check partner/equipment-owner-contract-deadlines.js
+          node --check admin/equipment-contract-deadlines.js
+          node --check admin/navigation.js
+      - name: Verify partner wiring
+        run: |
+          grep -q 'equipment-owner-contract-deadlines.js' partner/equipment.html
+          grep -q 'get_my_equipment_contract_deadlines' partner/equipment-owner-contract-deadlines.js
+          grep -q 'Сроки договоров' partner/equipment-owner-contract-deadlines.js
+      - name: Verify admin wiring
+        run: |
+          grep -q 'equipment-contract-deadlines.js' admin/equipment-contract-deadlines.html
+          grep -q 'list_equipment_contract_deadlines' admin/equipment-contract-deadlines.js
+          grep -q 'equipment-contract-deadlines.html' admin/navigation.js
+      - name: Verify database safety
+        run: |
+          grep -q "set search_path=''" database/migrations/20260915_production_farm_contract_deadlines.sql
+          grep -q 'equipment_contract_deadline_events' database/migrations/20260915_production_farm_contract_deadlines.sql
+          grep -q 'equipment-contract-deadlines-daily' database/migrations/20260915_production_farm_contract_deadlines.sql
+          grep -q "revoke all on function public.emit_equipment_contract_deadline_notifications() from public,anon,authenticated" database/migrations/20260915_production_farm_contract_deadlines.sql
+      - name: Verify documentation
+        run: |
+          grep -qi 'срок' docs/PRODUCTION_FARM_PHASE19.md
+          grep -q 'phase19_contract_deadlines_ok' docs/PRODUCTION_FARM_PHASE19.md
