@@ -1,0 +1,93 @@
+name: Check Production Farm Phase 21
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-contract-amendments.html'
+      - 'admin/equipment-contract-amendments.js'
+      - 'admin/navigation.js'
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner-contract-amendments.js'
+      - 'database/migrations/20260915_production_farm_contract_amendments.sql'
+      - 'database/migrations/20260915_production_farm_contract_amendments_workflow.sql'
+      - 'database/migrations/20260915_production_farm_contract_amendments_reads.sql'
+      - 'database/migrations/20260915_production_farm_contract_amendments_validation_hardening.sql'
+      - 'database/migrations/20260915_production_farm_contract_amendments_signed_cancel_guard.sql'
+      - 'docs/PRODUCTION_FARM_PHASE21.md'
+      - '.github/workflows/check-production-farm-phase21.yml'
+
+jobs:
+  phase21-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/equipment-contract-amendments.js
+          node --check partner/equipment-owner-contract-amendments.js
+          node --check admin/navigation.js
+
+      - name: Verify HUB and partner wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-contract-amendments.html
+          test -s admin/equipment-contract-amendments.js
+          test -s partner/equipment-owner-contract-amendments.js
+          grep -q 'equipment-contract-amendments.js?v=' admin/equipment-contract-amendments.html
+          grep -q "list_equipment_contract_amendments" admin/equipment-contract-amendments.js
+          grep -q "create_equipment_contract_amendment" admin/equipment-contract-amendments.js
+          grep -q "mark_equipment_contract_amendment_signed" admin/equipment-contract-amendments.js
+          grep -q "apply_equipment_contract_amendment" admin/equipment-contract-amendments.js
+          grep -q "equipment-contract-amendments.html.*Допсоглашения" admin/navigation.js
+          grep -q 'equipment-owner-contract-amendments.js?v=20260915-phase21-1' partner/equipment.html
+          grep -q "get_my_equipment_contract_amendments" partner/equipment-owner-contract-amendments.js
+          grep -q "get_equipment_contract_amendment_document" partner/equipment-owner-contract-amendments.js
+          grep -q 'Было' partner/equipment-owner-contract-amendments.js
+          grep -q 'Станет' partner/equipment-owner-contract-amendments.js
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='database/migrations/20260915_production_farm_contract_amendments.sql'
+          flow='database/migrations/20260915_production_farm_contract_amendments_workflow.sql'
+          reads='database/migrations/20260915_production_farm_contract_amendments_reads.sql'
+          valid='database/migrations/20260915_production_farm_contract_amendments_validation_hardening.sql'
+          cancel='database/migrations/20260915_production_farm_contract_amendments_signed_cancel_guard.sql'
+          for f in "$base" "$flow" "$reads" "$valid" "$cancel"; do test -s "$f"; done
+          grep -q 'create table if not exists public.equipment_contract_amendments' "$base"
+          grep -q 'enable row level security' "$base"
+          grep -q 'EQ_CONTRACT_AMENDMENT' "$base"
+          grep -q 'ACTIVE_CONTRACT_REQUIRES_AMENDMENT' "$base"
+          grep -q 'ACTIVE_CONTRACT_EQUIPMENT_CHANGE_REQUIRES_NEW_ANNEX' "$base"
+          grep -q "set search_path=''" "$base"
+          grep -q "set search_path=''" "$flow"
+          grep -q 'AMENDMENT_DOCUMENT_MUST_BE_SIGNED' "$flow"
+          grep -q 'CONTRACT_CHANGED_SINCE_DRAFT' "$flow"
+          grep -q 'get_my_equipment_contract_amendments' "$reads"
+          grep -q 'current_partner_id' "$reads"
+          grep -q 'v_settlement_day>28' "$valid"
+          grep -q 'SIGNED_AMENDMENT_CANNOT_BE_CANCELLED' "$cancel"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE21.md'
+          test -s "$doc"
+          grep -q 'phase21_contract_amendments_ok' "$doc"
+          grep -q 'ROLLBACK' "$doc"
+          grep -q 'SIGNED' "$doc"
+          grep -q 'ACTIVE_CONTRACT_REQUIRES_AMENDMENT' "$doc"
+          grep -q 'settlement_day' "$doc"
