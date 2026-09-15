@@ -64,5 +64,5 @@ jobs:
         run: |
           set -euo pipefail
           test -s docs/PRODUCTION_FARM_PHASE14.md
-          grep -q 'Расторжение' docs/PRODUCTION_FARM_PHASE14.md
+          grep -qi 'расторжение' docs/PRODUCTION_FARM_PHASE14.md
           grep -q 'ROLLBACK' docs/PRODUCTION_FARM_PHASE14.md
