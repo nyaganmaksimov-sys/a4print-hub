@@ -1,0 +1,71 @@
+name: Check Production Farm Phase 16
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'partner/equipment.html'
+      - 'partner/equipment-owner.js'
+      - 'partner/equipment-owner.css'
+      - 'partner/equipment-entry.js'
+      - 'partner/config.js'
+      - 'database/migrations/20260915_production_farm_partner_owner_cabinet.sql'
+      - 'docs/PRODUCTION_FARM_PHASE16.md'
+      - '.github/workflows/check-production-farm-phase16.yml'
+
+jobs:
+  phase16-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check partner/equipment-owner.js
+          node --check partner/equipment-entry.js
+          node --check partner/config.js
+
+      - name: Verify portal wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-owner.css?v=' partner/equipment.html
+          grep -q 'equipment-owner.js?v=' partner/equipment.html
+          grep -q 'equipment-entry.js?v=' partner/config.js
+          grep -q 'get_partner_equipment_cabinet' partner/equipment-owner.js
+          grep -q 'get_partner_equipment_document' partner/equipment-owner.js
+          grep -q 'Моё оборудование' partner/equipment-entry.js
+
+      - name: Verify RPC security markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_partner_owner_cabinet.sql'
+          test -s "$sql"
+          grep -q 'create or replace function public.get_partner_equipment_cabinet' "$sql"
+          grep -q 'create or replace function public.get_partner_equipment_document' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'v_partner_id := public.current_partner_id()' "$sql"
+          grep -q 'v_partner_id:=public.current_partner_id()' "$sql"
+          grep -q 'PARTNER_ACCESS_REQUIRED' "$sql"
+          grep -q "d.status in ('APPROVED','SIGNED','ACTIVE','TERMINATED','ARCHIVED')" "$sql"
+          grep -q 'revoke all on function public.get_partner_equipment_cabinet() from public,anon,authenticated' "$sql"
+          grep -q 'grant execute on function public.get_partner_equipment_cabinet() to authenticated' "$sql"
+          grep -q 'revoke all on function public.get_partner_equipment_document(uuid) from public,anon,authenticated' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/PRODUCTION_FARM_PHASE16.md
+          grep -qi 'кабинет владельца оборудования' docs/PRODUCTION_FARM_PHASE16.md
+          grep -q 'phase16_partner_isolation_ok' docs/PRODUCTION_FARM_PHASE16.md
+          grep -q 'phase16_document_isolation_ok' docs/PRODUCTION_FARM_PHASE16.md
