@@ -96,7 +96,7 @@ Cron:
 
 Экран показывает KPI, состояние цепочки, согласованную сумму, original/reversal/repost, actual net effect, expected net effect и понятные русские описания обнаруженных кодов ошибок. Есть поиск, фильтр состояния и режим `Только нарушения`.
 
-## Transaction test
+## Transaction tests
 
 Основной инъекционный тест выполнен внутри `BEGIN ... ROLLBACK` штатной полной цепочкой inspection → comparison → claim → cash transactions.
 
@@ -111,6 +111,8 @@ Cron:
 
 Результат: `phase30_claim_financial_integrity_ok`.
 
-Отдельный hardening-сценарий проверяет реальную source-tagged reversal transaction без audit-записи: фактический net effect остаётся равным 0, система сообщает `REVERSAL_AUDIT_MISSING`, но не создаёт ложный `NET_EFFECT_MISMATCH`.
+Отдельный hardening-сценарий проверил реальную source-tagged reversal transaction без audit-записи. Фактический и ожидаемый net effect остались 0/0, система сообщила `REVERSAL_AUDIT_MISSING`, но не создала ложный `NET_EFFECT_MISMATCH`.
+
+Результат: `phase30_external_truth_without_audit_ok`.
 
 После rollback: residual assets = 0, contracts = 0, claims = 0, cash transactions = 0, integrity events = 0.
