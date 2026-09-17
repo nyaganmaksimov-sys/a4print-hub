@@ -39,6 +39,7 @@
               ...value,
               stage:existing.stage,
               backend_result:existing.backend_result||value.backend_result||null,
+              hub_result:existing.hub_result||value.hub_result||null,
               tries:Math.max(Number(existing.tries||0),Number(value.tries||0)),
               last_error:value.last_error||existing.last_error||null
             };
@@ -81,7 +82,8 @@
         payment_method:sale.payment_method,
         customer_id:sale.customer_id,
         operator_id:sale.operator_id,
-        client_operation_id:sale.id
+        client_operation_id:sale.id,
+        order_id:sale.order_id||null
       })
     });
     const data=await response.json().catch(()=>({}));
@@ -100,7 +102,7 @@
   async function writeHubSale(sale){
     const d=sale.backend_result||{};
     if(!d?.moysklad?.id)return false;
-    const r=await supabase.rpc('record_pos_sale',{
+    const args={
       p_moysklad_sale_id:d.moysklad.id,
       p_moysklad_sale_name:d.moysklad.name||null,
       p_moysklad_shift_id:sale.shift?.id||null,
@@ -110,9 +112,16 @@
       p_payment_method:sale.payment_method,
       p_total:Number(d.sum??sale.total),
       p_items:sale.items||[]
-    });
-    if(!r.error)return true;
-    return /duplicate|unique/i.test(String(r.error.message||''));
+    };
+    const rpc=sale.order_id?'record_pos_sale_v2':'record_pos_sale';
+    if(sale.order_id)args.p_order_id=sale.order_id;
+    const r=await supabase.rpc(rpc,args);
+    if(r.error){
+      if(!sale.order_id&&/duplicate|unique/i.test(String(r.error.message||'')))return true;
+      throw r.error;
+    }
+    sale.hub_result=r.data||null;
+    return true;
   }
 
   async function finalizeSale(sale){
@@ -120,7 +129,12 @@
     await DB.put('receipts',receipt);
     await DB.del('queue',sale.id);
     await DB.trimReceipts(100);
-    window.dispatchEvent(new CustomEvent('a4:kassa-queue-recovered',{detail:{id:sale.id,moyskladId:sale.backend_result?.moysklad?.id||null}}));
+    window.dispatchEvent(new CustomEvent('a4:kassa-queue-recovered',{detail:{
+      id:sale.id,
+      moyskladId:sale.backend_result?.moysklad?.id||null,
+      orderId:sale.order_id||null,
+      hubResult:sale.hub_result||null
+    }}));
   }
 
   async function recoverOnce(){
@@ -144,7 +158,10 @@
           const moyskladId=sale?.backend_result?.moysklad?.id;
           if(!moyskladId)continue;
 
-          if(await isHubSynced(moyskladId)){
+          // A HUB order payment must always pass through record_pos_sale_v2.
+          // A plain pos_sales row can already exist (for example after receipt
+          // recovery) while its orders/payments linkage is still missing.
+          if(!sale.order_id&&await isHubSynced(moyskladId)){
             await finalizeSale(sale);
             continue;
           }

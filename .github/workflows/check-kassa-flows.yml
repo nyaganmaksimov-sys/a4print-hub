@@ -14,6 +14,8 @@ on:
       - 'kassa/sale-submit-guard.js'
       - 'kassa/return-finish.js'
       - 'kassa/history-hub.js'
+      - 'kassa/order-bridge.js'
+      - 'kassa/queue-recovery.js'
       - 'kassa/bootstrap.js'
       - 'kassa/sw.js'
       - 'database/migrations/108_pos_receipt_history.sql'
@@ -31,6 +33,8 @@ on:
       - 'kassa/sale-submit-guard.js'
       - 'kassa/return-finish.js'
       - 'kassa/history-hub.js'
+      - 'kassa/order-bridge.js'
+      - 'kassa/queue-recovery.js'
       - 'kassa/bootstrap.js'
       - 'kassa/sw.js'
       - 'database/migrations/108_pos_receipt_history.sql'
@@ -58,6 +62,8 @@ jobs:
           node --check kassa/sale-submit-guard.js
           node --check kassa/return-finish.js
           node --check kassa/history-hub.js
+          node --check kassa/order-bridge.js
+          node --check kassa/queue-recovery.js
           node --check kassa/bootstrap.js
           node --check kassa/sw.js
 
@@ -94,6 +100,18 @@ jobs:
           grep -q 'Новый покупатель' kassa/sale-finish.js
           grep -q '/api/v1/pos/customers' kassa/sale-finish.js
           grep -q 'A4_KASSA_SALE_SUBMIT_GUARD' kassa/sale-submit-guard.js
+
+      - name: Verify queued HUB order payment wiring
+        run: |
+          set -euo pipefail
+          grep -q "DB.put('queue'" kassa/order-bridge.js
+          grep -q 'order_id:o.id' kassa/order-bridge.js
+          grep -q 'A4KassaQueueRecovery' kassa/order-bridge.js
+          ! grep -q "supabase.rpc('record_pos_sale_v2'" kassa/order-bridge.js
+          grep -q "record_pos_sale_v2" kassa/queue-recovery.js
+          grep -q "sale.order_id" kassa/queue-recovery.js
+          grep -q "order_id:sale.order_id" kassa/queue-recovery.js
+          grep -q "a4:kassa-queue-recovered" kassa/queue-recovery.js
 
       - name: Verify return completion wiring
         run: |
