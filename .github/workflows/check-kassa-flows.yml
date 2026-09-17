@@ -19,6 +19,7 @@ on:
       - 'kassa/bootstrap.js'
       - 'kassa/sw.js'
       - 'database/migrations/108_pos_receipt_history.sql'
+      - 'database/migrations/20260917_pos_hub_order_payment_contract.sql'
       - '.github/workflows/check-kassa-flows.yml'
   pull_request:
     branches: [main]
@@ -38,6 +39,7 @@ on:
       - 'kassa/bootstrap.js'
       - 'kassa/sw.js'
       - 'database/migrations/108_pos_receipt_history.sql'
+      - 'database/migrations/20260917_pos_hub_order_payment_contract.sql'
       - '.github/workflows/check-kassa-flows.yml'
   workflow_dispatch:
 
@@ -112,6 +114,22 @@ jobs:
           grep -q "sale.order_id" kassa/queue-recovery.js
           grep -q "order_id:sale.order_id" kassa/queue-recovery.js
           grep -q "a4:kassa-queue-recovered" kassa/queue-recovery.js
+
+      - name: Verify POS HUB order payment DB contract
+        run: |
+          set -euo pipefail
+          file='database/migrations/20260917_pos_hub_order_payment_contract.sql'
+          test -s "$file"
+          grep -q 'add column if not exists order_id uuid' "$file"
+          grep -q 'add column if not exists pos_sale_id uuid' "$file"
+          grep -q 'payments_pos_sale_id_uidx' "$file"
+          grep -q 'create or replace function public.get_pos_hub_orders' "$file"
+          grep -q 'create or replace function public.get_pos_hub_order' "$file"
+          grep -q 'create or replace function public.record_pos_sale_v2' "$file"
+          grep -qi 'security definer' "$file"
+          grep -q "revoke all on function public.record_pos_sale_v2" "$file"
+          grep -q "grant execute on function public.record_pos_sale_v2" "$file"
+          grep -q "on conflict (pos_sale_id) where pos_sale_id is not null" "$file"
 
       - name: Verify return completion wiring
         run: |
