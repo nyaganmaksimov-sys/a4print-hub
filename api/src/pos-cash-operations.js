@@ -12,6 +12,11 @@ function clean(value,max=500){return String(value||'').trim().slice(0,max)}
 function msDate(){
   return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date()).replace('T',' ');
 }
+function shiftTime(row){
+  const raw=row?.openDate||row?.moment||row?.created||row?.updated||'';
+  const d=new Date(String(raw).replace(' ','T'));
+  return Number.isFinite(d.getTime())?d.getTime():0;
+}
 async function auth(req){
   if(!service)return{error:'DATABASE_NOT_CONFIGURED'};
   const bearer=clean(req.headers.authorization,3000).replace(/^Bearer\s+/i,'');
@@ -36,11 +41,13 @@ async function selectedOperator(req,ctx){
 }
 async function openShift(){
   const list=await msRequest(token,'/entity/retailshift?limit=100&order=created,desc');
-  const rows=(list?.rows||[]).filter(x=>!x.closeDate);
+  const rows=(list?.rows||[]).filter(x=>!x.closeDate).sort((a,b)=>shiftTime(b)-shiftTime(a));
   if(!rows.length)throw new Error('SHIFT_NOT_OPEN');
   const row=rows[0];
   const id=idOf(row);
-  return id?await msRequest(token,`/entity/retailshift/${encodeURIComponent(id)}`):row;
+  const shift=id?await msRequest(token,`/entity/retailshift/${encodeURIComponent(id)}`):row;
+  if(shift?.closeDate)throw new Error('SHIFT_NOT_OPEN');
+  return shift;
 }
 async function currentBalance(){
   const before=await calculateCashBalance({token,service});
