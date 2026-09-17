@@ -166,6 +166,12 @@
     }
   }
 
+  window.A4KassaQueueRecovery={
+    run:recoverOnce,
+    refreshBadge:updateQueueBadge,
+    isRunning:()=>running
+  };
+
   setTimeout(recoverOnce,500);
   setInterval(()=>{if(!document.hidden)recoverOnce()},5000);
   window.addEventListener('online',recoverOnce);

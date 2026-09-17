@@ -211,6 +211,11 @@
   function closeQueue(){$('queueDrawer').classList.remove('open');$('queueDrawer').setAttribute('aria-hidden','true')}
 
   async function syncQueue(){
+    if(window.A4KassaQueueRecovery?.run){
+      await window.A4KassaQueueRecovery.run();
+      await refreshQueue();
+      return;
+    }
     if(state.syncing||!navigator.onLine||!state.backendOnline||!state.session)return;state.syncing=true;
     try{
       await refreshQueue();
@@ -258,7 +263,9 @@
     await loadCached();
     await Promise.allSettled([health(),refreshRemoteData(false)]);
     if(state.backendOnline)await Promise.allSettled([loadShift(),loadStock(),syncQueue()]);
-    clearInterval(healthTimer);clearInterval(syncTimer);healthTimer=setInterval(()=>{if(!document.hidden)health()},15000);syncTimer=setInterval(()=>{if(!document.hidden)syncQueue()},5000);
+    clearInterval(healthTimer);clearInterval(syncTimer);
+    healthTimer=setInterval(()=>{if(!document.hidden)health()},15000);
+    syncTimer=window.A4KassaQueueRecovery?.run?null:setInterval(()=>{if(!document.hidden)syncQueue()},5000);
   }
 
   async function boot(){
