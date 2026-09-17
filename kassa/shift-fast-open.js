@@ -151,14 +151,18 @@
   window.fetch=async function a4FastShiftFetch(input,init={}){
     const u=requestUrl(input),method=methodOf(input,init);
 
-    // A cashier may finish a sale immediately after the local shift opens.
-    // Hold only the background sale request until MoySklad confirms the shift;
-    // the UI and the local receipt queue remain instant.
+    // The cashier-facing sale is already persisted in IndexedDB before sync.
+    // If the shift is still only local, never hold a network request for up to
+    // 30 seconds. Keep the receipt queued, trigger shift confirmation in the
+    // background and let the existing recovery loop retry the sale shortly.
     if(method==='POST'&&isSaleUrl(u)&&(state.local||isLocalShift(gate?.remoteShift))&&!state.confirmed){
-      await waitForConfirmed(30000);
-      const delayed=cloneInit(init);
-      delete delayed.signal;
-      return previousFetch(input,delayed);
+      ensureRemoteOpen().catch(()=>{});
+      return responseJson({
+        success:false,
+        error:'SHIFT_SYNC_PENDING',
+        message:'Смена открыта локально и синхронизируется. Продажа сохранена в очереди и будет отправлена автоматически.',
+        retryable:true
+      },409);
     }
 
     if(!isShiftUrl(u))return previousFetch(input,init);
