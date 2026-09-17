@@ -65,10 +65,10 @@ function msMomentToIso(value) {
   return Number.isFinite(d.getTime()) ? d.toISOString() : new Date().toISOString();
 }
 
-function paymentMethod(sale) {
-  const cash = Number(sale?.cashSum || 0);
-  const card = Number(sale?.noCashSum || 0);
-  const qr = Number(sale?.qrSum || 0);
+function paymentMethod(document) {
+  const cash = Number(document?.cashSum || 0);
+  const card = Number(document?.noCashSum || 0);
+  const qr = Number(document?.qrSum || 0);
   const active = [cash > 0, card > 0, qr > 0].filter(Boolean).length;
   if (active > 1) return 'Смешанная';
   if (qr > 0) return 'СБП';
@@ -82,49 +82,62 @@ function operatorNameFromDescription(description) {
   return match ? match[1].trim() : '';
 }
 
-function positionRows(sale) {
-  if (Array.isArray(sale?.positions)) return sale.positions;
-  if (Array.isArray(sale?.positions?.rows)) return sale.positions.rows;
+function reasonFromDescription(description) {
+  const match = String(description || '').match(/Причина:\s*(.+)$/i);
+  return match ? match[1].trim().slice(0, 1200) : null;
+}
+
+function positionRows(document) {
+  if (Array.isArray(document?.positions)) return document.positions;
+  if (Array.isArray(document?.positions?.rows)) return document.positions.rows;
   return [];
 }
 
-async function loadPositionRows(sale) {
-  const embedded = positionRows(sale);
+async function loadPositionRows(document, type = 'retaildemand') {
+  const embedded = positionRows(document);
   if (embedded.length) return embedded;
-  const saleId = entityId(sale);
-  if (!saleId) return [];
-  const data = await msGet(`/entity/retaildemand/${encodeURIComponent(saleId)}/positions?limit=1000`);
+  const documentId = entityId(document);
+  if (!documentId) return [];
+  const data = await msGet(`/entity/${type}/${encodeURIComponent(documentId)}/positions?limit=1000`);
   return Array.isArray(data?.rows) ? data.rows : [];
 }
 
-async function fetchSales({ maxSales = 5000, days = 1095 } = {}) {
+async function fetchDocuments(type, { maxRows = 5000, days = 1095 } = {}) {
   const cutoff = Date.now() - Math.max(1, Number(days || 1095)) * 86400000;
   const rows = [];
-  let url = `${MS_BASE}/entity/retaildemand?limit=100&order=moment,desc&expand=positions`;
+  let url = `${MS_BASE}/entity/${type}?limit=100&order=moment,desc&expand=positions`;
   let expandSupported = true;
-  while (url && rows.length < maxSales) {
+  while (url && rows.length < maxRows) {
     let data;
     try {
       data = await msGet(url);
     } catch (error) {
       if (expandSupported && /HTTP 400/.test(String(error?.message || ''))) {
         expandSupported = false;
-        url = `${MS_BASE}/entity/retaildemand?limit=100&order=moment,desc`;
+        url = `${MS_BASE}/entity/${type}?limit=100&order=moment,desc`;
         continue;
       }
       throw error;
     }
     const page = Array.isArray(data?.rows) ? data.rows : [];
     if (!page.length) break;
-    for (const sale of page) {
-      const ts = new Date(msMomentToIso(sale.moment || sale.created)).getTime();
+    for (const row of page) {
+      const ts = new Date(msMomentToIso(row.moment || row.created)).getTime();
       if (Number.isFinite(ts) && ts < cutoff) return rows;
-      rows.push(sale);
-      if (rows.length >= maxSales) return rows;
+      rows.push(row);
+      if (rows.length >= maxRows) return rows;
     }
     url = data?.meta?.nextHref || null;
   }
   return rows;
+}
+
+async function fetchSales({ maxSales = 5000, days = 1095 } = {}) {
+  return fetchDocuments('retaildemand', { maxRows: maxSales, days });
+}
+
+async function fetchReturns({ maxReturns = 2000, days = 1095 } = {}) {
+  return fetchDocuments('retailsalesreturn', { maxRows: maxReturns, days });
 }
 
 async function inChunks(values, size, fn) {
@@ -149,6 +162,34 @@ async function mapExistingSaleIds(orgId, ids) {
     return data || [];
   });
   return new Set(rows.map(row => row.moysklad_sale_id));
+}
+
+async function mapExistingReturnIds(orgId, ids) {
+  const rows = await inChunks(ids, 400, async chunk => {
+    if (!chunk.length) return [];
+    const { data, error } = await supabase
+      .from('pos_returns')
+      .select('moysklad_return_id')
+      .eq('organization_id', orgId)
+      .in('moysklad_return_id', chunk);
+    if (error) throw error;
+    return data || [];
+  });
+  return new Set(rows.map(row => row.moysklad_return_id));
+}
+
+async function saleMapByMoySkladIds(orgId, ids) {
+  const rows = await inChunks([...new Set(ids.filter(Boolean))], 400, async chunk => {
+    if (!chunk.length) return [];
+    const { data, error } = await supabase
+      .from('pos_sales')
+      .select('id,moysklad_sale_id,items')
+      .eq('organization_id', orgId)
+      .in('moysklad_sale_id', chunk);
+    if (error) throw error;
+    return data || [];
+  });
+  return new Map(rows.map(row => [String(row.moysklad_sale_id), row]));
 }
 
 async function catalogMap(orgId) {
@@ -193,12 +234,17 @@ async function operatorMap() {
   return map;
 }
 
+function catalogRowForAssortment(assortment, catalog) {
+  const href = assortment?.meta?.href || '';
+  const externalId = entityId(assortment);
+  return (externalId && catalog.byExternal.get(String(externalId))) || (href && catalog.byHref.get(String(href))) || null;
+}
+
 async function importMissingSale({ sale, orgId, catalog, shifts, operators }) {
-  const positions = await loadPositionRows(sale);
+  const positions = await loadPositionRows(sale, 'retaildemand');
   const items = positions.map((position, index) => {
-    const href = position?.assortment?.meta?.href || '';
+    const catalogRow = catalogRowForAssortment(position?.assortment, catalog);
     const externalId = entityId(position?.assortment);
-    const catalogRow = (externalId && catalog.byExternal.get(String(externalId))) || (href && catalog.byHref.get(String(href))) || null;
     const qty = Math.max(0, Number(position?.quantity || 0));
     const price = Math.max(0, Number(position?.price || 0) / 100);
     const discount = Math.max(0, Number(position?.discount || 0));
@@ -243,6 +289,66 @@ async function importMissingSale({ sale, orgId, catalog, shifts, operators }) {
   return true;
 }
 
+function normalizedSaleItemId(item, index) {
+  return String(item?.key || `${item?.id || 'item'}:${index}`);
+}
+
+async function importMissingReturn({ ret, orgId, catalog, shifts, operators, salesByExternal }) {
+  const returnId = entityId(ret);
+  const demandId = entityId(ret?.demand);
+  if (!returnId || !demandId) return false;
+  const sale = salesByExternal.get(String(demandId));
+  if (!sale) return false;
+
+  const originalItems = Array.isArray(sale.items) ? sale.items : [];
+  const usedOriginalIndexes = new Set();
+  const positions = await loadPositionRows(ret, 'retailsalesreturn');
+  const items = positions.map((position, index) => {
+    const catalogRow = catalogRowForAssortment(position?.assortment, catalog);
+    const catalogId = catalogRow?.id || null;
+    let originalIndex = originalItems.findIndex((item, i) => !usedOriginalIndexes.has(i) && catalogId && String(item?.id || '') === String(catalogId));
+    if (originalIndex < 0) {
+      const positionName = String(position?.assortment?.name || catalogRow?.name || '').trim().toLowerCase();
+      originalIndex = originalItems.findIndex((item, i) => !usedOriginalIndexes.has(i) && positionName && String(item?.name || '').trim().toLowerCase() === positionName);
+    }
+    if (originalIndex >= 0) usedOriginalIndexes.add(originalIndex);
+    const original = originalIndex >= 0 ? originalItems[originalIndex] : null;
+    return {
+      position_id: original ? normalizedSaleItemId(original, originalIndex) : (position?.id || `${returnId}:${index}`),
+      catalog_id: catalogId || original?.id || null,
+      name: original?.name || catalogRow?.name || position?.assortment?.name || 'Позиция МойСклад',
+      qty: Math.max(0, Number(position?.quantity || 0)),
+      price: Math.max(0, Number(position?.price || 0) / 100)
+    };
+  });
+
+  const shiftId = entityId(ret?.retailShift);
+  const operatorName = operatorNameFromDescription(ret?.description);
+  const operatorId = operatorName ? operators.get(operatorName.toLowerCase()) || null : null;
+  const payload = {
+    organization_id: orgId,
+    shift_session_id: shiftId ? shifts.get(String(shiftId)) || null : null,
+    pos_sale_id: sale.id,
+    moysklad_return_id: returnId,
+    moysklad_return_name: ret?.name || returnId,
+    operator_id: operatorId,
+    cash_account_id: null,
+    payment_method: paymentMethod(ret),
+    amount: Math.max(0, Number(ret?.sum || 0) / 100),
+    items,
+    reason: reasonFromDescription(ret?.description),
+    returned_at: msMomentToIso(ret?.moment || ret?.created),
+    sync_status: 'WARNING',
+    sync_error: 'RECOVERED_FROM_MOYSKLAD_RETURN; CASH_ACCOUNT_UNKNOWN'
+  };
+  const { error } = await supabase.from('pos_returns').insert(payload);
+  if (error) {
+    if (/duplicate|unique/i.test(String(error.message || ''))) return false;
+    throw error;
+  }
+  return true;
+}
+
 export async function syncMoySkladReceipts(options = {}) {
   if (running) return { skipped: true, reason: 'already_running' };
   if (!token || !supabase) return { skipped: true, reason: 'not_configured' };
@@ -251,44 +357,83 @@ export async function syncMoySkladReceipts(options = {}) {
   try {
     const { data: org, error: orgError } = await supabase.from('organizations').select('id').eq('code', 'A4PRINT').single();
     if (orgError) throw orgError;
-    const sales = await fetchSales(options);
-    const ids = sales.map(entityId).filter(Boolean);
-    const existing = await mapExistingSaleIds(org.id, ids);
-    const missing = sales.filter(sale => {
+
+    const [sales, returns] = await Promise.all([
+      fetchSales(options),
+      fetchReturns({ maxReturns: options.maxReturns || Math.min(Number(options.maxSales || 5000), 2000), days: options.days || 1095 })
+    ]);
+
+    const saleIds = sales.map(entityId).filter(Boolean);
+    const returnIds = returns.map(entityId).filter(Boolean);
+    const [existingSales, existingReturns] = await Promise.all([
+      mapExistingSaleIds(org.id, saleIds),
+      mapExistingReturnIds(org.id, returnIds)
+    ]);
+    const missingSales = sales.filter(sale => {
       const id = entityId(sale);
-      return id && !existing.has(id);
+      return id && !existingSales.has(id);
     });
-    if (!missing.length) {
-      return { scanned: sales.length, imported: 0, existing: sales.length, duration_ms: Date.now() - startedAt };
-    }
+    const missingReturns = returns.filter(ret => {
+      const id = entityId(ret);
+      return id && !existingReturns.has(id);
+    });
+
+    const relevantShiftIds = [
+      ...missingSales.map(sale => entityId(sale?.retailShift)),
+      ...missingReturns.map(ret => entityId(ret?.retailShift))
+    ];
     const [catalog, shifts, operators] = await Promise.all([
       catalogMap(org.id),
-      shiftMap(org.id, missing.map(sale => entityId(sale?.retailShift))),
+      shiftMap(org.id, relevantShiftIds),
       operatorMap()
     ]);
+
     let imported = 0;
     let failed = 0;
     const errors = [];
-    const queue = [...missing];
-    const workers = Array.from({ length: Math.min(4, queue.length) }, async () => {
-      while (queue.length) {
-        const sale = queue.shift();
+    const saleQueue = [...missingSales];
+    const saleWorkers = Array.from({ length: Math.min(4, saleQueue.length) }, async () => {
+      while (saleQueue.length) {
+        const sale = saleQueue.shift();
         try {
           if (await importMissingSale({ sale, orgId: org.id, catalog, shifts, operators })) imported++;
         } catch (error) {
           failed++;
-          errors.push({ id: entityId(sale), name: sale?.name || null, error: String(error?.message || error).slice(0, 400) });
+          errors.push({ type: 'sale', id: entityId(sale), name: sale?.name || null, error: String(error?.message || error).slice(0, 400) });
         }
         await sleep(60);
       }
     });
-    await Promise.all(workers);
+    await Promise.all(saleWorkers);
+
+    const demandIds = missingReturns.map(ret => entityId(ret?.demand)).filter(Boolean);
+    const salesByExternal = await saleMapByMoySkladIds(org.id, demandIds);
+    let returnsImported = 0;
+    let returnsFailed = 0;
+    let returnsSkipped = 0;
+    for (const ret of missingReturns) {
+      try {
+        if (await importMissingReturn({ ret, orgId: org.id, catalog, shifts, operators, salesByExternal })) returnsImported++;
+        else returnsSkipped++;
+      } catch (error) {
+        returnsFailed++;
+        errors.push({ type: 'return', id: entityId(ret), name: ret?.name || null, error: String(error?.message || error).slice(0, 400) });
+      }
+      await sleep(60);
+    }
+
     return {
       scanned: sales.length,
-      existing: sales.length - missing.length,
-      missing: missing.length,
+      existing: sales.length - missingSales.length,
+      missing: missingSales.length,
       imported,
       failed,
+      returns_scanned: returns.length,
+      returns_existing: returns.length - missingReturns.length,
+      returns_missing: missingReturns.length,
+      returns_imported: returnsImported,
+      returns_failed: returnsFailed,
+      returns_skipped: returnsSkipped,
       errors: errors.slice(0, 10),
       duration_ms: Date.now() - startedAt
     };
@@ -307,7 +452,7 @@ async function runSync(label, options) {
 }
 
 if (isInternalApiProcess && token && supabase) {
-  setTimeout(() => runSync('initial', { days: 1095, maxSales: 5000 }), 7000);
-  const timer = setInterval(() => runSync('recent', { days: 3, maxSales: 500 }), 2 * 60 * 1000);
+  setTimeout(() => runSync('initial', { days: 1095, maxSales: 5000, maxReturns: 2000 }), 7000);
+  const timer = setInterval(() => runSync('recent', { days: 3, maxSales: 500, maxReturns: 500 }), 2 * 60 * 1000);
   timer.unref?.();
 }
