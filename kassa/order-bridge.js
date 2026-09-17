@@ -5,7 +5,8 @@
 
   const cfg=window.A4PRINT_CONFIG||{};
   const create=window.supabase?.createClient;
-  if(!create)return;
+  const DB=window.A4KassaDB;
+  if(!create||!DB)return;
   const supabase=create(cfg.supabaseUrl,cfg.supabasePublishableKey,{global:{fetch:window.A4SupabaseFetch||fetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
   const $=id=>document.getElementById(id);
@@ -64,7 +65,7 @@
     detailEl.innerHTML=`<div class="hub-order-title"><div><span>Заказ HUB</span><h3>№${esc(o.order_number)}</h3><p>${esc(c.company_name||c.full_name||'Клиент не указан')}${c.phone?' · '+esc(c.phone):''}</p></div><span class="hub-order-status">${esc(labels[o.status]||o.status||'')}</span></div>
       <div class="hub-order-kpis"><div><span>Сумма</span><b>${money(total)}</b></div><div><span>Оплачено</span><b>${money(paid)}</b></div><div class="debt"><span>К оплате</span><b>${money(debt)}</b></div></div>
       <div class="hub-order-items">${(o.items||[]).map(i=>`<div><span>${esc(i.name||'Позиция')} × ${Number(i.quantity||0).toLocaleString('ru-RU')}</span><b>${money(i.total_price)}</b></div>`).join('')||'<div class="hub-orders-empty">Позиции заказа не указаны</div>'}</div>
-      ${debt>0?`<div class="hub-order-pay"><label><span>Сумма оплаты</span><input id="hubOrderPayAmount" type="number" min="0.01" max="${debt}" step="0.01" value="${debt.toFixed(2)}"></label><label><span>Способ оплаты</span><select id="hubOrderPayMethod"><option>Наличные</option><option>Карта</option><option>СБП</option></select></label><div id="hubOrderPayError" class="hub-orders-error"></div><button id="hubOrderPayBtn" type="button">Провести через кассу · ${money(debt)}</button><small>Будет создан настоящий чек МойСклад и подтверждённая оплата в HUB.</small></div>`:'<div class="hub-order-paid">✓ Заказ полностью оплачен</div>'}`;
+      ${debt>0?`<div class="hub-order-pay"><label><span>Сумма оплаты</span><input id="hubOrderPayAmount" type="number" min="0.01" max="${debt}" step="0.01" value="${debt.toFixed(2)}"></label><label><span>Способ оплаты</span><select id="hubOrderPayMethod"><option>Наличные</option><option>Карта</option><option>СБП</option></select></label><div id="hubOrderPayError" class="hub-orders-error"></div><button id="hubOrderPayBtn" type="button">Провести через кассу · ${money(debt)}</button><small>Оплата сначала сохраняется локально, затем чек МойСклад и платёж HUB синхронизируются одной очередью.</small></div>`:'<div class="hub-order-paid">✓ Заказ полностью оплачен</div>'}`;
     const amount=$('hubOrderPayAmount'),btn=$('hubOrderPayBtn');if(amount&&btn)amount.oninput=()=>{const n=Number(amount.value||0);btn.textContent=`Провести через кассу · ${money(n)}`};if(btn)btn.onclick=checkout;
   }
 
@@ -77,23 +78,58 @@
     if(!d?.item?.id)throw new Error('Не удалось подготовить кассовую позицию для заказа.');serviceItem=d.item;return serviceItem;
   }
 
+  function renderQueued(o,amount,pending){
+    const lastError=String(pending?.last_error||'').trim();
+    detailEl.innerHTML=`<div class="hub-order-success"><div>↻</div><h3>Оплата заказа №${esc(o.order_number)} сохранена</h3><p>${money(amount)} находится в защищённой очереди кассы. Синхронизация с МойСклад и HUB продолжится автоматически.${lastError?` Последняя ошибка: ${esc(lastError)}`:''}</p><button id="hubOrderDone" type="button">Готово</button></div>`;
+    $('hubOrderDone').onclick=async()=>{current=null;await loadOrders(searchEl.value);detailEl.innerHTML='<div class="hub-orders-empty">Выберите заказ слева</div>'};
+  }
+
+  function renderPaid(o,amount,receipt){
+    const sale=receipt?.backend_result||{};
+    detailEl.innerHTML=`<div class="hub-order-success"><div>✓</div><h3>Заказ №${esc(o.order_number)} проведён</h3><p>Чек ${esc(sale.moysklad?.name||sale.moysklad?.id||'МойСклад')} создан. Оплата ${money(sale.sum??amount)} записана в HUB.</p><button id="hubOrderDone" type="button">Готово</button></div>`;
+    $('hubOrderDone').onclick=async()=>{current=null;await loadOrders(searchEl.value);detailEl.innerHTML='<div class="hub-orders-empty">Выберите заказ слева</div>'};
+    window.dispatchEvent(new CustomEvent('a4:kassa-order-paid',{detail:{order_id:o.id,record:receipt?.hub_result||null}}));
+  }
+
   async function checkout(){
     const o=current;if(!o)return;const err=$('hubOrderPayError'),btn=$('hubOrderPayBtn');err.textContent='';
     const paid=Number(o.paid||0),debt=Math.max(0,Number(o.total||0)-paid),amount=Number($('hubOrderPayAmount')?.value||0),method=$('hubOrderPayMethod')?.value||'Наличные';
     if(!(amount>0)||amount>debt+0.001){err.textContent=`Введите сумму от 0,01 ₽ до ${money(debt)}.`;return}
     const accountId=$('cashAccount')?.value||'';if(!accountId){err.textContent='В кассе не выбран счёт оплаты.';return}
-    btn.disabled=true;btn.textContent='Проводим заказ…';
+    btn.disabled=true;btn.textContent='Сохраняем оплату…';
     try{
       const [item,shift]=await Promise.all([ensureOrderService(),api('/api/v1/pos/shift')]);
       if(!shift?.shift?.id)throw new Error('Кассовая смена закрыта. Сначала откройте смену.');
       const opId=uuid();const operatorId=$('operatorSelect')?.value||null;
-      const sale=await api('/api/v1/pos/sale',{method:'POST',body:JSON.stringify({items:[{id:item.id,qty:1,price:amount}],payment_method:method,customer_id:o.customer_id||null,operator_id:operatorId,client_operation_id:opId,order_id:o.id})});
-      const items=[{key:opId,id:item.id,name:`Заказ A4PRINT HUB №${o.order_number}`,article:'A4HUB-ORDER',qty:1,price:Number(sale.sum??amount)}];
-      const {data:record,error:recordError}=await supabase.rpc('record_pos_sale_v2',{p_moysklad_sale_id:sale.moysklad?.id,p_moysklad_sale_name:sale.moysklad?.name||null,p_moysklad_shift_id:shift.shift.id,p_operator_id:operatorId,p_customer_id:o.customer_id||null,p_cash_account_id:accountId,p_payment_method:method,p_total:Number(sale.sum??amount),p_items:items,p_order_id:o.id});
-      if(recordError)throw recordError;
-      detailEl.innerHTML=`<div class="hub-order-success"><div>✓</div><h3>Заказ №${esc(o.order_number)} проведён</h3><p>Чек ${esc(sale.moysklad?.name||sale.moysklad?.id||'МойСклад')} создан. Оплата ${money(sale.sum??amount)} записана в HUB.</p><button id="hubOrderDone" type="button">Готово</button></div>`;
-      $('hubOrderDone').onclick=async()=>{current=null;await loadOrders(searchEl.value);detailEl.innerHTML='<div class="hub-orders-empty">Выберите заказ слева</div>'};
-      window.dispatchEvent(new CustomEvent('a4:kassa-order-paid',{detail:{order_id:o.id,record}}));
+      const queueItem={
+        id:opId,
+        created_at:new Date().toISOString(),
+        stage:'queued',
+        tries:0,
+        last_error:null,
+        items:[{key:opId,id:item.id,name:`Заказ A4PRINT HUB №${o.order_number}`,article:'A4HUB-ORDER',qty:1,price:amount}],
+        payment_method:method,
+        customer_id:o.customer_id||null,
+        customer_name:o.customer?.company_name||o.customer?.full_name||null,
+        operator_id:operatorId,
+        operator_name:$('operatorSelect')?.selectedOptions?.[0]?.textContent||'',
+        cash_account_id:accountId,
+        total:amount,
+        shift:{id:shift.shift.id,name:shift.shift.name||null,openDate:shift.shift.openDate||null},
+        order_id:o.id,
+        order_number:o.order_number
+      };
+      await DB.put('queue',queueItem);
+      await window.A4KassaQueueRecovery?.refreshBadge?.();
+      await window.A4KassaQueueRecovery?.run?.();
+
+      const receipt=await DB.get('receipts',opId);
+      if(receipt?.stage==='done'){
+        renderPaid(o,amount,receipt);
+        return;
+      }
+      const pending=await DB.get('queue',opId);
+      renderQueued(o,amount,pending||queueItem);
     }catch(error){err.textContent=String(error?.message||error);btn.disabled=false;btn.textContent=`Провести через кассу · ${money(amount)}`}
   }
 
