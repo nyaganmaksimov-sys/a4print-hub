@@ -9,7 +9,7 @@ const service=supabaseUrl&&serviceKey?createClient(supabaseUrl,serviceKey,{auth:
 const MS_BASE='https://api.moysklad.ru/api/remap/1.2';
 const installed=Symbol.for('a4print.pos.return.idempotency.installed');
 const context=new AsyncLocalStorage();
-const inflight=new Map();
+let orgPromise=null;
 
 function clean(value,max=500){return String(value||'').trim().slice(0,max)}
 function entityId(entity){return entity?.id||entity?.meta?.href?.split('/').pop()||null}
@@ -17,6 +17,11 @@ function markerFor(key){return `A4RET:${key}`}
 function validKey(value){
   const key=clean(value,120);
   return /^[A-Za-z0-9._:-]{8,120}$/.test(key)?key:'';
+}
+async function organizationId(){
+  if(!service)return null;
+  if(!orgPromise)orgPromise=service.from('organizations').select('id').eq('code','A4PRINT').single().then(({data,error})=>{if(error)throw error;return data?.id||null});
+  return orgPromise;
 }
 
 async function msGet(path){
@@ -138,6 +143,70 @@ async function ensureHubReturn({req,sale,msReturn}){
   return raced.data;
 }
 
+function replayBody(msReturn,hub){
+  return{
+    success:true,
+    idempotent_replay:true,
+    return:{id:entityId(msReturn),name:msReturn?.name||hub?.moysklad_return_name||null},
+    amount:Number(hub?.amount??Number(msReturn?.sum||0)/100),
+    hub_return_id:hub?.id||null
+  };
+}
+
+async function saveSynced(orgId,key,body){
+  if(!service||!orgId||!key)return;
+  await service.from('pos_return_operations').update({
+    status:'SYNCED',
+    moysklad_return_id:body?.return?.id||null,
+    moysklad_return_name:body?.return?.name||null,
+    response_json:body,
+    last_error:null,
+    updated_at:new Date().toISOString()
+  }).eq('organization_id',orgId).eq('client_operation_id',key);
+}
+async function saveUnknown(orgId,key,error){
+  if(!service||!orgId||!key)return;
+  await service.from('pos_return_operations').update({
+    status:'UNKNOWN',
+    last_error:String(error?.message||error||'UNKNOWN').slice(0,1500),
+    updated_at:new Date().toISOString()
+  }).eq('organization_id',orgId).eq('client_operation_id',key);
+}
+
+async function reserve(req,key,sale){
+  const orgId=await organizationId();
+  if(!orgId)return{orgId:null,proceed:true};
+  const read=await service.from('pos_return_operations').select('*')
+    .eq('organization_id',orgId).eq('client_operation_id',key).maybeSingle();
+  if(read.error)throw read.error;
+  const existing=read.data;
+  if(existing){
+    if(existing.status==='SYNCED'&&existing.response_json)return{orgId,proceed:false,cached:existing.response_json};
+    const found=await findMoySkladReturn(sale,key);
+    if(found){
+      const hub=await ensureHubReturn({req,sale,msReturn:found});
+      const body=replayBody(found,hub);
+      await saveSynced(orgId,key,body);
+      return{orgId,proceed:false,cached:body};
+    }
+    const age=Date.now()-new Date(existing.updated_at||existing.created_at||0).getTime();
+    if((existing.status==='PROCESSING'||existing.status==='UNKNOWN')&&age<45000)return{orgId,proceed:false,busy:true};
+    const update=await service.from('pos_return_operations').update({status:'PROCESSING',last_error:null,updated_at:new Date().toISOString()})
+      .eq('organization_id',orgId).eq('client_operation_id',key);
+    if(update.error)throw update.error;
+    return{orgId,proceed:true};
+  }
+  const inserted=await service.from('pos_return_operations').insert({
+    organization_id:orgId,
+    client_operation_id:key,
+    status:'PROCESSING',
+    requested_by_auth_user_id:req.authUser?.id||null
+  });
+  if(inserted.error?.code==='23505')return reserve(req,key,sale);
+  if(inserted.error)throw inserted.error;
+  return{orgId,proceed:true};
+}
+
 // Attach the idempotency marker only to the outbound MoySklad return document.
 // The operator-facing reason stored in HUB remains clean.
 if(!globalThis.fetch.__a4ReturnIdempotencyFetch){
@@ -170,43 +239,49 @@ express.application.post=function patchedReturnPost(path,...handlers){
     const originalHandler=handlers[index];
     handlers[index]=async function idempotentReturnHandler(req,res,next){
       const key=validKey(req.body?.client_operation_id);
-      if(!key)return originalHandler(req,res,next);
+      if(!key||!service)return originalHandler(req,res,next);
+      const sale=await saleRow(clean(req.body?.sale_id,80)).catch(()=>null);
+      if(!sale)return originalHandler(req,res,next);
 
-      const wait=inflight.get(key);
-      if(wait){
-        try{await wait}catch{}
-      }
-
+      let orgId=null;
       try{
-        const sale=await saleRow(clean(req.body?.sale_id,80));
-        if(sale){
-          const existing=await findMoySkladReturn(sale,key);
-          if(existing){
-            const hub=await ensureHubReturn({req,sale,msReturn:existing});
-            return res.status(200).json({
-              success:true,
-              idempotent_replay:true,
-              return:{id:entityId(existing),name:existing.name||hub?.moysklad_return_name||null},
-              amount:Number(hub?.amount??Number(existing.sum||0)/100),
-              hub_return_id:hub?.id||null
-            });
+        const reservation=await reserve(req,key,sale);
+        orgId=reservation.orgId;
+        if(reservation.cached)return res.status(200).json({...reservation.cached,idempotent_replay:true});
+        if(reservation.busy)return res.status(409).json({success:false,error:'RETURN_SYNC_IN_PROGRESS',message:'Возврат уже синхронизируется. Повторите через несколько секунд.'});
+
+        const originalJson=res.json.bind(res);
+        let sent=false;
+        res.json=function captureReturnResponse(body){
+          if(sent)return res;
+          sent=true;
+          if(body?.success&&body?.return?.id){
+            saveSynced(orgId,key,body).then(()=>originalJson(body)).catch(()=>originalJson(body));
+            return res;
           }
-        }
-      }catch(error){
-        // Fail closed when the dedupe lookup itself is unavailable. Creating a
-        // second financial document is worse than asking the cashier to retry.
-        console.warn('A4PRINT return idempotency lookup:',String(error?.message||error));
-        return res.status(503).json({success:false,error:'RETURN_IDEMPOTENCY_CHECK_FAILED',message:'Не удалось безопасно проверить повтор возврата. Повторите операцию через несколько секунд.'});
-      }
+          return originalJson(body);
+        };
 
-      let release;
-      const gate=new Promise(resolve=>{release=resolve});
-      inflight.set(key,gate);
-      try{
-        return await context.run({key},()=>originalHandler(req,res,next));
-      }finally{
-        inflight.delete(key);
-        release?.();
+        const wrappedNext=async error=>{
+          if(!error)return next();
+          try{
+            const found=await findMoySkladReturn(sale,key);
+            if(found){
+              const hub=await ensureHubReturn({req,sale,msReturn:found});
+              const body=replayBody(found,hub);
+              await saveSynced(orgId,key,body);
+              if(!sent){sent=true;return originalJson(body)}
+            }
+            await saveUnknown(orgId,key,error);
+          }catch(recoveryError){
+            await saveUnknown(orgId,key,recoveryError).catch(()=>{});
+          }
+          return next(error);
+        };
+        return context.run({key},()=>originalHandler(req,res,wrappedNext));
+      }catch(error){
+        await saveUnknown(orgId,key,error).catch(()=>{});
+        return next(error);
       }
     };
   }
