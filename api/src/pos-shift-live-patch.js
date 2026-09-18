@@ -131,12 +131,18 @@ async function hubShift(){
       .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
     if(error||!data?.moysklad_shift_id)return null;
     const after=data.opened_at;
-    const [salesResult,returnsResult,opsResult]=await Promise.all([
+    const [salesResult,returnsResult,opsResult,baselineResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps]=await Promise.all([
       supabase.from('pos_sales').select('total,payment_method').gte('sold_at',after),
       supabase.from('pos_returns').select('amount,payment_method').gte('returned_at',after),
-      supabase.from('pos_cash_operations').select('operation_type,amount').gte('created_at',after)
+      supabase.from('pos_cash_operations').select('operation_type,amount').gte('created_at',after),
+      supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle(),
+      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at'),
+      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at').is('sold_at',null),
+      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at'),
+      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at').is('returned_at',null),
+      supabase.from('pos_cash_operations').select('operation_type,amount,created_at')
     ]);
-    for(const result of [salesResult,returnsResult,opsResult])if(result.error)throw result.error;
+    for(const result of [salesResult,returnsResult,opsResult,baselineResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps])if(result.error)throw result.error;
     const sales=salesResult.data||[],returns=returnsResult.data||[],ops=opsResult.data||[];
     const isCash=v=>/налич|cash/i.test(String(v||''));
     const sum=(rows,field)=>rows.reduce((n,row)=>n+Number(row?.[field]||0),0);
@@ -146,6 +152,16 @@ async function hubShift(){
     const cashlessReturns=sum(returns.filter(x=>!isCash(x.payment_method)),'amount');
     const cashIn=ops.filter(x=>x.operation_type==='CASH_IN');
     const cashOut=ops.filter(x=>x.operation_type==='CASH_OUT');
+    const baseline=baselineResult.data||null;
+    let cashInRegister=null;
+    if(baseline){
+      const baselineAt=new Date(baseline.baseline_at).getTime();
+      const since=row=>new Date(row.sold_at||row.returned_at||row.created_at||0).getTime()>=baselineAt;
+      const bSales=[...(balanceSalesTimed.data||[]),...(balanceSalesUntimed.data||[])].filter(since).filter(x=>isCash(x.payment_method));
+      const bReturns=[...(balanceReturnsTimed.data||[]),...(balanceReturnsUntimed.data||[])].filter(since).filter(x=>isCash(x.payment_method));
+      const bOps=(balanceOps.data||[]).filter(since);
+      cashInRegister=Number(baseline.baseline_amount)+sum(bSales,'total')+sum(bOps.filter(x=>x.operation_type==='CASH_IN'),'amount')-sum(bReturns,'amount')-sum(bOps.filter(x=>x.operation_type==='CASH_OUT'),'amount');
+    }
     return{
       build:BUILD,
       shift:{id:data.moysklad_shift_id,name:data.moysklad_shift_name||'—',openDate:data.opened_at,closeDate:null,updated:data.updated_at||null},
@@ -156,7 +172,7 @@ async function hubShift(){
         returns_count:returns.length,returns_total:sum(returns,'amount'),returns_cash:cashReturns,returns_cashless:cashlessReturns,
         deposits_count:cashIn.length,deposits_total:sum(cashIn,'amount'),payouts_count:cashOut.length,payouts_total:sum(cashOut,'amount'),
         revenue_cash:cashSales-cashReturns,revenue_cashless:cashlessSales-cashlessReturns,
-        revenue_total:sum(sales,'total')-sum(returns,'amount')
+        revenue_total:sum(sales,'total')-sum(returns,'amount'),cash_in_register:cashInRegister
       }
     };
   }catch{return null}
