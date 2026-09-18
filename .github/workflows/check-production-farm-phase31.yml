@@ -1,0 +1,95 @@
+name: Check Production Farm Phase 31
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment-claim-integrity-incidents.html'
+      - 'admin/equipment-claim-integrity-incidents.js'
+      - 'admin/equipment-condition-claim-integrity.html'
+      - 'admin/navigation.js'
+      - 'database/migrations/20260915_production_farm_claim_integrity_incident_resolution.sql'
+      - 'database/migrations/20260918_production_farm_claim_integrity_incident_tenant_scope.sql'
+      - 'docs/PRODUCTION_FARM_PHASE31.md'
+      - '.github/workflows/check-production-farm-phase31.yml'
+
+jobs:
+  phase31-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check admin/equipment-claim-integrity-incidents.js
+          node --check admin/navigation.js
+
+      - name: Verify HUB wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s admin/equipment-claim-integrity-incidents.html
+          test -s admin/equipment-claim-integrity-incidents.js
+          grep -q 'equipment-claim-integrity-incidents.js?v=20260918-phase31-1' admin/equipment-claim-integrity-incidents.html
+          grep -q 'list_equipment_claim_integrity_incidents' admin/equipment-claim-integrity-incidents.js
+          grep -q 'set_equipment_claim_integrity_incident_state' admin/equipment-claim-integrity-incidents.js
+          grep -q 'equipment_claim_financial_integrity_actions' admin/equipment-claim-integrity-incidents.js
+          grep -q 'INTEGRITY_ISSUE_STILL_ACTIVE' admin/equipment-claim-integrity-incidents.js
+          grep -q 'Расследования' admin/equipment-condition-claim-integrity.html
+          grep -q 'equipment-claim-integrity-incidents.html' admin/equipment-condition-claim-integrity.html
+          grep -q "equipment-claim-integrity-incidents.html.*Фин. нарушения" admin/navigation.js
+          grep -q 'Закрытие не скрывает событие' admin/equipment-claim-integrity-incidents.html
+
+      - name: Verify database safety markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260915_production_farm_claim_integrity_incident_resolution.sql'
+          tenant='database/migrations/20260918_production_farm_claim_integrity_incident_tenant_scope.sql'
+          test -s "$sql"; test -s "$tenant"
+          grep -q 'create table if not exists public.equipment_claim_financial_integrity_actions' "$sql"
+          grep -q "ACKNOWLEDGED.*INVESTIGATING.*RESOLVED.*REOPENED" "$sql"
+          grep -q 'generated always as identity' "$sql"
+          grep -q 'CLAIM_FINANCIAL_INTEGRITY_ACTION_APPEND_ONLY' "$sql"
+          grep -q 'list_equipment_claim_integrity_incidents' "$sql"
+          grep -q 'set_equipment_claim_integrity_incident_state' "$sql"
+          grep -q 'INTEGRITY_ISSUE_STILL_ACTIVE' "$sql"
+          grep -q 'INTEGRITY_RESOLUTION_REFERENCE_REQUIRED' "$sql"
+          grep -q 'equipment_claim_integrity_signature' "$sql"
+          grep -q "v_latest='RESOLVED'" "$sql"
+          grep -q "'REOPENED'" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'revoke all on public.equipment_claim_financial_integrity_actions from public,anon,authenticated' "$sql"
+          grep -q 'grant select on public.equipment_claim_financial_integrity_actions to authenticated' "$sql"
+          grep -q 'revoke all on function public.emit_equipment_claim_financial_integrity_notifications()' "$sql"
+          grep -q 'current_user_organization_id' "$tenant"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$tenant"
+          grep -q 'INTEGRITY_EVENT_NOT_AVAILABLE' "$tenant"
+          grep -q 'ea.organization_id=v_org' "$tenant"
+          grep -q 'ou.organization_id=v_org' "$tenant"
+          grep -q 'equipment_claim_financial_integrity_actions_staff_read' "$tenant"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE31.md'
+          test -s "$doc"
+          grep -q 'phase31_integrity_incident_lifecycle_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'INTEGRITY_ISSUE_STILL_ACTIVE' "$doc"
+          grep -q 'ACKNOWLEDGED → INVESTIGATING → RESOLVED → REOPENED' "$doc"
+          grep -q '06:30 UTC' "$doc"
+          grep -q 'append-only' "$doc"
+          grep -q 'не редактирует деньги автоматически' "$doc"
+          grep -q 'phase31_integrity_tenant_isolation_ok' "$doc"
+          grep -q 'INTEGRITY_EVENT_NOT_AVAILABLE' "$doc"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$doc"

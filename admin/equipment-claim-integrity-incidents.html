@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Расследования финансовых нарушений — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
+  <script src="./config.js?v=20260918-phase31"></script>
+  <style>
+    .ifi-shell{padding:22px;max-width:1480px;margin:0 auto}.ifi-head-actions{display:flex;gap:8px;flex-wrap:wrap}.ifi-btn,.ifi-head-actions a{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:9px 11px;font:inherit;font-weight:800;cursor:pointer;color:#0f172a;text-decoration:none}.ifi-btn.primary{background:#0f172a;color:#fff;border-color:#0f172a}.ifi-btn.resolve{background:#166534;color:#fff;border-color:#166534}.ifi-btn:disabled{opacity:.5;cursor:not-allowed}.ifi-note{padding:11px 13px;border-radius:10px;background:#eff6ff;color:#1e40af;margin-bottom:12px}.ifi-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}.ifi-kpis article,.ifi-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:15px}.ifi-kpis span,.ifi-kpis small{display:block;color:#64748b}.ifi-kpis strong{display:block;font-size:25px;margin:4px 0}.ifi-kpis .danger{border-color:#fecaca;background:#fffafa}.ifi-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 210px auto;gap:10px;align-items:center;margin-bottom:14px}.ifi-toolbar input,.ifi-toolbar select,.ifi-dialog input,.ifi-dialog select,.ifi-dialog textarea{border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font:inherit;box-sizing:border-box;width:100%}.ifi-list{display:grid;gap:10px}.ifi-row{border:1px solid #e2e8f0;border-radius:14px;padding:14px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(200px,.65fr) minmax(260px,.9fr) auto;gap:12px;align-items:start}.ifi-row.REOPENED,.ifi-row.OPEN{border-color:#fecaca;background:#fffafa}.ifi-row h3{margin:5px 0 4px;font-size:15px}.ifi-row p,.ifi-row small{margin:0;color:#64748b;font-size:12px}.ifi-pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:900;background:#f1f5f9;color:#475569;margin:0 4px 4px 0}.ifi-pill.OPEN,.ifi-pill.REOPENED{background:#fee2e2;color:#991b1b}.ifi-pill.ACKNOWLEDGED{background:#fef3c7;color:#92400e}.ifi-pill.INVESTIGATING{background:#dbeafe;color:#1d4ed8}.ifi-pill.RESOLVED,.ifi-pill.OK{background:#dcfce7;color:#166534}.ifi-pill.ERROR{background:#fee2e2;color:#991b1b}.ifi-issues{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.ifi-issue{font-size:10px;padding:4px 6px;border-radius:7px;background:#fee2e2;color:#991b1b;font-weight:800}.ifi-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.ifi-empty{padding:32px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:12px}.ifi-error{padding:10px 12px;margin-bottom:12px;border-radius:10px;background:#fef2f2;color:#991b1b}.ifi-dialog{width:min(760px,calc(100vw - 24px));border:0;border-radius:16px;padding:0;box-shadow:0 20px 70px #0f172a40}.ifi-dialog::backdrop{background:#0f172a70}.ifi-dialog-head,.ifi-dialog-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px}.ifi-dialog-head{border-bottom:1px solid #e5e7eb}.ifi-dialog-foot{border-top:1px solid #e5e7eb;justify-content:flex-end}.ifi-dialog-body{padding:16px}.ifi-form{display:grid;gap:10px}.ifi-form label{display:grid;gap:5px;font-size:12px;font-weight:700;color:#475569}.ifi-history{display:grid;gap:8px;margin-top:12px}.ifi-history article{border-left:3px solid #cbd5e1;padding:6px 10px;background:#f8fafc;border-radius:0 8px 8px 0}.ifi-history strong{font-size:12px}.ifi-history p{margin:3px 0;color:#475569;font-size:12px}@media(max-width:1000px){.ifi-kpis{grid-template-columns:repeat(2,1fr)}.ifi-row{grid-template-columns:1fr 1fr}}@media(max-width:700px){.ifi-shell{padding:12px}.ifi-toolbar,.ifi-row{grid-template-columns:1fr}.ifi-kpis{grid-template-columns:1fr 1fr}.ifi-actions{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar"><div><h1>Расследования финансовых нарушений</h1><p>Очередь событий контроля целостности с неизменяемой историей действий.</p></div><div class="ifi-head-actions"><a href="./equipment-condition-claim-integrity.html">← Контроль целостности</a><a href="./equipment-condition-claim-reversals.html">Финансовые корректировки</a><button id="ifiRefresh" class="ifi-btn" type="button">↻ Обновить</button></div></header>
+    <div class="ifi-shell">
+      <div class="ifi-note"><b>Закрытие не скрывает событие.</b> RESOLVED разрешается только после того, как точная сигнатура нарушения больше не активна. Если она появится снова, сервер автоматически создаст REOPENED и повторное предупреждение.</div>
+      <section class="ifi-kpis">
+        <article><span>Всего</span><strong id="ifiTotal">0</strong><small>в текущем фильтре</small></article>
+        <article class="danger"><span>Открытые</span><strong id="ifiOpen">0</strong><small>ещё не приняты</small></article>
+        <article class="danger"><span>Повторные</span><strong id="ifiReopened">0</strong><small>вернулись после закрытия</small></article>
+        <article><span>В расследовании</span><strong id="ifiInvestigating">0</strong><small>активная работа</small></article>
+        <article><span>Закрытые</span><strong id="ifiResolved">0</strong><small>с основанием</small></article>
+      </section>
+      <section class="ifi-card">
+        <div class="ifi-toolbar"><input id="ifiSearch" type="search" placeholder="Партнёр, договор, оборудование, код ошибки…"><select id="ifiState"><option value="">Все состояния</option><option value="OPEN">Открытые</option><option value="REOPENED">Повторные</option><option value="ACKNOWLEDGED">Приняты</option><option value="INVESTIGATING">Расследуются</option><option value="RESOLVED">Закрытые</option></select><label><input id="ifiIncludeResolved" type="checkbox"> Показывать закрытые</label></div>
+        <div id="ifiError"></div><div id="ifiList" class="ifi-list"><div class="ifi-empty">Загрузка…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="ifiDialog" class="ifi-dialog">
+    <form id="ifiForm">
+      <div class="ifi-dialog-head"><strong id="ifiDialogTitle">Действие по инциденту</strong><button class="ifi-btn" type="button" id="ifiClose">×</button></div>
+      <div class="ifi-dialog-body">
+        <input id="ifiEventId" type="hidden"><input id="ifiAction" type="hidden">
+        <div id="ifiSummary" class="ifi-note"></div>
+        <div class="ifi-form"><label>Комментарий<textarea id="ifiNote" rows="4" required minlength="3" placeholder="Что проверено, что сделано и что остаётся"></textarea></label><label id="ifiReferenceWrap" style="display:none">Документ / ссылка-основание<input id="ifiReference" placeholder="Бухгалтерская справка, акт, документ или ссылка"></label></div>
+        <div id="ifiDialogError"></div>
+        <div><strong style="font-size:13px">История действий</strong><div id="ifiHistory" class="ifi-history"><div class="ifi-empty">Загрузка истории…</div></div></div>
+      </div>
+      <div class="ifi-dialog-foot"><button class="ifi-btn" type="button" id="ifiCancel">Отмена</button><button id="ifiSave" class="ifi-btn primary" type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <script src="./navigation.js?v=20260918-phase31"></script>
+  <script type="module" src="./equipment-claim-integrity-incidents.js?v=20260918-phase31-1"></script>
+</body>
+</html>
