@@ -63,7 +63,7 @@ async function refreshBalance(fallback){
   }catch{}
   return Number(fallback);
 }
-async function createCashDocument({type,amount,reason,operatorName}){
+async function createCashDocument({type,amount,reason,operatorName,verifiedCash}){
   const isOut=type==='CASH_OUT';
   // The UI verifies the balance immediately before POST. Do not recalculate the
   // entire cash ledger here: it fans out over historical MoySklad documents and
@@ -73,9 +73,11 @@ async function createCashDocument({type,amount,reason,operatorName}){
   console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'open_shift_done',at:Date.now(),shiftId:idOf(shift)}));
   const shiftId=idOf(shift);
   if(!shiftId)throw new Error('SHIFT_NOT_OPEN');
-  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'balance_start',at:Date.now()}));
-  const before=await currentBalance();
-  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'balance_done',at:Date.now(),cash:Number(before.cash)}));
+  const supplied=Number(verifiedCash);
+  const before=Number.isFinite(supplied)&&supplied>=0
+    ? {cash:supplied,available:true,source:'CLIENT_VERIFIED_IMMEDIATELY_BEFORE_POST'}
+    : await currentBalance();
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'balance_ready',at:Date.now(),cash:Number(before.cash),source:before.source||'SERVER_LEDGER'}));
   if(isOut&&amount>Number(before.cash)+0.0001){
     const error=new Error('CASH_OUT_EXCEEDS_BALANCE');
     error.cashBalance=Number(before.cash);
@@ -154,7 +156,7 @@ async function handleCashOperation(req,res,next,type){
     const operator=await selectedOperator(req,ctx);
     trace('operator_done',{operatorId:operator?.id||null});
     trace('create_document_start',{amount});
-    const result=await createCashDocument({type,amount,reason,operatorName:operator?.full_name||operator?.email||ctx.user.email});
+    const result=await createCashDocument({type,amount,reason,operatorName:operator?.full_name||operator?.email||ctx.user.email,verifiedCash:req.body?.verified_cash});
     trace('create_document_done',{operationId:idOf(result.operation),cashBefore:result.cashBefore,cashAfter:result.cashAfter});
     await logOperation({operator,shift:result.shift,operation:result.operation,type,amount,reason});
     return res.json({
