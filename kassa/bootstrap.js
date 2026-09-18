@@ -7,7 +7,7 @@
     return;
   }
 
-  const VERSION='20260917-return-idempotency2';
+  const VERSION='20260918-cash-operation-idempotency1';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
@@ -131,8 +131,9 @@
     await soft(()=>loadScript('./sync-throttle.js',5000),'sync-throttle');
     // Install queue monotonicity/recovery before app.js starts its first sync pass.
     await soft(()=>loadScript('./queue-recovery.js',5000),'queue-recovery');
-    // Return requests must get a stable operation id before modules.js can submit them.
+    // Retryable money-changing requests must receive a stable operation id before UI modules submit them.
     await loadScript('./return-idempotency.js');
+    await loadScript('./cash-operation-idempotency.js');
 
     // Critical core only. The cashier UI becomes usable before secondary modules finish loading.
     await loadScript('./app.js');

@@ -10,6 +10,7 @@ const preloads = [
   '--import=./src/pos-operator-patch.js',
   '--import=./src/pos-sale-idempotency.js',
   '--import=./src/pos-return-idempotency.js',
+  '--import=./src/pos-cash-operation-idempotency.js',
   '--import=./src/pos-build-marker.js',
   '--import=./src/moysklad-shift-sanity.js',
   '--import=./src/pos-shift-live-patch.js',
