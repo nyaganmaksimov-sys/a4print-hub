@@ -1,6 +1,85 @@
 -- A4PRINT HUB: Production Farm Phase 42 — controlled equipment composition annexes.
 -- Direct changes to ACTIVE/SUSPENDED contract composition remain prohibited.
 
+create or replace function private.assert_equipment_contract_child_tenant(
+  p_entity_type text,
+  p_entity_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $
+declare
+  v_type text:=upper(btrim(coalesce(p_entity_type,'')));
+  v_contract_id uuid;
+  v_partner_id uuid;
+begin
+  if p_entity_id is null then
+    raise exception 'EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE';
+  end if;
+
+  if auth.uid() is null then
+    return;
+  end if;
+
+  if v_type='AMENDMENT' then
+    select a.contract_id into v_contract_id
+    from public.equipment_contract_amendments a
+    where a.id=p_entity_id;
+  elsif v_type='TERMINATION' then
+    select t.contract_id into v_contract_id
+    from public.equipment_contract_terminations t
+    where t.id=p_entity_id;
+  elsif v_type='CLAIM' then
+    select c.contract_id into v_contract_id
+    from public.equipment_condition_claims c
+    where c.id=p_entity_id;
+  elsif v_type='COMPARISON' then
+    select c.contract_id into v_contract_id
+    from public.equipment_condition_comparisons c
+    where c.id=p_entity_id;
+  elsif v_type='LEASE_CHARGE' then
+    select c.contract_id into v_contract_id
+    from public.equipment_lease_charges c
+    where c.id=p_entity_id;
+  elsif v_type='OWNER_SETTLEMENT' then
+    select s.contract_id into v_contract_id
+    from public.equipment_owner_settlements s
+    where s.id=p_entity_id;
+  elsif v_type='INSPECTION' then
+    select i.contract_id into v_contract_id
+    from public.equipment_condition_inspections i
+    where i.id=p_entity_id;
+  else
+    raise exception 'EQUIPMENT_CONTRACT_ENTITY_TYPE_INVALID';
+  end if;
+
+  if v_contract_id is null then
+    raise exception 'EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE';
+  end if;
+
+  v_partner_id:=public.current_partner_id();
+
+  if v_partner_id is not null then
+    if exists(
+      select 1
+      from public.equipment_contracts c
+      where c.id=v_contract_id
+        and c.partner_id=v_partner_id
+    ) then
+      return;
+    end if;
+    raise exception 'EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE';
+  end if;
+
+  perform private.assert_equipment_contract_tenant(v_contract_id);
+end
+$;
+
+revoke all on function private.assert_equipment_contract_child_tenant(text,uuid)
+from public,anon,authenticated;
+
 alter table public.equipment_contract_amendments
   drop constraint equipment_contract_amendments_amendment_kind_check;
 
