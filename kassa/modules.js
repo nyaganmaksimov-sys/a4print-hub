@@ -14,8 +14,9 @@
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   const dt=v=>v?new Date(v).toLocaleString('ru-RU'):'—';
 
-  const state={section:'sale',session:null,profile:null,isAdmin:false,accounts:[],operators:[],referenceReady:false,referencePromise:null,returnSales:[],returnSalesLoadedAt:0,returnSalesPromise:null,selectedReturn:null,reportPeriod:'today'};
+  const state={section:'sale',session:null,profile:null,isAdmin:false,accounts:[],operators:[],referenceReady:false,referencePromise:null,returnSales:[],returnSalesLoadedAt:0,returnSalesPromise:null,selectedReturn:null,reportPeriod:'today',reportCache:new Map(),reportPromise:new Map()};
   const RETURN_SALES_TTL_MS=30000;
+  const REPORT_TTL_MS=30000;
   let noticeTimer=null;
 
   function notify(text,error=false){
@@ -154,7 +155,7 @@
       const d=await api('/api/v1/pos/returns',{method:'POST',body:JSON.stringify({sale_id:sale.id,positions,account_id:account,payment_method:$('returnMethod').value,reason})});
       notify(`Возврат ${d.return?.name||''} создан · ${money(d.amount)}`);
       state.selectedReturn=null;state.returnSalesLoadedAt=0;renderReturnDetail();await loadReturnSales(true);
-      if(!$('reportsView').hidden)await loadReport(state.reportPeriod);
+      state.reportCache.clear();if(!$('reportsView').hidden)await loadReport(state.reportPeriod,true);
     }catch(e){notify('Возврат не проведён: '+friendly(e),true)}finally{btn.disabled=false;btn.textContent='Провести возврат'}
   }
 
@@ -168,13 +169,23 @@
     else{start=new Date(now.getFullYear(),0,1)}
     return{start,end};
   }
-  async function loadReport(key='today'){
+  async function loadReport(key='today',force=false){
     await loadReferenceData();state.reportPeriod=key;
     document.querySelectorAll('[data-report-period]').forEach(b=>b.classList.toggle('active',b.dataset.reportPeriod===key));
-    const {start,end}=await rangeFor(key);$('reportRange').textContent=`${start.toLocaleDateString('ru-RU')} — ${end.toLocaleDateString('ru-RU')}`;
     const operator=state.isAdmin&&$('reportOperator')?.value?$('reportOperator').value:null;
-    const r=await supabase.rpc('pos_dashboard',{p_from:start.toISOString(),p_to:end.toISOString(),p_operator_id:operator});
-    if(r.error)throw r.error;renderReport(r.data||{});
+    const cacheKey=`${key}:${operator||'all'}`;
+    const cached=state.reportCache.get(cacheKey);
+    if(!force&&cached&&Date.now()-cached.loadedAt<REPORT_TTL_MS){$('reportRange').textContent=cached.range;renderReport(cached.data);return}
+    if(state.reportPromise.has(cacheKey))return state.reportPromise.get(cacheKey);
+    const promise=(async()=>{
+      const {start,end}=await rangeFor(key);
+      const range=`${start.toLocaleDateString('ru-RU')} — ${end.toLocaleDateString('ru-RU')}`;
+      $('reportRange').textContent=range;
+      const r=await supabase.rpc('pos_dashboard',{p_from:start.toISOString(),p_to:end.toISOString(),p_operator_id:operator});
+      if(r.error)throw r.error;
+      const data=r.data||{};state.reportCache.set(cacheKey,{data,range,loadedAt:Date.now()});renderReport(data);
+    })().finally(()=>state.reportPromise.delete(cacheKey));
+    state.reportPromise.set(cacheKey,promise);return promise;
   }
   function renderReport(d){
     $('reportSalesTotal').textContent=money(d.sales_total);$('reportSalesCount').textContent=Number(d.sales_count||0).toLocaleString('ru-RU');$('reportAvgCheck').textContent=money(d.avg_check);$('reportReturnsTotal').textContent=money(d.returns_total);$('reportReturnsCount').textContent=`${Number(d.returns_count||0).toLocaleString('ru-RU')} возврат(а)`;$('reportNetTotal').textContent=money(d.net_total);
@@ -192,7 +203,7 @@
     document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>showSection(b.dataset.section));
     $('refreshReturns').onclick=()=>loadReturnSales().catch(e=>notify(friendly(e),true));$('returnsSearch').oninput=renderReturnSales;
     document.querySelectorAll('[data-report-period]').forEach(b=>b.onclick=()=>loadReport(b.dataset.reportPeriod).catch(e=>notify(friendly(e),true)));
-    $('reportOperator').onchange=()=>loadReport(state.reportPeriod).catch(e=>notify(friendly(e),true));
+    $('reportOperator').onchange=()=>loadReport(state.reportPeriod,true).catch(e=>notify(friendly(e),true));
     window.addEventListener('keydown',e=>{if(state.section!=='sale'&&e.key==='F2'){e.preventDefault();e.stopImmediatePropagation()}},{capture:true});
     window.addEventListener('focus',()=>{if(state.section==='returns')loadReturnSales().catch(()=>{});if(state.section==='reports')loadReport(state.reportPeriod).catch(()=>{})});
   }
