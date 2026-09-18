@@ -1,6 +1,7 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { calculateCashBalance, idOf, msRequest } from './pos-cash-ledger.js';
+import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 
 const token=process.env.MOYSKLAD_TOKEN;
 const supabaseUrl=process.env.SUPABASE_URL;
@@ -129,6 +130,8 @@ async function handleCashOperation(req,res,next,type){
     const ctx=await auth(req);
     if(ctx.error)return authError(res,ctx.error);
     if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
+    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+    if(!tenant.ok)return moySkladTenantError(res,tenant);
     const amount=Number(req.body?.amount||0);
     const reason=clean(req.body?.reason,500);
     const title=type==='CASH_OUT'?'изъятия':'внесения';
@@ -156,6 +159,8 @@ express.application.listen=function patchedCashOperationsListen(...args){
       try{
         const ctx=await auth(req);
         if(ctx.error)return authError(res,ctx.error);
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        if(!tenant.ok)return moySkladTenantError(res,tenant);
         const limit=Math.max(1,Math.min(100,Number(req.query?.limit||20)));
         const {data,error}=await service.from('pos_cash_operations')
           .select('id,operator_id,moysklad_shift_id,moysklad_operation_id,moysklad_operation_name,operation_type,amount,reason,created_at')

@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
+import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -142,6 +143,16 @@ const msReady = res => {
   return true;
 };
 
+async function msTenantReady(req, res) {
+  const result = await requireMoySkladOrganization({
+    service: supabase,
+    authUserId: req.authUser?.id || null,
+    organizationId: req.posOrganizationId || null
+  });
+  if (!result.ok) { moySkladTenantError(res, result); return false; }
+  return true;
+}
+
 function normalizeSaleItems(items = []) {
   return (Array.isArray(items) ? items : []).map((x, index) => ({
     id: cleanText(x?.key, 160) || `${x?.id || 'item'}:${index}`,
@@ -187,6 +198,7 @@ async function getPosSaleWithReturns(id, organizationId = null) {
 app.post('/api/v1/integrations/moysklad/sync', requireAdmin, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const { data: org, error } = await supabase.from('organizations').select('id').eq('code', 'A4PRINT').single();
     if (error) throw error;
     const result = await syncMoySkladCatalog({ supabase, token: process.env.MOYSKLAD_TOKEN, organizationId: org.id });
@@ -197,6 +209,7 @@ app.post('/api/v1/integrations/moysklad/sync', requireAdmin, async (req, res, ne
 app.get('/api/v1/integrations/moysklad/stock', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const stock = await fetchMoySkladStock(process.env.MOYSKLAD_TOKEN);
     res.json({ success: true, stock });
   } catch (e) { next(e); }
@@ -205,6 +218,7 @@ app.get('/api/v1/integrations/moysklad/stock', requirePosUser, async (req, res, 
 app.get('/api/v1/pos/shift', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const status = await getRetailShiftStatus(process.env.MOYSKLAD_TOKEN);
     res.json({ success: true, ...status });
   } catch (e) { next(e); }
@@ -213,6 +227,7 @@ app.get('/api/v1/pos/shift', requirePosUser, async (req, res, next) => {
 app.post('/api/v1/pos/shift/open', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const profile = await resolvePosOperator(req, cleanText(req.body?.operator_id, 80));
     const result = await openRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
     res.json({ success: true, alreadyOpen: result.alreadyOpen, shift: { id: result.shift?.id, name: result.shift?.name, openDate: result.shift?.openDate || result.shift?.moment || result.shift?.created }, store: { id: result.store?.id, name: result.store?.name }, operator: { id: profile?.id || null, name: profile?.full_name || req.authUser.email } });
@@ -312,6 +327,7 @@ app.post('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
 app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const input = req.body || {};
     if (!Array.isArray(input.items) || !input.items.length) return res.status(400).json({ success: false, error: 'EMPTY_CART' });
     const ids = input.items.map(x => x.id);
@@ -423,6 +439,7 @@ app.get('/api/v1/pos/returns/sales/:id', requirePosUser, async (req, res, next) 
 app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const saleId = cleanText(req.body?.sale_id, 80);
     const reason = cleanText(req.body?.reason, 1200);
     const paymentMethod = cleanText(req.body?.payment_method, 80) || 'Наличные';

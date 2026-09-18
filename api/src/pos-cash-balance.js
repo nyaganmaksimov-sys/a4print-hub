@@ -1,6 +1,7 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { calculateCashBalance, setCashBaseline } from './pos-cash-ledger.js';
+import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 
 const token=process.env.MOYSKLAD_TOKEN;
 const supabaseUrl=process.env.SUPABASE_URL;
@@ -134,6 +135,8 @@ express.application.listen=function patchedCashBalanceListen(...args){
         const ctx=await auth(req);
         if(ctx.error)return res.status(ctx.error.includes('AUTH')||ctx.error==='INVALID_SESSION'?401:403).json({success:false,error:ctx.error});
         if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        if(!tenant.ok)return moySkladTenantError(res,tenant);
 
         let result;
         try{
@@ -166,6 +169,8 @@ express.application.listen=function patchedCashBalanceListen(...args){
         if(ctx.error)return res.status(ctx.error.includes('AUTH')||ctx.error==='INVALID_SESSION'?401:403).json({success:false,error:ctx.error});
         if(!ctx.isAdmin)return res.status(403).json({success:false,error:'ADMIN_REQUIRED',message:'Контрольный остаток может задавать только администратор.'});
         if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        if(!tenant.ok)return moySkladTenantError(res,tenant);
         const amount=Number(req.body?.amount);
         if(!Number.isFinite(amount)||amount<0)return res.status(400).json({success:false,error:'INVALID_AMOUNT',message:'Укажите фактическую сумму наличных в кассе.'});
         if(amount>10000000)return res.status(400).json({success:false,error:'AMOUNT_TOO_LARGE',message:'Слишком большая сумма.'});
