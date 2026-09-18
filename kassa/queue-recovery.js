@@ -15,6 +15,7 @@
   });
 
   let running=false;
+  let wakeTimer=null;
 
   // Never allow a later error handler to move a sale backwards from
   // backend_done to queued. That used to make already-created MoySklad sales
@@ -189,9 +190,16 @@
     isRunning:()=>running
   };
 
-  setTimeout(recoverOnce,500);
-  setInterval(()=>{if(!document.hidden)recoverOnce()},5000);
-  window.addEventListener('online',recoverOnce);
-  window.addEventListener('focus',recoverOnce);
-  window.addEventListener('a4:kassa-shift',()=>setTimeout(recoverOnce,300));
+  function wake(delay=0){
+    clearTimeout(wakeTimer);
+    wakeTimer=setTimeout(()=>{if(!document.hidden)recoverOnce()},delay);
+  }
+  // Recovery is event-driven on the cashier path. Keep only a slow safety pass
+  // for a tab that stays open for a long time.
+  wake(500);
+  setInterval(()=>{if(!document.hidden)recoverOnce()},60000);
+  window.addEventListener('online',()=>wake(0));
+  window.addEventListener('focus',()=>wake(0));
+  window.addEventListener('a4:kassa-shift',()=>wake(300));
+  window.addEventListener('a4:kassa-queue-pending',()=>wake(0));
 })();
