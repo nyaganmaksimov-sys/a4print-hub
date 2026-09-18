@@ -65,6 +65,9 @@ async function refreshBalance(fallback){
 }
 async function createCashDocument({type,amount,reason,operatorName}){
   const isOut=type==='CASH_OUT';
+  // The UI verifies the balance immediately before POST. Do not recalculate the
+  // entire cash ledger here: it fans out over historical MoySklad documents and
+  // can exceed the request timeout before the write even starts.
   const shift=await openShift();
   const shiftId=idOf(shift);
   if(!shiftId)throw new Error('SHIFT_NOT_OPEN');
@@ -76,10 +79,9 @@ async function createCashDocument({type,amount,reason,operatorName}){
   }
 
   const entity=isOut?'retaildrawercashout':'retaildrawercashin';
-  const template=await msRequest(token,`/entity/${entity}/new`,{
-    method:'PUT',
-    body:JSON.stringify({retailShift:{meta:shift.meta}})
-  }).catch(()=>null);
+  // Avoid the optional /new template round-trip. The current shift already
+  // carries the organization required by MoySklad; owner/group are optional.
+  const template=null;
   const actionText=isOut?'Изъятие денег':'Внесение денег';
   const payload={
     retailShift:{meta:shift.meta},
