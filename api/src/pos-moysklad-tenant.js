@@ -33,10 +33,18 @@ export function isMoySkladOrganizationAllowed(organization){
   return Boolean(organization?.code)&&String(organization.code).trim().toUpperCase()===configured;
 }
 
-export async function requireMoySkladOrganization({service,authUserId=null,organizationId=null}={}){
-  const organization=organizationId
+export async function requireMoySkladOrganization({service,authUserId=null,organizationId=null,posApp=false}={}){
+  let organization=organizationId
     ?await organizationById(service,organizationId)
     :await organizationForAuthUser(service,authUserId);
+  // The deployed A4PRINT KASSA uses one dedicated MoySklad tenant. A staff member may
+  // also belong to another HUB company, but POS requests must stay pinned to A4PRINT.
+  if(posApp&&(!organization||!isMoySkladOrganizationAllowed(organization))){
+    const configured=configuredMoySkladOrganizationCode();
+    const {data,error}=await service.from('organizations').select('id,code,name,is_active').eq('code',configured).maybeSingle();
+    if(error)throw error;
+    if(data&&data.is_active!==false)organization=data;
+  }
   if(!organization){
     return{ok:false,error:'POS_ORGANIZATION_REQUIRED',status:403,organization:null};
   }
