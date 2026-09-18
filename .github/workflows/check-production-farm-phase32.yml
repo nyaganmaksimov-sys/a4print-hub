@@ -1,0 +1,46 @@
+name: Check Production Farm Phase 32
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_claim_financial_integrity_tenant_scope.sql'
+      - 'docs/PRODUCTION_FARM_PHASE32.md'
+      - '.github/workflows/check-production-farm-phase32.yml'
+
+jobs:
+  phase32-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify database tenant markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_claim_financial_integrity_tenant_scope.sql'
+          test -s "$sql"
+          grep -q 'equipment_condition_claim_financial_integrity_events_staff_read' "$sql"
+          grep -q 'current_user_organization_id' "$sql"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$sql"
+          grep -q 'ea.organization_id=v_org' "$sql"
+          grep -q 'get_equipment_condition_claim_financial_integrity' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'revoke all on function public.get_equipment_condition_claim_financial_integrity(boolean)' "$sql"
+          grep -q 'grant execute on function public.get_equipment_condition_claim_financial_integrity(boolean)' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE32.md'
+          test -s "$doc"
+          grep -q 'phase32_integrity_tenant_scope_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$doc"
+          grep -q '3D-ARTPRINT' "$doc"
+          grep -q '0 строк' "$doc"
+          grep -q 'fail-closed' "$doc"
