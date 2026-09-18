@@ -299,7 +299,9 @@ process.on('SIGTERM', () => child.kill('SIGTERM'));
 process.on('SIGINT', () => child.kill('SIGINT'));
 
 app.use(async (req, res, next) => {
+  const posCashTrace = /^\/api\/v1\/pos\/cash(?:out|in|\-balance)(?:\?|$)/.test(req.originalUrl);
   try {
+    if (posCashTrace) console.log('[MOBILE_PROXY_POS_CASH]', JSON.stringify({ step: 'forward_start', method: req.method, url: req.originalUrl, hasAuth: Boolean(req.headers.authorization), body: req.body || null }));
     const url = `http://127.0.0.1:${internalPort}${req.originalUrl}`;
     const headers = { ...req.headers };
     delete headers.host;
@@ -311,17 +313,21 @@ app.use(async (req, res, next) => {
       headers,
       body: hasBody && req.body != null ? JSON.stringify(req.body) : undefined
     });
+    if (posCashTrace) console.log('[MOBILE_PROXY_POS_CASH]', JSON.stringify({ step: 'forward_response', method, url: req.originalUrl, status: response.status }));
     res.status(response.status);
     response.headers.forEach((value, key) => {
       if (!['content-encoding', 'transfer-encoding', 'content-length', 'connection'].includes(key.toLowerCase())) res.setHeader(key, value);
     });
     const body = Buffer.from(await response.arrayBuffer());
     res.send(body);
-  } catch (e) { next(e); }
+  } catch (e) {
+    if (posCashTrace) console.error('[MOBILE_PROXY_POS_CASH_ERROR]', JSON.stringify({ method: req.method, url: req.originalUrl, message: String(e?.message || e), name: e?.name || null, cause: e?.cause ? String(e.cause?.message || e.cause) : null, stack: e?.stack || null }));
+    next(e);
+  }
 });
 
-app.use((err, _req, res, _next) => {
-  console.error(err);
+app.use((err, req, res, _next) => {
+  console.error('[MOBILE_PROXY_ERROR]', JSON.stringify({ method: req?.method || null, url: req?.originalUrl || null, message: String(err?.message || err), name: err?.name || null, cause: err?.cause ? String(err.cause?.message || err.cause) : null, stack: err?.stack || null }));
   res.status(500).json({ success: false, error: 'INTERNAL_SERVER_ERROR', message: err.message });
 });
 
