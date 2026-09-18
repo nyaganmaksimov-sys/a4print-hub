@@ -74,9 +74,9 @@
   function init(){
     sync();
     window.addEventListener('a4:kassa-shift',onShiftEvent);
-    // Safety reconciliation only. No MutationObserver: it can create feedback loops
-    // when the synchronization itself updates the observed elements.
-    setInterval(sync,5000);
+    // Events update the UI immediately. A slow safety pass is enough and avoids
+    // waking the cashier page every five seconds while nothing has changed.
+    setInterval(sync,30000);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
