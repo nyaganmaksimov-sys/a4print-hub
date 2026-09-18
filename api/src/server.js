@@ -73,6 +73,22 @@ async function requireAdmin(req, res, next) {
   } catch (e) { next(e); }
 }
 
+async function organizationIdForUnit(unitId) {
+  if (!supabase || !unitId) return null;
+  const { data, error } = await supabase.from('organization_units').select('organization_id,is_active').eq('id', unitId).maybeSingle();
+  if (error) throw error;
+  if (!data || data.is_active === false) return null;
+  return data.organization_id || null;
+}
+
+async function operatorProfile(authUserId) {
+  if (!supabase || !authUserId) return null;
+  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active,organization_unit_id').eq('auth_user_id', authUserId).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { ...data, organization_id: await organizationIdForUnit(data.organization_unit_id) };
+}
+
 async function requirePosUser(req, res, next) {
   try {
     const ctx = await authContext(req);
@@ -84,29 +100,29 @@ async function requirePosUser(req, res, next) {
     if (aErr) throw aErr;
     if (oErr) throw oErr;
     if (!isAdmin && !isOperator) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
+    const profile = await operatorProfile(ctx.user.id);
+    if (!profile || profile.is_active === false) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
+    if (!profile.organization_id) return res.status(403).json({ success: false, error: 'POS_ORGANIZATION_REQUIRED', message: 'Сотрудник не привязан к компании.' });
     req.authUser = ctx.user;
+    req.authProfile = profile;
+    req.posOrganizationId = profile.organization_id;
     req.isAdmin = Boolean(isAdmin);
     next();
   } catch (e) { next(e); }
 }
 
-async function operatorProfile(authUserId) {
-  if (!supabase || !authUserId) return null;
-  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id', authUserId).maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
 async function resolvePosOperator(req, requestedId) {
-  const own = await operatorProfile(req.authUser?.id);
+  const own = req.authProfile || await operatorProfile(req.authUser?.id);
   if (!req.isAdmin || !requestedId || !supabase) return own;
-  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active').eq('id', requestedId).maybeSingle();
+  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active,organization_unit_id').eq('id', requestedId).maybeSingle();
   if (error) throw error;
-  return data?.is_active === false ? own : (data || own);
+  if (!data || data.is_active === false) return own;
+  const organizationId = await organizationIdForUnit(data.organization_unit_id);
+  return organizationId === req.posOrganizationId ? { ...data, organization_id: organizationId } : own;
 }
 
 const cleanText = (value, max = 500) => String(value || '').trim().slice(0, max);
-const customerFields = 'id,full_name,company_name,email,phone,notes,created_at,updated_at';
+const customerFields = 'id,organization_id,full_name,company_name,email,phone,notes,created_at,updated_at';
 
 function customerView(row) {
   if (!row) return null;
@@ -219,6 +235,7 @@ app.get('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
     const { data, error } = await supabase
       .from('customers')
       .select(customerFields)
+      .eq('organization_id', req.posOrganizationId)
       .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`)
       .order('updated_at', { ascending: false })
       .limit(12);
@@ -230,7 +247,7 @@ app.get('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
 app.post('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
   try {
     if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
-    const profile = await operatorProfile(req.authUser.id);
+    const profile = req.authProfile || await operatorProfile(req.authUser.id);
     if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
 
     const id = cleanText(req.body?.id, 80) || null;
@@ -243,17 +260,17 @@ app.post('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
 
     let existing = null;
     if (id) {
-      const { data, error } = await supabase.from('customers').select(customerFields).eq('id', id).maybeSingle();
+      const { data, error } = await supabase.from('customers').select(customerFields).eq('organization_id', req.posOrganizationId).eq('id', id).maybeSingle();
       if (error) throw error;
       existing = data;
     }
     if (!existing && phone) {
-      const { data, error } = await supabase.from('customers').select(customerFields).eq('phone', phone).limit(1).maybeSingle();
+      const { data, error } = await supabase.from('customers').select(customerFields).eq('organization_id', req.posOrganizationId).eq('phone', phone).limit(1).maybeSingle();
       if (error) throw error;
       existing = data;
     }
     if (!existing && email) {
-      const { data, error } = await supabase.from('customers').select(customerFields).eq('email', email).limit(1).maybeSingle();
+      const { data, error } = await supabase.from('customers').select(customerFields).eq('organization_id', req.posOrganizationId).eq('email', email).limit(1).maybeSingle();
       if (error) throw error;
       existing = data;
     }
@@ -267,6 +284,7 @@ app.post('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
     }
 
     const payload = {
+      organization_id: req.posOrganizationId,
       full_name: fullName,
       company_name: companyName || null,
       email: email || null,
@@ -277,7 +295,7 @@ app.post('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
 
     let saved;
     if (existing?.id) {
-      const { data, error } = await supabase.from('customers').update(payload).eq('id', existing.id).select(customerFields).single();
+      const { data, error } = await supabase.from('customers').update(payload).eq('organization_id', req.posOrganizationId).eq('id', existing.id).select(customerFields).single();
       if (error) throw error;
       saved = data;
     } else {
@@ -318,8 +336,9 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
     let customer = null;
     const customerId = cleanText(input.customer_id, 80);
     if (customerId) {
-      const { data, error: customerError } = await supabase.from('customers').select(customerFields).eq('id', customerId).maybeSingle();
+      const { data, error: customerError } = await supabase.from('customers').select(customerFields).eq('organization_id', req.posOrganizationId).eq('id', customerId).maybeSingle();
       if (customerError) throw customerError;
+      if (!data) return res.status(400).json({ success: false, error: 'CUSTOMER_NOT_AVAILABLE', message: 'Клиент недоступен для текущей компании.' });
       customer = data;
     }
 
