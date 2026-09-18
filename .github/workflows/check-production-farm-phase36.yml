@@ -1,0 +1,53 @@
+name: Check Production Farm Phase 36
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_equipment_mutation_tenant_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE36.md'
+      - '.github/workflows/check-production-farm-phase36.yml'
+
+jobs:
+  phase36-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify equipment mutation hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_equipment_mutation_tenant_hardening.sql'
+          test -s "$sql"
+
+          grep -q 'private.assert_production_job_tenant' "$sql"
+          grep -q 'report_equipment_incident' "$sql"
+          grep -q 'link_equipment_incident_document' "$sql"
+          grep -q 'record_equipment_incident_repair' "$sql"
+          grep -q 'save_equipment_capacity' "$sql"
+          grep -q 'save_equipment_ownership' "$sql"
+          grep -q 'save_production_equipment_capabilities' "$sql"
+          grep -q 'save_production_equipment_standard' "$sql"
+          grep -q 'update_equipment_incident' "$sql"
+
+          count=$(grep -c "set search_path to ''" "$sql")
+          test "$count" -eq 8
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE36.md'
+          test -s "$doc"
+
+          grep -q 'phase36_equipment_mutation_tenant_hardening_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'PRODUCTION_JOB_NOT_AVAILABLE' "$doc"
+          grep -q 'EQUIPMENT_NOT_AVAILABLE' "$doc"
+          grep -q 'EQUIPMENT_INCIDENT_NOT_AVAILABLE' "$doc"
+          grep -q '8 из 8' "$doc"
+          grep -q 'PH36 incidents = 0' "$doc"
