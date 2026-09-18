@@ -267,6 +267,19 @@ Phase 42 исправляет helper fail-closed:
 - исторический период не изменился;
 - текущий период закрылся датой расторжения.
 
+### Partner portal acceptance
+
+Проверка:
+
+`phase42_partner_portal_acceptance_ok`.
+
+- Partner A видит своё `EQUIPMENT_COMPOSITION` ДС через `get_my_equipment_contract_amendments()`;
+- Partner A открывает документ ДС и получает schema `equipment_contract_composition_amendment_v1`;
+- Partner A отправляет `ACKNOWLEDGED` по `CONTRACT_DOCUMENT`;
+- HUB фиксирует подпись методом `PORTAL_ACCEPTANCE`;
+- общий `apply_equipment_contract_amendment()` применяет состав;
+- Partner B не может открыть документ Partner A и получает `EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE`.
+
 ### Cross-contract periods
 
 Проверка:
