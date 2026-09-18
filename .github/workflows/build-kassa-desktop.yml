@@ -1,0 +1,38 @@
+name: Build A4PRINT KASSA Desktop
+
+on:
+  pull_request:
+    paths:
+      - 'desktop-kassa/**'
+      - '.github/workflows/build-kassa-desktop.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'desktop-kassa/**'
+      - '.github/workflows/build-kassa-desktop.yml'
+  workflow_dispatch:
+
+jobs:
+  desktop-build:
+    name: desktop-build
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop-kassa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Validate desktop sources
+        run: npm run check
+      - name: Build Windows installer
+        run: npm run dist:win
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: A4PRINT-KASSA-Windows
+          path: desktop-kassa/release/*.exe
+          if-no-files-found: error
