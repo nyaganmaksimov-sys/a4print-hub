@@ -86,12 +86,11 @@ async function createCashDocument({type,amount,reason,operatorName}){
     organization:{meta:template?.organization?.meta||shift.organization?.meta},
     sum:Math.round(amount*100),
     moment:msDate(),
-    applicable:true,
     description:`A4PRINT KASSA · ${actionText} · Оператор: ${operatorName||'не указан'}${reason?` · Причина: ${reason}`:''}`
   };
   if(!payload.organization?.meta)delete payload.organization;
-  if(template?.agent?.meta)payload.agent={meta:template.agent.meta};
   if(template?.owner?.meta)payload.owner={meta:template.owner.meta};
+  if(template?.group?.meta)payload.group={meta:template.group.meta};
   const operation=await msRequest(token,`/entity/${entity}`,{method:'POST',body:JSON.stringify(payload)});
   const fallback=Number(before.cash)+(isOut?-amount:amount);
   const after=await refreshBalance(fallback);
@@ -123,6 +122,8 @@ function cashError(res,next,error){
   if(message==='CASH_BASELINE_REQUIRED')return res.status(409).json({success:false,error:'CASH_BASELINE_REQUIRED',message:'Сначала укажите фактический остаток наличных в Настройках кассы.'});
   if(message==='CASH_BALANCE_UNAVAILABLE')return res.status(503).json({success:false,error:'CASH_BALANCE_UNAVAILABLE',message:'Не удалось проверить текущий остаток наличных. Операция отменена для защиты кассы.'});
   if(message==='CASH_OUT_EXCEEDS_BALANCE')return res.status(409).json({success:false,error:'CASH_OUT_EXCEEDS_BALANCE',cash_balance:Number(error.cashBalance||0),message:`В кассе сейчас ${Number(error.cashBalance||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽. Нельзя изъять больше.`});
+  if(/^MoySklad HTTP 4\d\d:/i.test(message))return res.status(422).json({success:false,error:'MOYSKLAD_CASH_OPERATION_REJECTED',message:'МойСклад отклонил операцию с наличными. Проверьте текущую смену и повторите операцию.',detail:message.slice(0,1200)});
+  if(/^MoySklad HTTP 5\d\d:/i.test(message))return res.status(502).json({success:false,error:'MOYSKLAD_TEMPORARY_ERROR',message:'МойСклад временно недоступен. Деньги не были списаны, повторите операцию.',detail:message.slice(0,1200)});
   return next(error);
 }
 async function handleCashOperation(req,res,next,type){
