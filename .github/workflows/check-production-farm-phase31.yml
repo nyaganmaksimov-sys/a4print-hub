@@ -10,6 +10,7 @@ on:
       - 'admin/equipment-condition-claim-integrity.html'
       - 'admin/navigation.js'
       - 'database/migrations/20260915_production_farm_claim_integrity_incident_resolution.sql'
+      - 'database/migrations/20260918_production_farm_claim_integrity_incident_tenant_scope.sql'
       - 'docs/PRODUCTION_FARM_PHASE31.md'
       - '.github/workflows/check-production-farm-phase31.yml'
 
@@ -52,7 +53,8 @@ jobs:
         run: |
           set -euo pipefail
           sql='database/migrations/20260915_production_farm_claim_integrity_incident_resolution.sql'
-          test -s "$sql"
+          tenant='database/migrations/20260918_production_farm_claim_integrity_incident_tenant_scope.sql'
+          test -s "$sql"; test -s "$tenant"
           grep -q 'create table if not exists public.equipment_claim_financial_integrity_actions' "$sql"
           grep -q "ACKNOWLEDGED.*INVESTIGATING.*RESOLVED.*REOPENED" "$sql"
           grep -q 'generated always as identity' "$sql"
@@ -68,6 +70,12 @@ jobs:
           grep -q 'revoke all on public.equipment_claim_financial_integrity_actions from public,anon,authenticated' "$sql"
           grep -q 'grant select on public.equipment_claim_financial_integrity_actions to authenticated' "$sql"
           grep -q 'revoke all on function public.emit_equipment_claim_financial_integrity_notifications()' "$sql"
+          grep -q 'current_user_organization_id' "$tenant"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$tenant"
+          grep -q 'INTEGRITY_EVENT_NOT_AVAILABLE' "$tenant"
+          grep -q 'ea.organization_id=v_org' "$tenant"
+          grep -q 'ou.organization_id=v_org' "$tenant"
+          grep -q 'equipment_claim_financial_integrity_actions_staff_read' "$tenant"
 
       - name: Verify documentation
         shell: bash
@@ -82,3 +90,6 @@ jobs:
           grep -q '06:30 UTC' "$doc"
           grep -q 'append-only' "$doc"
           grep -q 'не редактирует деньги автоматически' "$doc"
+          grep -q 'phase31_integrity_tenant_isolation_ok' "$doc"
+          grep -q 'INTEGRITY_EVENT_NOT_AVAILABLE' "$doc"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$doc"
