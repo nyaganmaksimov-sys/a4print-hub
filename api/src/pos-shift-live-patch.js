@@ -2,7 +2,10 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 
 const BASE='https://api.moysklad.ru/api/remap/1.2';
-const BUILD='20260912-mslive-fast1';
+const BUILD='20260918-mslive-throttle1';
+const LIVE_REFRESH_TTL_MS=120000;
+let liveRefreshInFlight=null;
+let lastLiveRefreshAt=0;
 const token=process.env.MOYSKLAD_TOKEN;
 const supabase=process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY
   ?createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{autoRefreshToken:false,persistSession:false}})
@@ -177,6 +180,17 @@ async function hubShift(){
   }catch{return null}
 }
 
+function refreshLiveShiftInBackground(){
+  const now=Date.now();
+  if(liveRefreshInFlight)return liveRefreshInFlight;
+  if(lastLiveRefreshAt&&now-lastLiveRefreshAt<LIVE_REFRESH_TTL_MS)return null;
+  liveRefreshInFlight=liveShift()
+    .then(result=>{lastLiveRefreshAt=Date.now();return result})
+    .catch(error=>{console.warn('[POS shift live] background refresh unavailable:',error?.message||error);return null})
+    .finally(()=>{liveRefreshInFlight=null});
+  return liveRefreshInFlight;
+}
+
 async function hubFallback(){
   if(!supabase)return null;
   try{
@@ -209,7 +223,7 @@ express.application.get=function patchedGet(path,...handlers){
     handlers[index]=async function liveMoySkladShift(_req,res,next){
       const hub=await hubShift();
       if(hub){
-        liveShift().catch(error=>console.warn('[POS shift live] background refresh unavailable:',error?.message||error));
+        refreshLiveShiftInBackground();
         return res.json({success:true,...hub});
       }
       try{
