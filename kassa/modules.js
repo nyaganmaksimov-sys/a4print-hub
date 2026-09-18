@@ -55,8 +55,8 @@
       const s=await getSession();
       const [admin,profile,org]=await Promise.all([
         supabase.rpc('has_role',{required_role:'ADMIN'}),
-        supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id',s.user.id).maybeSingle(),
-        supabase.from('organizations').select('id').eq('code','A4PRINT').single()
+        supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id',s.user.id).eq('is_active',true).limit(1).maybeSingle(),
+        supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).limit(1).maybeSingle()
       ]);
       if(admin.error)throw admin.error;if(profile.error)throw profile.error;if(org.error)throw org.error;
       state.isAdmin=!!admin.data;state.profile=profile.data;
