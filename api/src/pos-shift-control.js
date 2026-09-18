@@ -212,7 +212,7 @@ async function hubControl(){
     store:current?{id:current.store_id,name:current.store_name}:null,
     hub_session:sessionView(current,users),
     recent:(recent||[]).map(x=>sessionView(x,users)),
-    diagnostics:{synchronized:Boolean(current),moysklad_open:Boolean(current),hub_open:Boolean(current),source:'HUB_FAST',checked_at:new Date().toISOString()}
+    diagnostics:{synchronized:null,verification:'HUB_ONLY',moysklad_open:null,hub_open:Boolean(current),source:'HUB_FAST',checked_at:new Date().toISOString()}
   };
 }
 

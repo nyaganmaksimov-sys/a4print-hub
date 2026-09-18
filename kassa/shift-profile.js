@@ -37,11 +37,13 @@
     current=control;const session=control.hub_session,ms=control.ms_shift,diag=control.diagnostics||{},perm=control.permissions||{};
     $('shiftProfileLoading').hidden=true;$('shiftProfileBody').hidden=false;$('shiftProfileError').hidden=true;
     setPill('shiftSyncMs',ms?`МойСклад · ${ms.name||'OPEN'}`:'МойСклад · закрыта',ms?'ok':'warn');
-    setPill('shiftSyncHub',diag.synchronized?'HUB · синхронизирован':'HUB · требуется сверка',diag.synchronized?'ok':'bad');
+    if(diag.synchronized===true)setPill('shiftSyncHub','HUB · синхронизирован','ok');
+    else if(diag.synchronized===false)setPill('shiftSyncHub','HUB · требуется сверка','bad');
+    else setPill('shiftSyncHub','HUB · локальные данные','ok');
     const local=!!window.A4KassaShiftSession?.active;setPill('shiftSyncKassa',local?'KASSA · смена активна':'KASSA · смена закрыта',local?'ok':'warn');
     $('shiftOfficialName').textContent=ms?.name||'—';$('shiftStoreName').textContent=control.store?.name||session?.store_name||'—';$('shiftProfileOperator').textContent=session?.opened_by?.name||operatorName();$('shiftProfileOpened').textContent=ms?.openDate?dt(ms.openDate):(session?.opened_at?dt(session.opened_at):'—');
     if(balance?.success&&balance.available){$('shiftProfileCash').textContent=money(balance.cash);$('shiftProfileCashSource').textContent=balance.stale?'Кэш МойСклад':(balance.source==='MOYSKLAD_LEDGER'?'МойСклад ledger':balance.source||'МойСклад')}else{$('shiftProfileCash').textContent='—';$('shiftProfileCashSource').textContent=balance?.message||'Недоступно'}
-    const input=$('shiftDisplayName'),note=$('shiftOpeningNote');input.value=session?.display_name||'';note.value=session?.opening_note||'';input.disabled=!perm.edit_profile||!session;note.disabled=!perm.edit_profile||!session;$('shiftProfileSave').hidden=!perm.edit_profile;$('shiftProfileSave').disabled=!session;$('shiftProfileReconcile').hidden=!perm.reconcile;$('shiftProfileReconcile').disabled=diag.synchronized;
+    const input=$('shiftDisplayName'),note=$('shiftOpeningNote');input.value=session?.display_name||'';note.value=session?.opening_note||'';input.disabled=!perm.edit_profile||!session;note.disabled=!perm.edit_profile||!session;$('shiftProfileSave').hidden=!perm.edit_profile;$('shiftProfileSave').disabled=!session;$('shiftProfileReconcile').hidden=!perm.reconcile;$('shiftProfileReconcile').disabled=false;
     renderHistory(control.recent||[]);
     window.A4KassaShiftProfileDisplayName=session?.display_name||'';
     const display=session?.display_name||ms?.name||'';
