@@ -1,8 +1,13 @@
 const {app,BrowserWindow,shell,ipcMain}=require('electron');
 const path=require('path');
+const fs=require('fs');
 const KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/';
 
 let mainWindow;
+let store={printer:''};
+function settingsPath(){return path.join(app.getPath('userData'),'settings.json');}
+function loadSettings(){try{store={...store,...JSON.parse(fs.readFileSync(settingsPath(),'utf8'))};}catch(_){}}
+function saveSettings(){try{fs.mkdirSync(app.getPath('userData'),{recursive:true});fs.writeFileSync(settingsPath(),JSON.stringify(store,null,2),'utf8');return true;}catch(_){return false;}}
 const gotLock=app.requestSingleInstanceLock();
 if(!gotLock){ app.quit(); }
 app.on('second-instance',()=>{ if(mainWindow){ if(mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
@@ -38,9 +43,9 @@ function createWindow(){
   mainWindow.on('closed',()=>{mainWindow=null});
 }
 ipcMain.handle('a4-kassa:print',async()=>{ if(!mainWindow) return {ok:false}; const printers=await mainWindow.webContents.getPrintersAsync(); return {ok:true,printers:printers.map(p=>({name:p.name,displayName:p.displayName,isDefault:p.isDefault}))}; });
-ipcMain.handle('a4-kassa:settings:get',()=>({printer:app.getPath('userData')&&store.printer||''}));
-ipcMain.handle('a4-kassa:settings:set-printer',(_event,name='')=>{store.printer=typeof name==='string'?name:'';return {ok:true,printer:store.printer};});
+ipcMain.handle('a4-kassa:settings:get',()=>({printer:store.printer||''}));
+ipcMain.handle('a4-kassa:settings:set-printer',(_event,name='')=>{store.printer=typeof name==='string'?name:'';const ok=saveSettings();return {ok,printer:store.printer};});
 ipcMain.handle('a4-kassa:print-page',async(_event,options={})=>{ if(!mainWindow) return {ok:false}; const deviceName=typeof options.deviceName==='string'?options.deviceName:''; const silent=Boolean(options.silent&&deviceName); return new Promise(resolve=>mainWindow.webContents.print({silent,deviceName:deviceName||undefined,printBackground:true,margins:{marginType:'none'}},(success,failureReason)=>resolve({ok:success,error:failureReason||null}))); });
-app.whenReady().then(createWindow);
+app.whenReady().then(()=>{loadSettings();createWindow();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
 app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
