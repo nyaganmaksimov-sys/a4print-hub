@@ -68,10 +68,14 @@ async function createCashDocument({type,amount,reason,operatorName}){
   // The UI verifies the balance immediately before POST. Do not recalculate the
   // entire cash ledger here: it fans out over historical MoySklad documents and
   // can exceed the request timeout before the write even starts.
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'open_shift_start',at:Date.now()}));
   const shift=await openShift();
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'open_shift_done',at:Date.now(),shiftId:idOf(shift)}));
   const shiftId=idOf(shift);
   if(!shiftId)throw new Error('SHIFT_NOT_OPEN');
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'balance_start',at:Date.now()}));
   const before=await currentBalance();
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'balance_done',at:Date.now(),cash:Number(before.cash)}));
   if(isOut&&amount>Number(before.cash)+0.0001){
     const error=new Error('CASH_OUT_EXCEEDS_BALANCE');
     error.cashBalance=Number(before.cash);
@@ -93,7 +97,9 @@ async function createCashDocument({type,amount,reason,operatorName}){
   if(!payload.organization?.meta)delete payload.organization;
   if(template?.owner?.meta)payload.owner={meta:template.owner.meta};
   if(template?.group?.meta)payload.group={meta:template.group.meta};
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_start',at:Date.now(),entity}));
   const operation=await msRequest(token,`/entity/${entity}`,{method:'POST',body:JSON.stringify(payload)});
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_done',at:Date.now(),entity,operationId:idOf(operation)}));
   const fallback=Number(before.cash)+(isOut?-amount:amount);
   const after=await refreshBalance(fallback);
   return{shift,operation,cashBefore:Number(before.cash),cashAfter:after};
