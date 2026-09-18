@@ -61,6 +61,8 @@
         supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).limit(1).maybeSingle()
       ]);
       if(admin.error)throw admin.error;if(profile.error)throw profile.error;if(org.error)throw org.error;
+      if(!profile.data)throw new Error('Профиль кассира не найден или отключён.');
+      if(!org.data)throw new Error('Организация A4PRINT не найдена или отключена.');
       state.isAdmin=!!admin.data;state.profile=profile.data;
       const [accounts,operators]=await Promise.all([
         supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',org.data.id).eq('is_active',true).order('name'),
