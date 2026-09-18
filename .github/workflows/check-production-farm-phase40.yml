@@ -1,0 +1,57 @@
+name: Check Production Farm Phase 40
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_materials_costing_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE40.md'
+      - '.github/workflows/check-production-farm-phase40.yml'
+
+jobs:
+  phase40-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify materials/costing migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_materials_costing_hardening.sql'
+          test -s "$sql"
+
+          grep -q 'production_material_action' "$sql"
+          grep -q 'save_production_job_material_plan' "$sql"
+          grep -q 'set_production_material_cost' "$sql"
+
+          grep -q 'private.assert_production_job_tenant' "$sql"
+          grep -q 'private.assert_catalog_item_tenant' "$sql"
+          grep -q 'private.assert_warehouse_tenant' "$sql"
+          grep -q 'w.organization_id=v_job_org' "$sql"
+          grep -q 'w.is_shared=true and w.organization_id is null' "$sql"
+          grep -q 'WAREHOUSE_NOT_AVAILABLE' "$sql"
+
+          grep -q 'on_production_job_status_sync_order' "$sql"
+          grep -q 'organization_id=new.organization_id' "$sql"
+
+          count=$(grep -c "set search_path to ''" "$sql")
+          test "$count" -eq 14
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE40.md'
+          test -s "$doc"
+
+          grep -q 'phase40_production_materials_costing_hardening_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'PRODUCTION_JOB_NOT_AVAILABLE' "$doc"
+          grep -q 'CATALOG_ITEM_NOT_AVAILABLE' "$doc"
+          grep -q 'tenant warehouse' "$doc"
+          grep -q '16 SECURITY DEFINER' "$doc"
+          grep -q 'PH40 inventory rows = 0' "$doc"
