@@ -1,0 +1,64 @@
+name: Check Production Farm Phase 37
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_internal_equipment_tenant_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE37.md'
+      - '.github/workflows/check-production-farm-phase37.yml'
+
+jobs:
+  phase37-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify internal tenant hardening migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_internal_equipment_tenant_hardening.sql'
+          test -s "$sql"
+
+          grep -q 'notify_equipment_incident' "$sql"
+          grep -q 'organization_units' "$sql"
+          grep -q 'ou.organization_id=v_machine.organization_id' "$sql"
+
+          grep -q 'mirror_equipment_consumable_movement_to_inventory' "$sql"
+          grep -q 'w.organization_id=v_consumable_org' "$sql"
+          grep -q 'w.is_shared=true' "$sql"
+          grep -q 'INVENTORY_WAREHOUSE_NOT_AVAILABLE' "$sql"
+
+          grep -q 'sync_equipment_consumable_to_catalog' "$sql"
+          grep -q 'EQUIPMENT_CONSUMABLE_CATALOG_TENANT_MISMATCH' "$sql"
+          grep -q 'EQUIPMENT_CONSUMABLE_ORGANIZATION_REQUIRED' "$sql"
+
+          grep -q 'ensure_equipment_owner_partner_role' "$sql"
+          grep -q 'equipment_incident_status_trigger' "$sql"
+          grep -q 'refresh_equipment_operational_status' "$sql"
+          grep -q 'replan_production_jobs_after_equipment_fault' "$sql"
+          grep -q 'seed_equipment_capacity_rules' "$sql"
+          grep -q 'sync_equipment_incident_status' "$sql"
+          grep -q 'sync_equipment_ownership_history' "$sql"
+
+          count=$(grep -c "set search_path to ''" "$sql")
+          test "$count" -eq 7
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE37.md'
+          test -s "$doc"
+
+          grep -q 'phase37_internal_equipment_tenant_hardening_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'EQUIPMENT_CONSUMABLE_CATALOG_TENANT_MISMATCH' "$doc"
+          grep -q 'INVENTORY_WAREHOUSE_NOT_AVAILABLE' "$doc"
+          grep -q 'notifications пользователям 3D-ARTPRINT = 0' "$doc"
+          grep -q 'PH37 inventory transactions = 0' "$doc"
+          grep -q '10 внутренних функций' "$doc"
