@@ -14,6 +14,12 @@ SAFE_SCOPE_MARKERS = (
     "equipment_condition_claim_financial_tenant_org(",
 )
 
+STAFF_CONTEXT_MARKERS = (
+    "current_partner_id(",
+    "assert_non_partner_staff_context(",
+    "assert_no_partner_context(",
+)
+
 def normalized(s: str) -> str:
     return re.sub(r"\s+", " ", s.lower()).strip()
 
@@ -89,6 +95,13 @@ for path in FILES:
         if not any(marker in block_low for marker in SAFE_SCOPE_MARKERS):
             errors.append(
                 f"{path}: public.{name} SECURITY DEFINER has no recognized tenant/partner scope guard"
+            )
+
+        if "has_permission(" in block_low and not any(
+            marker in block_low for marker in STAFF_CONTEXT_MARKERS
+        ):
+            errors.append(
+                f"{path}: public.{name} staff permission-gated SECURITY DEFINER does not reject or handle partner context"
             )
 
 if errors:
