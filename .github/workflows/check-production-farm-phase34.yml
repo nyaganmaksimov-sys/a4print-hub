@@ -1,0 +1,72 @@
+name: Check Production Farm Phase 34
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_owner_payments_tenant_guards.sql'
+      - 'docs/PRODUCTION_FARM_PHASE34.md'
+      - '.github/workflows/check-production-farm-phase34.yml'
+
+jobs:
+  phase34-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify owner payment tenant migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_owner_payments_tenant_guards.sql'
+          test -s "$sql"
+
+          grep -q 'equipment_payment_contract_tenant_org' "$sql"
+          grep -q 'private.assert_equipment_contract_tenant(p_contract_id)' "$sql"
+          grep -q "private.assert_equipment_contract_child_tenant('LEASE_CHARGE',p_charge_id)" "$sql"
+          grep -q 'CONTRACT_NOT_AVAILABLE' "$sql"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$sql"
+
+          grep -q 'generate_equipment_owner_settlement' "$sql"
+          grep -q 'set_equipment_owner_settlement_status' "$sql"
+          grep -q 'generate_equipment_lease_charge' "$sql"
+          grep -q 'set_equipment_lease_charge_status' "$sql"
+          grep -q 'set_equipment_payment_due_date' "$sql"
+
+          grep -q 'list_equipment_payment_obligations' "$sql"
+          grep -q 'security invoker' "$sql"
+          grep -q 'current_user_organization_id' "$sql"
+
+          grep -q 'equipment_payment_deadline_events_staff_read' "$sql"
+          grep -q "entity_type='OWNER_SETTLEMENT'" "$sql"
+          grep -q "entity_type='LEASE_CHARGE'" "$sql"
+
+          grep -q 'emit_equipment_payment_deadline_notifications' "$sql"
+          grep -q 'organization_units' "$sql"
+          grep -q 'ou.organization_id=r.organization_id' "$sql"
+
+          grep -q 'touch_owner_settlement' "$sql"
+          grep -q 'touch_equipment_lease_charge' "$sql"
+
+          grep -q "search_path TO ''" "$sql"
+          grep -q 'revoke all on function public.equipment_payment_contract_tenant_org(uuid)' "$sql"
+          grep -q 'revoke all on function public.emit_equipment_payment_deadline_notifications()' "$sql"
+
+      - name: Verify Phase 34 documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE34.md'
+          test -s "$doc"
+
+          grep -q 'phase34_owner_payments_tenant_guards_ok' "$doc"
+          grep -q 'phase34_owner_payments_core_guard_compat_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'CONTRACT_NOT_AVAILABLE' "$doc"
+          grep -q '3D-ARTPRINT' "$doc"
+          grep -q 'cross-tenant notifications → 0' "$doc"
+          grep -q 'SECURITY INVOKER' "$doc"
+          grep -q 'PH34-% contracts = 0' "$doc"
