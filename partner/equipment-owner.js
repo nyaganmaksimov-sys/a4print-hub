@@ -28,6 +28,7 @@ function bind(){
   $('eoDocClose').addEventListener('click',()=>$('eoDocumentDlg').close());
   $('eoPrint').addEventListener('click',()=>window.print());
   $('eoDocuments').addEventListener('click',event=>{const btn=event.target.closest('[data-document-id]');if(btn)openDocument(btn.dataset.documentId);});
+  $('eoMoney').addEventListener('click',event=>{const btn=event.target.closest('[data-document-id]');if(btn)openDocument(btn.dataset.documentId);});
 }
 
 async function load(){
@@ -89,6 +90,14 @@ function renderContracts(rows){
   }).join(''):empty('Договоров по оборудованию пока нет.');
 }
 
+function leaseAllocationDetails(l){
+  const snap=l?.allocation_snapshot;
+  if(!snap||snap.schema!=='equipment_lease_allocation_v1')return'';
+  const rows=Array.isArray(snap.allocations)?snap.allocations:[];
+  const details=rows.map(x=>{const name=[x.inventory_number,x.equipment_name,[x.brand,x.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ');const ratio=Number(x.allocation_ratio||0)*100;return`<tr><td><b>${esc(name||'Оборудование')}</b><br><small>${date(x.first_active_on)} — ${date(x.last_active_on)}</small></td><td>${Number(x.active_days||0)} дн.</td><td>${Number(x.period_count||0)}</td><td>${ratio.toFixed(2)}%</td><td><b>${money(x.allocated_amount,l.currency)}</b></td><td>${money(x.allocated_buyout_credit_amount,l.currency)}</td></tr>`}).join('');
+  const doc=l.allocation_document_id?`<button class="eo-doc-btn" type="button" data-document-id="${l.allocation_document_id}">Открыть документ расчёта</button>`:'';
+  return `<details class="eo-note" style="grid-column:1/-1;margin-top:4px"><summary style="cursor:pointer;font-weight:800">Зафиксированная расшифровка по оборудованию</summary><div style="overflow:auto;margin-top:10px"><table><thead><tr><th>Оборудование</th><th>Активно</th><th>Периодов</th><th>Доля</th><th>Начислено</th><th>В выкуп</th></tr></thead><tbody>${details||'<tr><td colspan="6">Нет строк распределения</td></tr>'}</tbody></table></div>${doc?`<div style="margin-top:8px">${doc}</div>`:''}</details>`;
+}
 function renderMoney(settlements,leases,summary){
   const blocks=[];
   if(settlements.length){
@@ -96,8 +105,8 @@ function renderMoney(settlements,leases,summary){
     blocks.push(...settlements.map(s=>`<div class="eo-row"><div><b>${esc(s.contract_number)}</b><span>${date(s.period_start)} — ${date(s.period_end)}</span></div><div><span>База расчёта</span><b>${money(s.split_base,s.currency)}</b></div><div><span>Ваша доля</span><b>${Number(s.owner_share_percent||0)}% · ${money(s.owner_amount,s.currency)}</b></div><div><span>Оплата</span>${badge(s.status)}${s.paid_at?`<span>${dateTime(s.paid_at)}</span>`:''}</div><div>${s.payment_reference?`<span>Документ</span><b>${esc(s.payment_reference)}</b>`:''}</div></div>`));
   }
   if(leases.length){
-    blocks.push(`<article class="eo-card"><div class="eo-card-head"><div><h3>Аренда / выкуп</h3><p>Начисления по договорным периодам</p></div><b>${money(summary.lease_amount_paid)} оплачено</b></div></article>`);
-    blocks.push(...leases.map(l=>`<div class="eo-row"><div><b>${esc(l.contract_number)}</b><span>${date(l.period_start)} — ${date(l.period_end)}</span></div><div><span>Начислено</span><b>${money(l.amount,l.currency)}</b></div><div><span>Зачёт в выкуп</span><b>${money(l.buyout_credit_amount,l.currency)}</b></div><div><span>Оплата</span>${badge(l.status)}${l.paid_at?`<span>${dateTime(l.paid_at)}</span>`:''}</div><div>${l.payment_reference?`<span>Документ</span><b>${esc(l.payment_reference)}</b>`:''}</div></div>`));
+    blocks.push(`<article class="eo-card"><div class="eo-card-head"><div><h3>Аренда / выкуп</h3><p>Утверждённый расчёт фиксируется и не меняется задним числом</p></div><b>${money(summary.lease_amount_paid)} оплачено</b></div></article>`);
+    blocks.push(...leases.map(l=>`<div class="eo-row"><div><b>${esc(l.contract_number)}</b><span>${date(l.period_start)} — ${date(l.period_end)}</span></div><div><span>Начислено</span><b>${money(l.amount,l.currency)}</b></div><div><span>Зачёт в выкуп</span><b>${money(l.buyout_credit_amount,l.currency)}</b></div><div><span>Оплата</span>${badge(l.status)}${l.paid_at?`<span>${dateTime(l.paid_at)}</span>`:''}</div><div>${l.payment_reference?`<span>Платёж</span><b>${esc(l.payment_reference)}</b>`:l.allocation_document_id?'<span>Расчёт</span><b>зафиксирован</b>':''}</div>${leaseAllocationDetails(l)}</div>`));
   }
   $('eoMoney').innerHTML=blocks.length?blocks.join(''):empty('Начислений по оборудованию пока нет.');
 }
@@ -125,6 +134,7 @@ async function openDocument(id){
 }
 
 function renderDocument(doc){
+  if(doc.document_type_code==='EQ_LEASE_CHARGE')return renderLeaseChargeDocument(doc);
   const m=doc.metadata||{};const p=m.partner_snapshot||{};const h=m.hub_snapshot||{};const c=m.contract_snapshot||{};const equipment=m.equipment_snapshot||[];const fin=m.financial_snapshot||{};const term=m.termination_snapshot||null;
   return `<h1>${esc(doc.document_type_name||doc.title)}</h1><div class="doc-number">№ ${esc(doc.document_number||'—')} от ${date(doc.issue_date)}</div>
     <p><b>${esc(h.legal_name||h.name||'A4PRINT HUB')}</b> и <b>${esc(p.legal_name||p.name||'владелец оборудования')}</b> фиксируют сведения по договору <b>${esc(c.contract_number||'—')}</b>.</p>
@@ -135,6 +145,12 @@ function renderDocument(doc){
     ${term?`<h3>Прекращение договора</h3><table><tr><th>Дата прекращения</th><td>${date(term.effective_end_date)}</td><th>Статус</th><td>${esc(statusLabel[term.status]||term.status)}</td></tr><tr><th>Акт возврата</th><td>${esc(term.return_reference||'—')}</td><th>Финансовая сверка</th><td>${esc(term.financial_clearance_reference||'—')}</td></tr></table>`:''}
     ${doc.notes?`<p><b>Примечание:</b> ${esc(doc.notes)}</p>`:''}
     <div class="sign-grid"><div><b>${esc(h.legal_name||h.name||'A4PRINT HUB')}</b><div class="sign">Подпись / М.П.</div></div><div><b>${esc(p.legal_name||p.name||'Владелец')}</b><div class="sign">Подпись / М.П.</div></div></div>`;
+}
+
+function renderLeaseChargeDocument(doc){
+  const m=doc.metadata||{},snap=m.allocation_snapshot||{},p=m.partner_snapshot||{},rows=Array.isArray(snap.allocations)?snap.allocations:[],currency=snap.currency||'RUB';
+  const body=rows.map(x=>{const name=[x.inventory_number,x.equipment_name,[x.brand,x.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ');const ratio=Number(x.allocation_ratio||0)*100;return`<tr><td><b>${esc(name||'Оборудование')}</b>${x.serial_number?`<br><small>С/Н ${esc(x.serial_number)}</small>`:''}</td><td>${date(x.first_active_on)} — ${date(x.last_active_on)}</td><td>${Number(x.active_days||0)}</td><td>${Number(x.period_count||0)}</td><td>${ratio.toFixed(2)}%</td><td><b>${money(x.allocated_amount,currency)}</b></td><td>${money(x.allocated_buyout_credit_amount,currency)}</td></tr>`}).join('');
+  return `<h1>${esc(doc.document_type_name||'Начисление аренды оборудования')}</h1><div class="doc-number">№ ${esc(doc.document_number||'—')} от ${date(doc.issue_date)}</div><p><b>Договор:</b> ${esc(m.contract_number||'—')} · <b>Владелец:</b> ${esc(p.legal_name||p.name||'—')}</p><table><tr><th>Расчётный период</th><td>${date(snap.period_start)} — ${date(snap.period_end)}</td><th>Начисление</th><td><b>${money(snap.charge_amount,currency)}</b></td></tr><tr><th>Зачёт в выкуп</th><td>${money(snap.buyout_credit_amount,currency)}</td><th>Статус документа</th><td>${esc(statusLabel[doc.status]||doc.status||'—')}</td></tr></table><h3>Зафиксированная расшифровка</h3><table><thead><tr><th>Оборудование</th><th>Участие</th><th>Дней</th><th>Периодов</th><th>Доля</th><th>Начислено</th><th>В выкуп</th></tr></thead><tbody>${body||'<tr><td colspan="7">Нет строк распределения</td></tr>'}</tbody></table><p class="eo-note">Эта расшифровка зафиксирована в момент согласования начисления и не пересчитывается задним числом при последующем изменении состава договора.</p>${doc.notes?`<p><b>Примечание:</b> ${esc(doc.notes)}</p>`:''}`;
 }
 
 function financialBlock(fin,currency){const r=fin.revenue_share||{},l=fin.lease||{};return `<h3>Финальная сверка</h3><table><tr><th>Начислено владельцу</th><td>${money(r.owner_amount_total,currency)}</td><th>Выплачено владельцу</th><td>${money(r.owner_amount_paid,currency)}</td></tr><tr><th>Арендные начисления</th><td>${money(l.amount_total,currency)}</td><th>Оплачено аренды</th><td>${money(l.amount_paid,currency)}</td></tr><tr><th>Зачтено в выкуп</th><td colspan="3">${money(l.buyout_credit_paid,currency)}</td></tr></table>`;}
