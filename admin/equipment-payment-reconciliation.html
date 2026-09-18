@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Сверка выплат владельцам — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
+  <script src="./config.js?v=20260918-phase48"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Сверка выплат владельцам</h1><p>Obligation ↔ ledger ↔ cash transaction ↔ reversal</p></div>
+      <div class="eq-actions">
+        <a class="epr-back" href="./equipment-payment-control.html">← Контроль выплат</a>
+        <button id="eprRefresh" type="button">↻ Обновить</button>
+      </div>
+    </header>
+    <div class="epr-shell">
+      <section class="epr-kpis">
+        <article class="danger"><span>Ошибки</span><strong id="eprErrors">0</strong><small>нарушена цепочка</small></article>
+        <article class="good"><span>OK</span><strong id="eprOk">0</strong><small>цепочка согласована</small></article>
+        <article><span>Выплачено</span><strong id="eprPaid">0</strong><small>обязательств PAID</small></article>
+        <article><span>Сторно</span><strong id="eprReversed">0</strong><small>последняя операция reversed</small></article>
+      </section>
+      <section class="epr-card">
+        <div class="epr-toolbar">
+          <input id="eprSearch" type="search" placeholder="Партнёр, договор, платёжный документ…">
+          <select id="eprStatus"><option value="">Все</option><option value="ERROR">Только ошибки</option><option value="OK">Только OK</option></select>
+          <label><input id="eprErrorsOnly" type="checkbox"> Загружать только ошибки</label>
+        </div>
+        <div id="eprError"></div>
+        <div id="eprList" class="epr-list"><div class="epr-empty">Загрузка…</div></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./equipment-payment-reconciliation.js?v=20260918-phase48-1"></script>
+  <script type="module" src="./navigation.js?v=20260918-phase48-1"></script>
+</body>
+</html>
