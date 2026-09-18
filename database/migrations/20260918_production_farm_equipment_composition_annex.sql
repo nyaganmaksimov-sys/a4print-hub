@@ -128,6 +128,18 @@ begin
   ) then
     raise exception 'EQUIPMENT_CONTRACT_PERIOD_OVERLAP';
   end if;
+
+  if exists(
+    select 1
+    from public.equipment_contract_assets ca
+    where ca.contract_id<>new.contract_id
+      and ca.equipment_id=new.equipment_id
+      and ca.starts_on<=coalesce(new.ends_on,'infinity'::date)
+      and new.starts_on<=coalesce(ca.ends_on,'infinity'::date)
+  ) then
+    raise exception 'EQUIPMENT_CONTRACT_PERIOD_CONFLICT';
+  end if;
+
   return new;
 end
 $function$
