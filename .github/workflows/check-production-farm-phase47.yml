@@ -1,0 +1,114 @@
+name: Check Production Farm Phase 47
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_staff_context_hardening.sql'
+      - '.github/scripts/check-production-farm-security-baseline.py'
+      - 'docs/PRODUCTION_FARM_PHASE47.md'
+      - '.github/workflows/check-production-farm-phase47.yml'
+
+jobs:
+  phase47-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check regression checker syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile .github/scripts/check-production-farm-security-baseline.py
+
+      - name: Verify staff-context migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_staff_context_hardening.sql'
+          test -s "$sql"
+
+          grep -q 'assert_no_partner_context' "$sql"
+          grep -q 'STAFF_CONTEXT_REQUIRED' "$sql"
+          grep -q "auth.uid() is null" "$sql"
+          grep -q "current_partner_id()" "$sql"
+
+          grep -q "l.lanname='plpgsql'" "$sql"
+          grep -q "position('has_permission'" "$sql"
+          grep -q "get_equipment_risk_documents" "$sql"
+
+          grep -q 'PARTNER_CONTEXT_STAFF_API' "$sql"
+          grep -q 'production_farm_security_baseline_violations' "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+          grep -q "set search_path=''" "$sql"
+
+      - name: Verify checker catches missing staff-context guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/phase47-unsafe.sql <<'SQL'
+          create or replace function public.production_phase47_fixture(p_job_id uuid)
+          returns uuid
+          language plpgsql
+          security definer
+          set search_path=''
+          as $$
+          begin
+            perform private.assert_production_job_tenant(p_job_id);
+            if not public.has_permission('production.manage') then
+              raise exception 'PERMISSION_DENIED';
+            end if;
+            return p_job_id;
+          end
+          $$;
+          SQL
+
+          if python3 .github/scripts/check-production-farm-security-baseline.py /tmp/phase47-unsafe.sql; then
+            echo 'Unsafe staff API unexpectedly passed baseline'
+            exit 1
+          fi
+
+          cat > /tmp/phase47-safe.sql <<'SQL'
+          create or replace function public.production_phase47_fixture(p_job_id uuid)
+          returns uuid
+          language plpgsql
+          security definer
+          set search_path=''
+          as $$
+          begin
+            perform private.assert_no_partner_context();
+            perform private.assert_production_job_tenant(p_job_id);
+            if not public.has_permission('production.manage') then
+              raise exception 'PERMISSION_DENIED';
+            end if;
+            return p_job_id;
+          end
+          $$;
+          SQL
+
+          python3 .github/scripts/check-production-farm-security-baseline.py /tmp/phase47-safe.sql
+
+      - name: Verify checker source markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          checker='.github/scripts/check-production-farm-security-baseline.py'
+          grep -q 'STAFF_CONTEXT_MARKERS' "$checker"
+          grep -q 'assert_no_partner_context(' "$checker"
+          grep -q 'staff permission-gated SECURITY DEFINER does not reject or handle partner context' "$checker"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE47.md'
+          test -s "$doc"
+          grep -q 'phase47_staff_context_hardening_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'ровно \*\*60\*\*' "$doc"
+          grep -q 'PARTNER_CONTEXT_STAFF_API' "$doc"
+          grep -q 'STAFF_CONTEXT_REQUIRED' "$doc"
+          grep -q 'baseline violations: \*\*0\*\*' "$doc"
