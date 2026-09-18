@@ -131,7 +131,7 @@ async function handleCashOperation(req,res,next,type){
     const ctx=await auth(req);
     if(ctx.error)return authError(res,ctx.error);
     if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
-    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
     if(!tenant.ok)return moySkladTenantError(res,tenant);
     const amount=Number(req.body?.amount||0);
     const reason=clean(req.body?.reason,500);
@@ -160,7 +160,7 @@ express.application.listen=function patchedCashOperationsListen(...args){
       try{
         const ctx=await auth(req);
         if(ctx.error)return authError(res,ctx.error);
-        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
         if(!tenant.ok)return moySkladTenantError(res,tenant);
         const limit=Math.max(1,Math.min(100,Number(req.query?.limit||20)));
         const {data,error}=await service.from('pos_cash_operations')
