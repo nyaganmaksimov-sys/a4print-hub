@@ -1,0 +1,55 @@
+name: Check Production Farm Phase 43
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_temporal_lease_allocation.sql'
+      - 'docs/PRODUCTION_FARM_PHASE43.md'
+      - '.github/workflows/check-production-farm-phase43.yml'
+
+jobs:
+  phase43-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify temporal lease allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_temporal_lease_allocation.sql'
+          test -s "$sql"
+
+          grep -q 'equipment_lease_charge_allocations' "$sql"
+          grep -q 'security_invoker=true' "$sql"
+          grep -q 'active_days' "$sql"
+          grep -q 'period_count' "$sql"
+          grep -q 'effective_weight' "$sql"
+          grep -q 'allocation_ratio' "$sql"
+          grep -q 'allocated_amount' "$sql"
+          grep -q 'allocated_buyout_credit_amount' "$sql"
+
+          grep -q 'equipment_owner_obligations' "$sql"
+          grep -q 'current_partner_id()' "$sql"
+          grep -q "ctx.partner_id is null or ch.partner_id=ctx.partner_id" "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE43.md'
+          test -s "$doc"
+
+          grep -q '666,67' "$doc"
+          grep -q '400 ₽' "$doc"
+          grep -q '600 ₽' "$doc"
+          grep -q 'phase43_temporal_lease_allocation_ok' "$doc"
+          grep -q 'phase43_lease_allocation_partner_scope_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'security_invoker=true' "$doc"
+          grep -q 'Phase 44' "$doc"
