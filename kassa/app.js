@@ -289,7 +289,7 @@
     if(!state.profile)await checkAccess();loadFavorites();renderOperators();renderAccounts();renderCart();renderShift();
     await loadCached();
     health().catch(()=>{});refreshRemoteData(false).catch(()=>{});
-    queueMicrotask(()=>{loadShift().catch(()=>{});loadStock().catch(()=>{});syncQueue().catch(()=>{})});
+    queueMicrotask(()=>{loadShift().catch(()=>{});if(!Object.keys(state.stock||{}).length)loadStock().catch(()=>{});if(state.queue.length)syncQueue().catch(()=>{})});
     clearInterval(healthTimer);clearInterval(syncTimer);
     healthTimer=setInterval(()=>{if(!document.hidden)health()},15000);
     syncTimer=window.A4KassaQueueRecovery?.run?null:setInterval(()=>{if(!document.hidden)syncQueue()},5000);
