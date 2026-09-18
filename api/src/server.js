@@ -315,7 +315,7 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
     const input = req.body || {};
     if (!Array.isArray(input.items) || !input.items.length) return res.status(400).json({ success: false, error: 'EMPTY_CART' });
     const ids = input.items.map(x => x.id);
-    const { data: rows, error } = await supabase.from('catalog_items').select('id,name,sale_price,external_id,external_href,item_type').in('id', ids);
+    const { data: rows, error } = await supabase.from('catalog_items').select('id,name,sale_price,external_id,external_href,item_type').eq('organization_id', req.posOrganizationId).in('id', ids);
     if (error) throw error;
     const byId = new Map((rows || []).map(x => [x.id, x]));
     const items = input.items.map(x => {
@@ -451,7 +451,7 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
     if (!selected.length) return res.status(400).json({ success: false, error: 'RETURN_POSITIONS_REQUIRED', message: 'Нет доступных позиций для возврата.' });
 
     const catalogIds = [...new Set(selected.map(x => x.catalog_id).filter(Boolean))];
-    const { data: catalog, error: catalogError } = await supabase.from('catalog_items').select('id,external_href,item_type').in('id', catalogIds);
+    const { data: catalog, error: catalogError } = await supabase.from('catalog_items').select('id,external_href,item_type').eq('organization_id', req.posOrganizationId).in('id', catalogIds);
     if (catalogError) throw catalogError;
     const catalogById = new Map((catalog || []).map(x => [x.id, x]));
     const msItems = selected.map(x => {
