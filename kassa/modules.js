@@ -14,7 +14,8 @@
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   const dt=v=>v?new Date(v).toLocaleString('ru-RU'):'—';
 
-  const state={section:'sale',session:null,profile:null,isAdmin:false,accounts:[],operators:[],referenceReady:false,referencePromise:null,returnSales:[],selectedReturn:null,reportPeriod:'today'};
+  const state={section:'sale',session:null,profile:null,isAdmin:false,accounts:[],operators:[],referenceReady:false,referencePromise:null,returnSales:[],returnSalesLoadedAt:0,returnSalesPromise:null,selectedReturn:null,reportPeriod:'today'};
+  const RETURN_SALES_TTL_MS=30000;
   let noticeTimer=null;
 
   function notify(text,error=false){
@@ -91,11 +92,17 @@
     if(name==='reports')loadReport(state.reportPeriod).catch(e=>notify(friendly(e),true));
   }
 
-  async function loadReturnSales(){
+  async function loadReturnSales(force=false){
     await loadReferenceData();
+    if(!force&&state.returnSalesLoadedAt&&Date.now()-state.returnSalesLoadedAt<RETURN_SALES_TTL_MS){renderReturnSales();return}
+    if(state.returnSalesPromise)return state.returnSalesPromise;
     $('returnsSales').innerHTML='<div class="module-empty">Загрузка продаж…</div>';
-    const d=await api('/api/v1/pos/returns/sales');
-    state.returnSales=d.sales||[];renderReturnSales();
+    state.returnSalesPromise=api('/api/v1/pos/returns/sales').then(d=>{
+      state.returnSales=d.sales||[];
+      state.returnSalesLoadedAt=Date.now();
+      renderReturnSales();
+    }).finally(()=>{state.returnSalesPromise=null});
+    return state.returnSalesPromise;
   }
   function renderReturnSales(){
     const q=String($('returnsSearch').value||'').trim().toLowerCase();
@@ -146,7 +153,7 @@
     try{
       const d=await api('/api/v1/pos/returns',{method:'POST',body:JSON.stringify({sale_id:sale.id,positions,account_id:account,payment_method:$('returnMethod').value,reason})});
       notify(`Возврат ${d.return?.name||''} создан · ${money(d.amount)}`);
-      state.selectedReturn=null;renderReturnDetail();await loadReturnSales();
+      state.selectedReturn=null;state.returnSalesLoadedAt=0;renderReturnDetail();await loadReturnSales(true);
       if(!$('reportsView').hidden)await loadReport(state.reportPeriod);
     }catch(e){notify('Возврат не проведён: '+friendly(e),true)}finally{btn.disabled=false;btn.textContent='Провести возврат'}
   }
