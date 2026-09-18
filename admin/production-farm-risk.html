@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Риски Production Farm — A4PRINT HUB</title>
+  <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
+  <script src="./config.js?v=20260918-phase51"></script>
+</head>
+<body>
+  <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1>Production Farm · Риски</h1><p>Единый операционный контроль договоров, выплат, требований, integrity и простоев</p></div>
+      <div class="eq-actions"><a class="pfr-back" href="./equipment.html">← Оборудование</a><button id="pfrRefresh" type="button">↻ Обновить</button></div>
+    </header>
+    <div class="pfr-shell">
+      <section class="pfr-kpis">
+        <article class="critical"><span>CRITICAL</span><strong id="pfrCritical">0</strong><small>немедленно</small></article>
+        <article class="high"><span>HIGH</span><strong id="pfrHigh">0</strong><small>высокий риск</small></article>
+        <article class="overdue"><span>Просрочено</span><strong id="pfrOverdue">0</strong><small>SLA / платежи / сроки</small></article>
+        <article><span>Всего</span><strong id="pfrTotal">0</strong><small>активных рисков</small></article>
+      </section>
+      <section class="pfr-grid">
+        <article><span>Integrity</span><strong id="pfrIntegrity">0</strong><a href="./equipment-payment-reconciliation.html">Открыть сверку →</a></article>
+        <article><span>Выплаты</span><strong id="pfrPayments">0</strong><a href="./equipment-payment-control.html">Контроль выплат →</a></article>
+        <article><span>Договоры ≤30 дней</span><strong id="pfrContracts">0</strong><a href="./equipment-contract-deadlines.html">Сроки договоров →</a></article>
+        <article><span>Требования</span><strong id="pfrClaims">0</strong><a href="./equipment-condition-claims.html">Требования →</a></article>
+        <article><span>Споры владельцев</span><strong id="pfrDisputes">0</strong><a href="./equipment-condition-claims.html">Разобрать споры →</a></article>
+        <article><span>Инциденты оборудования</span><strong id="pfrIncidents">0</strong><a href="./equipment.html">Оборудование →</a></article>
+      </section>
+      <section class="pfr-card">
+        <div class="pfr-toolbar">
+          <input id="pfrSearch" type="search" placeholder="Договор, владелец, оборудование, код риска…">
+          <select id="pfrCategory">
+            <option value="">Все категории</option>
+            <option value="PAYMENT_INTEGRITY">Integrity выплат</option>
+            <option value="PAYMENT_OBLIGATION">Выплаты владельцам</option>
+            <option value="CONTRACT_DEADLINE">Сроки договоров</option>
+            <option value="CONDITION_CLAIM">Требования и споры</option>
+            <option value="EQUIPMENT_INCIDENT">Инциденты оборудования</option>
+          </select>
+          <select id="pfrSeverity"><option value="">Все приоритеты</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+          <label><input id="pfrOverdueOnly" type="checkbox"> Только просроченные</label>
+        </div>
+        <div id="pfrError"></div>
+        <div id="pfrList" class="pfr-list"><div class="pfr-empty">Загрузка…</div></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="./production-farm-risk.js?v=20260918-phase51-1"></script>
+  <script type="module" src="./navigation.js?v=20260918-phase51-1"></script>
+</body>
+</html>
