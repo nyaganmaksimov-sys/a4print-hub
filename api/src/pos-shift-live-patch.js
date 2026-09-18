@@ -130,11 +130,34 @@ async function hubShift(){
       .select('moysklad_shift_id,moysklad_shift_name,opened_at,status,updated_at,store_id,store_name')
       .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
     if(error||!data?.moysklad_shift_id)return null;
+    const after=data.opened_at;
+    const [salesResult,returnsResult,opsResult]=await Promise.all([
+      supabase.from('pos_sales').select('total,payment_method').gte('sold_at',after),
+      supabase.from('pos_returns').select('amount,payment_method').gte('returned_at',after),
+      supabase.from('pos_cash_operations').select('operation_type,amount').gte('created_at',after)
+    ]);
+    for(const result of [salesResult,returnsResult,opsResult])if(result.error)throw result.error;
+    const sales=salesResult.data||[],returns=returnsResult.data||[],ops=opsResult.data||[];
+    const isCash=v=>/налич|cash/i.test(String(v||''));
+    const sum=(rows,field)=>rows.reduce((n,row)=>n+Number(row?.[field]||0),0);
+    const cashSales=sum(sales.filter(x=>isCash(x.payment_method)),'total');
+    const cashReturns=sum(returns.filter(x=>isCash(x.payment_method)),'amount');
+    const cashlessSales=sum(sales.filter(x=>!isCash(x.payment_method)),'total');
+    const cashlessReturns=sum(returns.filter(x=>!isCash(x.payment_method)),'amount');
+    const cashIn=ops.filter(x=>x.operation_type==='CASH_IN');
+    const cashOut=ops.filter(x=>x.operation_type==='CASH_OUT');
     return{
       build:BUILD,
       shift:{id:data.moysklad_shift_id,name:data.moysklad_shift_name||'—',openDate:data.opened_at,closeDate:null,updated:data.updated_at||null},
       store:data.store_id?{id:data.store_id,name:data.store_name||null}:null,
-      summary:{source:'HUB_FAST'}
+      summary:{
+        source:'HUB_FAST',
+        sales_count:sales.length,sales_total:sum(sales,'total'),sales_cash:cashSales,sales_cashless:cashlessSales,
+        returns_count:returns.length,returns_total:sum(returns,'amount'),returns_cash:cashReturns,returns_cashless:cashlessReturns,
+        deposits_count:cashIn.length,deposits_total:sum(cashIn,'amount'),payouts_count:cashOut.length,payouts_total:sum(cashOut,'amount'),
+        revenue_cash:cashSales-cashReturns,revenue_cashless:cashlessSales-cashlessReturns,
+        revenue_total:sum(sales,'total')-sum(returns,'amount')
+      }
     };
   }catch{return null}
 }
