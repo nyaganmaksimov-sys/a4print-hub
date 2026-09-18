@@ -23,7 +23,7 @@ async function auth(req){
   if(!bearer)return{error:'AUTH_REQUIRED'};
   const {data,error}=await service.auth.getUser(bearer);
   if(error||!data?.user)return{error:'INVALID_SESSION'};
-  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',data.user.id).maybeSingle();
+  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',data.user.id).eq('is_active',true).limit(1).maybeSingle();
   if(pErr)throw pErr;
   if(!profile||profile.is_active===false)return{error:'POS_ACCESS_REQUIRED'};
   const {data:roles,error:rErr}=await service.from('user_roles').select('roles(name)').eq('user_id',profile.id);
