@@ -1,7 +1,54 @@
 const DEFAULT_MOYSKLAD_ORGANIZATION_CODE='A4PRINT';
 
+function normalizeOrganizationCode(value){
+  return String(value||'').trim().toUpperCase();
+}
+
+function tokenEnvSegment(value){
+  return normalizeOrganizationCode(value).replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+
 export function configuredMoySkladOrganizationCode(){
-  return String(process.env.MOYSKLAD_ORGANIZATION_CODE||DEFAULT_MOYSKLAD_ORGANIZATION_CODE).trim().toUpperCase();
+  return normalizeOrganizationCode(process.env.MOYSKLAD_ORGANIZATION_CODE||DEFAULT_MOYSKLAD_ORGANIZATION_CODE);
+}
+
+export function moySkladTokenEnvName(organizationOrCode){
+  const code=typeof organizationOrCode==='string'?organizationOrCode:organizationOrCode?.code;
+  const segment=tokenEnvSegment(code);
+  return segment?'MOYSKLAD_TOKEN_'+segment:null;
+}
+
+export function moySkladTokenForOrganization(organizationOrCode){
+  const code=normalizeOrganizationCode(typeof organizationOrCode==='string'?organizationOrCode:organizationOrCode?.code);
+  if(!code)return null;
+
+  const envName=moySkladTokenEnvName(code);
+  const dedicated=envName?String(process.env[envName]||'').trim():'';
+  if(dedicated)return dedicated;
+
+  // Backward compatibility: the existing single MOYSKLAD_TOKEN belongs only to
+  // MOYSKLAD_ORGANIZATION_CODE (A4PRINT by default). It is never shared with
+  // another organization.
+  if(code===configuredMoySkladOrganizationCode()){
+    const legacy=String(process.env.MOYSKLAD_TOKEN||'').trim();
+    if(legacy)return legacy;
+  }
+  return null;
+}
+
+export function configuredMoySkladOrganizationCodes(){
+  const codes=new Set();
+  for(const [name,value] of Object.entries(process.env)){
+    if(!name.startsWith('MOYSKLAD_TOKEN_')||!String(value||'').trim())continue;
+    const suffix=name.slice('MOYSKLAD_TOKEN_'.length).trim().toUpperCase();
+    if(suffix)codes.add(suffix);
+  }
+  if(String(process.env.MOYSKLAD_TOKEN||'').trim())codes.add(configuredMoySkladOrganizationCode());
+  return [...codes].sort();
+}
+
+export function hasAnyMoySkladConfiguration(){
+  return configuredMoySkladOrganizationCodes().length>0;
 }
 
 export async function organizationForAuthUser(service,authUserId){
@@ -29,8 +76,7 @@ export async function organizationById(service,organizationId){
 }
 
 export function isMoySkladOrganizationAllowed(organization){
-  const configured=configuredMoySkladOrganizationCode();
-  return Boolean(organization?.code)&&String(organization.code).trim().toUpperCase()===configured;
+  return Boolean(moySkladTokenForOrganization(organization));
 }
 
 export async function requireMoySkladOrganization({service,authUserId=null,organizationId=null}={}){
@@ -40,16 +86,27 @@ export async function requireMoySkladOrganization({service,authUserId=null,organ
   if(!organization){
     return{ok:false,error:'POS_ORGANIZATION_REQUIRED',status:403,organization:null};
   }
-  if(!isMoySkladOrganizationAllowed(organization)){
+
+  const token=moySkladTokenForOrganization(organization);
+  if(!token){
     return{
       ok:false,
       error:'MOYSKLAD_ORGANIZATION_NOT_CONFIGURED',
       status:409,
       organization,
-      configured_code:configuredMoySkladOrganizationCode()
+      configured_code:configuredMoySkladOrganizationCode(),
+      configured_codes:configuredMoySkladOrganizationCodes()
     };
   }
-  return{ok:true,organization,configured_code:configuredMoySkladOrganizationCode()};
+
+  return{
+    ok:true,
+    organization,
+    token,
+    token_env:moySkladTokenEnvName(organization),
+    configured_code:configuredMoySkladOrganizationCode(),
+    configured_codes:configuredMoySkladOrganizationCodes()
+  };
 }
 
 export function moySkladTenantError(res,result){
