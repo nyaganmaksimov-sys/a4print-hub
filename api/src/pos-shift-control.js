@@ -1,5 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 
 const supabaseUrl=process.env.SUPABASE_URL;
 const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -56,6 +57,8 @@ async function guard(req,res,handler,{admin=false}={}){
   try{
     const ctx=await staffContext(req);
     if(ctx.error)return res.status(ctx.status||403).json({success:false,error:ctx.error});
+    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+    if(!tenant.ok)return moySkladTenantError(res,tenant);
     if(admin&&!ctx.isAdmin)return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
     return await handler(ctx);
   }catch(error){
