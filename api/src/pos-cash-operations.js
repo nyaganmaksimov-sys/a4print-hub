@@ -85,18 +85,20 @@ async function createCashDocument({type,amount,reason,operatorName,verifiedCash}
   }
 
   const entity=isOut?'retaildrawercashout':'retaildrawercashin';
-  // Avoid the optional /new template round-trip. The current shift already
-  // carries the organization required by MoySklad; owner/group are optional.
-  const template=null;
+  // MoySklad requires agent on retail drawer cash documents. Ask the
+  // document template for the tenant-correct agent and other defaults.
+  const template=await msRequest(token,`/entity/${entity}/new`,{method:'PUT',body:JSON.stringify({retailShift:{meta:shift.meta}})});
   const actionText=isOut?'Изъятие денег':'Внесение денег';
   const payload={
     retailShift:{meta:shift.meta},
     organization:{meta:template?.organization?.meta||shift.organization?.meta},
+    agent:{meta:template?.agent?.meta},
     sum:Math.round(amount*100),
     moment:msDate(),
     description:`A4PRINT KASSA · ${actionText} · Оператор: ${operatorName||'не указан'}${reason?` · Причина: ${reason}`:''}`
   };
   if(!payload.organization?.meta)delete payload.organization;
+  if(!payload.agent?.meta)throw new Error('MOYSKLAD_CASH_AGENT_UNAVAILABLE');
   if(template?.owner?.meta)payload.owner={meta:template.owner.meta};
   if(template?.group?.meta)payload.group={meta:template.group.meta};
   console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_start',at:Date.now(),entity}));
