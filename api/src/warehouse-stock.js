@@ -1,6 +1,7 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { fetchMoySkladStock } from './moysklad.js';
+import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 
 const supabaseUrl=process.env.SUPABASE_URL;
 const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -54,6 +55,8 @@ express.application.listen=function patchedWarehouseStockListen(...args){
           return res.status(status).json({success:false,error:ctx.error});
         }
         if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        if(!tenant.ok)return moySkladTenantError(res,tenant);
         try{
           return res.json(await liveStock());
         }catch(error){
