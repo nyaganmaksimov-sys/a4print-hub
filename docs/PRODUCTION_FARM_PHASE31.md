@@ -152,3 +152,33 @@ Phase 30 dashboard получил прямой переход «Расследо
 `phase31_integrity_incident_lifecycle_ok`.
 
 После ROLLBACK тестовые события и действия отсутствуют.
+
+
+## Tenant isolation hardening
+
+После появления multi-company tenant RLS Phase 31 дополнительно ограничен организацией текущего сотрудника через `public.current_user_organization_id()`.
+
+Защита действует на четырёх уровнях:
+
+- RLS SELECT policy таблицы actions допускает только события оборудования текущей организации;
+- `list_equipment_claim_integrity_incidents` фильтрует очередь по `equipment_assets.organization_id`;
+- `set_equipment_claim_integrity_incident_state` сверяет организацию event и блокирует чужой event ошибкой `INTEGRITY_EVENT_NOT_AVAILABLE`;
+- background emitter отправляет WARNING только активным сотрудникам организации конкретного оборудования.
+
+При отсутствии organization context read/mutation RPC закрываются ошибкой `ORGANIZATION_CONTEXT_REQUIRED`.
+
+### Tenant isolation test
+
+В отдельном `BEGIN ... ROLLBACK` создан инцидент А4-Принт, после чего контекст переключён на действующего сотрудника 3D-ARTPRINT с теми же management permissions.
+
+Проверено:
+
+- чужой event отсутствует в `list_equipment_claim_integrity_incidents(true)`;
+- mutation чужого event заблокирован `INTEGRITY_EVENT_NOT_AVAILABLE`;
+- прямой SELECT actions под ролью `authenticated` возвращает 0 строк из-за RLS;
+- сотрудник исходной организации видит event и action;
+- уведомления по event не отправлены сотрудникам другой организации.
+
+Результат:
+
+`phase31_integrity_tenant_isolation_ok`.
