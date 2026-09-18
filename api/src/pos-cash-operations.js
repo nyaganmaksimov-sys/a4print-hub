@@ -128,11 +128,15 @@ function cashError(res,next,error){
   return res.status(500).json({success:false,error:'POS_CASH_OPERATION_FAILED',message:'Ошибка операции с наличными.',detail:message.slice(0,1200)});
 }
 async function handleCashOperation(req,res,next,type){
+  const trace=(step,extra={})=>console.log('[POS_CASH_TRACE]',JSON.stringify({type,step,...extra}));
   try{
+    trace('request_received');
     const ctx=await auth(req);
+    trace('auth_done',{ok:!ctx.error});
     if(ctx.error)return authError(res,ctx.error);
     if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
     const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
+    trace('tenant_done',{ok:tenant.ok,organization:tenant.organization?.code||null});
     if(!tenant.ok)return moySkladTenantError(res,tenant);
     const amount=Number(req.body?.amount||0);
     const reason=clean(req.body?.reason,500);
@@ -140,7 +144,10 @@ async function handleCashOperation(req,res,next,type){
     if(!Number.isFinite(amount)||amount<=0)return res.status(400).json({success:false,error:'AMOUNT_REQUIRED',message:`Укажите сумму ${title} больше нуля.`});
     if(amount>10000000)return res.status(400).json({success:false,error:'AMOUNT_TOO_LARGE',message:`Слишком большая сумма ${title}.`});
     const operator=await selectedOperator(req,ctx);
+    trace('operator_done',{operatorId:operator?.id||null});
+    trace('create_document_start',{amount});
     const result=await createCashDocument({type,amount,reason,operatorName:operator?.full_name||operator?.email||ctx.user.email});
+    trace('create_document_done',{operationId:idOf(result.operation),cashBefore:result.cashBefore,cashAfter:result.cashAfter});
     await logOperation({operator,shift:result.shift,operation:result.operation,type,amount,reason});
     return res.json({
       success:true,
@@ -149,7 +156,10 @@ async function handleCashOperation(req,res,next,type){
       cash_before:result.cashBefore,
       cash_after:result.cashAfter
     });
-  }catch(error){return cashError(res,next,error)}
+  }catch(error){
+    console.error('[POS_CASH_TRACE_ERROR]',JSON.stringify({type,message:String(error?.message||error),name:error?.name||null,stack:error?.stack||null}));
+    return cashError(res,next,error)
+  }
 }
 
 const originalListen=express.application.listen;
