@@ -213,6 +213,20 @@ Phase 42 переводит termination flow на temporal scope:
 
 Согласование и подпись используют существующий Phase 22 workflow.
 
+## Partner child tenant guard
+
+Во время portal lifecycle test обнаружен старый конфликт между staff tenant guard и партнёрским доступом: `get_equipment_contract_amendment_document()` вызывал `private.assert_equipment_contract_child_tenant(...)`, который всегда переходил в staff organization guard.
+
+Phase 42 исправляет helper fail-closed:
+
+- staff по-прежнему проверяется через organization договора;
+- partner определяется через `current_partner_id()`;
+- partner допускается только к child entity договора, где `contract.partner_id=current_partner_id()`;
+- чужой владелец получает `EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE`;
+- helper имеет empty search path и недоступен public/anon/authenticated напрямую.
+
+Это исправляет открытие документа ДС владельцем и одновременно сохраняет изоляцию Partner A / Partner B.
+
 ## Production rollback tests
 
 ### Composition lifecycle
