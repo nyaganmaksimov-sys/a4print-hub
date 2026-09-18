@@ -14,7 +14,7 @@
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   const dt=v=>v?new Date(v).toLocaleString('ru-RU'):'—';
 
-  const state={section:'sale',session:null,profile:null,isAdmin:false,accounts:[],operators:[],referenceReady:false,referencePromise:null,returnSales:[],returnSalesLoadedAt:0,returnSalesPromise:null,selectedReturn:null,reportPeriod:'today',reportCache:new Map(),reportPromise:new Map()};
+  const state={section:'sale',session:null,profile:null,organizationId:null,isAdmin:false,accounts:[],operators:[],referenceReady:false,referencePromise:null,returnSales:[],returnSalesLoadedAt:0,returnSalesPromise:null,selectedReturn:null,reportPeriod:'today',reportCache:new Map(),reportPromise:new Map()};
   const RETURN_SALES_TTL_MS=30000;
   const REPORT_TTL_MS=30000;
   let noticeTimer=null;
@@ -62,10 +62,21 @@
       ]);
       if(admin.error)throw admin.error;if(profile.error)throw profile.error;if(org.error)throw org.error;
       if(!profile.data)throw new Error('Профиль кассира не найден или отключён.');
-      if(!org.data)throw new Error('Организация A4PRINT не найдена или отключена.');
       state.isAdmin=!!admin.data;state.profile=profile.data;
+      let organizationId=org.data?.id||null;
+      if(!organizationId&&profile.data?.id){
+        const unitProfile=await supabase.from('users').select('organization_unit_id').eq('id',profile.data.id).limit(1).maybeSingle();
+        if(unitProfile.error)throw unitProfile.error;
+        if(unitProfile.data?.organization_unit_id){
+          const unit=await supabase.from('organization_units').select('organization_id,is_active').eq('id',unitProfile.data.organization_unit_id).limit(1).maybeSingle();
+          if(unit.error)throw unit.error;
+          if(unit.data?.is_active!==false)organizationId=unit.data?.organization_id||null;
+        }
+      }
+      if(!organizationId)throw new Error('Компания кассы недоступна.');
+      state.organizationId=organizationId;
       const [accounts,operators]=await Promise.all([
-        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',org.data.id).eq('is_active',true).order('name'),
+        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',organizationId).eq('is_active',true).order('name'),
         supabase.rpc('get_pos_operators')
       ]);
       if(accounts.error)throw accounts.error;if(operators.error)throw operators.error;
