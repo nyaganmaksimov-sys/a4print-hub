@@ -10,7 +10,7 @@
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
-    <header class="topbar"><div><h1>Допсоглашения по оборудованию</h1><p>Продление и изменение действующих договоров с юридическим snapshot до/после</p></div><div class="eca-head-actions"><a href="./equipment.html">← Оборудование</a><button id="ecaRefresh" type="button">↻ Обновить</button><button id="ecaCreate" class="primary" type="button">+ Допсоглашение</button></div></header>
+    <header class="topbar"><div><h1>Допсоглашения по оборудованию</h1><p>Продление, изменение условий и состава оборудования с юридическим snapshot до/после</p></div><div class="eca-head-actions"><a href="./equipment.html">← Оборудование</a><button id="ecaRefresh" type="button">↻ Обновить</button><button id="ecaCreate" class="primary" type="button">+ Допсоглашение</button></div></header>
     <div class="eca-shell">
       <section class="eca-kpis"><article><span>Черновики</span><strong id="ecaDraft">0</strong></article><article class="warn"><span>Ждут подписи</span><strong id="ecaApproval">0</strong></article><article class="good"><span>Подписаны / готовы</span><strong id="ecaSigned">0</strong></article><article><span>Применены</span><strong id="ecaApplied">0</strong></article></section>
       <section class="eca-card"><div class="eca-toolbar"><input id="ecaSearch" type="search" placeholder="Партнёр, договор, номер ДС…"><select id="ecaStatus"><option value="">Все статусы</option><option value="DRAFT">Черновик</option><option value="APPROVED">Утверждено</option><option value="APPLIED">Применено</option><option value="CANCELLED">Отменено</option></select></div><div id="ecaError"></div><div id="ecaList" class="eca-list"><div class="eca-empty">Загрузка…</div></div></section>
@@ -40,5 +40,6 @@
   <dialog id="ecaDocDlg" class="eca-dialog eca-doc-dialog"><div class="eca-dialog-head"><strong id="ecaDocTitle">Допсоглашение</strong><div><button id="ecaPrint" type="button">Печать</button><button type="button" data-close="ecaDocDlg">Закрыть</button></div></div><div id="ecaDocBody" class="eca-doc-body"></div></dialog>
   <script type="module" src="./equipment-contract-amendments.js?v=20260915-phase21-1"></script>
   <script type="module" src="./equipment-contract-amendment-signatures.js?v=20260915-phase22-1"></script>
+  <script type="module" src="./equipment-contract-composition.js?v=20260918-phase42-1"></script>
 </body>
 </html>
