@@ -234,3 +234,12 @@ Live подтверждено:
 - private staff-context helper: anon=false, authenticated=false;
 - audit table direct client access = false;
 - amendment lifecycle mutations содержат staff-context guard.
+
+## Supabase Advisor
+
+После Phase 46 advisor показывает два ожидаемых сигнала:
+
+- `rls_enabled_no_policy` для `equipment_contract_amendment_allocations` — намеренно: таблица не имеет client-facing policies и полностью закрыта прямому доступу;
+- `authenticated_security_definer_function_executable` для `create_equipment_allocation_weight_amendment(...)` — intentional application RPC; внутри обязательны `equipment.contracts.manage`, organization tenant guard и `assert_non_partner_staff_context()`.
+
+Неожиданных Phase 46-specific findings нет.
