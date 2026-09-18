@@ -1,0 +1,63 @@
+name: Check Production Farm Phase 41
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/**/*.sql'
+      - '.github/scripts/check-production-farm-security-baseline.py'
+      - '.github/workflows/check-production-farm-phase41.yml'
+      - 'docs/PRODUCTION_FARM_PHASE41.md'
+
+jobs:
+  phase41-security-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed SQL
+        id: changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            base="$(git rev-parse HEAD^)"
+          fi
+          mapfile -t files < <(git diff --name-only "$base"...HEAD -- 'database/migrations/*.sql')
+          printf '%s\n' "${files[@]}" > /tmp/phase41-sql-files.txt
+          echo "count=${#files[@]}" >> "$GITHUB_OUTPUT"
+
+      - name: Check changed production/equipment SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < /tmp/phase41-sql-files.txt
+          python3 .github/scripts/check-production-farm-security-baseline.py "${files[@]}"
+
+      - name: Verify Phase 41 migration markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_security_baseline.sql'
+          test -s "$sql"
+          grep -q 'production_farm_security_baseline_violations' "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+          grep -q 'UNSAFE_SEARCH_PATH' "$sql"
+          grep -q 'ANON_SECURITY_DEFINER_EXECUTE' "$sql"
+          grep -q 'INTERNAL_FUNCTION_CLIENT_EXECUTE' "$sql"
+          grep -q 'AUTH_RPC_WITHOUT_SCOPE_GUARD' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE41.md'
+          test -s "$doc"
+          grep -q 'baseline violations: \*\*0\*\*' "$doc"
+          grep -q 'ACTIVE_CONTRACT_EQUIPMENT_CHANGE_REQUIRES_NEW_ANNEX' "$doc"
