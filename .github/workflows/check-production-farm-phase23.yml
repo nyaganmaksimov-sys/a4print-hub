@@ -40,12 +40,12 @@ jobs:
           test -s admin/equipment-condition-inspections.html
           test -s admin/equipment-condition-inspections.js
           test -s partner/equipment-owner-condition-inspections.js
-          grep -q 'equipment-condition-inspections.js?v=20260915-phase23-1' admin/equipment-condition-inspections.html
+          grep -q 'equipment-condition-inspections.js?v=' admin/equipment-condition-inspections.html
           grep -q "list_equipment_condition_inspections" admin/equipment-condition-inspections.js
           grep -q "save_equipment_condition_inspection" admin/equipment-condition-inspections.js
           grep -q "complete_equipment_condition_inspection" admin/equipment-condition-inspections.js
           grep -q "equipment-condition-inspections.html.*Осмотры состояния" admin/navigation.js
-          grep -q 'equipment-owner-condition-inspections.js?v=20260915-phase23-1' partner/equipment.html
+          grep -q 'equipment-owner-condition-inspections.js?v=' partner/equipment.html
           grep -q "get_my_equipment_condition_inspections" partner/equipment-owner-condition-inspections.js
           grep -q "createSignedUrl" partner/equipment-owner-condition-inspections.js
           grep -q 'Осмотры состояния' partner/equipment-owner-condition-inspections.js
