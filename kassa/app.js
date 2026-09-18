@@ -81,6 +81,10 @@
     if(unit.error)throw unit.error;
     if(!unit.data?.organization_id||unit.data.is_active===false)throw new Error('Компания сотрудника недоступна.');
     state.organizationId=unit.data.organization_id;
+    // A4PRINT KASSA is a dedicated POS application. Keep its catalog/accounts pinned
+    // to A4PRINT even when the signed-in staff profile also belongs to another HUB company.
+    const a4=await supabase.from('organizations').select('id,code,is_active').eq('code','A4PRINT').maybeSingle();
+    if(a4.data?.id&&a4.data.is_active!==false)state.organizationId=a4.data.id;
   }
 
   function showAuth(error=''){$('appView').hidden=true;$('authView').hidden=false;$('loginError').textContent=error}
