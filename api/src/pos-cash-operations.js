@@ -104,8 +104,10 @@ async function createCashDocument({type,amount,reason,operatorName,verifiedCash}
   console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_start',at:Date.now(),entity}));
   const operation=await msRequest(token,`/entity/${entity}`,{method:'POST',body:JSON.stringify(payload)});
   console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_done',at:Date.now(),entity,operationId:idOf(operation)}));
-  const fallback=Number(before.cash)+(isOut?-amount:amount);
-  const after=await refreshBalance(fallback);
+  // The financial document already exists at this point. Never hold the
+  // response open for another full ledger scan: a timeout here makes the UI
+  // report failure after money has actually moved and invites a duplicate.
+  const after=Number(before.cash)+(isOut?-amount:amount);
   return{shift,operation,cashBefore:Number(before.cash),cashAfter:after};
 }
 async function logOperation({operator,shift,operation,type,amount,reason}){
