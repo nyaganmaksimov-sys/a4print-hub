@@ -80,10 +80,11 @@ async function operationsForShift(token,type,shift){
   }
 }
 
-export async function calculateCashBalance({token,service}){
+export async function calculateCashBalance({token,service,organizationId}){
   if(!service)throw new Error('DATABASE_NOT_CONFIGURED');
+  if(!organizationId)throw new Error('POS_ORGANIZATION_REQUIRED');
   const ctx=await retailStoreContext(token);
-  const {data:baseline,error}=await service.from('pos_cash_balance_state').select('store_id,store_name,baseline_amount,baseline_at,updated_at').eq('store_id',ctx.storeInfo.id).maybeSingle();
+  const {data:baseline,error}=await service.from('pos_cash_balance_state').select('store_id,store_name,baseline_amount,baseline_at,updated_at').eq('organization_id',organizationId).eq('store_id',ctx.storeInfo.id).maybeSingle();
   if(error)throw error;
   if(!baseline){
     return{available:false,requires_baseline:true,source:'BASELINE_REQUIRED',store:ctx.storeInfo,shift:ctx.openShift?{id:idOf(ctx.openShift),name:ctx.openShift.name||null}:null,cash:null};
@@ -122,12 +123,13 @@ export async function calculateCashBalance({token,service}){
   };
 }
 
-export async function setCashBaseline({token,service,amount,userId}){
+export async function setCashBaseline({token,service,organizationId,amount,userId}){
   if(!service)throw new Error('DATABASE_NOT_CONFIGURED');
+  if(!organizationId)throw new Error('POS_ORGANIZATION_REQUIRED');
   const ctx=await retailStoreContext(token);
   const now=new Date().toISOString();
-  const payload={store_id:ctx.storeInfo.id,store_name:ctx.storeInfo.name||null,baseline_amount:Number(amount),baseline_at:now,baseline_set_by:userId||null,updated_at:now};
-  const {error}=await service.from('pos_cash_balance_state').upsert(payload,{onConflict:'store_id'});
+  const payload={organization_id:organizationId,store_id:ctx.storeInfo.id,store_name:ctx.storeInfo.name||null,baseline_amount:Number(amount),baseline_at:now,baseline_set_by:userId||null,updated_at:now};
+  const {error}=await service.from('pos_cash_balance_state').upsert(payload,{onConflict:'organization_id,store_id'});
   if(error)throw error;
   return{available:true,requires_baseline:false,source:'MANUAL_BASELINE',store:ctx.storeInfo,shift:ctx.openShift?{id:idOf(ctx.openShift),name:ctx.openShift.name||null}:null,cash:Number(amount),baseline:{amount:Number(amount),at:now},delta:0};
 }
