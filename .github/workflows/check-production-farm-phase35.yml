@@ -1,0 +1,48 @@
+name: Check Production Farm Phase 35
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_buyout_search_path_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE35.md'
+      - '.github/workflows/check-production-farm-phase35.yml'
+
+jobs:
+  phase35-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify buyout hardening migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_buyout_search_path_hardening.sql'
+          test -s "$sql"
+
+          grep -q 'configure_equipment_lease_terms' "$sql"
+          grep -q 'record_equipment_buyout_payment' "$sql"
+          grep -q 'complete_equipment_buyout' "$sql"
+          grep -q 'validate_equipment_buyout_contract' "$sql"
+
+          count=$(grep -c "set search_path to ''" "$sql")
+          test "$count" -eq 4
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE35.md'
+          test -s "$doc"
+
+          grep -q 'phase35_buyout_search_path_hardening_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'EQUIPMENT_CONTRACT_NOT_AVAILABLE' "$doc"
+          grep -q 'CONTRACT_HAS_NO_EQUIPMENT' "$doc"
+          grep -q '3D-ARTPRINT' "$doc"
+          grep -q 'PH35-% contracts = 0' "$doc"
+          grep -q 'security_invoker=true' "$doc"
