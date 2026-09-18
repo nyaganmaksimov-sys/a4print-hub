@@ -123,6 +123,22 @@ async function liveShift(){
   };
 }
 
+async function hubShift(){
+  if(!supabase)return null;
+  try{
+    const {data,error}=await supabase.from('pos_shift_sessions')
+      .select('moysklad_shift_id,moysklad_shift_name,opened_at,status,updated_at,store_id,store_name')
+      .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
+    if(error||!data?.moysklad_shift_id)return null;
+    return{
+      build:BUILD,
+      shift:{id:data.moysklad_shift_id,name:data.moysklad_shift_name||'—',openDate:data.opened_at,closeDate:null,updated:data.updated_at||null},
+      store:data.store_id?{id:data.store_id,name:data.store_name||null}:null,
+      summary:{source:'HUB_FAST'}
+    };
+  }catch{return null}
+}
+
 async function hubFallback(){
   if(!supabase)return null;
   try{
@@ -153,6 +169,11 @@ express.application.get=function patchedGet(path,...handlers){
   if(path==='/api/v1/pos/shift'&&handlers.length){
     const index=handlers.length-1;
     handlers[index]=async function liveMoySkladShift(_req,res,next){
+      const hub=await hubShift();
+      if(hub){
+        liveShift().catch(error=>console.warn('[POS shift live] background refresh unavailable:',error?.message||error));
+        return res.json({success:true,...hub});
+      }
       try{
         const data=await liveShift();
         return res.json({success:true,...data});
