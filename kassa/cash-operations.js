@@ -15,6 +15,8 @@
   let balanceBusy=false;
   let balanceTimer=null;
   let applyingBalance=false;
+  let lastBalanceAt=0;
+  const BALANCE_FRESH_MS=30000;
 
   function currentCash(){
     if(Number.isFinite(liveCash))return liveCash;
@@ -65,19 +67,20 @@
     }finally{queueMicrotask(()=>{applyingBalance=false})}
     window.dispatchEvent(new CustomEvent('a4:kassa-cash-balance',{detail:{cash:available?liveCash:null,available,data}}));
   }
-  async function refreshBalance(){
+  async function refreshBalance(force=false){
     if(balanceBusy||!API)return window.A4KassaCashBalance||null;
+    if(!force&&lastBalanceAt&&Date.now()-lastBalanceAt<BALANCE_FRESH_MS)return window.A4KassaCashBalance||null;
     balanceBusy=true;
     try{
       const r=await authorizedFetch(`${API}/api/v1/pos/cash-balance?ts=${Date.now()}`);
       const data=await r.json().catch(()=>({}));
-      if(r.ok&&data?.success){applyExactBalance(data);return data}
+      if(r.ok&&data?.success){applyExactBalance(data);lastBalanceAt=Date.now();return data}
       applyExactBalance({available:false,cash:null,shift:data?.shift||null,source:data?.source||data?.error||'CASH_BALANCE_UNAVAILABLE'});
       return data;
     }catch(error){console.warn('A4PRINT cash balance:',error);applyExactBalance({available:false,cash:null,shift:null,source:'CASH_BALANCE_NETWORK_ERROR'});return null}
     finally{balanceBusy=false}
   }
-  function scheduleBalance(delay=250){clearTimeout(balanceTimer);balanceTimer=setTimeout(()=>refreshBalance().catch(()=>{}),delay)}
+  function scheduleBalance(delay=250,force=false){clearTimeout(balanceTimer);balanceTimer=setTimeout(()=>refreshBalance(force).catch(()=>{}),delay)}
   async function api(body,retry=true){
     let access=await token();
     const run=async()=>{
@@ -97,7 +100,7 @@
 
     // The dialog is usable immediately. Exact cash is verified in the
     // background; withdrawal stays locked until MoySklad confirms the balance.
-    refreshBalance().then(data=>{
+    refreshBalance(true).then(data=>{
       if(!overlay.isConnected)return;
       const verified=Boolean(data?.success)&&Boolean(data?.available)&&Number.isFinite(Number(data?.cash));
       const exact=verified?Number(data.cash):Number.NaN;
@@ -129,7 +132,7 @@
         close();toast(`Изъято ${money(value)}${result.operation?.name?` · ${result.operation.name}`:''}`);
         setTimeout(()=>$('shiftRefresh')?.click(),250);
         window.dispatchEvent(new CustomEvent('a4:kassa-cash-operation',{detail:{type:'CASH_OUT',amount:value}}));
-        scheduleBalance(500);setTimeout(()=>scheduleBalance(0),1600);
+        scheduleBalance(500,true);setTimeout(()=>scheduleBalance(0,true),1600);
       }catch(e){btn.disabled=false;btn.textContent='Изъять деньги';err.textContent=String(e?.message||e)}
     };
   }
@@ -164,8 +167,8 @@
     };
   }
   document.addEventListener('click',e=>{if(e.target?.closest?.('#navShift,#shiftChip,[data-section="reports"]')){setTimeout(inject,100);scheduleBalance(180)}},true);
-  window.addEventListener('a4:kassa-cash-operation',()=>scheduleBalance(250));
-  window.addEventListener('a4:kassa-shift',()=>scheduleBalance(250));
+  window.addEventListener('a4:kassa-cash-operation',()=>scheduleBalance(250,true));
+  window.addEventListener('a4:kassa-shift',()=>scheduleBalance(250,true));
   window.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cashOpOverlay'))close()});
   watchMoneyChanges();
   inject();
