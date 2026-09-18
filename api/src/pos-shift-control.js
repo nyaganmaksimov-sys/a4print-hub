@@ -57,7 +57,7 @@ async function guard(req,res,handler,{admin=false}={}){
   try{
     const ctx=await staffContext(req);
     if(ctx.error)return res.status(ctx.status||403).json({success:false,error:ctx.error});
-    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
     if(!tenant.ok)return moySkladTenantError(res,tenant);
     if(admin&&!ctx.isAdmin)return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
     return await handler(ctx);
