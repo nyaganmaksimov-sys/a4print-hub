@@ -1,0 +1,94 @@
+name: Check Production Farm Phase 47
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_composition_condition_handoff.sql'
+      - 'admin/equipment-contract-amendments.js'
+      - 'admin/equipment-contract-amendments.html'
+      - 'admin/equipment-condition-inspections.js'
+      - 'admin/equipment-condition-inspections.html'
+      - 'partner/equipment-owner-condition-inspections.js'
+      - 'partner/equipment.html'
+      - 'docs/PRODUCTION_FARM_PHASE47.md'
+      - '.github/workflows/check-production-farm-phase47.yml'
+
+jobs:
+  phase47-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/equipment-contract-amendments.js
+          node --check admin/equipment-condition-inspections.js
+          node --check partner/equipment-owner-condition-inspections.js
+
+      - name: Verify composition condition handoff migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_composition_condition_handoff.sql'
+          test -s "$sql"
+
+          grep -q 'composition_amendment_asset_id' "$sql"
+          grep -q 'prepare_equipment_composition_inspections' "$sql"
+          grep -q 'assert_equipment_composition_condition_ready' "$sql"
+          grep -q 'COMPOSITION_INSPECTION_REQUIRED' "$sql"
+          grep -q 'COMPOSITION_COMPARISON_REQUIRED' "$sql"
+          grep -q 'COMPOSITION_COMPARISON_RESOLUTION_REQUIRED' "$sql"
+          grep -q 'COMPOSITION_INSPECTION_AMENDMENT_MISMATCH' "$sql"
+          grep -q 'COMPOSITION_INSPECTION_DATE_MUST_MATCH_AMENDMENT' "$sql"
+
+          grep -q 'link_equipment_composition_inspection_document' "$sql"
+          grep -q 'cancel_composition_inspection_drafts_after_amendment_cancel' "$sql"
+          grep -q 'EQUIPMENT_CONTRACT_AMENDMENT_ASSET' "$sql"
+          grep -q 'CONDITION_COMPARISON' "$sql"
+
+          grep -q 'organization_units' "$sql"
+          grep -q 'ou.organization_id=v_org' "$sql"
+
+          grep -q "set search_path TO ''" "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          grep -q 'Осмотры состава' admin/equipment-contract-amendments.js
+          grep -q 'prepare_equipment_composition_inspections' admin/equipment-contract-amendments.js
+          grep -q 'equipment-condition-inspections.html?amendment=' admin/equipment-contract-amendments.js
+
+          grep -q 'amendmentFilter' admin/equipment-condition-inspections.js
+          grep -q 'composition_amendment_id' admin/equipment-condition-inspections.js
+          grep -q 'composition_amendment_asset_id' admin/equipment-condition-inspections.js
+          grep -q 'Для обычного возвратного осмотра' admin/equipment-condition-inspections.js
+
+          grep -q 'composition_amendment_number' partner/equipment-owner-condition-inspections.js
+          grep -q 'composition_change_action' partner/equipment-owner-condition-inspections.js
+
+          grep -q 'phase47-1' admin/equipment-condition-inspections.html
+          grep -q 'phase47-1' admin/equipment-contract-amendments.html
+          grep -q 'phase47-1' partner/equipment.html
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE47.md'
+          test -s "$doc"
+
+          grep -q 'phase47_composition_condition_handoff_ok' "$doc"
+          grep -q 'phase47_composition_inspection_cancel_cleanup_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'Partner B видит 0' "$doc"
+          grep -q 'baseline_violations()' "$doc"
+          grep -q 'PH47 comparisons = 0' "$doc"
