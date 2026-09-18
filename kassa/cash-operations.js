@@ -124,7 +124,7 @@
       if(value>exact){err.textContent=`В кассе сейчас ${money(exact)}. Нельзя изъять больше.`;return}
       const operator=$('operatorSelect')?.value||null;btn.disabled=true;btn.textContent='Провожу…';
       try{
-        const result=await api({amount:value,reason,operator_id:operator});
+        const result=await api({amount:value,reason,operator_id:operator,verified_cash:exact});
         if(Number.isFinite(Number(result.cash_after)))applyExactBalance({available:true,cash:Number(result.cash_after),shift:result.shift||window.A4KassaCashBalance?.shift,store:window.A4KassaCashBalance?.store,source:'MOYSKLAD_RETAILSTORE_CASH'});
         close();toast(`Изъято ${money(value)}${result.operation?.name?` · ${result.operation.name}`:''}`);
         setTimeout(()=>$('shiftRefresh')?.click(),250);
