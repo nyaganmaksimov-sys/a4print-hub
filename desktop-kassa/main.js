@@ -38,6 +38,8 @@ function createWindow(){
   mainWindow.on('closed',()=>{mainWindow=null});
 }
 ipcMain.handle('a4-kassa:print',async()=>{ if(!mainWindow) return {ok:false}; const printers=await mainWindow.webContents.getPrintersAsync(); return {ok:true,printers:printers.map(p=>({name:p.name,displayName:p.displayName,isDefault:p.isDefault}))}; });
+ipcMain.handle('a4-kassa:settings:get',()=>({printer:app.getPath('userData')&&store.printer||''}));
+ipcMain.handle('a4-kassa:settings:set-printer',(_event,name='')=>{store.printer=typeof name==='string'?name:'';return {ok:true,printer:store.printer};});
 ipcMain.handle('a4-kassa:print-page',async(_event,options={})=>{ if(!mainWindow) return {ok:false}; const deviceName=typeof options.deviceName==='string'?options.deviceName:''; const silent=Boolean(options.silent&&deviceName); return new Promise(resolve=>mainWindow.webContents.print({silent,deviceName:deviceName||undefined,printBackground:true,margins:{marginType:'none'}},(success,failureReason)=>resolve({ok:success,error:failureReason||null}))); });
 app.whenReady().then(createWindow);
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
