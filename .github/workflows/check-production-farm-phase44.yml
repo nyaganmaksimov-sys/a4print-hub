@@ -1,0 +1,70 @@
+name: Check Production Farm Phase 44
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_lease_allocation_audit.sql'
+      - 'docs/PRODUCTION_FARM_PHASE44.md'
+      - 'admin/equipment-lease-allocation-audit.js'
+      - 'admin/equipment.html'
+      - 'partner/equipment-owner-lease-allocations.js'
+      - 'partner/equipment.html'
+      - '.github/workflows/check-production-farm-phase44.yml'
+
+jobs:
+  phase44-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Phase 44 JavaScript
+        run: |
+          node --check admin/equipment-lease-allocation-audit.js
+          node --check partner/equipment-owner-lease-allocations.js
+
+      - name: Verify lease allocation migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_lease_allocation_audit.sql'
+          test -s "$sql"
+          grep -q "EQ_LEASE_CHARGE" "$sql"
+          grep -q "allocation_snapshot" "$sql"
+          grep -q "build_equipment_lease_charge_allocation_snapshot" "$sql"
+          grep -q "create_equipment_lease_charge_allocation_document" "$sql"
+          grep -q "guard_equipment_lease_charge_allocation_snapshot" "$sql"
+          grep -q "LEASE_ALLOCATION_SNAPSHOT_IMMUTABLE" "$sql"
+          grep -q "APPROVED_LEASE_CHARGE_IMMUTABLE" "$sql"
+          grep -q "get_equipment_lease_charge_allocation" "$sql"
+          grep -q "LIVE_PREVIEW" "$sql"
+          grep -q "LEASE_ALLOCATION_NOT_PUBLISHED" "$sql"
+          grep -q "private.assert_equipment_contract_child_tenant" "$sql"
+          grep -q "select private.assert_production_farm_security_baseline()" "$sql"
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "equipment-lease-allocation-audit.js" admin/equipment.html
+          grep -q "get_equipment_lease_charge_allocation" admin/equipment-lease-allocation-audit.js
+          grep -q "LIVE_PREVIEW" admin/equipment-lease-allocation-audit.js
+          grep -q "equipment-owner-lease-allocations.js" partner/equipment.html
+          grep -q "get_equipment_lease_charge_allocation" partner/equipment-owner-lease-allocations.js
+          grep -q "get_partner_equipment_document" partner/equipment-owner-lease-allocations.js
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE44.md'
+          test -s "$doc"
+          grep -q "phase44_lease_allocation_audit_ok" "$doc"
+          grep -q "400 ₽" "$doc"
+          grep -q "600 ₽" "$doc"
+          grep -q "LEASE_ALLOCATION_NOT_PUBLISHED" "$doc"
+          grep -q "LEASE_ALLOCATION_SNAPSHOT_IMMUTABLE" "$doc"
+          grep -q "PH44 documents = 0" "$doc"
