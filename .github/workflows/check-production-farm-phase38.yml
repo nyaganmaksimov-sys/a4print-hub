@@ -1,0 +1,61 @@
+name: Check Production Farm Phase 38
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_job_dispatch_tenant_hardening.sql'
+      - 'docs/PRODUCTION_FARM_PHASE38.md'
+      - '.github/workflows/check-production-farm-phase38.yml'
+
+jobs:
+  phase38-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify production job hardening migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_job_dispatch_tenant_hardening.sql'
+          test -s "$sql"
+
+          grep -q 'sync_order_status_from_production' "$sql"
+          grep -q 'private.assert_production_job_tenant' "$sql"
+          grep -q 'private.assert_order_tenant(v_job.order_id,false)' "$sql"
+          grep -q 'organization_id=v_job.organization_id' "$sql"
+
+          grep -q 'auto_dispatch_production_job' "$sql"
+          grep -q 'auto_dispatch_production_queue' "$sql"
+          grep -q 'configure_production_job' "$sql"
+          grep -q 'production_find_dispatch_slot' "$sql"
+          grep -q 'production_find_dispatch_slot_internal' "$sql"
+          grep -q 'production_operator_action' "$sql"
+          grep -q 'production_schedule_job_internal' "$sql"
+          grep -q 'schedule_production_job' "$sql"
+          grep -q 'schedule_production_job_into_day' "$sql"
+          grep -q 'set_production_dispatch_lock' "$sql"
+          grep -q 'transition_production_job' "$sql"
+
+          count=$(grep -c "set search_path to ''" "$sql")
+          test "$count" -eq 11
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE38.md'
+          test -s "$doc"
+
+          grep -q 'phase38_production_job_dispatch_tenant_hardening_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'PRODUCTION_JOB_NOT_AVAILABLE' "$doc"
+          grep -q 'ORDER_NOT_AVAILABLE' "$doc"
+          grep -q 'PRODUCTION_JOB_ORGANIZATION_MISMATCH' "$doc"
+          grep -q '9 из 9' "$doc"
+          grep -q 'PH38 events = 0' "$doc"
+          grep -q '12 SECURITY DEFINER' "$doc"
