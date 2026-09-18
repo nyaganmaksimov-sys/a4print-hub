@@ -1,5 +1,6 @@
 -- A4PRINT HUB: Production Farm Phase 34 — tenant guards for owner payments and deadlines.
 -- Generated from verified live definitions after phase34_owner_payments_tenant_guards.
+-- Preserves private core equipment tenant guards from the current main tenant layer.
 
 CREATE OR REPLACE FUNCTION public.equipment_payment_contract_tenant_org(p_contract_id uuid)
  RETURNS uuid
@@ -43,6 +44,7 @@ declare
   v_actor uuid;
   v_org uuid;
 begin
+  perform private.assert_equipment_contract_tenant(p_contract_id);
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
   if not public.has_permission('production.settlements.manage') then
     raise exception 'PERMISSION_DENIED';
@@ -303,6 +305,7 @@ declare
   v_credit numeric;
   v_org uuid;
 begin
+  perform private.assert_equipment_contract_tenant(p_contract_id);
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
   if not public.has_permission('production.buyout.manage') then
     raise exception 'PERMISSION_DENIED';
