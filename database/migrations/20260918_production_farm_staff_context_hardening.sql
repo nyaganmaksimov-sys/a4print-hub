@@ -203,8 +203,8 @@ as $$
     where auth_execute
       and (
         returns_trigger
-        or proname ilike '%\\_internal' escape '\\'
-        or proname ilike '%\\_trigger' escape '\\'
+        or proname ilike '%\_internal' escape '\'
+        or proname ilike '%\_trigger' escape '\'
       )
 
     union all
