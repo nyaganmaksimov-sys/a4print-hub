@@ -1,0 +1,73 @@
+name: Check Production Farm Phase 45
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_owner_settlement_audit.sql'
+      - 'docs/PRODUCTION_FARM_PHASE45.md'
+      - 'admin/production-farm-settlement-audit.js'
+      - 'admin/production.html'
+      - 'partner/equipment-owner-settlement-audit.js'
+      - 'partner/equipment.html'
+      - '.github/workflows/check-production-farm-phase45.yml'
+
+jobs:
+  phase45-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Phase 45 JavaScript
+        run: |
+          node --check admin/production-farm-settlement-audit.js
+          node --check partner/equipment-owner-settlement-audit.js
+
+      - name: Verify settlement audit migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_owner_settlement_audit.sql'
+          test -s "$sql"
+          grep -q "EQ_OWNER_SETTLEMENT" "$sql"
+          grep -q "settlement_snapshot" "$sql"
+          grep -q "build_equipment_owner_settlement_snapshot" "$sql"
+          grep -q "create_equipment_owner_settlement_document" "$sql"
+          grep -q "guard_equipment_owner_settlement_snapshot" "$sql"
+          grep -q "guard_equipment_owner_settlement_line_immutable" "$sql"
+          grep -q "OWNER_SETTLEMENT_SNAPSHOT_IMMUTABLE" "$sql"
+          grep -q "APPROVED_OWNER_SETTLEMENT_LINES_IMMUTABLE" "$sql"
+          grep -q "get_equipment_owner_settlement_detail" "$sql"
+          grep -q "LIVE_PREVIEW" "$sql"
+          grep -q "OWNER_SETTLEMENT_NOT_PUBLISHED" "$sql"
+          grep -q "private.assert_equipment_contract_child_tenant('OWNER_SETTLEMENT'" "$sql"
+          grep -q "select private.assert_production_farm_security_baseline()" "$sql"
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "production-farm-settlement-audit.js" admin/production.html
+          grep -q "get_equipment_owner_settlement_detail" admin/production-farm-settlement-audit.js
+          grep -q "LIVE_PREVIEW" admin/production-farm-settlement-audit.js
+          grep -q "equipment-owner-settlement-audit.js" partner/equipment.html
+          grep -q "get_equipment_owner_settlement_detail" partner/equipment-owner-settlement-audit.js
+          grep -q "get_partner_equipment_document" partner/equipment-owner-settlement-audit.js
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE45.md'
+          test -s "$doc"
+          grep -q "phase45_owner_settlement_audit_ok" "$doc"
+          grep -q "1 000 ₽" "$doc"
+          grep -q "300 ₽" "$doc"
+          grep -q "700 ₽" "$doc"
+          grep -q "OWNER_SETTLEMENT_NOT_PUBLISHED" "$doc"
+          grep -q "OWNER_SETTLEMENT_SNAPSHOT_IMMUTABLE" "$doc"
+          grep -q "APPROVED_OWNER_SETTLEMENT_LINES_IMMUTABLE" "$doc"
+          grep -q "PH45 documents = 0" "$doc"
