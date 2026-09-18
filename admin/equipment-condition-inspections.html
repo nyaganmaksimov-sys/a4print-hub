@@ -13,7 +13,7 @@
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
-    <header class="topbar"><div><h1>Осмотры состояния оборудования</h1><p>Приёмка и возврат с чек-листом, дефектами, наработкой и фотофиксацией</p></div><div class="eci-head-actions"><a href="./equipment.html">← Оборудование</a><button id="eciRefresh" type="button">↻ Обновить</button><button id="eciCreate" class="eci-btn primary" type="button">+ Новый осмотр</button></div></header>
+    <header class="topbar"><div><h1>Осмотры состояния оборудования</h1><p>Приёмка, возврат и осмотры по composition-ДС с чек-листом, дефектами, наработкой и фотофиксацией</p></div><div class="eci-head-actions"><a href="./equipment.html">← Оборудование</a><button id="eciRefresh" type="button">↻ Обновить</button><button id="eciCreate" class="eci-btn primary" type="button">+ Новый осмотр</button></div></header>
     <div class="eci-shell">
       <section class="eci-kpis"><article><span>Черновики</span><strong id="eciDraft">0</strong><small>нужно завершить</small></article><article class="warn"><span>Нет приёмки</span><strong id="eciMissingAcceptance">0</strong><small>единиц в действующих договорах</small></article><article class="warn"><span>Возврат ждёт осмотра</span><strong id="eciReturnPending">0</strong><small>по открытым расторжениям</small></article><article class="danger"><span>Осмотры с дефектами</span><strong id="eciDefects">0</strong><small>завершённые</small></article></section>
       <section class="eci-card"><div class="eci-toolbar"><input id="eciSearch" type="search" placeholder="Партнёр, договор, оборудование…"><select id="eciType"><option value="">Все типы</option><option value="ACCEPTANCE">Приёмка</option><option value="RETURN">Возврат</option><option value="PERIODIC">Периодический</option></select><select id="eciStatus"><option value="">Все статусы</option><option value="DRAFT">Черновик</option><option value="COMPLETED">Завершён</option><option value="CANCELLED">Отменён</option></select><label><input id="eciCancelled" type="checkbox"> Показать отменённые</label></div><div id="eciError"></div><div id="eciList" class="eci-list"><div class="eci-empty">Загрузка…</div></div></section>
@@ -46,6 +46,6 @@
   <dialog id="eciViewDlg" class="eci-dialog"><div class="eci-dialog-head"><strong id="eciViewTitle">Акт осмотра</strong><button class="eci-btn" type="button" data-close="eciViewDlg">Закрыть</button></div><div id="eciViewBody" class="eci-dialog-body"></div></dialog>
 
   <script src="./navigation.js?v=20260915-phase23"></script>
-  <script type="module" src="./equipment-condition-inspections.js?v=20260915-phase23-1"></script>
+  <script type="module" src="./equipment-condition-inspections.js?v=20260918-phase47-1"></script>
 </body>
 </html>
