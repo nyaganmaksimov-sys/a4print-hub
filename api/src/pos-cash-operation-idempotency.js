@@ -249,8 +249,18 @@ express.application.post=function patchedCashOperationPost(path,...handlers){
 
         return context.run({key,type},()=>originalHandler(req,res,wrappedNext));
       }catch(error){
+        const detail={message:String(error?.message||error),code:error?.code||null,details:error?.details||null,hint:error?.hint||null};
+        console.error('[POS_CASH_IDEMPOTENCY_ERROR]',JSON.stringify({type,key,stage:'reserve_or_recovery',...detail}));
         await saveUnknown(orgId,key,error).catch(()=>{});
-        return next(error);
+        // Reservation happens before any MoySklad money movement. Return a
+        // structured error here instead of leaking a Supabase object into the
+        // generic Express error handler as "[object Object]".
+        return res.status(503).json({
+          success:false,
+          error:'CASH_IDEMPOTENCY_UNAVAILABLE',
+          message:'Не удалось подготовить защищённую денежную операцию. Деньги не списаны.',
+          detail:detail.message.slice(0,1200)
+        });
       }
     };
   }
