@@ -123,7 +123,7 @@
     try{
       if(!state.organizationId)throw new Error('Компания кассы не определена.');
       const [g,a,o]=await Promise.all([
-        supabase.from('catalog_items').select('id,name,sku,article,barcode,item_type,category,unit,sale_price,external_id,last_synced_at').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
+        supabase.rpc('get_pos_catalog'),
         supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
         supabase.rpc('get_pos_operators')
       ]);
