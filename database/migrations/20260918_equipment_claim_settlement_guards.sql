@@ -131,29 +131,3 @@ begin
   end if;
 end;
 $$;
-
--- set_equipment_payment_due_date already accepts OWNER_SETTLEMENT / LEASE_CHARGE.
--- Validate its target tenant before any business logic.
-do $$
-declare
-  v_oid oid:=to_regprocedure('public.set_equipment_payment_due_date(text,uuid,date)');
-  v_def text;
-  v_guard text:=E'\nbegin\n  if upper(btrim(coalesce(p_entity_type,''))) in (''OWNER_SETTLEMENT'',''LEASE_CHARGE'') then\n    perform private.assert_equipment_contract_child_tenant(upper(btrim(p_entity_type)),p_entity_id);\n  end if;\n';
-begin
-  if v_oid is null then
-    raise exception 'RPC_NOT_FOUND:set_equipment_payment_due_date';
-  end if;
-
-  select pg_get_functiondef(v_oid) into v_def;
-
-  if v_def not ilike '%private.assert_equipment_contract_child_tenant(upper(btrim(p_entity_type)),p_entity_id)%' then
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
-
-    if v_def not ilike '%private.assert_equipment_contract_child_tenant(upper(btrim(p_entity_type)),p_entity_id)%' then
-      raise exception 'RPC_GUARD_INJECTION_FAILED:set_equipment_payment_due_date';
-    end if;
-
-    execute v_def;
-  end if;
-end;
-$$;
