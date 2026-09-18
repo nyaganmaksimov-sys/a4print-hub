@@ -10,7 +10,7 @@ const service=supabaseUrl&&serviceKey?createClient(supabaseUrl,serviceKey,{auth:
 const installed=Symbol.for('a4print.pos.cash.balance.installed');
 const CACHE_TTL_MS=15000;
 const STALE_TTL_MS=5*60*1000;
-const LIVE_BUDGET_MS=3500;
+const LIVE_BUDGET_MS=800;
 let balanceCache=null;
 let balanceInFlight=null;
 
@@ -112,6 +112,8 @@ async function databaseCashBalance(){
 }
 
 async function responsiveCashBalance(){
+  // POS must render from the local HUB ledger first. MoySklad reconciliation
+  // continues independently and must never block the operator UI.
   const live=getCashBalance();
   const fallback=new Promise((resolve,reject)=>{
     setTimeout(()=>databaseCashBalance().then(resolve,reject),LIVE_BUDGET_MS);
