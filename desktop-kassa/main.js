@@ -1,4 +1,4 @@
-const {app,BrowserWindow,shell}=require('electron');
+const {app,BrowserWindow,shell,ipcMain}=require('electron');
 const path=require('path');
 const KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/';
 
@@ -37,6 +37,8 @@ function createWindow(){
   mainWindow.once('ready-to-show',()=>{splash.destroy();mainWindow.show();mainWindow.focus()});
   mainWindow.on('closed',()=>{mainWindow=null});
 }
+ipcMain.handle('a4-kassa:print',async()=>{ if(!mainWindow) return {ok:false}; const printers=await mainWindow.webContents.getPrintersAsync(); return {ok:true,printers:printers.map(p=>({name:p.name,displayName:p.displayName,isDefault:p.isDefault}))}; });
+ipcMain.handle('a4-kassa:print-page',async()=>{ if(!mainWindow) return {ok:false}; return new Promise(resolve=>mainWindow.webContents.print({silent:false,printBackground:true},(success,failureReason)=>resolve({ok:success,error:failureReason||null}))); });
 app.whenReady().then(createWindow);
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
 app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
