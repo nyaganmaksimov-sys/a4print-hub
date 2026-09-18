@@ -1,0 +1,55 @@
+name: Check Production Farm Phase 33
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_claim_finance_tenant_guards.sql'
+      - 'docs/PRODUCTION_FARM_PHASE33.md'
+      - '.github/workflows/check-production-farm-phase33.yml'
+
+jobs:
+  phase33-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tenant finance migration markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_claim_finance_tenant_guards.sql'
+          test -s "$sql"
+          grep -q 'equipment_condition_claim_financial_tenant_org' "$sql"
+          grep -q 'CLAIM_FINANCIAL_TENANT_MISMATCH' "$sql"
+          grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$sql"
+          grep -q 'CLAIM_NOT_AVAILABLE' "$sql"
+          grep -q 'CLAIM_FINANCIAL_TRANSACTION_TENANT_MISMATCH' "$sql"
+          grep -q 'equipment_condition_claim_financial_reversals_staff_read' "$sql"
+          grep -q 'equipment_condition_claim_financial_reposts_staff_read' "$sql"
+          grep -q 'list_equipment_condition_claim_financial_postings' "$sql"
+          grep -q 'list_equipment_condition_claim_financial_reversals' "$sql"
+          grep -q 'list_equipment_condition_claim_financial_reposts' "$sql"
+          grep -q 'post_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q 'reverse_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q 'repost_equipment_condition_claim_financial_transaction' "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'revoke all on function public.equipment_condition_claim_financial_tenant_org(uuid)' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE33.md'
+          test -s "$doc"
+          grep -q 'phase33_claim_finance_tenant_guards_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'CLAIM_NOT_AVAILABLE' "$doc"
+          grep -q '3D-ARTPRINT' "$doc"
+          grep -q 'staff postings list' "$doc"
+          grep -q 'direct RLS SELECT reversal' "$doc"
+          grep -q 'test cash rows = 0' "$doc"
+          grep -q 'не создаёт финансовые операции автоматически' "$doc"
