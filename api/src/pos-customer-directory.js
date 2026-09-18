@@ -13,14 +13,17 @@ async function authorize(req){
   if(!token)return{error:'AUTH_REQUIRED'};
   const {data,error}=await service.auth.getUser(token);
   if(error||!data?.user)return{error:'INVALID_SESSION'};
-  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',data.user.id).maybeSingle();
+  const {data:profile,error:pErr}=await service.from('users').select('id,is_active,organization_unit_id').eq('auth_user_id',data.user.id).maybeSingle();
   if(pErr)throw pErr;
   if(!profile||profile.is_active===false)return{error:'POS_ACCESS_REQUIRED'};
+  const {data:unit,error:uErr}=await service.from('organization_units').select('organization_id,is_active').eq('id',profile.organization_unit_id).maybeSingle();
+  if(uErr)throw uErr;
+  if(!unit||unit.is_active===false||!unit.organization_id)return{error:'POS_ORGANIZATION_REQUIRED'};
   const {data:rows,error:rErr}=await service.from('user_roles').select('roles(name)').eq('user_id',profile.id);
   if(rErr)throw rErr;
   const roles=(rows||[]).map(x=>x.roles?.name).filter(Boolean);
   if(!roles.some(r=>['ADMIN','MANAGER','POS_OPERATOR'].includes(r)))return{error:'POS_ACCESS_REQUIRED'};
-  return{user:data.user,profile};
+  return{user:data.user,profile,organizationId:unit.organization_id};
 }
 
 const originalListen=express.application.listen;
@@ -35,7 +38,7 @@ express.application.listen=function patchedCustomerDirectoryListen(...args){
           return res.status(status).json({success:false,error:auth.error});
         }
         const q=clean(req.query.q,100).replace(/[,%()]/g,' ');
-        let query=service.from('customers').select('id,full_name,company_name,email,phone,notes,created_at,updated_at');
+        let query=service.from('customers').select('id,organization_id,full_name,company_name,email,phone,notes,created_at,updated_at').eq('organization_id',auth.organizationId);
         if(q.length>=1)query=query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`);
         const {data,error}=await query.order('updated_at',{ascending:false}).limit(q?50:100);
         if(error)throw error;
