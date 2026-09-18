@@ -58,6 +58,9 @@ jobs:
           grep -q 'security_invoker=true' "$sql"
 
           grep -q 'assert_production_farm_security_baseline' "$sql"
+          grep -q 'assert_equipment_contract_child_tenant' "$sql"
+          grep -q 'current_partner_id()' "$sql"
+          grep -q 'EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE' "$sql"
 
       - name: Verify UI wiring
         shell: bash
@@ -79,6 +82,7 @@ jobs:
           grep -q 'phase42_equipment_composition_annex_ok' "$doc"
           grep -q 'phase42_temporal_termination_scope_ok' "$doc"
           grep -q 'phase42_cross_contract_period_guard_ok' "$doc"
+          grep -q 'phase42_partner_portal_acceptance_ok' "$doc"
           grep -q 'BEGIN ... ROLLBACK' "$doc"
           grep -q 'ACTIVE_CONTRACT_EQUIPMENT_CHANGE_REQUIRES_NEW_ANNEX' "$doc"
           grep -q 'EQUIPMENT_CONTRACT_PERIOD_CONFLICT' "$doc"
