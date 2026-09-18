@@ -256,10 +256,19 @@
   }
 
   async function health(){
+    const wasOnline=state.backendOnline;
     if(!navigator.onLine){state.backendOnline=false;renderNetwork();return false}
     const controller=new AbortController();const t=setTimeout(()=>controller.abort(),4500);
     try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok}catch{state.backendOnline=false}finally{clearTimeout(t)}
-    renderNetwork();if(state.backendOnline){syncQueue();if(!state.shift)loadShift().catch(()=>{})}return state.backendOnline
+    renderNetwork();
+    if(state.backendOnline){
+      // A heartbeat must not rescan IndexedDB every 15 seconds. Recovery is
+      // event-driven; wake it only after connectivity returns or when memory
+      // already says there is pending work.
+      if(!wasOnline||state.queue.length)syncQueue().catch(()=>{});
+      if(!state.shift)loadShift().catch(()=>{});
+    }
+    return state.backendOnline
   }
 
   function bind(){
