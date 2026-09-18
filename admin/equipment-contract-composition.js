@@ -186,6 +186,7 @@ function friendly(e){
     ['COMPLETENESS_REQUIRED','Для каждой позиции заполните комплектность.'],
     ['EVIDENCE_REQUIRED','Для каждой позиции добавьте хотя бы одно evidence.'],
     ['EQUIPMENT_ALREADY_IN_CONTRACT_PERIOD','Оборудование уже входит в договор на этот период.'],
+    ['EQUIPMENT_CONTRACT_PERIOD_CONFLICT','Оборудование уже закреплено за другим договором в пересекающийся период.'],
     ['EQUIPMENT_NOT_ACTIVE_FOR_REMOVAL','Выбранное оборудование не входит в договор на дату вывода.'],
     ['ACTIVE_OR_SUSPENDED_CONTRACT_REQUIRED','Изменение состава доступно только для действующего/приостановленного договора.'],
     ['PAST_EFFECTIVE_DATE_NOT_ALLOWED','Дата вступления в силу не может быть в прошлом.']
