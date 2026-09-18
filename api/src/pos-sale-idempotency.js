@@ -10,12 +10,15 @@ const service=supabaseUrl&&serviceKey
 const token=process.env.MOYSKLAD_TOKEN;
 const als=new AsyncLocalStorage();
 const marker=id=>`A4OP:${id}`;
-let orgPromise=null;
-
-async function organizationId(){
-  if(!service)return null;
-  if(!orgPromise)orgPromise=service.from('organizations').select('id').eq('code','A4PRINT').single().then(({data,error})=>{if(error)throw error;return data?.id||null});
-  return orgPromise;
+async function organizationId(req){
+  if(req?.posOrganizationId)return req.posOrganizationId;
+  if(!service||!req?.authUser?.id)return null;
+  const profile=await service.from('users').select('organization_unit_id').eq('auth_user_id',req.authUser.id).maybeSingle();
+  if(profile.error)throw profile.error;
+  if(!profile.data?.organization_unit_id)return null;
+  const unit=await service.from('organization_units').select('organization_id,is_active').eq('id',profile.data.organization_unit_id).maybeSingle();
+  if(unit.error)throw unit.error;
+  return unit.data?.is_active===false?null:(unit.data?.organization_id||null);
 }
 
 function isRetailDemandPost(input,init={}){
@@ -93,7 +96,7 @@ async function reconcile(orgId,clientOperationId){
 
 async function reserve(req,clientOperationId){
   if(!service||!clientOperationId)return{proceed:true,orgId:null};
-  const orgId=await organizationId();
+  const orgId=await organizationId(req);
   if(!orgId)return{proceed:true,orgId:null};
 
   const {data:existing,error:readError}=await service.from('pos_sale_operations').select('*').eq('organization_id',orgId).eq('client_operation_id',clientOperationId).maybeSingle();
