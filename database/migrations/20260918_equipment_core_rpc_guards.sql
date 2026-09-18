@@ -247,7 +247,10 @@ begin
     if v_def ilike '%private.assert_equipment_asset_tenant(%' then continue; end if;
 
     v_guard:=format(E'\nbegin\n  perform private.assert_equipment_asset_tenant(%s);\n',r.id_expr);
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
+    v_def:=case
+      when v_def like E'%\nbegin\n%' then regexp_replace(v_def,E'\nbegin\n',v_guard)
+      else regexp_replace(v_def,' begin ',v_guard)
+    end;
 
     if v_def not ilike '%private.assert_equipment_asset_tenant(%' then
       raise exception 'RPC_GUARD_INJECTION_FAILED:%',r.signature;
@@ -269,7 +272,10 @@ begin
   select pg_get_functiondef(v_oid) into v_def;
 
   if v_def not ilike '%private.assert_equipment_asset_tenant(p_equipment_id)%' then
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
+    v_def:=case
+      when v_def like E'%\nbegin\n%' then regexp_replace(v_def,E'\nbegin\n',v_guard)
+      else regexp_replace(v_def,' begin ',v_guard)
+    end;
     if v_def not ilike '%private.assert_equipment_asset_tenant(p_equipment_id)%' then
       raise exception 'RPC_GUARD_INJECTION_FAILED:report_equipment_incident';
     end if;
@@ -305,7 +311,10 @@ begin
       v_guard:=E'\nbegin\n  perform private.assert_equipment_incident_tenant(p_incident_id);\n';
     end if;
 
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
+    v_def:=case
+      when v_def like E'%\nbegin\n%' then regexp_replace(v_def,E'\nbegin\n',v_guard)
+      else regexp_replace(v_def,' begin ',v_guard)
+    end;
 
     if v_def not ilike '%private.assert_equipment_incident_tenant(%' then
       raise exception 'RPC_GUARD_INJECTION_FAILED:%',r.signature;
@@ -342,7 +351,10 @@ begin
       E'\nbegin\n  perform private.assert_equipment_contract_child_tenant(''INSPECTION'',%s);\n',
       r.id_expr
     );
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
+    v_def:=case
+      when v_def like E'%\nbegin\n%' then regexp_replace(v_def,E'\nbegin\n',v_guard)
+      else regexp_replace(v_def,' begin ',v_guard)
+    end;
 
     if v_def not ilike '%private.assert_equipment_contract_child_tenant(''INSPECTION''%' then
       raise exception 'RPC_GUARD_INJECTION_FAILED:%',r.signature;
@@ -363,7 +375,10 @@ begin
   select pg_get_functiondef(v_oid) into v_def;
 
   if v_def not ilike '%private.assert_equipment_inspection_file_tenant(p_file_id)%' then
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
+    v_def:=case
+      when v_def like E'%\nbegin\n%' then regexp_replace(v_def,E'\nbegin\n',v_guard)
+      else regexp_replace(v_def,' begin ',v_guard)
+    end;
     if v_def not ilike '%private.assert_equipment_inspection_file_tenant(p_file_id)%' then
       raise exception 'RPC_GUARD_INJECTION_FAILED:remove_equipment_condition_inspection_file';
     end if;
@@ -383,7 +398,10 @@ begin
   select pg_get_functiondef(v_oid) into v_def;
 
   if v_def not ilike '%private.assert_equipment_risk_entity_tenant(p_entity_type,p_entity_id)%' then
-    v_def:=regexp_replace(v_def,E'\nbegin\n',v_guard);
+    v_def:=case
+      when v_def like E'%\nbegin\n%' then regexp_replace(v_def,E'\nbegin\n',v_guard)
+      else regexp_replace(v_def,' begin ',v_guard)
+    end;
     if v_def not ilike '%private.assert_equipment_risk_entity_tenant(p_entity_type,p_entity_id)%' then
       raise exception 'RPC_GUARD_INJECTION_FAILED:register_equipment_risk_document';
     end if;
