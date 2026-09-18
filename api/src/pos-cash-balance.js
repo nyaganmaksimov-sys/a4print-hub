@@ -10,7 +10,6 @@ const service=supabaseUrl&&serviceKey?createClient(supabaseUrl,serviceKey,{auth:
 const installed=Symbol.for('a4print.pos.cash.balance.installed');
 const CACHE_TTL_MS=15000;
 const STALE_TTL_MS=5*60*1000;
-const LIVE_BUDGET_MS=800;
 let balanceCache=null;
 let balanceInFlight=null;
 
@@ -112,19 +111,12 @@ async function databaseCashBalance(){
 }
 
 async function responsiveCashBalance(){
-  // POS must render from the local HUB ledger first. MoySklad reconciliation
-  // continues independently and must never block the operator UI.
-  const live=getCashBalance();
-  const fallback=new Promise((resolve,reject)=>{
-    setTimeout(()=>databaseCashBalance().then(resolve,reject),LIVE_BUDGET_MS);
-  });
-  try{return await Promise.race([live,fallback])}
-  catch(error){
-    if(balanceCache&&Date.now()-balanceCache.at<STALE_TTL_MS){
-      return{...balanceCache.result,cached:true,stale:true,warning:'MOYSKLAD_LIVE_UNAVAILABLE',calculated_at:new Date(balanceCache.at).toISOString()};
-    }
-    try{return await databaseCashBalance()}catch{throw error}
-  }
+  // Cashier UI is local-first: HUB is the immediate operational ledger.
+  // Start MoySklad reconciliation in the background only; it must never delay
+  // opening a shift, a cash dialog, or moving between POS screens.
+  const local=await databaseCashBalance();
+  getCashBalance().catch(()=>{});
+  return local;
 }
 
 const originalListen=express.application.listen;
