@@ -153,12 +153,13 @@ function normalizeSaleItems(items = []) {
   }));
 }
 
-async function getPosSaleWithReturns(id) {
-  const { data: sale, error } = await supabase
+async function getPosSaleWithReturns(id, organizationId = null) {
+  let saleQuery = supabase
     .from('pos_sales')
     .select('id,organization_id,shift_session_id,moysklad_shift_id,moysklad_sale_id,moysklad_sale_name,operator_id,customer_id,cash_account_id,payment_method,total,items,sold_at')
-    .eq('id', id)
-    .maybeSingle();
+    .eq('id', id);
+  if (organizationId) saleQuery = saleQuery.eq('organization_id', organizationId);
+  const { data: sale, error } = await saleQuery.maybeSingle();
   if (error) throw error;
   if (!sale) return null;
   const { data: returns, error: returnsError } = await supabase
@@ -359,12 +360,13 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get('/api/v1/pos/returns/sales', requirePosUser, async (_req, res, next) => {
+app.get('/api/v1/pos/returns/sales', requirePosUser, async (req, res, next) => {
   try {
     if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
     const { data: rows, error } = await supabase
       .from('pos_sales')
       .select('id,moysklad_sale_id,moysklad_sale_name,total,payment_method,sold_at,items')
+      .eq('organization_id', req.posOrganizationId)
       .order('sold_at', { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -401,7 +403,7 @@ app.get('/api/v1/pos/returns/sales', requirePosUser, async (_req, res, next) => 
 
 app.get('/api/v1/pos/returns/sales/:id', requirePosUser, async (req, res, next) => {
   try {
-    const state = await getPosSaleWithReturns(req.params.id);
+    const state = await getPosSaleWithReturns(req.params.id, req.posOrganizationId);
     if (!state) return res.status(404).json({ success: false, error: 'SALE_NOT_FOUND', message: 'Продажа не найдена в кассе.' });
     res.json({
       success: true,
@@ -430,7 +432,7 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
     if (!reason) return res.status(400).json({ success: false, error: 'RETURN_REASON_REQUIRED', message: 'Укажите причину возврата.' });
     if (!accountId) return res.status(400).json({ success: false, error: 'RETURN_ACCOUNT_REQUIRED', message: 'Выберите счёт возврата.' });
 
-    const state = await getPosSaleWithReturns(saleId);
+    const state = await getPosSaleWithReturns(saleId, req.posOrganizationId);
     if (!state) return res.status(404).json({ success: false, error: 'SALE_NOT_FOUND', message: 'Исходная продажа не найдена.' });
     const { data: account, error: accountError } = await supabase.from('cash_accounts').select('id,organization_id,is_active').eq('id', accountId).maybeSingle();
     if (accountError) throw accountError;
