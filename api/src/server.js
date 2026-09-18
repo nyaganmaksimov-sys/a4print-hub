@@ -147,7 +147,8 @@ async function msTenantReady(req, res) {
   const result = await requireMoySkladOrganization({
     service: supabase,
     authUserId: req.authUser?.id || null,
-    organizationId: req.posOrganizationId || null
+    organizationId: req.posOrganizationId || null,
+    posApp: true
   });
   if (!result.ok) { moySkladTenantError(res, result); return false; }
   return true;
