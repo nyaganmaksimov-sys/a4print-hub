@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
-import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
+import { requireMoySkladOrganization, moySkladTenantError, hasAnyMoySkladConfiguration } from './pos-moysklad-tenant.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -46,7 +46,7 @@ app.get('/api/v1/health', (_q, r) => r.json({
   service: 'a4print-hub-api',
   status: 'ok',
   databaseConfigured: Boolean(supabase),
-  moyskladConfigured: Boolean(process.env.MOYSKLAD_TOKEN)
+  moyskladConfigured: hasAnyMoySkladConfiguration()
 }));
 
 async function authContext(req) {
@@ -139,7 +139,7 @@ function customerView(row) {
 
 const msReady = res => {
   if (!supabase) { res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' }); return false; }
-  if (!process.env.MOYSKLAD_TOKEN) { res.status(503).json({ success: false, error: 'MOYSKLAD_NOT_CONFIGURED' }); return false; }
+  if (!hasAnyMoySkladConfiguration()) { res.status(503).json({ success: false, error: 'MOYSKLAD_NOT_CONFIGURED' }); return false; }
   return true;
 };
 
@@ -150,6 +150,7 @@ async function msTenantReady(req, res) {
     organizationId: req.posOrganizationId || null
   });
   if (!result.ok) { moySkladTenantError(res, result); return false; }
+  req.moySkladTenant = result;
   return true;
 }
 
@@ -199,9 +200,12 @@ app.post('/api/v1/integrations/moysklad/sync', requireAdmin, async (req, res, ne
   try {
     if (!msReady(res)) return;
     if (!(await msTenantReady(req, res))) return;
-    const { data: org, error } = await supabase.from('organizations').select('id').eq('code', 'A4PRINT').single();
-    if (error) throw error;
-    const result = await syncMoySkladCatalog({ supabase, token: process.env.MOYSKLAD_TOKEN, organizationId: org.id });
+    const tenant = req.moySkladTenant;
+    const result = await syncMoySkladCatalog({
+      supabase,
+      token: tenant.token,
+      organizationId: tenant.organization.id
+    });
     res.json({ success: true, ...result });
   } catch (e) { next(e); }
 });
@@ -210,7 +214,7 @@ app.get('/api/v1/integrations/moysklad/stock', requirePosUser, async (req, res, 
   try {
     if (!msReady(res)) return;
     if (!(await msTenantReady(req, res))) return;
-    const stock = await fetchMoySkladStock(process.env.MOYSKLAD_TOKEN);
+    const stock = await fetchMoySkladStock(req.moySkladTenant.token);
     res.json({ success: true, stock });
   } catch (e) { next(e); }
 });
@@ -219,7 +223,7 @@ app.get('/api/v1/pos/shift', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
     if (!(await msTenantReady(req, res))) return;
-    const status = await getRetailShiftStatus(process.env.MOYSKLAD_TOKEN);
+    const status = await getRetailShiftStatus(req.moySkladTenant.token);
     res.json({ success: true, ...status });
   } catch (e) { next(e); }
 });
@@ -229,7 +233,7 @@ app.post('/api/v1/pos/shift/open', requirePosUser, async (req, res, next) => {
     if (!msReady(res)) return;
     if (!(await msTenantReady(req, res))) return;
     const profile = await resolvePosOperator(req, cleanText(req.body?.operator_id, 80));
-    const result = await openRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
+    const result = await openRetailShift(req.moySkladTenant.token, { operatorName: profile?.full_name || req.authUser.email });
     res.json({ success: true, alreadyOpen: result.alreadyOpen, shift: { id: result.shift?.id, name: result.shift?.name, openDate: result.shift?.openDate || result.shift?.moment || result.shift?.created }, store: { id: result.store?.id, name: result.store?.name }, operator: { id: profile?.id || null, name: profile?.full_name || req.authUser.email } });
   } catch (e) { next(e); }
 });
@@ -237,8 +241,9 @@ app.post('/api/v1/pos/shift/open', requirePosUser, async (req, res, next) => {
 app.post('/api/v1/pos/shift/close', requirePosUser, async (req, res, next) => {
   try {
     if (!msReady(res)) return;
+    if (!(await msTenantReady(req, res))) return;
     const profile = await resolvePosOperator(req, cleanText(req.body?.operator_id, 80));
-    const result = await closeRetailShift(process.env.MOYSKLAD_TOKEN, { operatorName: profile?.full_name || req.authUser.email });
+    const result = await closeRetailShift(req.moySkladTenant.token, { operatorName: profile?.full_name || req.authUser.email });
     res.json({ success: true, shift: { id: result.shift?.id, name: result.shift?.name, closeDate: result.shift?.closeDate }, store: { id: result.store?.id, name: result.store?.name }, operator: { id: profile?.id || null, name: profile?.full_name || req.authUser.email } });
   } catch (e) { next(e); }
 });
@@ -360,7 +365,7 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
     }
 
     const sale = await createRetailSale({
-      token: process.env.MOYSKLAD_TOKEN,
+      token: req.moySkladTenant.token,
       items,
       paymentMethod: input.payment_method,
       operatorName,
@@ -488,7 +493,7 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
     const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
 
     const ret = await createRetailReturn({
-      token: process.env.MOYSKLAD_TOKEN,
+      token: req.moySkladTenant.token,
       saleId: state.sale.moysklad_sale_id,
       items: msItems,
       paymentMethod,
