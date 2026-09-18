@@ -131,18 +131,20 @@ async function hubShift(){
       .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
     if(error||!data?.moysklad_shift_id)return null;
     const after=data.opened_at;
-    const [salesResult,returnsResult,opsResult,baselineResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps]=await Promise.all([
+    const {data:baseline,error:baselineError}=await supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle();
+    if(baselineError)throw baselineError;
+    const baselineAt=baseline?.baseline_at||after;
+    const [salesResult,returnsResult,opsResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps]=await Promise.all([
       supabase.from('pos_sales').select('total,payment_method').gte('sold_at',after),
       supabase.from('pos_returns').select('amount,payment_method').gte('returned_at',after),
       supabase.from('pos_cash_operations').select('operation_type,amount').gte('created_at',after),
-      supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle(),
-      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at'),
-      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at').is('sold_at',null),
-      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at'),
-      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at').is('returned_at',null),
-      supabase.from('pos_cash_operations').select('operation_type,amount,created_at')
+      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at').gte('sold_at',baselineAt),
+      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at').is('sold_at',null).gte('created_at',baselineAt),
+      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at').gte('returned_at',baselineAt),
+      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at').is('returned_at',null).gte('created_at',baselineAt),
+      supabase.from('pos_cash_operations').select('operation_type,amount,created_at').gte('created_at',baselineAt)
     ]);
-    for(const result of [salesResult,returnsResult,opsResult,baselineResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps])if(result.error)throw result.error;
+    for(const result of [salesResult,returnsResult,opsResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps])if(result.error)throw result.error;
     const sales=salesResult.data||[],returns=returnsResult.data||[],ops=opsResult.data||[];
     const isCash=v=>/налич|cash/i.test(String(v||''));
     const sum=(rows,field)=>rows.reduce((n,row)=>n+Number(row?.[field]||0),0);
@@ -152,14 +154,11 @@ async function hubShift(){
     const cashlessReturns=sum(returns.filter(x=>!isCash(x.payment_method)),'amount');
     const cashIn=ops.filter(x=>x.operation_type==='CASH_IN');
     const cashOut=ops.filter(x=>x.operation_type==='CASH_OUT');
-    const baseline=baselineResult.data||null;
     let cashInRegister=null;
     if(baseline){
-      const baselineAt=new Date(baseline.baseline_at).getTime();
-      const since=row=>new Date(row.sold_at||row.returned_at||row.created_at||0).getTime()>=baselineAt;
-      const bSales=[...(balanceSalesTimed.data||[]),...(balanceSalesUntimed.data||[])].filter(since).filter(x=>isCash(x.payment_method));
-      const bReturns=[...(balanceReturnsTimed.data||[]),...(balanceReturnsUntimed.data||[])].filter(since).filter(x=>isCash(x.payment_method));
-      const bOps=(balanceOps.data||[]).filter(since);
+      const bSales=[...(balanceSalesTimed.data||[]),...(balanceSalesUntimed.data||[])].filter(x=>isCash(x.payment_method));
+      const bReturns=[...(balanceReturnsTimed.data||[]),...(balanceReturnsUntimed.data||[])].filter(x=>isCash(x.payment_method));
+      const bOps=balanceOps.data||[];
       cashInRegister=Number(baseline.baseline_amount)+sum(bSales,'total')+sum(bOps.filter(x=>x.operation_type==='CASH_IN'),'amount')-sum(bReturns,'amount')-sum(bOps.filter(x=>x.operation_type==='CASH_OUT'),'amount');
     }
     return{
