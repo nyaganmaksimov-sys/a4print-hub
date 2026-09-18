@@ -10,16 +10,20 @@ create index if not exists idx_pos_cash_operations_organization_created
   on public.pos_cash_operations(organization_id,created_at desc);
 
 update public.pos_cash_operations op
-set organization_id = resolved.organization_id
-from lateral (
+set organization_id = (
   select ps.organization_id
   from public.pos_shift_sessions ps
   where ps.moysklad_shift_id=op.moysklad_shift_id
   order by ps.opened_at desc
   limit 1
-) resolved
+)
 where op.organization_id is null
-  and resolved.organization_id is not null;
+  and exists (
+    select 1
+    from public.pos_shift_sessions ps
+    where ps.moysklad_shift_id=op.moysklad_shift_id
+      and ps.organization_id is not null
+  );
 
 create or replace function private.assign_pos_cash_operation_organization()
 returns trigger
@@ -55,16 +59,20 @@ create index if not exists idx_pos_cash_balance_state_organization
   on public.pos_cash_balance_state(organization_id,updated_at desc);
 
 update public.pos_cash_balance_state bs
-set organization_id=resolved.organization_id
-from lateral (
+set organization_id = (
   select ps.organization_id
   from public.pos_shift_sessions ps
   where ps.store_id=bs.store_id
   order by ps.opened_at desc
   limit 1
-) resolved
+)
 where bs.organization_id is null
-  and resolved.organization_id is not null;
+  and exists (
+    select 1
+    from public.pos_shift_sessions ps
+    where ps.store_id=bs.store_id
+      and ps.organization_id is not null
+  );
 
 create or replace function private.assign_pos_cash_balance_organization()
 returns trigger
@@ -370,6 +378,73 @@ with check (
 );
 
 create policy pos_shift_sessions_tenant_delete on public.pos_shift_sessions
+for delete to authenticated
+using (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+);
+
+
+-- POS CASH OPERATIONS
+create policy pos_cash_operations_tenant_select on public.pos_cash_operations
+for select to authenticated
+using (
+  organization_id=public.current_user_organization_id()
+  and (public.has_role('ADMIN') or public.has_role('POS_OPERATOR'))
+);
+
+create policy pos_cash_operations_tenant_insert on public.pos_cash_operations
+for insert to authenticated
+with check (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+);
+
+create policy pos_cash_operations_tenant_update on public.pos_cash_operations
+for update to authenticated
+using (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+)
+with check (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+);
+
+create policy pos_cash_operations_tenant_delete on public.pos_cash_operations
+for delete to authenticated
+using (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+);
+
+-- POS CASH BALANCE STATE
+create policy pos_cash_balance_state_tenant_select on public.pos_cash_balance_state
+for select to authenticated
+using (
+  organization_id=public.current_user_organization_id()
+  and (public.has_role('ADMIN') or public.has_role('POS_OPERATOR'))
+);
+
+create policy pos_cash_balance_state_tenant_insert on public.pos_cash_balance_state
+for insert to authenticated
+with check (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+);
+
+create policy pos_cash_balance_state_tenant_update on public.pos_cash_balance_state
+for update to authenticated
+using (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+)
+with check (
+  organization_id=public.current_user_organization_id()
+  and public.has_role('ADMIN')
+);
+
+create policy pos_cash_balance_state_tenant_delete on public.pos_cash_balance_state
 for delete to authenticated
 using (
   organization_id=public.current_user_organization_id()
