@@ -124,7 +124,8 @@ function cashError(res,next,error){
   if(message==='CASH_OUT_EXCEEDS_BALANCE')return res.status(409).json({success:false,error:'CASH_OUT_EXCEEDS_BALANCE',cash_balance:Number(error.cashBalance||0),message:`В кассе сейчас ${Number(error.cashBalance||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽. Нельзя изъять больше.`});
   if(/^MoySklad HTTP 4\d\d:/i.test(message))return res.status(422).json({success:false,error:'MOYSKLAD_CASH_OPERATION_REJECTED',message:'МойСклад отклонил операцию с наличными. Проверьте текущую смену и повторите операцию.',detail:message.slice(0,1200)});
   if(/^MoySklad HTTP 5\d\d:/i.test(message))return res.status(502).json({success:false,error:'MOYSKLAD_TEMPORARY_ERROR',message:'МойСклад временно недоступен. Деньги не были списаны, повторите операцию.',detail:message.slice(0,1200)});
-  return next(error);
+  console.error('[POS_CASH_OPERATION_ERROR]', JSON.stringify({message, stack:error?.stack||null, cashBalance:error?.cashBalance??null}));
+  return res.status(500).json({success:false,error:'POS_CASH_OPERATION_FAILED',message:'Ошибка операции с наличными.',detail:message.slice(0,1200)});
 }
 async function handleCashOperation(req,res,next,type){
   try{
