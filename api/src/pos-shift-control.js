@@ -198,6 +198,24 @@ async function reconcile({actorId=null,force=false}={}){
   };
 }
 
+async function hubControl(){
+  const organization=await org();
+  const {data:current,error:cErr}=await service.from('pos_shift_sessions').select('*').eq('organization_id',organization.id).eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
+  if(cErr)throw cErr;
+  const {data:recent,error:rErr}=await service.from('pos_shift_sessions').select('*').eq('organization_id',organization.id).order('opened_at',{ascending:false}).limit(12);
+  if(rErr)throw rErr;
+  const all=[current,...(recent||[])].filter(Boolean);
+  const users=await userMap(all.flatMap(x=>[x.opened_by,x.closed_by]));
+  return{
+    organization,
+    ms_shift:current?{id:current.moysklad_shift_id,name:current.moysklad_shift_name,openDate:current.opened_at,closeDate:null}:null,
+    store:current?{id:current.store_id,name:current.store_name}:null,
+    hub_session:sessionView(current,users),
+    recent:(recent||[]).map(x=>sessionView(x,users)),
+    diagnostics:{synchronized:Boolean(current),moysklad_open:Boolean(current),hub_open:Boolean(current),source:'HUB_FAST',checked_at:new Date().toISOString()}
+  };
+}
+
 async function mirrorOpen(body,ctx){
   if(!body?.success||!body?.shift?.id||!service)return;
   try{
@@ -229,7 +247,7 @@ express.application.listen=function patchedShiftControlListen(...args){
     this[installed]=true;
 
     this.get('/api/v1/pos/shift/control',(req,res)=>guard(req,res,async ctx=>{
-      const result=await reconcile({actorId:null});
+      const result=await hubControl();
       return res.json({success:true,permissions:{admin:ctx.isAdmin,edit_profile:ctx.isAdmin,reconcile:ctx.isAdmin},...result});
     }));
 
