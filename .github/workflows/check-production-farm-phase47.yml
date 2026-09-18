@@ -55,7 +55,7 @@ jobs:
           grep -q 'organization_units' "$sql"
           grep -q 'ou.organization_id=v_org' "$sql"
 
-          grep -q "set search_path TO ''" "$sql"
+          grep -qi "set search_path TO ''" "$sql"
           grep -q 'assert_production_farm_security_baseline' "$sql"
 
       - name: Verify UI wiring
