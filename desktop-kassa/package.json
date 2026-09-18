@@ -1,0 +1,31 @@
+{
+  "name": "a4print-kassa-desktop",
+  "version": "2.1.0",
+  "private": true,
+  "description": "A4PRINT KASSA Desktop for Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check main.js && node --check preload.js",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "ru.a4print.kassa",
+    "productName": "A4PRINT KASSA",
+    "artifactName": "A4PRINT-KASSA-Setup-${version}.${ext}",
+    "directories": {"output": "release"},
+    "files": ["main.js","preload.js","splash.html","package.json"],
+    "win": {"target": ["nsis"]},
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "A4PRINT KASSA"
+    }
+  }
+}
