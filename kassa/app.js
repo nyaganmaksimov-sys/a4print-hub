@@ -17,7 +17,7 @@
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   const state={
-    session:null,profile:null,isAdmin:false,isOperator:false,backendOnline:false,syncing:false,
+    session:null,profile:null,organizationId:null,isAdmin:false,isOperator:false,backendOnline:false,syncing:false,
     catalog:[],filtered:[],stock:{},accounts:[],operators:[],cart:[],customer:null,
     category:'ALL',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',
     catalogUpdated:null,installPrompt:null
@@ -69,12 +69,18 @@
     const [a,o,p]=await Promise.all([
       supabase.rpc('has_role',{required_role:'ADMIN'}),
       supabase.rpc('has_role',{required_role:'POS_OPERATOR'}),
-      supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id',state.session.user.id).maybeSingle()
+      supabase.from('users').select('id,full_name,email,is_active,organization_unit_id').eq('auth_user_id',state.session.user.id).maybeSingle()
     ]);
     if(a.error)throw a.error;if(o.error)throw o.error;if(p.error)throw p.error;
     state.isAdmin=!!a.data;state.isOperator=!!o.data;state.profile=p.data;
     if(!state.isAdmin&&!state.isOperator)throw new Error('Нет доступа к кассе.');
     if(state.profile?.is_active===false)throw new Error('Учётная запись сотрудника отключена.');
+    const unitId=state.profile?.organization_unit_id;
+    if(!unitId)throw new Error('Сотрудник не привязан к компании.');
+    const unit=await supabase.from('organization_units').select('organization_id,is_active').eq('id',unitId).maybeSingle();
+    if(unit.error)throw unit.error;
+    if(!unit.data?.organization_id||unit.data.is_active===false)throw new Error('Компания сотрудника недоступна.');
+    state.organizationId=unit.data.organization_id;
   }
 
   function showAuth(error=''){$('appView').hidden=true;$('authView').hidden=false;$('loginError').textContent=error}
@@ -111,10 +117,10 @@
   async function refreshRemoteData(force=false){
     if(!state.session)return;
     try{
-      const org=await supabase.from('organizations').select('id').eq('code','A4PRINT').single();if(org.error)throw org.error;
+      if(!state.organizationId)throw new Error('Компания кассы не определена.');
       const [g,a,o]=await Promise.all([
-        supabase.from('catalog_items').select('id,name,sku,article,barcode,item_type,category,unit,sale_price,external_id,last_synced_at').eq('organization_id',org.data.id).eq('is_active',true).order('name'),
-        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',org.data.id).eq('is_active',true).order('name'),
+        supabase.from('catalog_items').select('id,name,sku,article,barcode,item_type,category,unit,sale_price,external_id,last_synced_at').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
+        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
         supabase.rpc('get_pos_operators')
       ]);
       if(g.error)throw g.error;if(a.error)throw a.error;if(o.error)throw o.error;
