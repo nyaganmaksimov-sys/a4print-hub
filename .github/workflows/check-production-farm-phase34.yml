@@ -25,6 +25,8 @@ jobs:
           test -s "$sql"
 
           grep -q 'equipment_payment_contract_tenant_org' "$sql"
+          grep -q 'private.assert_equipment_contract_tenant(p_contract_id)' "$sql"
+          grep -q "private.assert_equipment_contract_child_tenant('LEASE_CHARGE',p_charge_id)" "$sql"
           grep -q 'CONTRACT_NOT_AVAILABLE' "$sql"
           grep -q 'ORGANIZATION_CONTEXT_REQUIRED' "$sql"
 
@@ -61,6 +63,7 @@ jobs:
           test -s "$doc"
 
           grep -q 'phase34_owner_payments_tenant_guards_ok' "$doc"
+          grep -q 'phase34_owner_payments_core_guard_compat_ok' "$doc"
           grep -q 'BEGIN ... ROLLBACK' "$doc"
           grep -q 'CONTRACT_NOT_AVAILABLE' "$doc"
           grep -q '3D-ARTPRINT' "$doc"
