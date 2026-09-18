@@ -142,3 +142,24 @@ Legacy trigger helpers:
 - deadline events RLS остаётся включённым.
 
 Supabase security advisors после изменения не показали нового Phase 34-specific anonymous exposure. Общепроектные advisor findings по другим модулям остаются отдельным backlog.
+
+
+## Совместимость с текущим core tenant layer
+
+После синхронизации с актуальным `main` сохранены существующие core guards:
+
+- `private.assert_equipment_contract_tenant(p_contract_id)` в generate owner settlement;
+- `private.assert_equipment_contract_tenant(p_contract_id)` в generate lease charge;
+- `private.assert_equipment_contract_child_tenant('LEASE_CHARGE',p_charge_id)` в lease status transition.
+
+Phase 34 не заменяет эти проверки, а добавляет второй fail-closed payment-specific tenant layer.
+
+После восстановления core guards выполнен повторный `BEGIN ... ROLLBACK` test:
+
+- собственные generate/due-date/list операции А4-Принт проходят;
+- все 6 foreign generate/status/due-date вызовов 3D-ARTPRINT блокируются;
+- чужие payment obligations остаются 0.
+
+Результат:
+
+`phase34_owner_payments_core_guard_compat_ok`.
