@@ -43,7 +43,7 @@ async function staffContext(req){
   if(!bearer)return{error:'AUTH_REQUIRED',status:401};
   const {data,error}=await service.auth.getUser(bearer);
   if(error||!data?.user)return{error:'INVALID_SESSION',status:401};
-  const {data:profile,error:pErr}=await service.from('users').select('id,full_name,email,is_active').eq('auth_user_id',data.user.id).maybeSingle();
+  const {data:profile,error:pErr}=await service.from('users').select('id,full_name,email,is_active').eq('auth_user_id',data.user.id).eq('is_active',true).limit(1).maybeSingle();
   if(pErr)throw pErr;
   if(!profile||profile.is_active===false)return{error:'STAFF_ACCESS_REQUIRED',status:403};
   const {data:roleRows,error:rErr}=await service.from('user_roles').select('roles(name)').eq('user_id',profile.id);
@@ -68,7 +68,7 @@ async function guard(req,res,handler,{admin=false}={}){
 }
 
 async function org(){
-  const {data,error}=await service.from('organizations').select('id,code,name').eq('code','A4PRINT').single();
+  const {data,error}=await service.from('organizations').select('id,code,name').eq('code','A4PRINT').eq('is_active',true).limit(1).maybeSingle();
   if(error)throw error;
   return data;
 }
@@ -155,7 +155,7 @@ async function reconcile({actorId=null,force=false}={}){
         staleFixed++;
       }
     }
-    const {data:existing,error:eErr}=await service.from('pos_shift_sessions').select('*').eq('organization_id',organization.id).eq('moysklad_shift_id',liveId).maybeSingle();
+    const {data:existing,error:eErr}=await service.from('pos_shift_sessions').select('*').eq('organization_id',organization.id).eq('moysklad_shift_id',liveId).limit(1).maybeSingle();
     if(eErr)throw eErr;
     const payload={
       organization_id:organization.id,
@@ -208,7 +208,7 @@ async function mirrorOpen(body,ctx){
     if(storeId){
       await service.from('pos_shift_sessions').update({status:'CLOSED',closed_at:now,closing_note:'Автозакрытие HUB перед регистрацией новой смены',updated_at:now}).eq('organization_id',organization.id).eq('store_id',storeId).eq('status','OPEN').neq('moysklad_shift_id',shiftId);
     }
-    const {data:existing}=await service.from('pos_shift_sessions').select('id').eq('organization_id',organization.id).eq('moysklad_shift_id',shiftId).maybeSingle();
+    const {data:existing}=await service.from('pos_shift_sessions').select('id').eq('organization_id',organization.id).eq('moysklad_shift_id',shiftId).limit(1).maybeSingle();
     const payload={organization_id:organization.id,moysklad_shift_id:shiftId,moysklad_shift_name:body.shift.name||shiftId,store_id:storeId,store_name:body.store?.name||null,opened_at:msIso(body.shift.openDate),opened_by:body.operator?.id||ctx?.profile?.id||null,status:'OPEN',closed_at:null,updated_at:now};
     if(existing)await service.from('pos_shift_sessions').update(payload).eq('id',existing.id);
     else await service.from('pos_shift_sessions').insert(payload);
@@ -239,7 +239,7 @@ express.application.listen=function patchedShiftControlListen(...args){
       const updates={updated_at:new Date().toISOString()};
       if(b.display_name!==undefined)updates.display_name=clean(b.display_name,120)||null;
       if(b.opening_note!==undefined)updates.opening_note=clean(b.opening_note,2000)||null;
-      const {data,error}=await service.from('pos_shift_sessions').update(updates).eq('id',id).select('*').maybeSingle();
+      const {data,error}=await service.from('pos_shift_sessions').update(updates).eq('id',id).select('*').limit(1).maybeSingle();
       if(error)throw error;
       if(!data)return res.status(404).json({success:false,error:'SHIFT_SESSION_NOT_FOUND',message:'Смена HUB не найдена.'});
       return res.json({success:true,session:sessionView(data)});
