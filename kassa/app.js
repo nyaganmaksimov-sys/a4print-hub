@@ -212,7 +212,15 @@
   async function queueSale(){
     if(!state.cart.length)return;if(!state.shift){toast('Сначала откройте смену.',true);return}
     const sale={id:uuid(),created_at:nowIso(),stage:'queued',tries:0,last_error:null,items:state.cart.map(x=>({...x})),payment_method:state.payment,customer_id:state.customer?.id||null,customer_name:state.customer?.full_name||null,operator_id:$('operatorSelect').value||state.profile?.id||null,operator_name:$('operatorSelect').selectedOptions[0]?.textContent||state.profile?.full_name||'',cash_account_id:$('cashAccount').value||null,total:total(),shift:{id:state.shift.id,name:state.shift.name||null,openDate:state.shift.openDate||null}};
-    await DB.put('queue',sale);state.cart=[];state.customer=null;$('customerName').textContent='Не выбран';renderCart();await refreshQueue();toast(state.backendOnline?'Продажа сохранена. Синхронизируем…':'Продажа сохранена локально. Уйдёт после восстановления связи.');syncQueue();
+    await DB.put('queue',sale);
+    state.cart=[];state.customer=null;$('customerName').textContent='Не выбран';renderCart();
+    // The durable IndexedDB write is the cashier commit point. Do not block the
+    // next receipt on rescanning the queue or any network synchronization.
+    state.queue=[...state.queue,sale].sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+    const chip=$('queueChip');if(chip){chip.querySelector('span').textContent=`Очередь ${state.queue.length}`;chip.className='status-chip warn'}
+    renderQueueList();
+    toast(state.backendOnline?'Продажа сохранена. Синхронизируем…':'Продажа сохранена локально. Уйдёт после восстановления связи.');
+    window.dispatchEvent(new CustomEvent('a4:kassa-queue-pending',{detail:{id:sale.id}}));
   }
 
   async function refreshQueue(){state.queue=(await DB.getAll('queue')).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));const chip=$('queueChip');chip.querySelector('span').textContent=`Очередь ${state.queue.length}`;chip.className='status-chip '+(state.queue.length?'warn':'ok');renderQueueList()}
