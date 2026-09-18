@@ -1,0 +1,58 @@
+name: Check Production Farm Phase 49
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_owner_payment_integrity_incidents.sql'
+      - 'docs/PRODUCTION_FARM_PHASE49.md'
+      - 'admin/equipment-payment-integrity-incidents.js'
+      - 'admin/equipment-payment-reconciliation.html'
+      - '.github/workflows/check-production-farm-phase49.yml'
+
+jobs:
+  phase49-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify incident migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_owner_payment_integrity_incidents.sql'
+          test -s "$sql"
+          grep -q 'equipment_owner_payment_integrity_events' "$sql"
+          grep -q 'equipment_owner_payment_integrity_actions' "$sql"
+          grep -q 'ACKNOWLEDGED' "$sql"
+          grep -q 'AUTO_RECONCILIATION_OK' "$sql"
+          grep -q 'rescan_equipment_owner_payment_integrity' "$sql"
+          grep -q 'list_equipment_owner_payment_integrity_incidents' "$sql"
+          grep -q 'set_equipment_owner_payment_integrity_incident_state' "$sql"
+          grep -q 'equipment-owner-payment-integrity-daily' "$sql"
+          grep -q '45 6 \* \* \*' "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Check UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/equipment-payment-integrity-incidents.js
+          grep -q 'equipment-payment-integrity-incidents.js' admin/equipment-payment-reconciliation.html
+          grep -q 'Принять в работу' admin/equipment-payment-integrity-incidents.js
+          grep -q 'Пересканировать' admin/equipment-payment-integrity-incidents.js
+
+      - name: Verify docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE49.md'
+          test -s "$doc"
+          grep -q 'phase49_owner_payment_integrity_incidents_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'AUTO_RECONCILIATION_OK' "$doc"
+          grep -q '3D staff' "$doc"
+          grep -q 'PH49 charges = 0' "$doc"
