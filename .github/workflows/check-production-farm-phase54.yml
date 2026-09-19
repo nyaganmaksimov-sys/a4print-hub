@@ -57,7 +57,6 @@ jobs:
           grep -q 'revoke all on schema risk_private from public,anon' "$hardening"
           grep -q 'grant usage on schema risk_private to authenticated' "$hardening"
           grep -q 'grant execute on function risk_private.get_production_farm_risk_action_history' "$hardening"
-          grep -q 'authenticated_table_select' docs/PRODUCTION_FARM_PHASE54.md || true
 
       - name: Verify cockpit notes and timeline
         shell: bash
