@@ -1,10 +1,13 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
+import {riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing} from './production-farm-deep-link.js';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const dateTime=value=>value?new Date(value).toLocaleString('ru-RU'):'—';
 const typeLabel={OWNER_SETTLEMENT:'Расчёт владельца',LEASE_CHARGE:'Арендное начисление',CONTRACT_DOCUMENT:'Документ договора'};
 const state={rows:[],loading:false};
+const riskResponseId=riskParam('response');
+installRiskCockpitReturnLink();
 
 installStyles();bind();load();
 
@@ -33,14 +36,15 @@ async function load(){
 
 function render(){
   const q=String($('eprSearch')?.value||'').trim().toLowerCase();
-  const rows=state.rows.filter(r=>!q||`${r.partner_name} ${r.partner_user_name} ${r.comment} ${r.entity_type}`.toLowerCase().includes(q));
+  const rows=state.rows.filter(r=>riskResponseId?r.id===riskResponseId:(!q||`${r.partner_name} ${r.partner_user_name} ${r.comment} ${r.entity_type}`.toLowerCase().includes(q)));
   $('eprOpen').textContent=state.rows.filter(r=>!r.resolved_at).length;$('eprShown').textContent=rows.length;
-  $('eprList').innerHTML=rows.length?rows.map(row=>`<article class="epr-row">
+  $('eprList').innerHTML=rows.length?rows.map(row=>`<article class="epr-row" data-risk-response="${esc(row.id)}">
     <div><h3>${esc(row.partner_name||'Партнёр')}</h3><p>${esc(typeLabel[row.entity_type]||row.entity_type)} · ${esc(row.partner_user_name||'пользователь')} · ${dateTime(row.created_at)}</p><div class="epr-comment">${esc(row.comment||'Комментарий не указан')}</div>${row.resolution_note?`<div class="epr-resolution"><b>Решение HUB:</b> ${esc(row.resolution_note)}<br>${dateTime(row.resolved_at)}</div>`:''}</div>
     <div><span class="epr-badge ${row.resolved_at?'done':'open'}">${row.resolved_at?'Рассмотрено':'Открыто'}</span></div>
     <div><small>ID объекта</small><p>${esc(row.entity_id)}</p></div>
     <div>${row.resolved_at?'':`<button data-resolve="${row.id}">Закрыть расхождение</button>`}</div>
   </article>`).join(''):'<div class="epr-empty">Расхождений по выбранному фильтру нет.</div>';
+  if(riskResponseId){const target=[...$('eprList').querySelectorAll('[data-risk-response]')].find(el=>el.dataset.riskResponse===riskResponseId);if(!focusRiskElement(target))showRiskLinkMissing($('eprList'),'Спор из cockpit уже недоступен или закрыт.')}
 }
 
 async function handleClick(event){

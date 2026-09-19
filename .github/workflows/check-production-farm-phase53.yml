@@ -1,0 +1,95 @@
+name: Check Production Farm Phase 53
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/production-farm-deep-link.js'
+      - 'admin/equipment-payment-integrity-incidents.js'
+      - 'admin/equipment-payment-reconciliation.html'
+      - 'admin/equipment-payment-control.js'
+      - 'admin/equipment-payment-control.html'
+      - 'admin/equipment-contract-deadlines.js'
+      - 'admin/equipment-contract-deadlines.html'
+      - 'admin/equipment-condition-claims.js'
+      - 'admin/equipment-condition-claims.html'
+      - 'admin/equipment-partner-responses.js'
+      - 'admin/equipment-partner-responses.html'
+      - 'admin/equipment-incidents.js'
+      - 'admin/equipment.html'
+      - 'docs/PRODUCTION_FARM_PHASE53.md'
+      - '.github/workflows/check-production-farm-phase53.yml'
+
+jobs:
+  phase53-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in             admin/production-farm-deep-link.js             admin/equipment-payment-integrity-incidents.js             admin/equipment-payment-control.js             admin/equipment-contract-deadlines.js             admin/equipment-condition-claims.js             admin/equipment-partner-responses.js             admin/equipment-incidents.js
+          do
+            node --check "$file"
+          done
+
+      - name: Verify shared deep-link helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='admin/production-farm-deep-link.js'
+          grep -q "production-farm-risk.html" "$file"
+          grep -q "focusRiskElement" "$file"
+          grep -q "showRiskLinkMissing" "$file"
+          grep -q "pf-risk-focus" "$file"
+          grep -q "К рискам Production Farm" "$file"
+
+      - name: Verify all cockpit routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "riskParam('event')" admin/equipment-payment-integrity-incidents.js
+          grep -q 'data-risk-event' admin/equipment-payment-integrity-incidents.js
+
+          grep -q "riskParam('entity_id')" admin/equipment-payment-control.js
+          grep -q "riskParam('entity_type')" admin/equipment-payment-control.js
+          grep -q 'data-risk-entity' admin/equipment-payment-control.js
+
+          grep -q "riskParam('contract')" admin/equipment-contract-deadlines.js
+          grep -q 'data-risk-contract' admin/equipment-contract-deadlines.js
+
+          grep -q "riskParam('claim')" admin/equipment-condition-claims.js
+          grep -q 'data-risk-claim' admin/equipment-condition-claims.js
+
+          grep -q "riskParam('response')" admin/equipment-partner-responses.js
+          grep -q 'data-risk-response' admin/equipment-partner-responses.js
+
+          grep -q "riskParam('incident')" admin/equipment-incidents.js
+          grep -q 'data-risk-incident' admin/equipment-incidents.js
+          grep -q "equipmentIncidentsDlg.*showModal" admin/equipment-incidents.js
+
+      - name: Verify target cache busting
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-payment-integrity-incidents.js?v=20260919-phase53-1' admin/equipment-payment-reconciliation.html
+          grep -q 'equipment-payment-control.js?v=20260919-phase53-1' admin/equipment-payment-control.html
+          grep -q 'equipment-contract-deadlines.js?v=20260919-phase53-1' admin/equipment-contract-deadlines.html
+          grep -q 'equipment-condition-claims.js?v=20260915-phase27-1-phase53-1' admin/equipment-condition-claims.html
+          grep -q 'equipment-partner-responses.js?v=20260919-phase53-1' admin/equipment-partner-responses.html
+          grep -q 'equipment-incidents.js?v=20260919-phase53-1' admin/equipment.html
+
+      - name: Verify Phase 53 scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE53.md'
+          test -s "$doc"
+          grep -q 'phase53_actionable_deep_links_ok' "$doc"
+          grep -q 'не добавляет новых RPC' "$doc"
+          grep -q 'ничего не закрывает автоматически' "$doc"
