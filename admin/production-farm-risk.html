@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Риски Production Farm — A4PRINT HUB</title>
   <link rel="stylesheet" href="./styles.css?v=20260908-equipment3">
-  <script src="./config.js?v=20260918-phase51"></script>
+  <script src="./config.js?v=20260919-phase52"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
@@ -18,15 +18,17 @@
       <section class="pfr-kpis">
         <article class="critical"><span>CRITICAL</span><strong id="pfrCritical">0</strong><small>немедленно</small></article>
         <article class="high"><span>HIGH</span><strong id="pfrHigh">0</strong><small>высокий риск</small></article>
-        <article class="overdue"><span>Просрочено</span><strong id="pfrOverdue">0</strong><small>SLA / платежи / сроки</small></article>
+        <article class="overdue"><span>Просрочено</span><strong id="pfrOverdue">0</strong><small>операционный SLA / платежи / сроки</small></article>
         <article><span>Всего</span><strong id="pfrTotal">0</strong><small>активных рисков</small></article>
+        <article><span>Без ответственного</span><strong id="pfrUnassigned">0</strong><small>нужно назначить</small></article>
+        <article><span>Принято в работу</span><strong id="pfrAcknowledged">0</strong><small>ACK в cockpit / integrity</small></article>
       </section>
       <section class="pfr-grid">
         <article><span>Integrity</span><strong id="pfrIntegrity">0</strong><a href="./equipment-payment-reconciliation.html">Открыть сверку →</a></article>
         <article><span>Выплаты</span><strong id="pfrPayments">0</strong><a href="./equipment-payment-control.html">Контроль выплат →</a></article>
         <article><span>Договоры ≤30 дней</span><strong id="pfrContracts">0</strong><a href="./equipment-contract-deadlines.html">Сроки договоров →</a></article>
         <article><span>Требования</span><strong id="pfrClaims">0</strong><a href="./equipment-condition-claims.html">Требования →</a></article>
-        <article><span>Споры владельцев</span><strong id="pfrDisputes">0</strong><a href="./equipment-condition-claims.html">Разобрать споры →</a></article>
+        <article><span>Споры владельцев</span><strong id="pfrDisputes">0</strong><a href="./equipment-partner-responses.html">Разобрать споры →</a></article>
         <article><span>Инциденты оборудования</span><strong id="pfrIncidents">0</strong><a href="./equipment.html">Оборудование →</a></article>
       </section>
       <section class="pfr-card">
@@ -37,7 +39,8 @@
             <option value="PAYMENT_INTEGRITY">Integrity выплат</option>
             <option value="PAYMENT_OBLIGATION">Выплаты владельцам</option>
             <option value="CONTRACT_DEADLINE">Сроки договоров</option>
-            <option value="CONDITION_CLAIM">Требования по состоянию</option>\n            <option value="PARTNER_DISPUTE">Споры владельцев</option>
+            <option value="CONDITION_CLAIM">Требования по состоянию</option>
+            <option value="PARTNER_DISPUTE">Споры владельцев</option>
             <option value="EQUIPMENT_INCIDENT">Инциденты оборудования</option>
           </select>
           <select id="pfrSeverity"><option value="">Все приоритеты</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
@@ -48,7 +51,7 @@
       </section>
     </div>
   </main>
-  <script type="module" src="./production-farm-risk.js?v=20260919-phase51-2"></script>
-  <script type="module" src="./navigation.js?v=20260918-phase51-1"></script>
+  <script type="module" src="./production-farm-risk.js?v=20260919-phase52-1"></script>
+  <script type="module" src="./navigation.js?v=20260919-phase52-1"></script>
 </body>
 </html>
