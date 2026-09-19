@@ -1,0 +1,89 @@
+name: Check Production Farm Phase 52
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260919_production_farm_actionable_risk_cockpit.sql'
+      - 'admin/production-farm-risk.html'
+      - 'admin/production-farm-risk.js'
+      - 'docs/PRODUCTION_FARM_PHASE52.md'
+      - '.github/workflows/check-production-farm-phase52.yml'
+
+jobs:
+  phase52-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/production-farm-risk.js
+
+      - name: Verify actionable risk migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260919_production_farm_actionable_risk_cockpit.sql'
+          test -s "$sql"
+
+          grep -q 'production_farm_risk_work_items' "$sql"
+          grep -q 'production_farm_risk_actions' "$sql"
+          grep -q 'production_farm_risk_digest_runs' "$sql"
+          grep -q 'PRODUCTION_FARM_RISK_ACTION_APPEND_ONLY' "$sql"
+
+          grep -q 'production_farm_risk_sla_interval' "$sql"
+          grep -q "interval '4 hours'" "$sql"
+          grep -q "interval '24 hours'" "$sql"
+          grep -q "interval '72 hours'" "$sql"
+          grep -q "interval '168 hours'" "$sql"
+
+          grep -q 'production_farm_actionable_risk_rows' "$sql"
+          grep -q '?response=' "$sql"
+          grep -q '?incident=' "$sql"
+
+          grep -q 'get_production_farm_risk_assignees' "$sql"
+          grep -q 'apply_production_farm_risk_action' "$sql"
+          grep -q 'assign_equipment_owner_payment_integrity_incident' "$sql"
+          grep -q 'set_equipment_owner_payment_integrity_incident_state' "$sql"
+          grep -q 'risk_assigned_to' "$sql"
+          grep -q 'risk_acknowledged' "$sql"
+
+          grep -q 'emit_production_farm_risk_digest' "$sql"
+          grep -q 'production-farm-risk-digest-daily' "$sql"
+          grep -q "'30 7 \* \* \*'" "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Verify actionable cockpit UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'get_production_farm_risk_assignees' admin/production-farm-risk.js
+          grep -q 'apply_production_farm_risk_action' admin/production-farm-risk.js
+          grep -q 'risk_acknowledged' admin/production-farm-risk.js
+          grep -q 'operational_sla_hours' admin/production-farm-risk.js
+          grep -q 'pfrUnassigned' admin/production-farm-risk.html
+          grep -q 'pfrAcknowledged' admin/production-farm-risk.html
+          if grep -q '\\n.*PARTNER_DISPUTE' admin/production-farm-risk.html; then
+            echo 'Literal backslash-n remains in risk HTML'
+            exit 1
+          fi
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE52.md'
+          test -s "$doc"
+          grep -q 'phase52_actionable_risk_cockpit_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'операционный SLA' "$doc"
+          grep -q 'RISK_NOT_AVAILABLE' "$doc"
+          grep -q 'PRODUCTION_FARM_RISK_ACTION_APPEND_ONLY' "$doc"
+          grep -q '30 7 \* \* \*' "$doc"
+          grep -q '3D-ARTPRINT' "$doc"
