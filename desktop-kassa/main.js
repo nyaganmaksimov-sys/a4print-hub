@@ -2,6 +2,7 @@ const {app,BrowserWindow,session}=require('electron');
 const fs=require('fs');
 const path=require('path');
 const KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/?desktop=1';
+const APP_ICON=path.join(__dirname,'build','icon.ico');
 // Windows workstation compatibility: renderer exit code 3 is a Chromium GPU-process crash on affected drivers.
 // Disable GPU before app ready and keep software rasterization enabled for the POS shell only.
 app.disableHardwareAcceleration();
@@ -13,7 +14,7 @@ function diagnostic(title,detail=''){if(!mainWindow||mainWindow.isDestroyed())re
 if(!app.requestSingleInstanceLock()){app.quit();}
 app.on('second-instance',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();}});
 async function createWindow(){
-  const splash=new BrowserWindow({width:520,height:300,frame:false,resizable:false,show:true,backgroundColor:'#ffffff'});
+  const splash=new BrowserWindow({width:520,height:300,frame:false,resizable:false,show:true,backgroundColor:'#ffffff',icon:APP_ICON});
   await splash.loadFile(path.join(__dirname,'splash.html')).catch(()=>{});
   const partition='persist:a4kassa';
   const ses=session.fromPartition(partition,{cache:true});
@@ -23,7 +24,7 @@ async function createWindow(){
   await ses.clearStorageData({storages:['serviceworkers','cachestorage']}).catch(error=>log('CLEAR SW FAIL',String(error)));
   mainWindow=new BrowserWindow({
     width:1440,height:900,minWidth:1100,minHeight:700,show:false,
-    title:'A4PRINT KASSA 2.1',backgroundColor:'#f6fbfc',autoHideMenuBar:true,
+    title:'A4PRINT KASSA 2.1',icon:APP_ICON,backgroundColor:'#f6fbfc',autoHideMenuBar:true,
     webPreferences:{partition,contextIsolation:true,nodeIntegration:false,sandbox:false,backgroundThrottling:false}
   });
   const reveal=()=>{if(!splash.isDestroyed())splash.destroy();if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}};

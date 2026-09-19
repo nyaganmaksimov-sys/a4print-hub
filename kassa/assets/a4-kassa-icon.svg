@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="A4-Касса">
+<rect x="18" y="18" width="476" height="476" rx="88" fill="#fff" stroke="#08aebb" stroke-width="10"/>
+<text x="48" y="321" font-family="Arial Black,DejaVu Sans,sans-serif" font-size="250" font-weight="900" fill="#000">A4</text>
+<path d="M183 90h81l-24 52h-41z" fill="#ffd500"/>
+<path d="M196 176h25v69h45v32h-70z" fill="#ec008c"/>
+<path d="M196 257h70v40h-70z" fill="#00aeef"/>
+<g transform="translate(297 104)"><rect width="18" height="66" fill="#111"/><rect y="66" width="18" height="50" fill="#ffd500"/><rect y="116" width="18" height="50" fill="#ec008c"/><rect y="166" width="18" height="50" fill="#00aeef"/></g>
+<g transform="translate(330 130)"><rect width="135" height="110" rx="24" fill="#000"/><rect x="18" y="18" width="99" height="74" rx="14" fill="#fff"/><rect x="38" y="32" width="61" height="13" rx="7" fill="#ec008c"/><rect x="38" y="55" width="61" height="13" rx="7" fill="#ffd500"/><rect x="38" y="78" width="61" height="13" rx="7" fill="#00aeef"/><rect x="-10" y="96" width="154" height="114" rx="26" fill="#000"/><rect x="8" y="122" width="118" height="66" rx="12" fill="#fff"/><circle cx="31" cy="155" r="9" fill="#000"/><rect x="66" y="144" width="52" height="21" rx="9" fill="#ffd500"/></g></svg>
