@@ -104,9 +104,24 @@ async function requirePosUser(req, res, next) {
     const profile = await operatorProfile(ctx.user.id);
     if (!profile || profile.is_active === false) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
     if (!profile.organization_id) return res.status(403).json({ success: false, error: 'POS_ORGANIZATION_REQUIRED', message: 'Сотрудник не привязан к компании.' });
+
+    // A4PRINT KASSA is a dedicated POS application. Staff accounts may belong
+    // to another HUB company (for example 3D-ARTPRINT), while the Kassa catalog,
+    // customers, shifts, idempotency registry and MoySklad documents all belong
+    // to the configured A4PRINT POS tenant. Resolve that tenant here, before the
+    // route handler and before the sale-idempotency wrapper reserves an operation.
+    const posTenant = await requireMoySkladOrganization({
+      service: supabase,
+      authUserId: ctx.user.id,
+      organizationId: profile.organization_id,
+      posApp: true
+    });
+    if (!posTenant.ok) return moySkladTenantError(res, posTenant);
+
     req.authUser = ctx.user;
     req.authProfile = profile;
-    req.posOrganizationId = profile.organization_id;
+    req.staffOrganizationId = profile.organization_id;
+    req.posOrganizationId = posTenant.organization.id;
     req.isAdmin = Boolean(isAdmin);
     next();
   } catch (e) { next(e); }
@@ -151,6 +166,8 @@ async function msTenantReady(req, res) {
     posApp: true
   });
   if (!result.ok) { moySkladTenantError(res, result); return false; }
+  // Keep every downstream POS query on the same resolved tenant.
+  req.posOrganizationId = result.organization.id;
   return true;
 }
 
