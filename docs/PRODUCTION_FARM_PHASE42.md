@@ -250,6 +250,22 @@ Phase 42 исправляет helper fail-closed:
 11. текущий состав корректно сохраняется обычным `save_equipment_contract`;
 12. foreign tenant заблокирован.
 
+### Initial save / period-model compatibility
+
+Дополнительный regression-test:
+
+`phase42_save_contract_period_model_ok`.
+
+Проверено через обычный `save_equipment_contract()`:
+
+- новый ACTIVE contract корректно получает первичный состав после удаления legacy unique key;
+- каждый equipment id проходит `private.assert_equipment_asset_tenant(...)`;
+- оборудование другой organization не может попасть в первичный состав;
+- internal flag `app.equipment_contract_initial_composition_save` сбрасывается до выхода из RPC;
+- после возврата из RPC прямой INSERT второго аппарата снова блокируется `ACTIVE_CONTRACT_EQUIPMENT_CHANGE_REQUIRES_NEW_ANNEX`.
+
+Composition RPC дополнительно требует `private.assert_non_partner_staff_context()`, поэтому staff mutation API не может быть вызван из partner context.
+
 ### Termination temporal scope
 
 Полный возврат/расторжение прошёл:
@@ -301,6 +317,9 @@ Phase 42 исправляет helper fail-closed:
 - новый public mutation RPC — SECURITY DEFINER + empty search_path;
 - anon EXECUTE=false;
 - contract tenant guard обязателен;
+- composition create дополнительно закрыт `assert_non_partner_staff_context()`;
+- первичный состав проверяет tenant каждого equipment через `assert_equipment_asset_tenant()`;
+- initial-composition internal flag сбрасывается внутри `save_equipment_contract()`;
 - private apply helper недоступен authenticated;
 - amendment detail table закрыта от Data API mutation;
 - history views используют `security_invoker=true`.
