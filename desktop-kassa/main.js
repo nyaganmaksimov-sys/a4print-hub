@@ -34,17 +34,23 @@ function createWindow(){
     return {action:'deny'};
   });
   mainWindow.webContents.on('will-navigate',(event,url)=>{
-    if(url.startsWith(KASSA_URL)||url.startsWith('https://api.a4print-hub.ru'))return;
+    if(url.startsWith('https://a4print-hub.ru/')||url.startsWith('https://api.a4print-hub.ru/'))return;
     event.preventDefault();if(/^https?:/i.test(url))shell.openExternal(url);
   });
-  mainWindow.webContents.on('did-fail-load',(_event,_code,_desc,url,isMainFrame)=>{ if(isMainFrame && url.startsWith(KASSA_URL)) setTimeout(()=>mainWindow && mainWindow.loadURL(KASSA_URL),2500); });
+  mainWindow.webContents.on('did-fail-load',(_event,code,desc,url,isMainFrame)=>{
+    if(!isMainFrame)return;
+    // ERR_ABORTED (-3) is normal during redirects/auth navigation. Retrying it creates an endless white/login loop.
+    if(code===-3)return;
+    console.error('A4-Kassa load failed:',code,desc,url);
+    if(url.startsWith('https://a4print-hub.ru/')) setTimeout(()=>mainWindow&&!mainWindow.isDestroyed()&&mainWindow.loadURL(KASSA_URL),2500);
+  });
   const reveal=()=>{if(splash&&!splash.isDestroyed())splash.destroy();if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}};
   mainWindow.webContents.on('did-finish-load',reveal);
   mainWindow.webContents.on('render-process-gone',(_event,details)=>{
     console.error('A4-Kassa renderer stopped:',details.reason,details.exitCode);
     reveal();
   });
-  mainWindow.loadURL(KASSA_URL).catch(()=>reveal());
+  mainWindow.loadURL(KASSA_URL).catch(error=>{console.error('A4-Kassa initial load failed:',error);reveal();});
   setTimeout(reveal,8000);
   mainWindow.on('closed',()=>{mainWindow=null});
 }
