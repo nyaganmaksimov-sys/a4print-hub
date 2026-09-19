@@ -1,0 +1,73 @@
+name: Check Production Farm Phase 54
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260919_production_farm_risk_action_timeline.sql'
+      - 'admin/production-farm-risk.html'
+      - 'admin/production-farm-risk.js'
+      - 'docs/PRODUCTION_FARM_PHASE54.md'
+      - '.github/workflows/check-production-farm-phase54.yml'
+
+jobs:
+  phase54-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/production-farm-risk.js
+
+      - name: Verify history migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260919_production_farm_risk_action_timeline.sql'
+          test -s "$sql"
+          grep -q 'get_production_farm_risk_action_history' "$sql"
+          grep -q "security definer" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q 'assert_non_partner_staff_context' "$sql"
+          grep -q 'current_user_organization_id' "$sql"
+          grep -q 'production_farm_risk_actions' "$sql"
+          grep -q 'event_sequence desc' "$sql"
+          grep -q 'least(greatest(coalesce(p_limit,50),1),100)' "$sql"
+          grep -q "RISK_CATEGORY_INVALID" "$sql"
+          grep -q "revoke all on function public.get_production_farm_risk_action_history" "$sql"
+          grep -q "grant execute on function public.get_production_farm_risk_action_history" "$sql"
+          if grep -Eq '^create table|^alter table|^drop table' "$sql"; then
+            echo 'Phase 54 must not create or alter tables'
+            exit 1
+          fi
+
+      - name: Verify cockpit notes and timeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "get_production_farm_risk_action_history" admin/production-farm-risk.js
+          grep -q "note:'NOTE'" admin/production-farm-risk.js
+          grep -q 'data-risk-action="note"' admin/production-farm-risk.js
+          grep -q 'data-risk-history' admin/production-farm-risk.js
+          grep -q 'renderHistory' admin/production-farm-risk.js
+          grep -q 'pfrHistoryDlg' admin/production-farm-risk.html
+          grep -q 'pfrHistoryList' admin/production-farm-risk.html
+          grep -q 'production-farm-risk.js?v=20260919-phase54-1' admin/production-farm-risk.html
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE54.md'
+          test -s "$doc"
+          grep -q 'phase54_risk_action_timeline_ok' "$doc"
+          grep -q 'A4 ↔ 3D' "$doc"
+          grep -q 'test rows after rollback: 0' "$doc"
+          grep -q 'direct SELECT' "$doc"
+          grep -q 'не было активных actionable risks' "$doc"
