@@ -1,5 +1,5 @@
 import{supabase}from'./guard.js?v=20260905-netfix1';
-import{riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing}from'./production-farm-deep-link.js';
+import{riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing}from'./production-farm-deep-link.js?v=20260919-phase55-1';
 const $=id=>document.getElementById(id),e=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),d=v=>v?new Date(`${String(v).slice(0,10)}T00:00:00`).toLocaleDateString('ru-RU'):'—';
 const riskContractId=riskParam('contract');installRiskCockpitReturnLink();
 const L={EXPIRED:'Истёк',ENDS_TODAY:'Заканчивается сегодня',ENDS_7:'До 7 дней',ENDS_14:'До 14 дней',ENDS_30:'До 30 дней',ACTIVE:'Срок в норме',OPEN_ENDED:'Без даты окончания',CLOSED:'Закрыт'};const T={REVENUE_SHARE:'Доля с выручки',LEASE:'Аренда',LEASE_BUYOUT:'Аренда с выкупом',LOAN_FOR_USE:'Безвозмездное пользование',OTHER:'Иной договор'};const state={rows:[],loading:false};
