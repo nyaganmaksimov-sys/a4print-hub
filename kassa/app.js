@@ -81,6 +81,10 @@
     if(unit.error)throw unit.error;
     if(!unit.data?.organization_id||unit.data.is_active===false)throw new Error('Компания сотрудника недоступна.');
     state.organizationId=unit.data.organization_id;
+    // A4PRINT KASSA is a dedicated POS application. Keep its catalog/accounts pinned
+    // to A4PRINT even when the signed-in staff profile also belongs to another HUB company.
+    const a4=await supabase.from('organizations').select('id,code,is_active').eq('code','A4PRINT').maybeSingle();
+    if(a4.data?.id&&a4.data.is_active!==false)state.organizationId=a4.data.id;
   }
 
   function showAuth(error=''){$('appView').hidden=true;$('authView').hidden=false;$('loginError').textContent=error}
@@ -119,7 +123,7 @@
     try{
       if(!state.organizationId)throw new Error('Компания кассы не определена.');
       const [g,a,o]=await Promise.all([
-        supabase.from('catalog_items').select('id,name,sku,article,barcode,item_type,category,unit,sale_price,external_id,last_synced_at').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
+        supabase.rpc('get_pos_catalog'),
         supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
         supabase.rpc('get_pos_operators')
       ]);
@@ -208,7 +212,15 @@
   async function queueSale(){
     if(!state.cart.length)return;if(!state.shift){toast('Сначала откройте смену.',true);return}
     const sale={id:uuid(),created_at:nowIso(),stage:'queued',tries:0,last_error:null,items:state.cart.map(x=>({...x})),payment_method:state.payment,customer_id:state.customer?.id||null,customer_name:state.customer?.full_name||null,operator_id:$('operatorSelect').value||state.profile?.id||null,operator_name:$('operatorSelect').selectedOptions[0]?.textContent||state.profile?.full_name||'',cash_account_id:$('cashAccount').value||null,total:total(),shift:{id:state.shift.id,name:state.shift.name||null,openDate:state.shift.openDate||null}};
-    await DB.put('queue',sale);state.cart=[];state.customer=null;$('customerName').textContent='Не выбран';renderCart();await refreshQueue();toast(state.backendOnline?'Продажа сохранена. Синхронизируем…':'Продажа сохранена локально. Уйдёт после восстановления связи.');syncQueue();
+    await DB.put('queue',sale);
+    state.cart=[];state.customer=null;$('customerName').textContent='Не выбран';renderCart();
+    // The durable IndexedDB write is the cashier commit point. Do not block the
+    // next receipt on rescanning the queue or any network synchronization.
+    state.queue=[...state.queue,sale].sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+    const chip=$('queueChip');if(chip){chip.querySelector('span').textContent=`Очередь ${state.queue.length}`;chip.className='status-chip warn'}
+    renderQueueList();
+    toast(state.backendOnline?'Продажа сохранена. Синхронизируем…':'Продажа сохранена локально. Уйдёт после восстановления связи.');
+    window.dispatchEvent(new CustomEvent('a4:kassa-queue-pending',{detail:{id:sale.id}}));
   }
 
   async function refreshQueue(){state.queue=(await DB.getAll('queue')).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));const chip=$('queueChip');chip.querySelector('span').textContent=`Очередь ${state.queue.length}`;chip.className='status-chip '+(state.queue.length?'warn':'ok');renderQueueList()}
@@ -244,10 +256,19 @@
   }
 
   async function health(){
+    const wasOnline=state.backendOnline;
     if(!navigator.onLine){state.backendOnline=false;renderNetwork();return false}
     const controller=new AbortController();const t=setTimeout(()=>controller.abort(),4500);
     try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok}catch{state.backendOnline=false}finally{clearTimeout(t)}
-    renderNetwork();if(state.backendOnline){syncQueue();if(!state.shift)loadShift().catch(()=>{})}return state.backendOnline
+    renderNetwork();
+    if(state.backendOnline){
+      // A heartbeat must not rescan IndexedDB every 15 seconds. Recovery is
+      // event-driven; wake it only after connectivity returns or when memory
+      // already says there is pending work.
+      if(!wasOnline||state.queue.length)syncQueue().catch(()=>{});
+      if(!state.shift)loadShift().catch(()=>{});
+    }
+    return state.backendOnline
   }
 
   function bind(){
@@ -267,8 +288,8 @@
   async function startApp(){
     if(!state.profile)await checkAccess();loadFavorites();renderOperators();renderAccounts();renderCart();renderShift();
     await loadCached();
-    await Promise.allSettled([health(),refreshRemoteData(false)]);
-    if(state.backendOnline)await Promise.allSettled([loadShift(),loadStock(),syncQueue()]);
+    health().catch(()=>{});refreshRemoteData(false).catch(()=>{});
+    queueMicrotask(()=>{loadShift().catch(()=>{});if(!Object.keys(state.stock||{}).length)loadStock().catch(()=>{});if(state.queue.length)syncQueue().catch(()=>{})});
     clearInterval(healthTimer);clearInterval(syncTimer);
     healthTimer=setInterval(()=>{if(!document.hidden)health()},15000);
     syncTimer=window.A4KassaQueueRecovery?.run?null:setInterval(()=>{if(!document.hidden)syncQueue()},5000);

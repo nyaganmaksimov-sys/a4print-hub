@@ -147,9 +147,9 @@ jobs:
           ! grep -q "loadScript('./shift-live.js')" kassa/bootstrap.js
           grep -q 'status.summary' kassa/ui.js
           ! grep -q "rpc('pos_shift_summary'" kassa/ui.js
-          grep -q '60000' kassa/ui.js
+          grep -q '120000' kassa/ui.js
           ! grep -Eq 'new[[:space:]]+MutationObserver|MutationObserver[[:space:]]*\(' kassa/shift-state-sync.js
-          grep -q 'setInterval(sync,5000)' kassa/shift-state-sync.js
+          grep -q 'setInterval(sync,30000)' kassa/shift-state-sync.js
           grep -q 'latestOpenShift' api/src/moysklad.js
           grep -q 'cashSum' api/src/moysklad.js
           grep -q 'noCashSum' api/src/moysklad.js

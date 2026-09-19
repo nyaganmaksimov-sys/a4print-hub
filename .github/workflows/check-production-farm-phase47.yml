@@ -1,0 +1,80 @@
+name: Check Production Farm Phase 47
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_owner_payment_ledger_audit.sql'
+      - 'admin/equipment-payment-control.js'
+      - 'admin/equipment-owner-payment-ledger.js'
+      - 'admin/equipment-payment-control.html'
+      - 'partner/equipment-owner-payment-ledger.js'
+      - 'partner/equipment.html'
+      - 'docs/PRODUCTION_FARM_PHASE47.md'
+      - '.github/workflows/check-production-farm-phase47.yml'
+
+jobs:
+  phase47-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify owner payment ledger migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_owner_payment_ledger_audit.sql'
+          test -s "$sql"
+
+          grep -q 'equipment_owner_payment_postings' "$sql"
+          grep -q 'uq_equipment_owner_payment_active' "$sql"
+          grep -q 'guard_equipment_owner_payment_paid_status' "$sql"
+          grep -q 'guard_equipment_owner_payment_posting_ledger' "$sql"
+          grep -q 'OWNER_PAYMENT_LEDGER_APPEND_ONLY' "$sql"
+          grep -q 'OWNER_PAYMENT_LEDGER_CORE_IMMUTABLE' "$sql"
+          grep -q 'OWNER_PAYMENT_LEDGER_REVERSAL_IMMUTABLE' "$sql"
+          grep -q 'PAYMENT_LEDGER_POSTING_REQUIRED' "$sql"
+
+          grep -q 'get_equipment_owner_payment_financial_options' "$sql"
+          grep -q 'post_equipment_owner_payment_financial_transaction' "$sql"
+          grep -q 'reverse_equipment_owner_payment_financial_transaction' "$sql"
+          grep -q 'get_my_equipment_owner_payment_ledger' "$sql"
+          grep -q 'current_partner_id' "$sql"
+          grep -q 'assert_equipment_contract_child_tenant' "$sql"
+
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/equipment-payment-control.js
+          node --check admin/equipment-owner-payment-ledger.js
+          node --check partner/equipment-owner-payment-ledger.js
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-payment-ledger' admin/equipment-payment-control.js
+          grep -q 'post_equipment_owner_payment_financial_transaction' admin/equipment-owner-payment-ledger.js
+          grep -q 'reverse_equipment_owner_payment_financial_transaction' admin/equipment-owner-payment-ledger.js
+          grep -q 'equipment-owner-payment-ledger.js?v=20260918-phase47-1' admin/equipment-payment-control.html
+
+          grep -q 'get_my_equipment_owner_payment_ledger' partner/equipment-owner-payment-ledger.js
+          grep -q 'Фактические выплаты' partner/equipment-owner-payment-ledger.js
+          grep -q 'equipment-owner-payment-ledger.js?v=20260918-phase47-1' partner/equipment.html
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE47.md'
+          test -s "$doc"
+          grep -q 'phase47_owner_payment_ledger_audit_ok' "$doc"
+          grep -q 'OWNER_PAYMENT_LEDGER_APPEND_ONLY' "$doc"
+          grep -q 'Partner B запись не увидел' "$doc"
+          grep -q 'Фактические выплаты' "$doc"

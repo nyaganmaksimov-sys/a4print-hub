@@ -11,7 +11,8 @@
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₽';
   const dt=v=>v?new Date(v).toLocaleString('ru-RU'):'—';
-  let current=null,busy=false,timer=null;
+  let current=null,busy=false,timer=null,lastLoadedAt=0;
+  const AUTO_REFRESH_MS=120000;
 
   async function accessToken(){const r=await supabase.auth.getSession();const s=r.data?.session;if(!s)throw new Error('Сессия завершена. Войдите снова.');return s.access_token}
   async function api(path,opt={},retry=true){let token=await accessToken();const run=async()=>{const r=await fetch(API+path,{...opt,cache:'no-store',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',Accept:'application/json',...(opt.headers||{})}});const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}if(r.status===401&&retry){const rr=await supabase.auth.refreshSession();if(rr.data?.session){token=rr.data.session.access_token;return api(path,opt,false)}}if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);return d};return run()}
@@ -36,11 +37,13 @@
     current=control;const session=control.hub_session,ms=control.ms_shift,diag=control.diagnostics||{},perm=control.permissions||{};
     $('shiftProfileLoading').hidden=true;$('shiftProfileBody').hidden=false;$('shiftProfileError').hidden=true;
     setPill('shiftSyncMs',ms?`МойСклад · ${ms.name||'OPEN'}`:'МойСклад · закрыта',ms?'ok':'warn');
-    setPill('shiftSyncHub',diag.synchronized?'HUB · синхронизирован':'HUB · требуется сверка',diag.synchronized?'ok':'bad');
+    if(diag.synchronized===true)setPill('shiftSyncHub','HUB · синхронизирован','ok');
+    else if(diag.synchronized===false)setPill('shiftSyncHub','HUB · требуется сверка','bad');
+    else setPill('shiftSyncHub','HUB · локальные данные','ok');
     const local=!!window.A4KassaShiftSession?.active;setPill('shiftSyncKassa',local?'KASSA · смена активна':'KASSA · смена закрыта',local?'ok':'warn');
     $('shiftOfficialName').textContent=ms?.name||'—';$('shiftStoreName').textContent=control.store?.name||session?.store_name||'—';$('shiftProfileOperator').textContent=session?.opened_by?.name||operatorName();$('shiftProfileOpened').textContent=ms?.openDate?dt(ms.openDate):(session?.opened_at?dt(session.opened_at):'—');
     if(balance?.success&&balance.available){$('shiftProfileCash').textContent=money(balance.cash);$('shiftProfileCashSource').textContent=balance.stale?'Кэш МойСклад':(balance.source==='MOYSKLAD_LEDGER'?'МойСклад ledger':balance.source||'МойСклад')}else{$('shiftProfileCash').textContent='—';$('shiftProfileCashSource').textContent=balance?.message||'Недоступно'}
-    const input=$('shiftDisplayName'),note=$('shiftOpeningNote');input.value=session?.display_name||'';note.value=session?.opening_note||'';input.disabled=!perm.edit_profile||!session;note.disabled=!perm.edit_profile||!session;$('shiftProfileSave').hidden=!perm.edit_profile;$('shiftProfileSave').disabled=!session;$('shiftProfileReconcile').hidden=!perm.reconcile;$('shiftProfileReconcile').disabled=diag.synchronized;
+    const input=$('shiftDisplayName'),note=$('shiftOpeningNote');input.value=session?.display_name||'';note.value=session?.opening_note||'';input.disabled=!perm.edit_profile||!session;note.disabled=!perm.edit_profile||!session;$('shiftProfileSave').hidden=!perm.edit_profile;$('shiftProfileSave').disabled=!session;$('shiftProfileReconcile').hidden=!perm.reconcile;$('shiftProfileReconcile').disabled=false;
     renderHistory(control.recent||[]);
     window.A4KassaShiftProfileDisplayName=session?.display_name||'';
     const display=session?.display_name||ms?.name||'';
@@ -49,11 +52,11 @@
 
   async function load(showMessage=false){
     ensure();if(busy)return;busy=true;const msg=$('shiftProfileMessage');if(msg&&showMessage){msg.textContent='Обновляю…';msg.className='shift-profile-message'}
-    try{const [control,balance]=await Promise.all([api('/api/v1/pos/shift/control'),api('/api/v1/pos/cash-balance').catch(e=>({success:false,message:e.message}))]);render(control,balance);if(msg&&showMessage){msg.textContent='Обновлено ✓';msg.className='shift-profile-message ok'}}catch(e){$('shiftProfileLoading').hidden=true;$('shiftProfileError').hidden=false;$('shiftProfileError').textContent='Не удалось загрузить профиль смены: '+String(e?.message||e);if(msg){msg.textContent='Ошибка';msg.className='shift-profile-message err'}}finally{busy=false}}
+    try{const [control,balance]=await Promise.all([api('/api/v1/pos/shift/control'),api('/api/v1/pos/cash-balance').catch(e=>({success:false,message:e.message}))]);render(control,balance);lastLoadedAt=Date.now();if(msg&&showMessage){msg.textContent='Обновлено ✓';msg.className='shift-profile-message ok'}}catch(e){$('shiftProfileLoading').hidden=true;$('shiftProfileError').hidden=false;$('shiftProfileError').textContent='Не удалось загрузить профиль смены: '+String(e?.message||e);if(msg){msg.textContent='Ошибка';msg.className='shift-profile-message err'}}finally{busy=false}}
 
   async function save(){const session=current?.hub_session;if(!session)return;const btn=$('shiftProfileSave'),msg=$('shiftProfileMessage');btn.disabled=true;msg.textContent='Сохраняю…';msg.className='shift-profile-message';try{await api('/api/v1/pos/shift/control/'+encodeURIComponent(session.id),{method:'PATCH',body:JSON.stringify({display_name:$('shiftDisplayName').value.trim(),opening_note:$('shiftOpeningNote').value.trim()})});msg.textContent='Сохранено ✓';msg.className='shift-profile-message ok';await load(false)}catch(e){msg.textContent=String(e?.message||e);msg.className='shift-profile-message err'}finally{btn.disabled=false}}
   async function reconcile(){const btn=$('shiftProfileReconcile'),msg=$('shiftProfileMessage');btn.disabled=true;msg.textContent='Сверяю HUB и МойСклад…';msg.className='shift-profile-message';try{await api('/api/v1/pos/shift/reconcile',{method:'POST',body:'{}'});msg.textContent='Синхронизировано ✓';msg.className='shift-profile-message ok';await load(false)}catch(e){msg.textContent=String(e?.message||e);msg.className='shift-profile-message err'}finally{btn.disabled=false}}
-  function schedule(delay=120){clearTimeout(timer);timer=setTimeout(()=>{const view=$('shiftView');if(view&&!view.hidden)load(false)},delay)}
-  function init(){ensure();document.addEventListener('click',e=>{if(e.target?.closest?.('#navShift,#shiftChip'))schedule(180)},true);window.addEventListener('a4:kassa-shift',()=>schedule(250));setInterval(()=>{if(!document.hidden&&$('shiftView')&&!$('shiftView').hidden)load(false)},60000)}
+  function schedule(delay=120,force=false){clearTimeout(timer);timer=setTimeout(()=>{const view=$('shiftView');if(view&&!view.hidden&&(force||!lastLoadedAt||Date.now()-lastLoadedAt>AUTO_REFRESH_MS))load(false)},delay)}
+  function init(){ensure();document.addEventListener('click',e=>{if(e.target?.closest?.('#navShift,#shiftChip'))schedule(180)},true);window.addEventListener('a4:kassa-shift',()=>schedule(250,true));setInterval(()=>{if(!document.hidden&&$('shiftView')&&!$('shiftView').hidden&&Date.now()-lastLoadedAt>AUTO_REFRESH_MS)load(false)},60000)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

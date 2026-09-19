@@ -10,9 +10,9 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "../admin/assets/a4print-hub-logo-white.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./assets/a4-kassa-icon.webp",
+      "sizes": "153x140",
+      "type": "image/webp",
       "purpose": "any"
     }
   ]

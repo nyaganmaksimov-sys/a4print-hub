@@ -104,9 +104,24 @@ async function requirePosUser(req, res, next) {
     const profile = await operatorProfile(ctx.user.id);
     if (!profile || profile.is_active === false) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
     if (!profile.organization_id) return res.status(403).json({ success: false, error: 'POS_ORGANIZATION_REQUIRED', message: 'Сотрудник не привязан к компании.' });
+
+    // A4PRINT KASSA is a dedicated POS application. Staff accounts may belong
+    // to another HUB company (for example 3D-ARTPRINT), while the Kassa catalog,
+    // customers, shifts, idempotency registry and MoySklad documents all belong
+    // to the configured A4PRINT POS tenant. Resolve that tenant here, before the
+    // route handler and before the sale-idempotency wrapper reserves an operation.
+    const posTenant = await requireMoySkladOrganization({
+      service: supabase,
+      authUserId: ctx.user.id,
+      organizationId: profile.organization_id,
+      posApp: true
+    });
+    if (!posTenant.ok) return moySkladTenantError(res, posTenant);
+
     req.authUser = ctx.user;
     req.authProfile = profile;
-    req.posOrganizationId = profile.organization_id;
+    req.staffOrganizationId = profile.organization_id;
+    req.posOrganizationId = posTenant.organization.id;
     req.isAdmin = Boolean(isAdmin);
     next();
   } catch (e) { next(e); }
@@ -147,9 +162,12 @@ async function msTenantReady(req, res) {
   const result = await requireMoySkladOrganization({
     service: supabase,
     authUserId: req.authUser?.id || null,
-    organizationId: req.posOrganizationId || null
+    organizationId: req.posOrganizationId || null,
+    posApp: true
   });
   if (!result.ok) { moySkladTenantError(res, result); return false; }
+  // Keep every downstream POS query on the same resolved tenant.
+  req.posOrganizationId = result.organization.id;
   return true;
 }
 
@@ -379,13 +397,31 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
 app.get('/api/v1/pos/returns/sales', requirePosUser, async (req, res, next) => {
   try {
     if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
-    const { data: rows, error } = await supabase
+    let { data: rows, error } = await supabase
       .from('pos_sales')
       .select('id,moysklad_sale_id,moysklad_sale_name,total,payment_method,sold_at,items')
       .eq('organization_id', req.posOrganizationId)
       .order('sold_at', { ascending: false })
       .limit(100);
     if (error) throw error;
+    // KASSA is pinned to the A4PRINT POS tenant. Older/transition sales may have
+    // been recorded under that tenant while the employee profile resolves to a
+    // different HUB organization. If the profile-scoped list is empty, use the
+    // server-side A4PRINT organization as a safe POS-only fallback.
+    if (!(rows || []).length) {
+      const { data: a4, error: a4Error } = await supabase.from('organizations')
+        .select('id').eq('code', 'A4PRINT').eq('is_active', true).limit(1).maybeSingle();
+      if (a4Error) throw a4Error;
+      if (a4?.id && a4.id !== req.posOrganizationId) {
+        const fallback = await supabase.from('pos_sales')
+          .select('id,moysklad_sale_id,moysklad_sale_name,total,payment_method,sold_at,items')
+          .eq('organization_id', a4.id)
+          .order('sold_at', { ascending: false })
+          .limit(100);
+        if (fallback.error) throw fallback.error;
+        rows = fallback.data || [];
+      }
+    }
     const ids = (rows || []).map(x => x.id);
     let returnRows = [];
     if (ids.length) {

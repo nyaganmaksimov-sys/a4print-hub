@@ -2,7 +2,10 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 
 const BASE='https://api.moysklad.ru/api/remap/1.2';
-const BUILD='20260912-mslive-fast1';
+const BUILD='20260918-mslive-throttle1';
+const LIVE_REFRESH_TTL_MS=120000;
+let liveRefreshInFlight=null;
+let lastLiveRefreshAt=0;
 const token=process.env.MOYSKLAD_TOKEN;
 const supabase=process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY
   ?createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{autoRefreshToken:false,persistSession:false}})
@@ -123,6 +126,71 @@ async function liveShift(){
   };
 }
 
+async function hubShift(){
+  if(!supabase)return null;
+  try{
+    const {data,error}=await supabase.from('pos_shift_sessions')
+      .select('moysklad_shift_id,moysklad_shift_name,opened_at,status,updated_at,store_id,store_name')
+      .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
+    if(error||!data?.moysklad_shift_id)return null;
+    const after=data.opened_at;
+    const {data:baseline,error:baselineError}=await supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle();
+    if(baselineError)throw baselineError;
+    const baselineAt=baseline?.baseline_at||after;
+    const [salesResult,returnsResult,opsResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps]=await Promise.all([
+      supabase.from('pos_sales').select('total,payment_method').gte('sold_at',after),
+      supabase.from('pos_returns').select('amount,payment_method').gte('returned_at',after),
+      supabase.from('pos_cash_operations').select('operation_type,amount').gte('created_at',after),
+      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at').gte('sold_at',baselineAt),
+      supabase.from('pos_sales').select('total,payment_method,sold_at,created_at').is('sold_at',null).gte('created_at',baselineAt),
+      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at').gte('returned_at',baselineAt),
+      supabase.from('pos_returns').select('amount,payment_method,returned_at,created_at').is('returned_at',null).gte('created_at',baselineAt),
+      supabase.from('pos_cash_operations').select('operation_type,amount,created_at').gte('created_at',baselineAt)
+    ]);
+    for(const result of [salesResult,returnsResult,opsResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps])if(result.error)throw result.error;
+    const sales=salesResult.data||[],returns=returnsResult.data||[],ops=opsResult.data||[];
+    const isCash=v=>/налич|cash/i.test(String(v||''));
+    const sum=(rows,field)=>rows.reduce((n,row)=>n+Number(row?.[field]||0),0);
+    const cashSales=sum(sales.filter(x=>isCash(x.payment_method)),'total');
+    const cashReturns=sum(returns.filter(x=>isCash(x.payment_method)),'amount');
+    const cashlessSales=sum(sales.filter(x=>!isCash(x.payment_method)),'total');
+    const cashlessReturns=sum(returns.filter(x=>!isCash(x.payment_method)),'amount');
+    const cashIn=ops.filter(x=>x.operation_type==='CASH_IN');
+    const cashOut=ops.filter(x=>x.operation_type==='CASH_OUT');
+    let cashInRegister=null;
+    if(baseline){
+      const bSales=[...(balanceSalesTimed.data||[]),...(balanceSalesUntimed.data||[])].filter(x=>isCash(x.payment_method));
+      const bReturns=[...(balanceReturnsTimed.data||[]),...(balanceReturnsUntimed.data||[])].filter(x=>isCash(x.payment_method));
+      const bOps=balanceOps.data||[];
+      cashInRegister=Number(baseline.baseline_amount)+sum(bSales,'total')+sum(bOps.filter(x=>x.operation_type==='CASH_IN'),'amount')-sum(bReturns,'amount')-sum(bOps.filter(x=>x.operation_type==='CASH_OUT'),'amount');
+    }
+    return{
+      build:BUILD,
+      shift:{id:data.moysklad_shift_id,name:data.moysklad_shift_name||'—',openDate:data.opened_at,closeDate:null,updated:data.updated_at||null},
+      store:data.store_id?{id:data.store_id,name:data.store_name||null}:null,
+      summary:{
+        source:'HUB_FAST',
+        sales_count:sales.length,sales_total:sum(sales,'total'),sales_cash:cashSales,sales_cashless:cashlessSales,
+        returns_count:returns.length,returns_total:sum(returns,'amount'),returns_cash:cashReturns,returns_cashless:cashlessReturns,
+        deposits_count:cashIn.length,deposits_total:sum(cashIn,'amount'),payouts_count:cashOut.length,payouts_total:sum(cashOut,'amount'),
+        revenue_cash:cashSales-cashReturns,revenue_cashless:cashlessSales-cashlessReturns,
+        revenue_total:sum(sales,'total')-sum(returns,'amount'),cash_in_register:cashInRegister
+      }
+    };
+  }catch{return null}
+}
+
+function refreshLiveShiftInBackground(){
+  const now=Date.now();
+  if(liveRefreshInFlight)return liveRefreshInFlight;
+  if(lastLiveRefreshAt&&now-lastLiveRefreshAt<LIVE_REFRESH_TTL_MS)return null;
+  liveRefreshInFlight=liveShift()
+    .then(result=>{lastLiveRefreshAt=Date.now();return result})
+    .catch(error=>{console.warn('[POS shift live] background refresh unavailable:',error?.message||error);return null})
+    .finally(()=>{liveRefreshInFlight=null});
+  return liveRefreshInFlight;
+}
+
 async function hubFallback(){
   if(!supabase)return null;
   try{
@@ -153,6 +221,11 @@ express.application.get=function patchedGet(path,...handlers){
   if(path==='/api/v1/pos/shift'&&handlers.length){
     const index=handlers.length-1;
     handlers[index]=async function liveMoySkladShift(_req,res,next){
+      const hub=await hubShift();
+      if(hub){
+        refreshLiveShiftInBackground();
+        return res.json({success:true,...hub});
+      }
       try{
         const data=await liveShift();
         return res.json({success:true,...data});

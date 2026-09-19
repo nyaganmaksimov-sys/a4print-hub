@@ -1,0 +1,59 @@
+name: Check Production Farm Phase 50
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_integrity_sla_escalation.sql'
+      - 'docs/PRODUCTION_FARM_PHASE50.md'
+      - 'admin/equipment-payment-integrity-incidents.js'
+      - '.github/workflows/check-production-farm-phase50.yml'
+
+jobs:
+  phase50-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify SLA migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_integrity_sla_escalation.sql'
+          test -s "$sql"
+          grep -q 'equipment_owner_payment_integrity_severity' "$sql"
+          grep -q "CRITICAL.*4 hours\|4 hours" "$sql"
+          grep -q "HIGH.*24 hours\|24 hours" "$sql"
+          grep -q 'assigned_to' "$sql"
+          grep -q 'ASSIGNED' "$sql"
+          grep -q 'ESCALATED' "$sql"
+          grep -q 'get_equipment_owner_payment_integrity_assignees' "$sql"
+          grep -q 'assign_equipment_owner_payment_integrity_incident' "$sql"
+          grep -q 'equipment-owner-payment-integrity-escalation-hourly' "$sql"
+          grep -q '15 \* \* \* \*' "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Check UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/equipment-payment-integrity-incidents.js
+          grep -q 'CRITICAL 0' admin/equipment-payment-integrity-incidents.js
+          grep -q 'Просрочено 0' admin/equipment-payment-integrity-incidents.js
+          grep -q 'assign_equipment_owner_payment_integrity_incident' admin/equipment-payment-integrity-incidents.js
+          grep -q 'Ответственный' admin/equipment-payment-integrity-incidents.js
+
+      - name: Verify docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE50.md'
+          test -s "$doc"
+          grep -q 'phase50_integrity_sla_escalation_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'ORIGINAL_AMOUNT_MISMATCH' "$doc"
+          grep -q '3D staff' "$doc"
+          grep -q 'PH50 events = 0' "$doc"

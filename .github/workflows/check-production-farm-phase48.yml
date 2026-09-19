@@ -1,0 +1,70 @@
+name: Check Production Farm Phase 48
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260918_production_farm_owner_payment_reconciliation.sql'
+      - 'docs/PRODUCTION_FARM_PHASE48.md'
+      - 'admin/equipment-payment-reconciliation.html'
+      - 'admin/equipment-payment-reconciliation.js'
+      - 'admin/equipment-payment-control.html'
+      - 'admin/navigation.js'
+      - 'partner/equipment-owner-payment-reconciliation.js'
+      - 'partner/equipment.html'
+      - '.github/workflows/check-production-farm-phase48.yml'
+
+jobs:
+  phase48-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260918_production_farm_owner_payment_reconciliation.sql'
+          test -s "$sql"
+          grep -q 'equipment_owner_payment_reconciliation' "$sql"
+          grep -q 'security_invoker=true' "$sql"
+          grep -q 'PAID_WITHOUT_ACTIVE_POSTING' "$sql"
+          grep -q 'ORIGINAL_TRANSACTION_MISMATCH' "$sql"
+          grep -q 'REVERSAL_TRANSACTION_MISMATCH' "$sql"
+          grep -q 'PAYMENT_DOCUMENT_LINK_MISSING' "$sql"
+          grep -q 'list_equipment_owner_payment_reconciliation' "$sql"
+          grep -q 'get_my_equipment_owner_payment_reconciliation' "$sql"
+          grep -q 'assert_production_farm_security_baseline' "$sql"
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/equipment-payment-reconciliation.js
+          node --check partner/equipment-owner-payment-reconciliation.js
+          node --check admin/navigation.js
+
+      - name: Verify UI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'equipment-payment-reconciliation.js' admin/equipment-payment-reconciliation.html
+          grep -q 'equipment-payment-reconciliation.html' admin/equipment-payment-control.html
+          grep -q 'Сверка выплат' admin/navigation.js
+          grep -q 'equipment-owner-payment-reconciliation.js' partner/equipment.html
+          grep -q 'НА ПРОВЕРКЕ' partner/equipment-owner-payment-reconciliation.js
+
+      - name: Verify docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE48.md'
+          test -s "$doc"
+          grep -q 'phase48_owner_payment_reconciliation_ok' "$doc"
+          grep -q 'BEGIN ... ROLLBACK' "$doc"
+          grep -q 'ORIGINAL_TRANSACTION_MISMATCH' "$doc"
+          grep -q 'Partner B' "$doc"
+          grep -q 'PH48 cash rows = 0' "$doc"

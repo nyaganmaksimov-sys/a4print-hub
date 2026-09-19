@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 300" role="img" aria-labelledby="t d">
+<title id="t">A4-Касса</title><desc id="d">Система продаж, расчётов и управления</desc>
+<rect width="1400" height="300" fill="#fff"/>
+<g transform="translate(35 40)">
+  <text x="0" y="155" font-family="Arial Black,DejaVu Sans,sans-serif" font-size="170" font-weight="900" fill="#000">A4</text>
+  <path d="M176 4h88l-27 54h-39z" fill="#ffd500"/>
+  <path d="M202 78h30v62h55v29h-85z" fill="#ec008c"/>
+  <path d="M211 177h83v42h-83z" fill="#00aeef"/>
+  <g transform="translate(330 12)">
+    <rect x="0" y="0" width="18" height="60" fill="#111"/>
+    <rect x="0" y="60" width="18" height="48" fill="#ffd500"/>
+    <rect x="0" y="108" width="18" height="48" fill="#ec008c"/>
+    <rect x="0" y="156" width="18" height="48" fill="#00aeef"/>
+  </g>
+  <g transform="translate(385 20)">
+    <rect x="0" y="0" width="145" height="105" rx="26" fill="#000"/>
+    <rect x="18" y="18" width="109" height="72" rx="14" fill="#fff"/>
+    <rect x="40" y="33" width="67" height="13" rx="7" fill="#ec008c"/>
+    <rect x="40" y="54" width="67" height="13" rx="7" fill="#ffd500"/>
+    <rect x="40" y="75" width="67" height="13" rx="7" fill="#00aeef"/>
+    <rect x="-10" y="92" width="165" height="90" rx="26" fill="#000"/>
+    <rect x="10" y="115" width="125" height="48" rx="12" fill="#fff"/>
+    <circle cx="36" cy="139" r="10" fill="#000"/><rect x="70" y="129" width="48" height="20" rx="9" fill="#ffd500"/>
+  </g>
+  <text x="575" y="157" font-family="Arial Black,DejaVu Sans,sans-serif" font-size="112" font-weight="900" letter-spacing="16" fill="#000">КАССА</text>
+  <text x="42" y="235" font-family="Arial,DejaVu Sans,sans-serif" font-size="33" letter-spacing="7" fill="#111">СИСТЕМА ПРОДАЖ, РАСЧЁТОВ И УПРАВЛЕНИЯ</text>
+</g></svg>

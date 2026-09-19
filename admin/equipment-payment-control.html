@@ -10,12 +10,13 @@
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
   <main class="main">
-    <header class="topbar"><div><h1>Контроль выплат владельцам</h1><p>Сроки расчётов, аренды и просроченные обязательства</p></div><div class="eq-actions"><a class="epc-back" href="./equipment.html">← Оборудование</a><button id="epcRefresh" type="button">↻ Обновить</button></div></header>
+    <header class="topbar"><div><h1>Контроль выплат владельцам</h1><p>Сроки расчётов, аренды и просроченные обязательства</p></div><div class="eq-actions"><a class="epc-back" href="./equipment.html">← Оборудование</a><a class="epc-back" href="./equipment-payment-reconciliation.html">Сверка выплат</a><button id="epcRefresh" type="button">↻ Обновить</button></div></header>
     <div class="epc-shell">
       <section class="epc-kpis"><article class="danger"><span>Просрочено</span><strong id="epcOverdue">0</strong><small>требует оплаты</small></article><article class="warn"><span>До 3 дней</span><strong id="epcSoon">0</strong><small>включая сегодня</small></article><article><span>Без даты</span><strong id="epcNoDate">0</strong><small>нужно назначить срок</small></article><article><span>Показано</span><strong id="epcShown">0</strong><small>обязательств</small></article></section>
       <section class="epc-card"><div class="epc-toolbar"><input id="epcSearch" type="search" placeholder="Партнёр, договор…"><select id="epcState"><option value="">Все состояния</option><option value="OVERDUE">Просрочено</option><option value="DUE_TODAY">Сегодня</option><option value="DUE_SOON">До 3 дней</option><option value="UPCOMING">Предстоящие</option><option value="NO_DUE_DATE">Без даты</option><option value="PAID">Оплачено</option></select><label><input id="epcPaid" type="checkbox"> Показать оплаченные</label></div><div id="epcError"></div><div id="epcList" class="epc-list"><div class="epc-empty">Загрузка…</div></div></section>
     </div>
   </main>
   <script type="module" src="./equipment-payment-control.js?v=20260915-1"></script>
+  <script type="module" src="./equipment-owner-payment-ledger.js?v=20260918-phase47-1"></script>
 </body>
 </html>

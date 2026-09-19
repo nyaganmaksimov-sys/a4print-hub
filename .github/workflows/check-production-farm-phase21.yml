@@ -50,7 +50,7 @@ jobs:
           grep -q "mark_equipment_contract_amendment_signed" admin/equipment-contract-amendments.js
           grep -q "apply_equipment_contract_amendment" admin/equipment-contract-amendments.js
           grep -q "equipment-contract-amendments.html.*Допсоглашения" admin/navigation.js
-          grep -q 'equipment-owner-contract-amendments.js?v=20260915-phase21-1' partner/equipment.html
+          grep -q 'equipment-owner-contract-amendments.js?v=' partner/equipment.html
           grep -q "get_my_equipment_contract_amendments" partner/equipment-owner-contract-amendments.js
           grep -q "get_equipment_contract_amendment_document" partner/equipment-owner-contract-amendments.js
           grep -q 'Было' partner/equipment-owner-contract-amendments.js

@@ -10,7 +10,6 @@ const service=supabaseUrl&&serviceKey?createClient(supabaseUrl,serviceKey,{auth:
 const installed=Symbol.for('a4print.pos.cash.balance.installed');
 const CACHE_TTL_MS=15000;
 const STALE_TTL_MS=5*60*1000;
-const LIVE_BUDGET_MS=3500;
 let balanceCache=null;
 let balanceInFlight=null;
 
@@ -24,7 +23,7 @@ async function auth(req){
   if(!bearer)return{error:'AUTH_REQUIRED'};
   const {data,error}=await service.auth.getUser(bearer);
   if(error||!data?.user)return{error:'INVALID_SESSION'};
-  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',data.user.id).maybeSingle();
+  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',data.user.id).eq('is_active',true).limit(1).maybeSingle();
   if(pErr)throw pErr;
   if(!profile||profile.is_active===false)return{error:'POS_ACCESS_REQUIRED'};
   const {data:roles,error:rErr}=await service.from('user_roles').select('roles(name)').eq('user_id',profile.id);
@@ -112,17 +111,12 @@ async function databaseCashBalance(){
 }
 
 async function responsiveCashBalance(){
-  const live=getCashBalance();
-  const fallback=new Promise((resolve,reject)=>{
-    setTimeout(()=>databaseCashBalance().then(resolve,reject),LIVE_BUDGET_MS);
-  });
-  try{return await Promise.race([live,fallback])}
-  catch(error){
-    if(balanceCache&&Date.now()-balanceCache.at<STALE_TTL_MS){
-      return{...balanceCache.result,cached:true,stale:true,warning:'MOYSKLAD_LIVE_UNAVAILABLE',calculated_at:new Date(balanceCache.at).toISOString()};
-    }
-    try{return await databaseCashBalance()}catch{throw error}
-  }
+  // Cashier UI is local-first: HUB is the immediate operational ledger.
+  // Start MoySklad reconciliation in the background only; it must never delay
+  // opening a shift, a cash dialog, or moving between POS screens.
+  const local=await databaseCashBalance();
+  getCashBalance().catch(()=>{});
+  return local;
 }
 
 const originalListen=express.application.listen;
@@ -135,7 +129,7 @@ express.application.listen=function patchedCashBalanceListen(...args){
         const ctx=await auth(req);
         if(ctx.error)return res.status(ctx.error.includes('AUTH')||ctx.error==='INVALID_SESSION'?401:403).json({success:false,error:ctx.error});
         if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
-        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
         if(!tenant.ok)return moySkladTenantError(res,tenant);
 
         let result;
@@ -169,7 +163,7 @@ express.application.listen=function patchedCashBalanceListen(...args){
         if(ctx.error)return res.status(ctx.error.includes('AUTH')||ctx.error==='INVALID_SESSION'?401:403).json({success:false,error:ctx.error});
         if(!ctx.isAdmin)return res.status(403).json({success:false,error:'ADMIN_REQUIRED',message:'Контрольный остаток может задавать только администратор.'});
         if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
-        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
         if(!tenant.ok)return moySkladTenantError(res,tenant);
         const amount=Number(req.body?.amount);
         if(!Number.isFinite(amount)||amount<0)return res.status(400).json({success:false,error:'INVALID_AMOUNT',message:'Укажите фактическую сумму наличных в кассе.'});

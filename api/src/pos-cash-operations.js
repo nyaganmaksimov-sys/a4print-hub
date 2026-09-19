@@ -63,12 +63,21 @@ async function refreshBalance(fallback){
   }catch{}
   return Number(fallback);
 }
-async function createCashDocument({type,amount,reason,operatorName}){
+async function createCashDocument({type,amount,reason,operatorName,verifiedCash}){
   const isOut=type==='CASH_OUT';
+  // The UI verifies the balance immediately before POST. Do not recalculate the
+  // entire cash ledger here: it fans out over historical MoySklad documents and
+  // can exceed the request timeout before the write even starts.
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'open_shift_start',at:Date.now()}));
   const shift=await openShift();
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'open_shift_done',at:Date.now(),shiftId:idOf(shift)}));
   const shiftId=idOf(shift);
   if(!shiftId)throw new Error('SHIFT_NOT_OPEN');
-  const before=await currentBalance();
+  const supplied=Number(verifiedCash);
+  const before=Number.isFinite(supplied)&&supplied>=0
+    ? {cash:supplied,available:true,source:'CLIENT_VERIFIED_IMMEDIATELY_BEFORE_POST'}
+    : await currentBalance();
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'balance_ready',at:Date.now(),cash:Number(before.cash),source:before.source||'SERVER_LEDGER'}));
   if(isOut&&amount>Number(before.cash)+0.0001){
     const error=new Error('CASH_OUT_EXCEEDS_BALANCE');
     error.cashBalance=Number(before.cash);
@@ -76,25 +85,29 @@ async function createCashDocument({type,amount,reason,operatorName}){
   }
 
   const entity=isOut?'retaildrawercashout':'retaildrawercashin';
-  const template=await msRequest(token,`/entity/${entity}/new`,{
-    method:'PUT',
-    body:JSON.stringify({retailShift:{meta:shift.meta}})
-  }).catch(()=>null);
+  // MoySklad requires agent on retail drawer cash documents. Ask the
+  // document template for the tenant-correct agent and other defaults.
+  const template=await msRequest(token,`/entity/${entity}/new`,{method:'PUT',body:JSON.stringify({retailShift:{meta:shift.meta}})});
   const actionText=isOut?'Изъятие денег':'Внесение денег';
   const payload={
     retailShift:{meta:shift.meta},
     organization:{meta:template?.organization?.meta||shift.organization?.meta},
+    agent:{meta:template?.agent?.meta},
     sum:Math.round(amount*100),
     moment:msDate(),
-    applicable:true,
     description:`A4PRINT KASSA · ${actionText} · Оператор: ${operatorName||'не указан'}${reason?` · Причина: ${reason}`:''}`
   };
   if(!payload.organization?.meta)delete payload.organization;
-  if(template?.agent?.meta)payload.agent={meta:template.agent.meta};
+  if(!payload.agent?.meta)throw new Error('MOYSKLAD_CASH_AGENT_UNAVAILABLE');
   if(template?.owner?.meta)payload.owner={meta:template.owner.meta};
+  if(template?.group?.meta)payload.group={meta:template.group.meta};
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_start',at:Date.now(),entity}));
   const operation=await msRequest(token,`/entity/${entity}`,{method:'POST',body:JSON.stringify(payload)});
-  const fallback=Number(before.cash)+(isOut?-amount:amount);
-  const after=await refreshBalance(fallback);
+  console.log('[POS_CASH_STAGE]',JSON.stringify({type,step:'moysklad_post_done',at:Date.now(),entity,operationId:idOf(operation)}));
+  // The financial document already exists at this point. Never hold the
+  // response open for another full ledger scan: a timeout here makes the UI
+  // report failure after money has actually moved and invites a duplicate.
+  const after=Number(before.cash)+(isOut?-amount:amount);
   return{shift,operation,cashBefore:Number(before.cash),cashAfter:after};
 }
 async function logOperation({operator,shift,operation,type,amount,reason}){
@@ -123,14 +136,21 @@ function cashError(res,next,error){
   if(message==='CASH_BASELINE_REQUIRED')return res.status(409).json({success:false,error:'CASH_BASELINE_REQUIRED',message:'Сначала укажите фактический остаток наличных в Настройках кассы.'});
   if(message==='CASH_BALANCE_UNAVAILABLE')return res.status(503).json({success:false,error:'CASH_BALANCE_UNAVAILABLE',message:'Не удалось проверить текущий остаток наличных. Операция отменена для защиты кассы.'});
   if(message==='CASH_OUT_EXCEEDS_BALANCE')return res.status(409).json({success:false,error:'CASH_OUT_EXCEEDS_BALANCE',cash_balance:Number(error.cashBalance||0),message:`В кассе сейчас ${Number(error.cashBalance||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ₽. Нельзя изъять больше.`});
-  return next(error);
+  if(/^MoySklad HTTP 4\d\d:/i.test(message))return res.status(422).json({success:false,error:'MOYSKLAD_CASH_OPERATION_REJECTED',message:'МойСклад отклонил операцию с наличными. Проверьте текущую смену и повторите операцию.',detail:message.slice(0,1200)});
+  if(/^MoySklad HTTP 5\d\d:/i.test(message))return res.status(502).json({success:false,error:'MOYSKLAD_TEMPORARY_ERROR',message:'МойСклад временно недоступен. Деньги не были списаны, повторите операцию.',detail:message.slice(0,1200)});
+  console.error('[POS_CASH_OPERATION_ERROR]', JSON.stringify({message, stack:error?.stack||null, cashBalance:error?.cashBalance??null}));
+  return res.status(500).json({success:false,error:'POS_CASH_OPERATION_FAILED',message:'Ошибка операции с наличными.',detail:message.slice(0,1200)});
 }
 async function handleCashOperation(req,res,next,type){
+  const trace=(step,extra={})=>console.log('[POS_CASH_TRACE]',JSON.stringify({type,step,...extra}));
   try{
+    trace('request_received');
     const ctx=await auth(req);
+    trace('auth_done',{ok:!ctx.error});
     if(ctx.error)return authError(res,ctx.error);
     if(!token)return res.status(503).json({success:false,error:'MOYSKLAD_NOT_CONFIGURED'});
-    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+    const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
+    trace('tenant_done',{ok:tenant.ok,organization:tenant.organization?.code||null});
     if(!tenant.ok)return moySkladTenantError(res,tenant);
     const amount=Number(req.body?.amount||0);
     const reason=clean(req.body?.reason,500);
@@ -138,7 +158,10 @@ async function handleCashOperation(req,res,next,type){
     if(!Number.isFinite(amount)||amount<=0)return res.status(400).json({success:false,error:'AMOUNT_REQUIRED',message:`Укажите сумму ${title} больше нуля.`});
     if(amount>10000000)return res.status(400).json({success:false,error:'AMOUNT_TOO_LARGE',message:`Слишком большая сумма ${title}.`});
     const operator=await selectedOperator(req,ctx);
-    const result=await createCashDocument({type,amount,reason,operatorName:operator?.full_name||operator?.email||ctx.user.email});
+    trace('operator_done',{operatorId:operator?.id||null});
+    trace('create_document_start',{amount});
+    const result=await createCashDocument({type,amount,reason,operatorName:operator?.full_name||operator?.email||ctx.user.email,verifiedCash:req.body?.verified_cash});
+    trace('create_document_done',{operationId:idOf(result.operation),cashBefore:result.cashBefore,cashAfter:result.cashAfter});
     await logOperation({operator,shift:result.shift,operation:result.operation,type,amount,reason});
     return res.json({
       success:true,
@@ -147,7 +170,10 @@ async function handleCashOperation(req,res,next,type){
       cash_before:result.cashBefore,
       cash_after:result.cashAfter
     });
-  }catch(error){return cashError(res,next,error)}
+  }catch(error){
+    console.error('[POS_CASH_TRACE_ERROR]',JSON.stringify({type,message:String(error?.message||error),name:error?.name||null,stack:error?.stack||null}));
+    return cashError(res,next,error)
+  }
 }
 
 const originalListen=express.application.listen;
@@ -159,7 +185,7 @@ express.application.listen=function patchedCashOperationsListen(...args){
       try{
         const ctx=await auth(req);
         if(ctx.error)return authError(res,ctx.error);
-        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id});
+        const tenant=await requireMoySkladOrganization({service,authUserId:ctx.user.id,posApp:true});
         if(!tenant.ok)return moySkladTenantError(res,tenant);
         const limit=Math.max(1,Math.min(100,Number(req.query?.limit||20)));
         const {data,error}=await service.from('pos_cash_operations')
