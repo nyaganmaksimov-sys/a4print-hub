@@ -1,5 +1,5 @@
 import{supabase}from'./guard.js?v=20260905-netfix1';
-import{riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing}from'./production-farm-deep-link.js?v=20260919-phase55-1';
+import{riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing}from'./production-farm-deep-link.js?v=20260919-phase55-1?v=20260919-phase55-1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const dt=v=>v?new Date(v).toLocaleString('ru-RU'):'—';
 const typeLabel={OWNER_SETTLEMENT:'Доля владельца',LEASE_CHARGE:'Аренда / выкуп'};
