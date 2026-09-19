@@ -12,7 +12,8 @@
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
   const JARVIS_KEY='a4print_jarvis_enabled_v1';
-  const jarvisEnabled=()=>{try{return localStorage.getItem(JARVIS_KEY)!=='0'}catch{return true}};
+  const DESKTOP=new URLSearchParams(location.search).get('desktop')==='1';
+  const jarvisEnabled=()=>{if(DESKTOP)return false;try{return localStorage.getItem(JARVIS_KEY)!=='0'}catch{return true}};
 
   window.__A4_JARVIS_DISABLED__=!jarvisEnabled();
   window.addEventListener('storage',event=>{
