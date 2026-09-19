@@ -48,7 +48,7 @@ jobs:
           grep -q 'production_farm_risk_rows' "$sql"
           grep -q "'PARTNER_DISPUTE'" "$sql"
           grep -q 'get_production_farm_risk_cockpit' "$sql"
-          grep -q "set search_path TO ''" "$sql"
+          grep -qi "set search_path TO ''" "$sql"
           grep -q 'assert_production_farm_security_baseline' "$sql"
 
       - name: Verify cockpit UI
