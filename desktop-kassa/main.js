@@ -1,6 +1,9 @@
 const {app,BrowserWindow,shell,ipcMain}=require('electron');
 const path=require('path');
 const KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/';
+// Some Windows GPU/driver combinations cause Electron surfaces to alternate between white and rendered frames.
+// The POS UI is lightweight, so software compositing is more stable and has negligible impact here.
+app.disableHardwareAcceleration();
 
 let mainWindow;
 const store={printer:''};
@@ -21,7 +24,8 @@ function createWindow(){
       preload:path.join(__dirname,'preload.js'),
       contextIsolation:true,
       nodeIntegration:false,
-      sandbox:true
+      sandbox:true,
+      backgroundThrottling:false
     }
   });
 
@@ -36,7 +40,10 @@ function createWindow(){
   mainWindow.webContents.on('did-fail-load',(_event,_code,_desc,url,isMainFrame)=>{ if(isMainFrame && url.startsWith(KASSA_URL)) setTimeout(()=>mainWindow && mainWindow.loadURL(KASSA_URL),2500); });
   const reveal=()=>{if(splash&&!splash.isDestroyed())splash.destroy();if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}};
   mainWindow.webContents.on('did-finish-load',reveal);
-  mainWindow.webContents.on('render-process-gone',()=>{reveal();setTimeout(()=>mainWindow&&!mainWindow.isDestroyed()&&mainWindow.reload(),1500);});
+  mainWindow.webContents.on('render-process-gone',(_event,details)=>{
+    console.error('A4-Kassa renderer stopped:',details.reason,details.exitCode);
+    reveal();
+  });
   mainWindow.loadURL(KASSA_URL).catch(()=>reveal());
   setTimeout(reveal,8000);
   mainWindow.on('closed',()=>{mainWindow=null});
