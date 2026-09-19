@@ -3,6 +3,7 @@ const path=require('path');
 const KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/';
 
 let mainWindow;
+const store={printer:''};
 const gotLock=app.requestSingleInstanceLock();
 if(!gotLock){ app.quit(); }
 app.on('second-instance',()=>{ if(mainWindow){ if(mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
@@ -33,8 +34,11 @@ function createWindow(){
     event.preventDefault();if(/^https?:/i.test(url))shell.openExternal(url);
   });
   mainWindow.webContents.on('did-fail-load',(_event,_code,_desc,url,isMainFrame)=>{ if(isMainFrame && url.startsWith(KASSA_URL)) setTimeout(()=>mainWindow && mainWindow.loadURL(KASSA_URL),2500); });
-  mainWindow.loadURL(KASSA_URL);
-  mainWindow.once('ready-to-show',()=>{splash.destroy();mainWindow.show();mainWindow.focus()});
+  const reveal=()=>{if(splash&&!splash.isDestroyed())splash.destroy();if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}};
+  mainWindow.webContents.on('did-finish-load',reveal);
+  mainWindow.webContents.on('render-process-gone',()=>{reveal();setTimeout(()=>mainWindow&&!mainWindow.isDestroyed()&&mainWindow.reload(),1500);});
+  mainWindow.loadURL(KASSA_URL).catch(()=>reveal());
+  setTimeout(reveal,8000);
   mainWindow.on('closed',()=>{mainWindow=null});
 }
 ipcMain.handle('a4-kassa:print',async()=>{ if(!mainWindow) return {ok:false}; const printers=await mainWindow.webContents.getPrintersAsync(); return {ok:true,printers:printers.map(p=>({name:p.name,displayName:p.displayName,isDefault:p.isDefault}))}; });
