@@ -1,5 +1,5 @@
 import{supabase}from'./guard.js?v=20260905-netfix1';
-import{riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing}from'./production-farm-deep-link.js';
+import{riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing}from'./production-farm-deep-link.js?v=20260919-phase55-1';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),date=v=>v?new Date(`${String(v).slice(0,10)}T00:00:00`).toLocaleDateString('ru-RU'):'—',money=(v,c='RUB')=>`${Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})} ${c==='RUB'?'₽':c}`;
 const STATUS={DRAFT:'Черновик',ISSUED:'Выпущено',ACKNOWLEDGED:'Подтверждено',DISPUTED:'Оспорено',SETTLED:'Урегулировано',WAIVED:'Снято',CANCELLED:'Отменено'};
 const DIR={HUB_TO_OWNER:'HUB → владелец',OWNER_TO_HUB:'Владелец → HUB',MUTUAL:'Взаимное / совместное'};
