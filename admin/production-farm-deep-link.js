@@ -4,6 +4,26 @@ const riskKeys=['event','entity_id','contract','claim','response','incident'];
 export function riskParam(name){return String(params.get(name)||'').trim()}
 export function hasRiskDeepLink(){return riskKeys.some(key=>riskParam(key))}
 
+function cockpitReturnHref(){
+  const raw=String(params.get('cockpit')||'').slice(0,600);
+  if(!raw)return'./production-farm-risk.html';
+  const source=new URLSearchParams(raw);
+  const target=new URLSearchParams();
+  const categoryValues=new Set(['PAYMENT_INTEGRITY','PAYMENT_OBLIGATION','CONTRACT_DEADLINE','CONDITION_CLAIM','PARTNER_DISPUTE','EQUIPMENT_INCIDENT']);
+  const severityValues=new Set(['CRITICAL','HIGH','MEDIUM','LOW']);
+  const triageValues=new Set(['mine','unassigned','ack']);
+  const q=String(source.get('q')||'').trim().slice(0,120);
+  const category=String(source.get('category')||'').toUpperCase();
+  const severity=String(source.get('severity')||'').toUpperCase();
+  const triage=String(source.get('triage')||'');
+  if(q)target.set('q',q);
+  if(categoryValues.has(category))target.set('category',category);
+  if(severityValues.has(severity))target.set('severity',severity);
+  if(triageValues.has(triage))target.set('triage',triage);
+  if(source.get('overdue')==='1')target.set('overdue','1');
+  return'./production-farm-risk.html'+(target.size?'?'+target.toString():'');
+}
+
 function ensureStyle(){
   if(document.getElementById('productionFarmDeepLinkStyle'))return;
   const s=document.createElement('style');
@@ -22,7 +42,7 @@ export function installRiskCockpitReturnLink(){
   a=document.createElement('a');
   a.id='productionFarmRiskReturn';
   a.className='pf-risk-return';
-  a.href='./production-farm-risk.html';
+  a.href=cockpitReturnHref();
   a.textContent='← К рискам Production Farm';
   host.prepend(a);
   return a;
