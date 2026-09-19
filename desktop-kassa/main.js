@@ -2,6 +2,11 @@ const {app,BrowserWindow,session}=require('electron');
 const fs=require('fs');
 const path=require('path');
 const KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/';
+// Windows workstation compatibility: renderer exit code 3 is a Chromium GPU-process crash on affected drivers.
+// Disable GPU before app ready and keep software rasterization enabled for the POS shell only.
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
 let mainWindow;
 function log(...parts){try{fs.appendFileSync(path.join(app.getPath('userData'),'desktop.log'),new Date().toISOString()+' '+parts.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ')+'\n')}catch{}}
 function diagnostic(title,detail=''){if(!mainWindow||mainWindow.isDestroyed())return;const safe=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));mainWindow.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>body{font:16px system-ui;background:#f6fbfc;color:#17202a;padding:40px}main{max-width:760px;margin:auto;background:white;padding:32px;border-radius:18px;box-shadow:0 8px 30px #0001}h1{color:#087f8c}pre{white-space:pre-wrap;background:#f4f6f8;padding:16px;border-radius:10px}</style><main><h1>A4-Касса: ошибка запуска</h1><p>${safe(title)}</p><pre>${safe(detail)}</pre><p>Диагностика сохранена: ${safe(path.join(app.getPath('userData'),'desktop.log'))}</p></main>`));}
@@ -15,7 +20,7 @@ async function createWindow(){
   mainWindow=new BrowserWindow({
     width:1440,height:900,minWidth:1100,minHeight:700,show:false,
     title:'A4PRINT KASSA 2.1',backgroundColor:'#f6fbfc',autoHideMenuBar:true,
-    webPreferences:{partition,contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}
+    webPreferences:{partition,contextIsolation:true,nodeIntegration:false,sandbox:false,backgroundThrottling:false}
   });
   const reveal=()=>{if(!splash.isDestroyed())splash.destroy();if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}};
   mainWindow.webContents.on('did-start-navigation',(_e,url,isInPlace,isMain)=>{if(isMain)log('NAV START',url)});
@@ -28,6 +33,7 @@ async function createWindow(){
     log('LOAD FAIL',code,desc,url); diagnostic('Страница кассы не загрузилась.',`Код: ${code}\n${desc}\n${url}`);
   });
   mainWindow.webContents.on('render-process-gone',(_e,d)=>{log('RENDER GONE',d);diagnostic('Процесс отображения кассы завершился.',`${d.reason}; code ${d.exitCode}`)});
+  mainWindow.webContents.on('child-process-gone',(_e,d)=>log('CHILD GONE',d));
   // Do not intercept navigation, redirects, auth callbacks or window creation.
   // The desktop shell deliberately behaves like a normal Chromium tab.
   await mainWindow.loadURL(KASSA_URL,{userAgent:mainWindow.webContents.getUserAgent().replace(/ Electron\/[^ ]+/,'')}).catch(console.error);
