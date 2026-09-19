@@ -12,7 +12,7 @@ const categoryLabel={
   PARTNER_DISPUTE:'Спор владельца',
   EQUIPMENT_INCIDENT:'Инцидент оборудования'
 };
-const state={data:null,items:[],assignees:[],canAct:false,loading:false};
+const state={data:null,items:[],assignees:[],canAct:false,loading:false,history:null};
 
 style();
 bind();
@@ -43,7 +43,8 @@ function style(){
   .pfr-pill.MEDIUM{background:#fef3c7;color:#92400e}.pfr-pill.LOW{background:#e0f2fe;color:#075985}
   .pfr-pill.ACK{background:#dcfce7;color:#166534}.pfr-pill.UNASSIGNED{background:#f1f5f9;color:#475569}
   .pfr-due.overdue{color:#b91c1c;font-weight:900}
-  .pfr-actions{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
+  .pfr-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .pfr-actions select{min-width:150px;flex:1 1 150px}
   .pfr-actions button,.pfr-open{border:1px solid #cbd5e1;border-radius:9px;padding:8px 10px;background:#fff;color:#0f172a;font-weight:800;font-size:12px}
   .pfr-actions button.primary{background:#0f172a;color:#fff;border-color:#0f172a}
   .pfr-open{display:inline-flex;text-decoration:none;justify-content:center}
@@ -53,6 +54,18 @@ function style(){
   .pfr-error{padding:10px 12px;background:#fef2f2;color:#991b1b;border-radius:10px}
   .pfr-info{padding:9px 11px;background:#eff6ff;color:#1e40af;border-radius:10px;margin-bottom:10px;font-size:12px}
   .pfr-back{display:inline-flex;text-decoration:none;border:1px solid #cbd5e1;border-radius:10px;padding:9px 12px;color:#0f172a;background:#fff;font-weight:700}
+  .pfr-history-dialog{width:min(760px,calc(100vw - 28px));max-height:82vh;border:0;border-radius:18px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.24)}
+  .pfr-history-dialog::backdrop{background:rgba(15,23,42,.42)}
+  .pfr-history-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px 12px;border-bottom:1px solid #e2e8f0}
+  .pfr-history-head h2,.pfr-history-head p{margin:0}.pfr-history-head p{margin-top:4px;color:#64748b;font-size:12px}
+  .pfr-history-head button{border:0;background:#f1f5f9;border-radius:9px;width:34px;height:34px;font-size:22px;cursor:pointer}
+  .pfr-history-meta{padding:10px 20px;color:#64748b;font-size:12px}
+  .pfr-history-list{display:grid;gap:8px;padding:0 20px 20px;overflow:auto;max-height:60vh}
+  .pfr-history-item{border:1px solid #e2e8f0;border-radius:12px;padding:11px 13px}
+  .pfr-history-item .head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .pfr-history-item .who,.pfr-history-item .when{font-size:11px;color:#64748b}
+  .pfr-history-item .note{margin-top:6px;white-space:pre-wrap;color:#334155;font-size:12px}
+  .pfr-history-item .assignment{margin-top:5px;font-size:11px;color:#1d4ed8}
   @media(max-width:1200px){.pfr-kpis{grid-template-columns:repeat(3,1fr)}.pfr-row{grid-template-columns:1fr 1fr}.pfr-row>div:first-child,.pfr-row>.pfr-actions{grid-column:1/-1}}
   @media(max-width:900px){.pfr-grid{grid-template-columns:1fr 1fr}.pfr-toolbar{grid-template-columns:1fr 1fr}}
   @media(max-width:620px){.pfr-shell{padding:12px}.pfr-kpis,.pfr-grid,.pfr-toolbar,.pfr-row,.pfr-actions{grid-template-columns:1fr}.pfr-row>div:first-child,.pfr-row>.pfr-actions{grid-column:auto}}
@@ -65,7 +78,8 @@ function bind(){
   for(const id of['pfrSearch','pfrCategory','pfrSeverity','pfrOverdueOnly']){
     $(id).addEventListener(id==='pfrSearch'?'input':'change',render);
   }
-  $('pfrList').addEventListener('click',handleAction);
+  $('pfrList').addEventListener('click',handleListClick);
+  $('pfrHistoryClose').onclick=()=>$('pfrHistoryDlg').close();
 }
 
 async function load(){
@@ -161,14 +175,17 @@ function card(x){
     +(acknowledged?'<span class="pfr-pill ACK">ACK</span>':'')
     +(!assigned?'<span class="pfr-pill UNASSIGNED">БЕЗ ОТВЕТСТВЕННОГО</span>':'');
 
+  const historyButton='<button type="button" data-risk-history>История</button>';
   const controls=state.canAct
     ?'<div class="pfr-actions">'
       +'<select data-risk-assignee>'+assigneeOptions(assigned)+'</select>'
       +'<button type="button" class="primary" data-risk-action="assign">Назначить</button>'
       +(acknowledged?'':'<button type="button" data-risk-action="ack">ACK</button>')
+      +'<button type="button" data-risk-action="note">Заметка</button>'
+      +historyButton
       +'<a class="pfr-open" href="'+esc(x.href||'#')+'">Открыть →</a>'
       +'</div>'
-    :'<div class="pfr-actions"><a class="pfr-open" href="'+esc(x.href||'#')+'">Открыть →</a></div>';
+    :'<div class="pfr-actions">'+historyButton+'<a class="pfr-open" href="'+esc(x.href||'#')+'">Открыть →</a></div>';
 
   return '<article class="pfr-row '+(x.overdue?'overdue ':'')+(acknowledged?'acknowledged':'')+'" data-category="'+esc(x.category)+'" data-entity-id="'+esc(x.entity_id)+'">'
     +'<div><h3>'+esc(x.title||'Риск')+'</h3>'
@@ -182,7 +199,14 @@ function card(x){
     +'</article>';
 }
 
-async function handleAction(ev){
+async function handleListClick(ev){
+  const historyBtn=ev.target.closest('button[data-risk-history]');
+  if(historyBtn){
+    const row=historyBtn.closest('.pfr-row');
+    if(row)await openHistory(row);
+    return;
+  }
+
   const btn=ev.target.closest('button[data-risk-action]');
   if(!btn)return;
   const row=btn.closest('.pfr-row');
@@ -201,18 +225,22 @@ async function handleAction(ev){
     }
   }
 
-  const defaultNote=action==='assign'
-    ?'Назначено из Production Farm risk cockpit'
-    :'Принято в работу из Production Farm risk cockpit';
-  const note=prompt(action==='assign'?'Комментарий к назначению:':'Комментарий ACK:',defaultNote);
+  const prompts={
+    assign:['Комментарий к назначению:','Назначено из Production Farm risk cockpit'],
+    ack:['Комментарий ACK:','Принято в работу из Production Farm risk cockpit'],
+    note:['Заметка к риску:','']
+  };
+  const [label,defaultNote]=prompts[action]||prompts.note;
+  const note=prompt(label,defaultNote);
   if(!note)return;
 
   btn.disabled=true;
   try{
+    const actionMap={assign:'ASSIGN',ack:'ACKNOWLEDGE',note:'NOTE'};
     const{error}=await supabase.rpc('apply_production_farm_risk_action',{
       p_category:category,
       p_entity_id:entityId,
-      p_action:action==='assign'?'ASSIGN':'ACKNOWLEDGE',
+      p_action:actionMap[action]||'NOTE',
       p_assigned_to:assignedTo,
       p_note:note
     });
@@ -225,6 +253,56 @@ async function handleAction(ev){
   }
 }
 
+async function openHistory(row){
+  const category=row.dataset.category;
+  const entityId=row.dataset.entityId;
+  const item=state.items.find(x=>x.category===category&&x.entity_id===entityId);
+  const dlg=$('pfrHistoryDlg');
+  $('pfrHistoryTitle').textContent=item?.title||'История риска';
+  $('pfrHistorySubtitle').textContent=(categoryLabel[category]||category)+' · '+(item?.subtitle||entityId);
+  $('pfrHistoryMeta').textContent='Загрузка истории…';
+  $('pfrHistoryList').innerHTML='<div class="pfr-empty">Загрузка…</div>';
+  state.history={category,entityId};
+  if(!dlg.open)dlg.showModal();
+
+  try{
+    const{data,error}=await supabase.rpc('get_production_farm_risk_action_history',{
+      p_category:category,
+      p_entity_id:entityId,
+      p_limit:50
+    });
+    if(error)throw error;
+    if(!state.history||state.history.category!==category||state.history.entityId!==entityId)return;
+    renderHistory(data||{});
+  }catch(e){
+    $('pfrHistoryMeta').textContent='';
+    $('pfrHistoryList').innerHTML='<div class="pfr-error">'+esc(friendly(e))+'</div>';
+  }
+}
+
+function renderHistory(data){
+  const rows=Array.isArray(data?.actions)?data.actions:[];
+  const total=Number(data?.total||0);
+  $('pfrHistoryMeta').textContent=total
+    ?'Событий: '+total+(total>rows.length?' · показаны последние '+rows.length:'')
+    :'История действий пока пуста.';
+  $('pfrHistoryList').innerHTML=rows.length?rows.map(historyItem).join('')
+    :'<div class="pfr-empty">Для этого риска ещё нет действий cockpit.</div>';
+}
+
+function historyItem(x){
+  const labels={ASSIGNED:'Назначен ответственный',ACKNOWLEDGED:'Принято в работу',NOTE:'Заметка'};
+  const actor=x.acted_by_name||'Сотрудник';
+  const assignment=x.action_type==='ASSIGNED'&&x.assigned_to_name
+    ?'<div class="assignment">Ответственный: '+esc(x.assigned_to_name)+'</div>':'';
+  return '<article class="pfr-history-item">'
+    +'<div class="head"><strong>'+esc(labels[x.action_type]||x.action_type||'Действие')+'</strong><span class="when">'+esc(dt(x.created_at))+'</span></div>'
+    +'<div class="who">'+esc(actor)+'</div>'
+    +assignment
+    +'<div class="note">'+esc(x.note||'—')+'</div>'
+    +'</article>';
+}
+
 function friendly(e){
   const m=String(e?.message||e||'Ошибка');
   const map={
@@ -232,6 +310,8 @@ function friendly(e){
     RISK_ASSIGNEE_REQUIRED:'Выберите ответственного.',
     RISK_ASSIGNEE_NOT_AVAILABLE:'Этот сотрудник недоступен для назначения.',
     RISK_ACTION_NOTE_REQUIRED:'Добавьте комментарий к действию.',
+    RISK_CATEGORY_INVALID:'Неизвестная категория риска.',
+    RISK_ENTITY_REQUIRED:'Не указан объект риска.',
     PERMISSION_DENIED:'Недостаточно прав для изменения workflow риска.'
   };
   for(const[k,v]of Object.entries(map))if(m.includes(k))return v;
