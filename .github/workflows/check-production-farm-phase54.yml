@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'database/migrations/20260919_production_farm_risk_action_timeline.sql'
+      - 'database/migrations/20260919_production_farm_risk_action_timeline_security.sql'
       - 'admin/production-farm-risk.html'
       - 'admin/production-farm-risk.js'
       - 'docs/PRODUCTION_FARM_PHASE54.md'
@@ -43,9 +44,20 @@ jobs:
           grep -q "revoke all on function public.get_production_farm_risk_action_history" "$sql"
           grep -q "grant execute on function public.get_production_farm_risk_action_history" "$sql"
           if grep -Eq '^create table|^alter table|^drop table' "$sql"; then
-            echo 'Phase 54 must not create or alter tables'
+            echo 'Phase 54 base timeline migration must not create or alter tables'
             exit 1
           fi
+
+          hardening='database/migrations/20260919_production_farm_risk_action_timeline_security.sql'
+          test -s "$hardening"
+          grep -q 'create schema if not exists risk_private' "$hardening"
+          grep -q 'risk_private.get_production_farm_risk_action_history' "$hardening"
+          grep -q 'security invoker' "$hardening"
+          grep -q "set search_path=''" "$hardening"
+          grep -q 'revoke all on schema risk_private from public,anon' "$hardening"
+          grep -q 'grant usage on schema risk_private to authenticated' "$hardening"
+          grep -q 'grant execute on function risk_private.get_production_farm_risk_action_history' "$hardening"
+          grep -q 'authenticated_table_select' docs/PRODUCTION_FARM_PHASE54.md || true
 
       - name: Verify cockpit notes and timeline
         shell: bash
@@ -67,6 +79,10 @@ jobs:
           doc='docs/PRODUCTION_FARM_PHASE54.md'
           test -s "$doc"
           grep -q 'phase54_risk_action_timeline_ok' "$doc"
+          grep -q 'phase54_risk_action_timeline_hardened_ok' "$doc"
+          grep -q 'SECURITY INVOKER' "$doc"
+          grep -q 'security baseline violations = 0' "$doc"
+          grep -q 'новых findings для timeline RPC = 0' "$doc"
           grep -q 'A4 ↔ 3D' "$doc"
           grep -q 'test rows after rollback: 0' "$doc"
           grep -q 'direct SELECT' "$doc"
