@@ -31,9 +31,17 @@ NOTE:
 
 ## History RPC
 
-Добавлен:
+Добавлен публичный Data API wrapper:
 
 `get_production_farm_risk_action_history(category, entity_id, limit default 50)`.
+
+После security hardening финальная схема такая:
+
+- `public.get_production_farm_risk_action_history(...)` — `SECURITY INVOKER`;
+- privileged table read находится в `risk_private.get_production_farm_risk_action_history(...)`;
+- `risk_private` не является публичным API schema;
+- browser role получает только USAGE schema + EXECUTE конкретного private reader;
+- direct SELECT таблицы не выдаётся.
 
 RPC:
 
@@ -69,9 +77,13 @@ Live rollback verification проверил две организации A4 ↔
 - actor name возвращается только в своей organization;
 - после rollback тестовых action rows = 0.
 
-Результат:
+Результаты:
 
 `phase54_risk_action_timeline_ok`
+
+после hardening:
+
+`phase54_risk_action_timeline_hardened_ok`
 
 ## Privileges
 
@@ -82,7 +94,11 @@ Live после migration:
 - `anon` direct SELECT `production_farm_risk_actions` = false;
 - `authenticated` direct SELECT `production_farm_risk_actions` = false;
 - RLS существующего append-only журнала остаётся включён;
-- UPDATE/DELETE journal по-прежнему блокируются Phase 52 trigger.
+- UPDATE/DELETE journal по-прежнему блокируются Phase 52 trigger;
+- public history wrapper: SECURITY DEFINER = false;
+- private reader: SECURITY DEFINER = true + empty search_path;
+- Production Farm security baseline violations = 0;
+- Supabase Security Advisor: новых findings для timeline RPC = 0.
 
 ## UI timeline
 
@@ -106,8 +122,9 @@ Dialog показывает:
 
 ## Verification
 
-- live migration applied;
+- обе live migrations applied;
 - rollback tenant test: `phase54_risk_action_timeline_ok`;
+- hardened rollback tenant test: `phase54_risk_action_timeline_hardened_ok`;
 - test rows after rollback: 0;
 - history table remains unavailable for direct browser SELECT;
 - UI JavaScript syntax проверяется отдельным CI;
