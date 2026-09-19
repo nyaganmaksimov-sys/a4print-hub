@@ -10,10 +10,10 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "./assets/a4-kassa-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "./assets/a4-kassa-icon.webp",
+      "sizes": "153x140",
+      "type": "image/webp",
+      "purpose": "any"
     }
   ]
 }
