@@ -23,6 +23,13 @@ async function createWindow(){
     webPreferences:{partition,contextIsolation:true,nodeIntegration:false,sandbox:false,backgroundThrottling:false}
   });
   const reveal=()=>{if(!splash.isDestroyed())splash.destroy();if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}};
+  mainWindow.webContents.on('will-navigate',(event,url)=>{
+    if(/^https:\/\/a4print-hub\.ru\/kassa\/login\.html(?:[?#]|$)/i.test(url)){
+      log('BYPASS LEGACY LOGIN REDIRECT',url);
+      event.preventDefault();
+      return;
+    }
+  });
   mainWindow.webContents.on('did-start-navigation',(_e,url,isInPlace,isMain)=>{if(isMain)log('NAV START',url)});
   mainWindow.webContents.on('did-redirect-navigation',(_e,url,isInPlace,isMain)=>{if(isMain)log('NAV REDIRECT',url)});
   mainWindow.webContents.on('did-navigate',(_e,url)=>log('NAV DONE',url));
