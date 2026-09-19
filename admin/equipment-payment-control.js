@@ -1,5 +1,5 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
-import {riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing} from './production-farm-deep-link.js?v=20260919-phase55-1';
+import {riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing} from './production-farm-deep-link.js?v=20260919-phase55-1?v=20260919-phase55-1';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const date=v=>v?new Date(`${String(v).slice(0,10)}T00:00:00`).toLocaleDateString('ru-RU'):'—';
