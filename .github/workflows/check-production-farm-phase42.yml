@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'database/migrations/20260918_production_farm_equipment_composition_annex.sql'
+      - 'database/migrations/20260919_production_farm_equipment_composition_final_guards.sql'
       - 'admin/equipment-contract-amendments.html'
       - 'admin/equipment-contract-amendments.js'
       - 'admin/equipment-contract-composition.js'
@@ -62,6 +63,13 @@ jobs:
           grep -q 'current_partner_id()' "$sql"
           grep -q 'EQUIPMENT_CONTRACT_ENTITY_NOT_AVAILABLE' "$sql"
 
+          final='database/migrations/20260919_production_farm_equipment_composition_final_guards.sql'
+          test -s "$final"
+          grep -q 'assert_non_partner_staff_context' "$final"
+          grep -q 'assert_equipment_asset_tenant' "$final"
+          grep -q "equipment_contract_initial_composition_save'',''0" "$final"
+          grep -q 'assert_production_farm_security_baseline' "$final"
+
       - name: Verify UI wiring
         shell: bash
         run: |
@@ -80,6 +88,7 @@ jobs:
           doc='docs/PRODUCTION_FARM_PHASE42.md'
           test -s "$doc"
           grep -q 'phase42_equipment_composition_annex_ok' "$doc"
+          grep -q 'phase42_save_contract_period_model_ok' "$doc"
           grep -q 'phase42_temporal_termination_scope_ok' "$doc"
           grep -q 'phase42_cross_contract_period_guard_ok' "$doc"
           grep -q 'phase42_partner_portal_acceptance_ok' "$doc"
