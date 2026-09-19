@@ -80,7 +80,7 @@ jobs:
           grep -q 'equipment-payment-integrity-incidents.js?v=20260919-phase53-1' admin/equipment-payment-reconciliation.html
           grep -q 'equipment-payment-control.js?v=20260919-phase53-1' admin/equipment-payment-control.html
           grep -q 'equipment-contract-deadlines.js?v=20260919-phase53-1' admin/equipment-contract-deadlines.html
-          grep -q 'equipment-condition-claims.js?v=20260919-phase53-1' admin/equipment-condition-claims.html
+          grep -q 'equipment-condition-claims.js?v=20260915-phase27-1-phase53-1' admin/equipment-condition-claims.html
           grep -q 'equipment-partner-responses.js?v=20260919-phase53-1' admin/equipment-partner-responses.html
           grep -q 'equipment-incidents.js?v=20260919-phase53-1' admin/equipment.html
 
