@@ -1,0 +1,90 @@
+name: Check Production Farm Phase 56
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260920_production_farm_server_side_risk_triage.sql'
+      - 'admin/production-farm-risk.html'
+      - 'admin/production-farm-risk.js'
+      - 'docs/PRODUCTION_FARM_PHASE56.md'
+      - '.github/workflows/check-production-farm-phase56.yml'
+
+jobs:
+  phase56-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: node --check admin/production-farm-risk.js
+
+      - name: Verify server-side cockpit UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          js='admin/production-farm-risk.js'
+          html='admin/production-farm-risk.html'
+
+          grep -q "get_production_farm_risk_cockpit_page" "$js"
+          ! grep -q "get_my_staff_profile" "$js"
+          ! grep -q "state.items.filter" "$js"
+          ! grep -q "get_production_farm_risk_cockpit',{p_limit_per_category" "$js"
+
+          grep -q "p_category" "$js"
+          grep -q "p_severity" "$js"
+          grep -q "p_overdue_only" "$js"
+          grep -q "p_triage" "$js"
+          grep -q "p_search" "$js"
+          grep -q "p_limit" "$js"
+          grep -q "p_offset" "$js"
+
+          grep -q "pfrPageMeta" "$html"
+          grep -q "pfrLoadMore" "$html"
+          grep -q "Показать ещё" "$html"
+          grep -q "20260920-phase56-1" "$html"
+
+          grep -q "pendingReload" "$js"
+          grep -q "assigneesLoaded" "$js"
+          grep -q "filtered_summary" "$js"
+          grep -q "page.has_more" "$js"
+
+      - name: Verify page RPC security
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260920_production_farm_server_side_risk_triage.sql'
+          test -s "$sql"
+
+          grep -q 'risk_private.get_production_farm_risk_cockpit_page' "$sql"
+          grep -q 'public.get_production_farm_risk_cockpit_page' "$sql"
+          grep -q 'SECURITY DEFINER' "$sql"
+          grep -q 'LANGUAGE sql' "$sql"
+          grep -q "SET search_path TO ''" "$sql"
+
+          grep -q "v_triage='MINE'" "$sql"
+          grep -q "v_triage='UNASSIGNED'" "$sql"
+          grep -q "v_triage='ACK'" "$sql"
+          grep -q 'offset v_offset' "$sql"
+          grep -q 'limit v_limit' "$sql"
+          grep -q "'filtered_summary'" "$sql"
+          grep -q "'has_more'" "$sql"
+
+          grep -q 'revoke all on function public.get_production_farm_risk_cockpit_page' "$sql"
+          grep -q 'revoke all on function risk_private.get_production_farm_risk_cockpit_page' "$sql"
+          grep -q 'select private.assert_production_farm_security_baseline();' "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE56.md'
+          test -s "$doc"
+          grep -q 'phase56_server_side_triage_pagination_ok' "$doc"
+          grep -q 'phase56_server_side_triage_hardened_ok' "$doc"
+          grep -q 'старый RPC' "$doc"
+          grep -q 'UNASSIGNED total = 24' "$doc"
+          grep -q 'Supabase Security Advisor findings для page RPC = 0' "$doc"
