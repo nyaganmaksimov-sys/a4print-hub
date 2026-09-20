@@ -198,7 +198,7 @@
   }
   function isSampleCatalogItem(row){
     const n=catalogText(row);
-    return /^образец\b.*печат/.test(n)||/^образец\s+дизайнерской\s+печати/.test(n);
+    return n.startsWith('образец');
   }
   function isHiddenCatalogItem(row){
     const category=String(row?.category||'').trim().toLowerCase();
