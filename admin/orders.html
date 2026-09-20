@@ -7,7 +7,7 @@
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260909-orders4">
   <link rel="stylesheet" href="./orders-workspace.css?v=20260913-responsive2">
-  <link rel="stylesheet" href="./orders-fixes.css?v=20260909-files2">
+  <link rel="stylesheet" href="./orders-fixes.css?v=20260920-partners1">
   <script src="./config.js?v=20260913-orders-responsive1"></script>
 </head>
 <body class="orders-page">
@@ -57,6 +57,30 @@
         <button id="closeNewOrder" class="order-create-close" type="button" aria-label="Закрыть">×</button>
       </div>
       <div class="order-create-body">
+        <div class="order-kind-picker" role="group" aria-label="Тип заказа">
+          <button type="button" class="order-kind-card active" data-order-kind="STANDARD"><span class="order-kind-icon">◆</span><span><b>Обычный заказ</b><small>Товары и услуги А4-Принт / 3D-ARTPRINT</small></span></button>
+          <button type="button" class="order-kind-card" data-order-kind="MEMORIAL"><span class="order-kind-icon">▣</span><span><b>Памятники / фотокерамика</b><small>Партнёр «Сфера»</small></span></button>
+          <button type="button" class="order-kind-card" data-order-kind="SOUVENIR"><span class="order-kind-icon">◇</span><span><b>Сувениры и знаки</b><small>Партнёр «Сфера»</small></span></button>
+          <button type="button" class="order-kind-card" data-order-kind="TYPOGRAPHY"><span class="order-kind-icon">▤</span><span><b>Типография</b><small>Визитки, листовки и полиграфия · «Группа М»</small></span></button>
+        </div>
+
+        <section id="partnerOrderPanel" class="partner-order-panel" hidden>
+          <div class="partner-order-head">
+            <div><span id="partnerOrderEyebrow">Партнёрский заказ</span><h3 id="partnerOrderTitle">Параметры заказа</h3><p id="partnerOrderDescription"></p></div>
+            <a id="partnerCatalogLink" href="#" target="_blank" rel="noopener noreferrer">Открыть каталог партнёра ↗</a>
+          </div>
+          <div id="partnerOrderPresets" class="partner-order-presets"></div>
+          <div class="partner-order-grid">
+            <label class="order-create-field"><span id="partnerMaterialLabel">Материал</span><input id="partnerMaterial" autocomplete="off"></label>
+            <label class="order-create-field"><span id="partnerFormatLabel">Размер / формат</span><input id="partnerFormat" autocomplete="off"></label>
+            <label class="order-create-field"><span id="partnerColorLabel">Цветность</span><input id="partnerColor" autocomplete="off"></label>
+            <label class="order-create-field"><span id="partnerFinishingLabel">Обработка</span><input id="partnerFinishing" autocomplete="off"></label>
+            <label class="order-create-field"><span>Артикул / модель / ссылка</span><input id="partnerReference" autocomplete="off" placeholder="Например: T1, модель 61 или ссылка на товар"></label>
+            <label class="order-create-field"><span>Себестоимость у партнёра, ₽ / ед.</span><input id="partnerCost" type="number" min="0" step="0.01" value="0"></label>
+          </div>
+          <div id="partnerMargin" class="partner-margin">Себестоимость партнёра можно указать для контроля маржи.</div>
+        </section>
+
         <div class="order-create-grid">
           <label class="order-create-field full"><span>Клиент</span><select id="newOrderCustomer"><option>Загрузка клиентов…</option></select></label>
           <div id="newOrderCustomerFields" class="order-create-new-customer" hidden>
@@ -67,7 +91,7 @@
           <label class="order-create-field"><span>Источник</span><select id="newOrderSource"><option>Офис</option><option>Телефон</option><option>WhatsApp</option><option>Telegram</option><option>Сайт</option><option>Другое</option></select></label>
           <label class="order-create-field full"><span>Услуга / товар *</span><input id="newOrderItem" list="orderCatalogList" autocomplete="off" placeholder="Начните вводить название из каталога или укажите вручную" required><datalist id="orderCatalogList"></datalist></label>
           <label class="order-create-field"><span>Количество *</span><input id="newOrderQty" type="number" min="0.001" step="0.001" value="1" required></label>
-          <label class="order-create-field"><span>Цена за единицу, ₽ *</span><input id="newOrderPrice" type="number" min="0" step="0.01" value="0" required></label>
+          <label class="order-create-field"><span>Цена клиенту за единицу, ₽ *</span><input id="newOrderPrice" type="number" min="0" step="0.01" value="0" required></label>
           <label class="order-create-field full"><span>Итого</span><input id="newOrderTotal" value="0 ₽" readonly></label>
           <label class="order-create-field full"><span>Комментарий</span><textarea id="newOrderComment" placeholder="Пожелания клиента, параметры заказа, срок и другая важная информация"></textarea></label>
           <div class="order-create-field full">
@@ -91,7 +115,7 @@
   </dialog>
 
   <script type="module" src="./orders.js?v=20260913-attention1"></script>
-  <script type="module" src="./orders-create.js?v=20260909-files2"></script>
+  <script type="module" src="./orders-create.js?v=20260920-partners1"></script>
   <script type="module" src="./order-catalog-quick.js?v=20260909-2"></script>
   <script type="module" src="./order-delete-request.js?v=20260912-moderation2"></script>
 </body>
