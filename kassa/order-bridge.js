@@ -13,7 +13,8 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Пауза'};
-  let overlay=null,listEl=null,detailEl=null,searchEl=null,current=null,loading=false,serviceItem=null,orders=[];\n  let activeFilter='ALL',activeSort='NEWEST';
+  let overlay=null,listEl=null,detailEl=null,searchEl=null,current=null,loading=false,serviceItem=null,orders=[];
+  let activeFilter='ALL',activeSort='NEWEST';
 
   async function token(){const {data,error}=await supabase.auth.getSession();if(error)throw error;const t=data?.session?.access_token;if(!t)throw new Error('Сессия кассы завершена. Войдите снова.');return t}
   async function api(path,opt={}){const t=await token();const r=await fetch(API+path,{...opt,cache:'no-store',headers:{Authorization:`Bearer ${t}`,'Content-Type':'application/json',Accept:'application/json',...(opt.headers||{})}});const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);return d}
