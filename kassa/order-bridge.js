@@ -2,6 +2,7 @@
   'use strict';
   if(window.__A4_KASSA_ORDER_BRIDGE__)return;
   window.__A4_KASSA_ORDER_BRIDGE__=true;
+  // Partner order templates are created in HUB; this bridge intentionally stays payment-only.
 
   const cfg=window.A4PRINT_CONFIG||{};
   const create=window.supabase?.createClient;
