@@ -9,7 +9,7 @@ const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER
 
 const ORDER_WORKFLOWS={
   STANDARD:{partner:null,title:'Обычный заказ',url:'',description:'Стандартный заказ А4-Принт или 3D-ARTPRINT.',presets:[]},
-  MEMORIAL:{partner:'Сфера',title:'Памятники / фотокерамика',url:'https://shop.sferazakaz.ru/catalog/photokeramika',description:'Портреты и изделия для памятников. Фото и макеты прикрепляйте к заказу ниже.',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / композиция сложной формы','Нестандартная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона в золотом обрамлении','Временная табличка','Вкладка в цветник'],labels:{material:'Материал',format:'Размер / форма',color:'Цветность',finishing:'Ретушь / отверстия'},placeholders:{material:'Металл, керамика, фарфор, керамогранит…',format:'Например 18×24, овал / прямоугольник',color:'Цветной / чёрно-белый / сепия',finishing:'Без ретуши, сложная ретушь; отверстия…'}},
+  MEMORIAL:{partner:'Сфера',title:'Памятники / фотокерамика',url:'https://sferazakaz.ru/katalog/fotokeramika',description:'Портреты и изделия для памятников. Фото и макеты прикрепляйте к заказу ниже.',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / композиция сложной формы','Нестандартная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона в золотом обрамлении','Временная табличка','Вкладка в цветник'],labels:{material:'Материал',format:'Размер / форма',color:'Цветность',finishing:'Ретушь / отверстия'},placeholders:{material:'Металл, керамика, фарфор, керамогранит…',format:'Например 18×24, овал / прямоугольник',color:'Цветной / чёрно-белый / сепия',finishing:'Без ретуши, сложная ретушь; отверстия…'}},
   SOUVENIR:{partner:'Сфера',title:'Сувенирная продукция и знаки',url:'https://sferazakaz.ru/',description:'Заказы на сувенирные изделия, информационные знаки, таблички и нестандартную продукцию «Сферы».',presets:['Информационный знак','Табличка','Сувенирная продукция','Памятное изделие','Нестандартное изделие'],labels:{material:'Материал',format:'Размер / габариты',color:'Цвет / нанесение',finishing:'Обработка / крепление'},placeholders:{material:'Металл, пластик, керамика и т. п.',format:'Размер изделия',color:'Цвет, печать, гравировка…',finishing:'Отверстия, крепление, упаковка…'}},
   TYPOGRAPHY:{partner:'Группа М',title:'Типография',url:'https://gmprint.ru/',description:'Заказы на полиграфию через типографию «Группа М». Укажите тираж в количестве, а производственные параметры — ниже.',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:{material:'Бумага / материал',format:'Формат',color:'Цветность / стороны',finishing:'Постпечатная обработка'},placeholders:{material:'Мелованная, дизайнерская, плотность…',format:'A6, A5, A4, 90×50 мм…',color:'4+0, 4+4, ч/б…',finishing:'Ламинация, скругление, фальцовка, сверление…'}}
 };
@@ -297,7 +297,7 @@ async function submitOrder(event){
 
   save.disabled=true;save.textContent='Создание…';
   try{
-    const {data,error}=await supabase.rpc('create_hub_manual_order',{
+    const commonArgs={
       p_customer_id:customerChoice&&customerChoice!=='__NEW__'?customerChoice:null,
       p_customer_name:newCustomer?customerName:null,
       p_customer_phone:newCustomer?($('newOrderCustomerPhone').value.trim()||null):null,
@@ -307,7 +307,12 @@ async function submitOrder(event){
       p_unit_price:price,
       p_comment:buildOrderComment(),
       p_source:$('newOrderSource').value||'Офис'
-    });
+    };
+    const isPartner=state.orderKind!=='STANDARD';
+    const flow=ORDER_WORKFLOWS[state.orderKind];
+    const rpc=isPartner?'create_hub_partner_manual_order':'create_hub_manual_order';
+    const args=isPartner?{...commonArgs,p_partner_name:flow.partner,p_partner_workflow:state.orderKind,p_partner_unit_cost:Number($('partnerCost')?.value||0)}:commonArgs;
+    const {data,error}=await supabase.rpc(rpc,args);
     if(error)throw error;
     const result=Array.isArray(data)?data[0]:data;
     if(result?.id){
