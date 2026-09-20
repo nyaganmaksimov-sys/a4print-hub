@@ -109,6 +109,62 @@ function applyCatalogPrice(){
   }
 }
 
+function clearPartnerFields(){
+  for(const id of ['partnerMaterial','partnerFormat','partnerColor','partnerFinishing','partnerReference'])if($(id))$(id).value='';
+  if($('partnerCost'))$('partnerCost').value='0';
+}
+
+function setOrderKind(kind){
+  const next=ORDER_WORKFLOWS[kind]?kind:'STANDARD';
+  state.orderKind=next;
+  document.querySelectorAll('[data-order-kind]').forEach(button=>button.classList.toggle('active',button.dataset.orderKind===next));
+  const panel=$('partnerOrderPanel'),flow=ORDER_WORKFLOWS[next];
+  if(next==='STANDARD'){
+    if(panel)panel.hidden=true;
+    updatePartnerMargin();
+    return;
+  }
+  if(panel)panel.hidden=false;
+  $('partnerOrderEyebrow').textContent='Партнёр · '+flow.partner;
+  $('partnerOrderTitle').textContent=flow.title;
+  $('partnerOrderDescription').textContent=flow.description;
+  const link=$('partnerCatalogLink');link.href=flow.url;link.textContent='Открыть каталог «'+flow.partner+'» ↗';
+  const labels=flow.labels||{},placeholders=flow.placeholders||{};
+  $('partnerMaterialLabel').textContent=labels.material||'Материал';$('partnerMaterial').placeholder=placeholders.material||'';
+  $('partnerFormatLabel').textContent=labels.format||'Размер / формат';$('partnerFormat').placeholder=placeholders.format||'';
+  $('partnerColorLabel').textContent=labels.color||'Цветность';$('partnerColor').placeholder=placeholders.color||'';
+  $('partnerFinishingLabel').textContent=labels.finishing||'Обработка';$('partnerFinishing').placeholder=placeholders.finishing||'';
+  $('partnerOrderPresets').innerHTML=(flow.presets||[]).map((name,index)=>'<button type="button" data-partner-preset="'+index+'">'+esc(name)+'</button>').join('');
+  $('newOrderUnit').value='A4_PRINT';
+  updatePartnerMargin();
+}
+
+function choosePartnerPreset(index){
+  const flow=ORDER_WORKFLOWS[state.orderKind];const name=flow?.presets?.[Number(index)];
+  if(!name)return;
+  $('newOrderItem').value=name;
+  $('partnerOrderPresets')?.querySelectorAll('[data-partner-preset]').forEach(button=>button.classList.toggle('active',Number(button.dataset.partnerPreset)===Number(index)));
+  $('newOrderPrice')?.focus();
+}
+
+function buildOrderComment(){
+  const note=$('newOrderComment')?.value.trim()||'';
+  if(state.orderKind==='STANDARD')return note||null;
+  const flow=ORDER_WORKFLOWS[state.orderKind];
+  const fields=[
+    'Партнёрский заказ: '+flow.partner+' — '+flow.title,
+    $('partnerMaterial')?.value.trim()?$('partnerMaterialLabel').textContent+': '+$('partnerMaterial').value.trim():'',
+    $('partnerFormat')?.value.trim()?$('partnerFormatLabel').textContent+': '+$('partnerFormat').value.trim():'',
+    $('partnerColor')?.value.trim()?$('partnerColorLabel').textContent+': '+$('partnerColor').value.trim():'',
+    $('partnerFinishing')?.value.trim()?$('partnerFinishingLabel').textContent+': '+$('partnerFinishing').value.trim():'',
+    $('partnerReference')?.value.trim()?'Артикул / модель / ссылка: '+$('partnerReference').value.trim():'',
+    Number($('partnerCost')?.value||0)>0?'Себестоимость партнёра: '+money(Number($('partnerCost').value||0))+' ₽ / ед.':'',
+    'Каталог партнёра: '+flow.url,
+    note?'Комментарий клиента: '+note:''
+  ].filter(Boolean);
+  return fields.join('\n');
+}
+
 function fileSize(bytes){
   const value=Number(bytes||0);
   if(value<1024)return `${value} Б`;
