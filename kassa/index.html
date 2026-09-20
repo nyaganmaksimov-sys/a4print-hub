@@ -67,14 +67,16 @@
 
       <main class="workspace">
         <aside id="saleSidebar" class="category-panel">
-          <div class="category-head">Категории</div>
-          <button class="category active" data-category="ALL"><span>▰</span><b>Все</b></button>
-          <button class="category" data-category="FAVORITES"><span>★</span><b>Избранное</b></button>
+          <div class="category-head"><span>Категории</span><small>рабочий каталог</small></div>
+          <button class="category category-primary active" data-category="CORE"><span>◆</span><b>Основные услуги</b><small id="coreCategoryCount">0</small></button>
+          <button class="category category-favorites" data-category="FAVORITES"><span>★</span><b>Избранное</b><small id="favoritesCategoryCount">0</small></button>
+          <button class="category" data-category="ALL"><span>▰</span><b>Все позиции</b><small id="allCategoryCount">0</small></button>
+          <div class="category-separator">По направлениям</div>
           <div id="dynamicCategories" class="category-list"></div>
         </aside>
 
         <section id="saleCatalog" class="catalog-panel">
-          <div class="catalog-toolbar"><div><h1 id="catalogTitle">Товары</h1><span id="catalogMeta">Загрузка каталога…</span></div><div class="toolbar-actions"><button id="toggleFavoritesOnly" class="btn light" type="button">★ Избранное</button><button id="refreshCatalog" class="btn light" type="button">Обновить</button></div></div>
+          <div class="catalog-toolbar"><div><h1 id="catalogTitle">Основные услуги</h1><span id="catalogMeta">Загрузка каталога…</span></div><div class="toolbar-actions catalog-toolbar-actions"><label class="catalog-sort-label"><span>Сортировка</span><select id="catalogSort" aria-label="Сортировка каталога"><option value="SMART">Удобная</option><option value="NAME">По названию</option><option value="PRICE_ASC">Цена ↑</option><option value="PRICE_DESC">Цена ↓</option></select></label><button id="refreshCatalog" class="btn light" type="button">↻ Обновить</button></div></div>
           <div id="catalogGrid" class="catalog-grid list-mode"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
         </section>
 

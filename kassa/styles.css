@@ -93,3 +93,49 @@ body.nav-collapsed .nav-brand-full{display:none!important}
 body.nav-collapsed .nav-brand-icon{display:block!important}
 body.nav-collapsed .nav-brand>span{display:none!important}
 @media(max-width:1280px){.nav-brand-full{width:160px!important}}
+
+
+/* 2026-09-20: cashier-first catalog organization */
+.category-head{height:auto;min-height:52px;display:flex;align-items:flex-start;justify-content:center;flex-direction:column;gap:2px;padding:9px 16px}
+.category-head>span{font-size:14px;font-weight:850;color:#253249}
+.category-head>small{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#98a2b3}
+.category-separator{padding:11px 16px 7px;background:#f6f8fa;border-bottom:1px solid #e7edf2;color:#8a96a5;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.category.category-primary{background:#f8fcfd}
+.category.category-favorites>span{color:#f59e0b}
+.category.category-favorites.active>span{color:#d88a00}
+.category.active{box-shadow:inset 3px 0 0 var(--teal);font-weight:800}
+.category small{min-width:24px;text-align:center;padding:3px 6px;border-radius:999px;background:#f1f4f7;color:#738195;font-size:9px;font-weight:800}
+.category.active small{background:#fff;color:#087d88}
+.catalog-toolbar{height:auto;min-height:58px;padding:7px 12px;gap:12px}
+.catalog-toolbar>div:first-child{min-width:0}
+.catalog-toolbar h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catalog-toolbar-actions{align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.catalog-sort-label{display:flex;align-items:center;gap:6px}
+.catalog-sort-label>span{font-size:9px!important;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#98a2b3!important}
+.catalog-sort-label select{height:34px;border:1px solid #d6e0e8;border-radius:8px;background:#fff;padding:0 28px 0 9px;color:#344054;font-size:11px;font-weight:750;outline:none}
+.catalog-sort-label select:focus{border-color:#08aebb;box-shadow:0 0 0 3px rgba(8,174,187,.09)}
+.product-card.is-favorite{background:#fffdf8}
+.product-card.is-favorite:hover{background:#fffaf0}
+.product-card .meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.product-group{display:inline-flex;align-items:center;max-width:190px;padding:3px 7px;border-radius:999px;background:#eef8fa;color:#087f89;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.product-code{font-size:10px;color:#8b97a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catalog-grid.grid-mode .product-group{max-width:125px}
+.empty-grid{min-height:180px;display:grid;place-content:center;gap:7px;text-align:center;padding:40px 24px;color:#738195}
+.empty-grid b{font-size:13px;color:#667085}
+.empty-grid span{font-size:11px;color:#98a2b3}
+@media(max-width:980px){
+  .category-separator{display:none}
+  .category-head{display:none}
+  .category{min-height:48px;padding:0 12px}
+  .category small{min-width:20px;padding:2px 5px}
+  .catalog-toolbar{align-items:flex-start;flex-direction:column}
+  .catalog-toolbar-actions{width:100%;justify-content:space-between}
+  .catalog-sort-label{flex:1}
+  .catalog-sort-label select{flex:1;max-width:220px}
+}
+@media(max-width:560px){
+  .catalog-sort-label>span{display:none}
+  .catalog-sort-label select{max-width:none}
+  .toolbar-actions .btn{white-space:nowrap}
+  .product-group{max-width:130px}
+}
