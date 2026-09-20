@@ -19,7 +19,7 @@
   const state={
     session:null,profile:null,organizationId:null,isAdmin:false,isOperator:false,backendOnline:false,syncing:false,
     catalog:[],filtered:[],stock:{},accounts:[],operators:[],cart:[],customer:null,
-    category:'CORE',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',catalogSort:'SMART',
+    category:'FAVORITES',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',catalogSort:'SMART',
     catalogUpdated:null,installPrompt:null,discount:{type:'PERCENT',value:0}
   };
 
