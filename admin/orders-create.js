@@ -2,7 +2,7 @@ import { supabase } from './guard.js?v=20260905-netfix1';
 
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2});
-const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[m]));
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m==='"'?'&quot;':'&#39;');
 const MAX_FILE_SIZE=50*1024*1024;
 const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[],orderKind:'STANDARD'};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
