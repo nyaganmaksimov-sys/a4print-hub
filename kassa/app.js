@@ -250,7 +250,11 @@
     if($('coreCategoryCount'))$('coreCategoryCount').textContent=String(core);
     if($('favoritesCategoryCount'))$('favoritesCategoryCount').textContent=String(favorites);
     if($('allCategoryCount'))$('allCategoryCount').textContent=String(regular.length);
-    $('dynamicCategories').innerHTML=CATALOG_GROUPS.filter(x=>(counts.get(x.id)||0)>0).map(x=>`<button class="category" data-category="${x.id}"><span>${x.icon}</span><b>${esc(x.label)}</b><small>${counts.get(x.id)}</small></button>`).join('');
+    const visibleGroups=CATALOG_GROUPS.filter(x=>(counts.get(x.id)||0)>0);
+    $('dynamicCategories').innerHTML=visibleGroups.map(x=>{
+      const divider=x.id==='STAMP_MAKE'?'<div class="category-subhead">Печати и штампы</div>':'';
+      return divider+`<button class="category" data-category="${x.id}"><span>${x.icon}</span><b>${esc(x.label)}</b><small>${counts.get(x.id)}</small></button>`;
+    }).join('');
     document.querySelectorAll('.category').forEach(b=>b.onclick=()=>setCategory(b.dataset.category,b));
     document.querySelectorAll('.category').forEach(b=>b.classList.toggle('active',b.dataset.category===state.category));
   }
