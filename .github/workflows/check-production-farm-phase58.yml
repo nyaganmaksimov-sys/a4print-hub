@@ -1,0 +1,83 @@
+name: Check Production Farm Phase 58
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/equipment.html'
+      - 'admin/equipment-qr.js'
+      - 'docs/PRODUCTION_FARM_PHASE58.md'
+      - '.github/workflows/check-production-farm-phase58.yml'
+
+jobs:
+  phase58-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: node --check admin/equipment-qr.js
+
+      - name: Verify equipment QR deep link
+        shell: bash
+        run: |
+          set -euo pipefail
+          js='admin/equipment-qr.js'
+          html='admin/equipment.html'
+
+          grep -q "get_my_permissions" "$js"
+          grep -q "searchParams.set('equipment',id)" "$js"
+          grep -q "openDeepLink" "$js"
+          grep -q "equipment_assets" "$js"
+          grep -q "production_operator_overview" "$js"
+          grep -q "production_operator_action" "$js"
+
+          grep -q "data-eq-qr-action" "$js"
+          grep -q "data-eq-qr-complete" "$js"
+          grep -q "data-eq-qr-service" "$js"
+          grep -q "data-eq-qr-incident" "$js"
+          grep -q "printLabel" "$js"
+
+          grep -q "production.manage" "$js"
+          grep -q "equipment.repair" "$js"
+          grep -q "equipment.view" "$js"
+
+      - name: Verify local QR rendering contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          js='admin/equipment-qr.js'
+          html='admin/equipment.html'
+
+          grep -q "qrcodejs/1.0.0/qrcode.min.js" "$html"
+          grep -q "integrity=\"sha512-CNgIRec" "$html"
+          grep -q "window.QRCode" "$js"
+          grep -q "equipment-qr.js?v=20260920-phase58-1" "$html"
+
+          if grep -Eqi 'api\.qrserver|quickchart|chart\.google|api\.qrcode' "$js" "$html"; then
+            echo 'Phase 58 must not send equipment deep links to an external QR generation API'
+            exit 1
+          fi
+
+      - name: Verify no parallel equipment identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          js='admin/equipment-qr.js'
+          ! grep -Eqi 'qr_token|equipment_qr_tokens|insert\(.*qr|from\(.equipment_qr' "$js"
+          grep -q "equipment_assets" "$js"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE58.md'
+          test -s "$doc"
+          grep -q 'phase58_equipment_qr_a4_visibility_ok' "$doc"
+          grep -q 'phase58_equipment_qr_tenant_isolation_ok' "$doc"
+          grep -q 'не требует миграции' "$doc"
+          grep -q 'QR не является токеном авторизации' "$doc"
+          grep -q 'production_operator_action' "$doc"
