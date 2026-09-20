@@ -12,14 +12,31 @@ const categoryLabel={
   PARTNER_DISPUTE:'Спор владельца',
   EQUIPMENT_INCIDENT:'Инцидент оборудования'
 };
-const state={data:null,items:[],assignees:[],assigneesLoaded:false,canAct:false,loading:false,loadingMore:false,pendingReload:false,history:null,page:{offset:0,limit:50,total:0,returned:0,hasMore:false},searchTimer:null};
+const state={data:null,items:[],assignees:[],assigneesLoaded:false,canAct:false,loading:false,loadingMore:false,pendingReload:false,history:null,page:{offset:0,limit:50,total:0,returned:0,hasMore:false},searchTimer:null,presets:[],presetsLoaded:false,presetsBusy:false};
 const triageValues=new Set(['mine','unassigned','ack']);
 const severityValues=new Set(['CRITICAL','HIGH','MEDIUM','LOW']);
 
 hydrateFiltersFromUrl();
 style();
 bind();
-load(true);
+bootstrap();
+
+async function bootstrap(){
+  const explicit=hasExplicitCockpitFilters();
+  await loadPresets();
+  if(!explicit){
+    const preset=state.presets.find(x=>x.is_default);
+    if(preset){
+      applyPresetFilters(preset.filters||{});
+      syncCockpitUrl();
+      setPresetSelection(preset.id);
+      setPresetStatus('Применено представление по умолчанию.');
+    }
+  }else{
+    syncPresetSelectionFromFilters();
+  }
+  await load(true);
+}
 
 function style(){
   const s=document.createElement('style');
@@ -36,6 +53,12 @@ function style(){
   .pfr-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 210px 170px 190px auto;gap:10px;align-items:center;margin-bottom:14px}
   .pfr-toolbar input,.pfr-toolbar select,.pfr-actions select{border:1px solid #cbd5e1;border-radius:10px;padding:9px;background:#fff}
   .pfr-toolbar label{display:flex;gap:7px;align-items:center}
+  .pfr-presets{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 0 14px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}
+  .pfr-presets select{min-width:230px;max-width:360px;flex:1 1 260px;border:1px solid #cbd5e1;border-radius:10px;padding:9px;background:#fff}
+  .pfr-presets button{border:1px solid #cbd5e1;border-radius:9px;padding:8px 10px;background:#fff;color:#0f172a;font-weight:800;font-size:12px;cursor:pointer}
+  .pfr-presets button:disabled{opacity:.5;cursor:not-allowed}
+  .pfr-presets button.danger{color:#991b1b;border-color:#fecaca}
+  .pfr-preset-status{font-size:11px;color:#64748b;flex:1 1 180px;text-align:right}
   .pfr-list{display:grid;gap:9px}
   .pfr-row{border:1px solid #e2e8f0;border-radius:14px;padding:13px;display:grid;grid-template-columns:minmax(0,1.4fr) .55fr .78fr minmax(280px,.9fr);gap:12px;align-items:center}
   .pfr-row.overdue{border-color:#fca5a5;background:#fffafa}
@@ -72,8 +95,8 @@ function style(){
   .pfr-history-item .note{margin-top:6px;white-space:pre-wrap;color:#334155;font-size:12px}
   .pfr-history-item .assignment{margin-top:5px;font-size:11px;color:#1d4ed8}
   @media(max-width:1200px){.pfr-kpis{grid-template-columns:repeat(3,1fr)}.pfr-row{grid-template-columns:1fr 1fr}.pfr-row>div:first-child,.pfr-row>.pfr-actions{grid-column:1/-1}}
-  @media(max-width:900px){.pfr-grid{grid-template-columns:1fr 1fr}.pfr-toolbar{grid-template-columns:1fr 1fr}}
-  @media(max-width:620px){.pfr-shell{padding:12px}.pfr-kpis,.pfr-grid,.pfr-toolbar,.pfr-row,.pfr-actions{grid-template-columns:1fr}.pfr-row>div:first-child,.pfr-row>.pfr-actions{grid-column:auto}}
+  @media(max-width:900px){.pfr-grid{grid-template-columns:1fr 1fr}.pfr-toolbar{grid-template-columns:1fr 1fr}.pfr-preset-status{text-align:left}}
+  @media(max-width:620px){.pfr-shell{padding:12px}.pfr-kpis,.pfr-grid,.pfr-toolbar,.pfr-row,.pfr-actions{grid-template-columns:1fr}.pfr-presets{align-items:stretch}.pfr-presets select,.pfr-presets button{width:100%;max-width:none}.pfr-row>div:first-child,.pfr-row>.pfr-actions{grid-column:auto}}
   `;
   document.head.appendChild(s);
 }
@@ -86,14 +109,24 @@ function bind(){
   }
   $('pfrList').addEventListener('click',handleListClick);
   $('pfrHistoryClose').onclick=()=>$('pfrHistoryDlg').close();
+  $('pfrPreset').addEventListener('change',updatePresetButtons);
+  $('pfrPresetApply').onclick=applySelectedPreset;
+  $('pfrPresetSave').onclick=saveCurrentPreset;
+  $('pfrPresetUpdate').onclick=updateSelectedPreset;
+  $('pfrPresetDefault').onclick=toggleSelectedPresetDefault;
+  $('pfrPresetDelete').onclick=deleteSelectedPreset;
+  $('pfrPresetClear').onclick=clearPresetFilters;
+  $('pfrPresetDelete').classList.add('danger');
   window.addEventListener('popstate',()=>{
     hydrateFiltersFromUrl();
+    syncPresetSelectionFromFilters();
     load(true);
   });
 }
 
 function applyFilters(ev){
   syncCockpitUrl();
+  syncPresetSelectionFromFilters();
   clearTimeout(state.searchTimer);
   if(ev?.target?.id==='pfrSearch'){
     state.searchTimer=setTimeout(()=>load(true),250);
@@ -144,6 +177,214 @@ function syncCockpitUrl(){
   const p=cockpitStateParams();
   const next=window.location.pathname+(p.size?'?'+p.toString():'')+window.location.hash;
   window.history.replaceState(null,'',next);
+}
+
+function hasExplicitCockpitFilters(){
+  const p=new URLSearchParams(window.location.search);
+  return ['q','category','severity','triage','overdue'].some(key=>p.has(key));
+}
+
+function currentPresetFilters(){
+  const filters={};
+  const q=$('pfrSearch').value.trim().slice(0,120);
+  const category=$('pfrCategory').value;
+  const severity=$('pfrSeverity').value;
+  const triage=$('pfrTriage').value;
+  if(q)filters.q=q;
+  if(Object.prototype.hasOwnProperty.call(categoryLabel,category))filters.category=category;
+  if(severityValues.has(severity))filters.severity=severity;
+  if(triageValues.has(triage))filters.triage=triage;
+  if($('pfrOverdueOnly').checked)filters.overdue=true;
+  return filters;
+}
+
+function applyPresetFilters(filters={}){
+  const q=String(filters?.q||'').trim().slice(0,120);
+  const category=String(filters?.category||'').toUpperCase();
+  const severity=String(filters?.severity||'').toUpperCase();
+  const triage=String(filters?.triage||'').toLowerCase();
+  $('pfrSearch').value=q;
+  $('pfrCategory').value=Object.prototype.hasOwnProperty.call(categoryLabel,category)?category:'';
+  $('pfrSeverity').value=severityValues.has(severity)?severity:'';
+  $('pfrTriage').value=triageValues.has(triage)?triage:'';
+  $('pfrOverdueOnly').checked=filters?.overdue===true;
+}
+
+function presetFiltersKey(filters={}){
+  const normalized={};
+  const q=String(filters?.q||'').trim().slice(0,120);
+  const category=String(filters?.category||'').toUpperCase();
+  const severity=String(filters?.severity||'').toUpperCase();
+  const triage=String(filters?.triage||'').toLowerCase();
+  if(q)normalized.q=q;
+  if(Object.prototype.hasOwnProperty.call(categoryLabel,category))normalized.category=category;
+  if(severityValues.has(severity))normalized.severity=severity;
+  if(triageValues.has(triage))normalized.triage=triage;
+  if(filters?.overdue===true)normalized.overdue=true;
+  return JSON.stringify(normalized);
+}
+
+function selectedPreset(){
+  const id=$('pfrPreset').value;
+  return state.presets.find(x=>x.id===id)||null;
+}
+
+function setPresetSelection(id=''){
+  const select=$('pfrPreset');
+  select.value=state.presets.some(x=>x.id===id)?id:'';
+  updatePresetButtons();
+}
+
+function syncPresetSelectionFromFilters(){
+  if(!state.presetsLoaded)return;
+  const key=presetFiltersKey(currentPresetFilters());
+  const match=state.presets.find(x=>presetFiltersKey(x.filters||{})===key);
+  setPresetSelection(match?.id||'');
+}
+
+function updatePresetButtons(){
+  const preset=selectedPreset();
+  const disabled=state.presetsBusy||!preset;
+  $('pfrPresetApply').disabled=disabled;
+  $('pfrPresetUpdate').disabled=disabled;
+  $('pfrPresetDefault').disabled=disabled;
+  $('pfrPresetDelete').disabled=disabled;
+  $('pfrPresetSave').disabled=state.presetsBusy;
+  $('pfrPresetClear').disabled=state.presetsBusy;
+  $('pfrPresetDefault').textContent=preset?.is_default?'Снять по умолчанию':'По умолчанию';
+  if(preset){
+    setPresetStatus((preset.is_default?'★ По умолчанию · ':'')+'сохранено '+dt(preset.updated_at||preset.created_at));
+  }else if(!state.presetsBusy){
+    setPresetStatus(state.presets.length?'Выберите представление или сохраните текущее.':'Сохранённых представлений пока нет.');
+  }
+}
+
+function setPresetStatus(textValue){
+  $('pfrPresetStatus').textContent=textValue||'';
+}
+
+function renderPresets(selectId=''){
+  const select=$('pfrPreset');
+  select.innerHTML='<option value="">Сохранённые представления</option>'
+    +state.presets.map(p=>'<option value="'+esc(p.id)+'">'+(p.is_default?'★ ':'')+esc(p.name)+'</option>').join('');
+  setPresetSelection(selectId);
+}
+
+async function loadPresets(selectId=''){
+  state.presetsBusy=true;
+  updatePresetButtons();
+  try{
+    const{data,error}=await supabase.rpc('get_my_production_farm_risk_presets');
+    if(error)throw error;
+    state.presets=Array.isArray(data)?data:[];
+    state.presetsLoaded=true;
+    renderPresets(selectId);
+    return true;
+  }catch(e){
+    state.presets=[];
+    state.presetsLoaded=false;
+    renderPresets('');
+    setPresetStatus('Пресеты недоступны: '+friendly(e));
+    return false;
+  }finally{
+    state.presetsBusy=false;
+    updatePresetButtons();
+  }
+}
+
+async function savePreset({id=null,name,filters,makeDefault=false}){
+  state.presetsBusy=true;
+  updatePresetButtons();
+  try{
+    const{data,error}=await supabase.rpc('save_my_production_farm_risk_preset',{
+      p_name:name,
+      p_filters:filters,
+      p_make_default:Boolean(makeDefault),
+      p_preset_id:id
+    });
+    if(error)throw error;
+    await loadPresets(data||id||'');
+    setPresetStatus('Представление сохранено.');
+    return data||id||null;
+  }catch(e){
+    setPresetStatus(friendly(e));
+    alert(friendly(e));
+    return null;
+  }finally{
+    state.presetsBusy=false;
+    updatePresetButtons();
+  }
+}
+
+async function saveCurrentPreset(){
+  const name=prompt('Название представления:','');
+  if(name===null)return;
+  const clean=name.trim();
+  if(!clean)return;
+  await savePreset({name:clean,filters:currentPresetFilters(),makeDefault:false});
+}
+
+async function updateSelectedPreset(){
+  const preset=selectedPreset();
+  if(!preset)return;
+  const name=prompt('Название представления:',preset.name);
+  if(name===null)return;
+  const clean=name.trim();
+  if(!clean)return;
+  await savePreset({
+    id:preset.id,
+    name:clean,
+    filters:currentPresetFilters(),
+    makeDefault:Boolean(preset.is_default)
+  });
+}
+
+async function toggleSelectedPresetDefault(){
+  const preset=selectedPreset();
+  if(!preset)return;
+  await savePreset({
+    id:preset.id,
+    name:preset.name,
+    filters:preset.filters||{},
+    makeDefault:!preset.is_default
+  });
+}
+
+async function deleteSelectedPreset(){
+  const preset=selectedPreset();
+  if(!preset)return;
+  if(!confirm('Удалить представление «'+preset.name+'»?'))return;
+  state.presetsBusy=true;
+  updatePresetButtons();
+  try{
+    const{error}=await supabase.rpc('delete_my_production_farm_risk_preset',{p_preset_id:preset.id});
+    if(error)throw error;
+    await loadPresets('');
+    setPresetStatus('Представление удалено.');
+  }catch(e){
+    setPresetStatus(friendly(e));
+    alert(friendly(e));
+  }finally{
+    state.presetsBusy=false;
+    updatePresetButtons();
+  }
+}
+
+async function applySelectedPreset(){
+  const preset=selectedPreset();
+  if(!preset)return;
+  applyPresetFilters(preset.filters||{});
+  syncCockpitUrl();
+  setPresetStatus((preset.is_default?'★ ':'')+'Применено «'+preset.name+'».');
+  await load(true);
+}
+
+async function clearPresetFilters(){
+  applyPresetFilters({});
+  setPresetSelection('');
+  syncCockpitUrl();
+  setPresetStatus('Фильтры сброшены.');
+  await load(true);
 }
 
 function actionableHref(href){
@@ -423,6 +664,16 @@ function friendly(e){
     RISK_ACTION_NOTE_REQUIRED:'Добавьте комментарий к действию.',
     RISK_CATEGORY_INVALID:'Неизвестная категория риска.',
     RISK_ENTITY_REQUIRED:'Не указан объект риска.',
+    RISK_PRESET_NAME_INVALID:'Название представления должно содержать от 1 до 60 символов.',
+    RISK_PRESET_NAME_EXISTS:'Представление с таким названием уже существует.',
+    RISK_PRESET_LIMIT_REACHED:'Можно сохранить не более 20 представлений.',
+    RISK_PRESET_NOT_AVAILABLE:'Это представление недоступно или уже удалено.',
+    RISK_PRESET_FILTERS_MUST_BE_OBJECT:'Некорректные фильтры представления.',
+    RISK_PRESET_FILTER_KEY_INVALID:'Представление содержит неподдерживаемый фильтр.',
+    RISK_PRESET_SEARCH_TOO_LONG:'Поиск в представлении слишком длинный.',
+    RISK_PRESET_OVERDUE_MUST_BE_BOOLEAN:'Некорректный фильтр просрочки.',
+    RISK_TRIAGE_INVALID:'Некорректный triage-фильтр.',
+    RISK_SEVERITY_INVALID:'Некорректный приоритет риска.',
     PERMISSION_DENIED:'Недостаточно прав для изменения workflow риска.'
   };
   for(const[k,v]of Object.entries(map))if(m.includes(k))return v;
