@@ -177,9 +177,13 @@
   async function loadStock(){try{const d=await api('/api/v1/integrations/moysklad/stock');state.stock=d.stock||{};filterCatalog()}catch(e){console.warn('Stock:',e)}}
 
   const CATALOG_GROUPS=[
-    {id:'PRINT_COPY',label:'Печать и копирование',icon:'▤'},
+    {id:'PRINT_BASIC',label:'Печать и копии',icon:'▤'},
+    {id:'PRINT_COLOR',label:'Цветная печать',icon:'▨'},
+    {id:'PRINT_SPECIAL',label:'Плотная / широкоформатная',icon:'▥'},
     {id:'PHOTO_DOCS',label:'Фото на документы',icon:'▣'},
-    {id:'PHOTO_PRINT',label:'Фотопечать',icon:'▧'},
+    {id:'PHOTO_SMALL',label:'Фотопечать 10×15',icon:'▧'},
+    {id:'PHOTO_LARGE',label:'Фотопечать A5 / A4 / A3',icon:'▦'},
+    {id:'PHOTO_SPECIAL',label:'Фото на памятник и рамки',icon:'◇'},
     {id:'POST_PRINT',label:'Ламинация и переплёт',icon:'▥'},
     {id:'POLYGRAPHY',label:'Полиграфия',icon:'◇'},
     {id:'STAMP_MAKE',label:'Изготовление печатей',icon:'◉'},
@@ -193,7 +197,7 @@
     {id:'OTHER',label:'Прочее',icon:'•••'}
   ];
   const CATALOG_GROUP_BY_ID=Object.fromEntries(CATALOG_GROUPS.map(x=>[x.id,x]));
-  const CORE_GROUPS=new Set(['PRINT_COPY','PHOTO_DOCS','PHOTO_PRINT','POST_PRINT','POLYGRAPHY','DIGITAL']);
+  const CORE_GROUPS=new Set(['PRINT_BASIC','PRINT_COLOR','PRINT_SPECIAL','PHOTO_DOCS','PHOTO_SMALL','PHOTO_LARGE','POST_PRINT','POLYGRAPHY','DIGITAL']);
 
   function catalogText(row){
     return String(row?.name||'').toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x').replace(/\s+/g,' ').trim();
@@ -221,13 +225,17 @@
     if(/(оснастк|датер|trodat|colop|printy|самонаборн.*штамп|стандартн.*штамп)/.test(n))return 'STAMP_EQUIPMENT';
     if(/(изготовлени[ея]\s+печат|за\s+штамп|факсимил|оттиск|печат[ьи]\s+(ооо|ип|врач|педагог|нотари|кадастр))/.test(n))return 'STAMP_MAKE';
     if(/(фото\s+на\s+(паспорт|загран|документ|удостовер|виз|анкет)|фнд\b|3\s*[x*]\s*4)/.test(n))return 'PHOTO_DOCS';
-    if(/(фотопечат|фото\s*печат|печать\s+фото|10\s*x\s*15|15\s*x\s*21|21\s*x\s*30|30\s*x\s*42|фото\s*рамк|фото\s+на\s+памятник|а[345]\s+глянцев)/.test(n))return 'PHOTO_PRINT';
+    if(/(фото\s+на\s+памятник|фото\s*рамк)/.test(n))return 'PHOTO_SPECIAL';
+    if(/(10\s*x\s*15|фотопечат.*10\s*x\s*15|фото\s*печат.*10\s*x\s*15|печать\s+фото\s+10\s*x\s*15)/.test(n))return 'PHOTO_SMALL';
+    if(/(15\s*x\s*21|21\s*x\s*30|30\s*x\s*42|фотопечат|фото\s*печат|печать\s+фото|а[345]\s+глянцев)/.test(n))return 'PHOTO_LARGE';
     if(/(ламинир|броширов|переплет|переплёт|пружин|резк[аи]\s+бумаг)/.test(n))return 'POST_PRINT';
     if(/(визит|листов|буклет|флаер|накле|баннер|плакат|календар|открытк|грамот|сертификат|меню|табличк|изготовлени[ея]\s+карточ)/.test(n))return 'POLYGRAPHY';
     if(/(дизайн|макет|ретуш|цветокорр|набор\s+текст)/.test(n))return 'DESIGN';
     if(/(нотариальн.*перевод|перевод\s+(документ|паспорт|водитель|свидетель))/.test(n))return 'TRANSLATIONS';
     if(/(оцифров|запись\s+на\s+флеш|отправк.*email|электронн.*фото|сканир|скан\b)/.test(n))return 'DIGITAL';
-    if(/(черно-бел|чёрно-бел|цветн.*печат|печать\s*а[0-5]|а[0-5]\s+.*печат|копи[яир]|ксерок|печать\/копия|печать\s+диплом|печать\s+презентац|печать\s+доп\.?\s*лист|^печать$)/.test(n))return 'PRINT_COPY';
+    if(/(а0|широкоформат|плотн|самоклеящ|баннерн.*печат)/.test(n))return 'PRINT_SPECIAL';
+    if(/(цветн|\bцв\.?\b)/.test(n)&&/(печат|копи)/.test(n))return 'PRINT_COLOR';
+    if(/(черно-бел|чёрно-бел|\bч\/?б\b|\bчб\b|копи[яир]|ксерок|печать\/копия|печать\s*а[0-5]|а[0-5]\s+.*печат|печать\s+диплом|печать\s+презентац|печать\s+доп\.?\s*лист)/.test(n))return 'PRINT_BASIC';
     if(/(бумаг|папк|файл\b|ручк|карандаш|маркер|скотч|клей|конверт|тетрад)/.test(n))return 'STATIONERY';
     if(/(батарей|брелок|игрушк|статуэт|смартфон|кабель|заряд|наушник|сувенир)/.test(n))return 'COUNTER_GOODS';
     return 'OTHER';
@@ -252,7 +260,10 @@
     if($('allCategoryCount'))$('allCategoryCount').textContent=String(regular.length);
     const visibleGroups=CATALOG_GROUPS.filter(x=>(counts.get(x.id)||0)>0);
     $('dynamicCategories').innerHTML=visibleGroups.map(x=>{
-      const divider=x.id==='STAMP_MAKE'?'<div class="category-subhead">Печати и штампы</div>':'';
+      const divider=
+        x.id==='PRINT_BASIC'?'<div class="category-subhead">Печать и копирование</div>':
+        x.id==='PHOTO_DOCS'?'<div class="category-subhead">Фото</div>':
+        x.id==='STAMP_MAKE'?'<div class="category-subhead">Печати и штампы</div>':'';
       return divider+`<button class="category" data-category="${x.id}"><span>${x.icon}</span><b>${esc(x.label)}</b><small>${counts.get(x.id)}</small></button>`;
     }).join('');
     document.querySelectorAll('.category').forEach(b=>b.onclick=()=>setCategory(b.dataset.category,b));
@@ -287,6 +298,15 @@
       return String(a.name||'').localeCompare(String(b.name||''),'ru');
     });
   }
+  function dedupeCatalogRows(rows){
+    const seen=new Set(),out=[];
+    for(const row of rows){
+      const key=`${catalogText(row)}|${Number(row.sale_price||0).toFixed(2)}`;
+      if(seen.has(key))continue;
+      seen.add(key);out.push(row);
+    }
+    return out;
+  }
   function filterCatalog(){
     const q=state.search.trim().toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x');
     const allUsable=state.catalog.filter(x=>!isHiddenCatalogItem(x));
@@ -302,7 +322,7 @@
       else rows=regular.filter(x=>catalogGroupId(x)===state.category);
       $('catalogTitle').textContent=categoryTitle(state.category);
     }
-    state.filtered=sortCatalogRows(rows,q);
+    state.filtered=dedupeCatalogRows(sortCatalogRows(rows,q));
     renderCatalog();
   }
   function renderCatalog(){
