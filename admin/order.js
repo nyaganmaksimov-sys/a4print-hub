@@ -71,7 +71,7 @@ function render(){
 }
 
 function renderOrder(o,pc,c){
-  if(pc&&String(o.partner_direction||'').toUpperCase()==='INBOUND'){const p=pc.partner;$('partnerBlock').innerHTML=`<div class="order-partner"><b>${esc(pc.role)} · <a class="order-link" href="./partner.html?id=${encodeURIComponent(pc.id)}">${esc(p.name||'Партнёр')}</a></b><small>${esc(o.partner_users?.full_name||p.contact_name||'')}${p.phone?' · '+esc(p.phone):''}${p.email?' · '+esc(p.email):''}<br>Скидка ${Number(p.discount_percent||0)}% · отсрочка ${Number(p.payment_terms_days||0)} дн.</small></div>`}else $('partnerBlock').innerHTML='';
+  if(pc){const p=pc.partner;$('partnerBlock').innerHTML=`<div class="order-partner"><b>${esc(pc.role)} · <a class="order-link" href="./partner.html?id=${encodeURIComponent(pc.id)}">${esc(p.name||'Партнёр')}</a></b><small>${esc(o.partner_users?.full_name||p.contact_name||'')}${p.phone?' · '+esc(p.phone):''}${p.email?' · '+esc(p.email):''}<br>Скидка ${Number(p.discount_percent||0)}% · отсрочка ${Number(p.payment_terms_days||0)} дн.</small></div>`}else $('partnerBlock').innerHTML='';
   const outbound=String(o.partner_direction||'').toUpperCase()==='OUTBOUND'&&o.fulfillment_partner_id;
   const customerName=c.company_name||c.full_name||'Не указан';
   const customerContact=[c.full_name&&c.company_name?c.full_name:'',c.phone,c.email].filter(Boolean).join(' · ')||'—';
@@ -157,7 +157,7 @@ function renderMessages(o){
 
 function renderFinance(o,pc){
   $('orderTotal').textContent=money(o.total);
-  if(pc){
+  if(pc&&String(o.partner_direction||'').toUpperCase()==='INBOUND'){
     $('invoicedTotal').textContent='—';$('paidTotal').textContent='—';$('debtTotal').textContent='—';$('debtLabel').textContent='Расчёты';$('invoicedNote').textContent='партнёрский контур';$('debtNote').textContent='отдельно от клиентских оплат';
     $('financeTitle').textContent='Расчёты с партнёром';$('financeSubtitle').textContent='Партнёрские взаиморасчёты не смешиваются с клиентскими счетами';$('financeBadge').className='order-badge orange';$('financeBadge').textContent='PARTNER';
     $('financeMessage').innerHTML=`<div class="order-alert blue">${esc(pc.role)}. Для этого заказа используется финансовый контур партнёра, а не клиентская таблица payments.</div>`;$('invoiceList').innerHTML='';$('paymentList').innerHTML='';
