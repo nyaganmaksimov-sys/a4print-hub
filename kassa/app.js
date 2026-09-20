@@ -241,6 +241,13 @@
     return 'OTHER';
   }
   function categoryLabel(row){return CATALOG_GROUP_BY_ID[catalogGroupId(row)]?.label||'Прочее'}
+  function displayProductName(row){
+    const raw=String(row?.name||'').trim();
+    const tier=raw.match(/^(.*?)(?:\s+-\s+(?:\d+\s*-\s*\d+|\d+\s+и\s+выше))\s*\((\d+\s*-\s*\d+|\d+\s+и\s+выше)\)\s*$/i);
+    if(!tier)return raw;
+    const range=tier[2].replace(/\s*-\s*/g,'–').replace(/\s+/g,' ').trim();
+    return `${tier[1].trim()} · тираж ${range}`;
+  }
   function categoryTitle(cat){
     if(cat==='CORE')return 'Основные услуги';
     if(cat==='ALL')return 'Все позиции';
@@ -337,7 +344,7 @@
     }
     $('catalogGrid').innerHTML=state.filtered.slice(0,400).map(x=>{
       const st=state.stock[x.external_id],group=categoryLabel(x),code=x.article||x.sku||x.barcode||'';
-      return `<article class="product-card ${state.favorites.has(x.id)?'is-favorite':''}" data-add="${x.id}"><button class="fav ${state.favorites.has(x.id)?'on':''}" data-fav="${x.id}" title="${state.favorites.has(x.id)?'Убрать из избранного':'Добавить в избранное'}">★</button><div><div class="name">${esc(x.name)}</div><div class="meta"><span class="product-group">${esc(group)}</span>${code?`<span class="product-code">${esc(code)}</span>`:''}</div></div><div><div class="price">${money(x.sale_price)}</div>${st!=null?`<div class="stock">Остаток: ${Number(st).toLocaleString('ru-RU')}</div>`:''}</div></article>`
+      return `<article class="product-card ${state.favorites.has(x.id)?'is-favorite':''}" data-add="${x.id}"><button class="fav ${state.favorites.has(x.id)?'on':''}" data-fav="${x.id}" title="${state.favorites.has(x.id)?'Убрать из избранного':'Добавить в избранное'}">★</button><div><div class="name">${esc(displayProductName(x))}</div><div class="meta"><span class="product-group">${esc(group)}</span>${code?`<span class="product-code">${esc(code)}</span>`:''}</div></div><div><div class="price">${money(x.sale_price)}</div>${st!=null?`<div class="stock">Остаток: ${Number(st).toLocaleString('ru-RU')}</div>`:''}</div></article>`
     }).join('');
     document.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>addToCart(el.dataset.add));
     document.querySelectorAll('[data-fav]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFavorite(b.dataset.fav)});
