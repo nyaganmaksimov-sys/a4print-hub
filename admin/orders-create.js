@@ -78,13 +78,28 @@ function toggleNewCustomer(){
   if(wrap)wrap.hidden=$('newOrderCustomer')?.value!=='__NEW__';
 }
 
+function updatePartnerMargin(){
+  const node=$('partnerMargin');if(!node)return;
+  if(state.orderKind==='STANDARD'){node.textContent='';return}
+  const qty=Math.max(0,Number($('newOrderQty')?.value||0));
+  const price=Math.max(0,Number($('newOrderPrice')?.value||0));
+  const cost=Math.max(0,Number($('partnerCost')?.value||0));
+  if(!(cost>0)){node.textContent='Себестоимость партнёра можно указать для контроля маржи.';node.classList.remove('negative');return}
+  const revenue=qty*price,costTotal=qty*cost,margin=revenue-costTotal;
+  const percent=revenue>0?(margin/revenue)*100:0;
+  node.textContent='Партнёр: '+money(costTotal)+' ₽ · клиент: '+money(revenue)+' ₽ · маржа: '+money(margin)+' ₽ ('+percent.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%)';
+  node.classList.toggle('negative',margin<0);
+}
+
 function recalc(){
   const qty=Math.max(0,Number($('newOrderQty')?.value||0));
   const price=Math.max(0,Number($('newOrderPrice')?.value||0));
-  if($('newOrderTotal'))$('newOrderTotal').value=`${money(qty*price)} ₽`;
+  if($('newOrderTotal'))$('newOrderTotal').value=money(qty*price)+' ₽';
+  updatePartnerMargin();
 }
 
 function applyCatalogPrice(){
+  if(state.orderKind!=='STANDARD')return;
   const value=$('newOrderItem')?.value.trim().toLowerCase();
   if(!value)return;
   const item=state.catalog.find(x=>String(x.name||'').trim().toLowerCase()===value);
