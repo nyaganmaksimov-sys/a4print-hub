@@ -12,7 +12,7 @@ const categoryLabel={
   PARTNER_DISPUTE:'Спор владельца',
   EQUIPMENT_INCIDENT:'Инцидент оборудования'
 };
-const state={data:null,items:[],assignees:[],canAct:false,loading:false,loadingMore:false,history:null,page:{offset:0,limit:50,total:0,returned:0,hasMore:false},searchTimer:null};
+const state={data:null,items:[],assignees:[],assigneesLoaded:false,canAct:false,loading:false,loadingMore:false,pendingReload:false,history:null,page:{offset:0,limit:50,total:0,returned:0,hasMore:false},searchTimer:null};
 const triageValues=new Set(['mine','unassigned','ack']);
 const severityValues=new Set(['CRITICAL','HIGH','MEDIUM','LOW']);
 
@@ -161,7 +161,10 @@ function actionableHref(href){
 }
 
 async function load(reset=true){
-  if(state.loading||(state.loadingMore&&!reset))return;
+  if(state.loading||state.loadingMore){
+    if(reset)state.pendingReload=true;
+    return;
+  }
   const offset=reset?0:state.items.length;
   if(reset){
     state.loading=true;
@@ -173,7 +176,7 @@ async function load(reset=true){
   }
 
   try{
-    const needAssignees=state.assignees.length===0;
+    const needAssignees=!state.assigneesLoaded;
     const requests=[
       supabase.rpc('get_production_farm_risk_cockpit_page',rpcFilters(offset))
     ];
@@ -196,6 +199,7 @@ async function load(reset=true){
     };
 
     if(needAssignees){
+      state.assigneesLoaded=true;
       const assignees=results[1];
       if(!assignees?.error){
         state.assignees=Array.isArray(assignees.data)?assignees.data:[];
@@ -215,6 +219,10 @@ async function load(reset=true){
     state.loadingMore=false;
     $('pfrRefresh').disabled=false;
     $('pfrLoadMore').disabled=false;
+    if(state.pendingReload){
+      state.pendingReload=false;
+      queueMicrotask(()=>load(true));
+    }
   }
 }
 
