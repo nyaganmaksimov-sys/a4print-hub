@@ -297,7 +297,7 @@ async function submitOrder(event){
 
   save.disabled=true;save.textContent='Создание…';
   try{
-    const {data,error}=await supabase.rpc('create_hub_manual_order',{
+    const commonArgs={
       p_customer_id:customerChoice&&customerChoice!=='__NEW__'?customerChoice:null,
       p_customer_name:newCustomer?customerName:null,
       p_customer_phone:newCustomer?($('newOrderCustomerPhone').value.trim()||null):null,
@@ -307,7 +307,12 @@ async function submitOrder(event){
       p_unit_price:price,
       p_comment:buildOrderComment(),
       p_source:$('newOrderSource').value||'Офис'
-    });
+    };
+    const isPartner=state.orderKind!=='STANDARD';
+    const flow=ORDER_WORKFLOWS[state.orderKind];
+    const rpc=isPartner?'create_hub_partner_manual_order':'create_hub_manual_order';
+    const args=isPartner?{...commonArgs,p_partner_name:flow.partner,p_partner_workflow:state.orderKind,p_partner_unit_cost:Number($('partnerCost')?.value||0)}:commonArgs;
+    const {data,error}=await supabase.rpc(rpc,args);
     if(error)throw error;
     const result=Array.isArray(data)?data[0]:data;
     if(result?.id){
