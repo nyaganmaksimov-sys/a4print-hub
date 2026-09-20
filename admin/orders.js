@@ -15,6 +15,7 @@ const labels = {
 };
 
 const statusOrder = ['NEW','CONFIRMED','IN_PROGRESS','READY','COMPLETED','ON_HOLD','CANCELLED'];
+const partnerStatusLabels={NOT_SENT:'Не отправлен',SENT:'Отправлен партнёру',CONFIRMED:'Подтверждён партнёром',IN_PRODUCTION:'У партнёра в работе',SHIPPED:'Отгружен партнёром',RECEIVED:'Получен',CANCELLED:'Отменён у партнёра'};
 const state = { orders: [], payments: [], paymentsAvailable: true, loading: false, channel: null };
 let realtimeTimer = null;
 
@@ -80,21 +81,22 @@ function attentionKinds(order){
 function isManagerOrder(order){
   if(!order) return false;
   if(String(order.source||'').toUpperCase()==='KASSA') return false;
-  if(String(order.partner_direction||'NONE').toUpperCase()!=='NONE') return false;
-  if(order.partner_id||order.fulfillment_partner_id) return false;
-  return true;
+  const direction=String(order.partner_direction||'NONE').toUpperCase();
+  if(direction==='INBOUND') return false;
+  if(direction==='OUTBOUND') return Boolean(order.fulfillment_partner_id);
+  return !order.partner_id;
 }
 
 function managerQuery(select){
   return supabase.from('orders')
     .select(select)
-    .eq('partner_direction','NONE')
+    .in('partner_direction',['NONE','OUTBOUND'])
     .or('source.is.null,source.neq.KASSA')
     .order('created_at',{ascending:false});
 }
 
 async function loadOrders(){
-  const full = '*,customers(full_name,company_name,phone,email)';
+  const full = '*,customers(full_name,company_name,phone,email),executor:partners!orders_fulfillment_partner_id_fkey(id,name)';
   let result = await managerQuery(full);
   if(!result.error) return (result.data || []).filter(isManagerOrder);
 
@@ -128,7 +130,7 @@ function filteredOrders(){
   const f = currentFilters();
   return state.orders.filter((o) => {
     const c = o.customers || {};
-    const text = [o.order_number,o.model_name,o.source,c.full_name,c.company_name,c.phone,c.email].filter(Boolean).join(' ').toLowerCase();
+    const text = [o.order_number,o.model_name,o.source,c.full_name,c.company_name,c.phone,c.email,o.executor?.name,partnerStatusLabels[o.partner_fulfillment_status]].filter(Boolean).join(' ').toLowerCase();
     const statusOk = !f.status || (f.status === 'WORK' ? ['CONFIRMED','IN_PROGRESS'].includes(o.status) : o.status === f.status);
     const attentionOk = !f.attention || attentionKinds(o).has(f.attention);
     return (!f.q || text.includes(f.q)) && statusOk && (!f.unit || o.business_unit === f.unit) && attentionOk;
@@ -165,12 +167,14 @@ function rowHtml(order){
   const payment = paymentSummary(order);
   const client = customerName(order);
   const meta = customerMeta(order);
+  const isPartner=String(order.partner_direction||'NONE').toUpperCase()==='OUTBOUND'&&order.fulfillment_partner_id;
+  const partnerMeta=isPartner?`Партнёр: ${order.executor?.name||'не указан'} · ${partnerStatusLabels[order.partner_fulfillment_status]||order.partner_fulfillment_status||'Не отправлен'}`:unitLabel(order.business_unit);
   return `
     <article class="order-work-row" data-order-id="${esc(order.id)}">
       <a class="order-main-link" href="./order.html?id=${encodeURIComponent(order.id)}">
         <span class="order-number"><b>№${esc(order.order_number ?? '—')}</b><small>${esc(orderDate(order.created_at))}</small></span>
         <span class="order-client"><b>${esc(client)}</b><small>${esc(meta || 'Контакт не указан')}</small></span>
-        <span class="order-service"><b>${esc(orderTitle(order))}</b><small>${esc(unitLabel(order.business_unit))}</small></span>
+        <span class="order-service"><b>${esc(orderTitle(order))}</b><small>${esc(partnerMeta)}</small></span>
         <span class="order-payment"><b class="pay-${payment.tone}">${esc(payment.label)}</b><small>${payment.paid > 0 && payment.total > 0 ? `${money(payment.paid)} из ${money(payment.total)} ₽` : 'Оплата заказа'}</small></span>
         <span class="order-total"><b>${money(order.total)} ₽</b><small>${esc(labels[order.status] || order.status || '—')}</small></span>
       </a>
