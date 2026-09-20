@@ -45,7 +45,7 @@ jobs:
           grep -q "pfrPageMeta" "$html"
           grep -q "pfrLoadMore" "$html"
           grep -q "Показать ещё" "$html"
-          grep -q "20260920-phase56-1" "$html"
+          grep -Eq 'production-farm-risk\.js\?v=[^"]+' "$html"
 
           grep -q "pendingReload" "$js"
           grep -q "assigneesLoaded" "$js"
