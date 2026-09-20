@@ -182,7 +182,9 @@
     {id:'PHOTO_PRINT',label:'Фотопечать',icon:'▧'},
     {id:'POST_PRINT',label:'Ламинация и переплёт',icon:'▥'},
     {id:'POLYGRAPHY',label:'Полиграфия',icon:'◇'},
-    {id:'STAMPS',label:'Печати и штампы',icon:'◉'},
+    {id:'STAMP_MAKE',label:'Изготовление печатей',icon:'◉'},
+    {id:'STAMP_EQUIPMENT',label:'Оснастки для печатей',icon:'▦'},
+    {id:'STAMP_SUPPLIES',label:'Расходники для печатей',icon:'◌'},
     {id:'DESIGN',label:'Дизайн и обработка',icon:'✦'},
     {id:'TRANSLATIONS',label:'Переводы',icon:'≡'},
     {id:'DIGITAL',label:'Файлы и оцифровка',icon:'▱'},
@@ -198,7 +200,12 @@
   }
   function isSampleCatalogItem(row){
     const n=catalogText(row);
-    return n.startsWith('образец');
+    if(n.startsWith('образец'))return true;
+    if(/^изготовление печати ооо\s+.+/.test(n))return true;
+    if(/изготовлени[ея]\s+(дубликата ключа|ключей дубликатов)\s+на\s+/.test(n))return true;
+    if(/^факсимиле\s+.+\d[\d()\-\s]{5,}/.test(n))return true;
+    if(/\(\s*\d+\s*шт\.?\s*\)/.test(n))return true;
+    return false;
   }
   function isHiddenCatalogItem(row){
     const category=String(row?.category||'').trim().toLowerCase();
@@ -210,7 +217,9 @@
   }
   function catalogGroupId(row){
     const n=catalogText(row);
-    if(/(штамп|оснастк|датер|trodat|colop|штемпельн|факсимил|изготовлени[ея]\s+печат|печат[ьи]\s+(ооо|ип|врач|педагог|нотари|кадастр)|оттиск)/.test(n))return 'STAMPS';
+    if(/(штемпельн.*подушк|подушк.*печат|краск.*штемп)/.test(n))return 'STAMP_SUPPLIES';
+    if(/(оснастк|датер|trodat|colop|printy|самонаборн.*штамп|стандартн.*штамп)/.test(n))return 'STAMP_EQUIPMENT';
+    if(/(изготовлени[ея]\s+печат|за\s+штамп|факсимил|оттиск|печат[ьи]\s+(ооо|ип|врач|педагог|нотари|кадастр))/.test(n))return 'STAMP_MAKE';
     if(/(фото\s+на\s+(паспорт|загран|документ|удостовер|виз|анкет)|фнд\b|3\s*[x*]\s*4)/.test(n))return 'PHOTO_DOCS';
     if(/(фотопечат|фото\s*печат|печать\s+фото|10\s*x\s*15|15\s*x\s*21|21\s*x\s*30|30\s*x\s*42|фото\s*рамк|фото\s+на\s+памятник|а[345]\s+глянцев)/.test(n))return 'PHOTO_PRINT';
     if(/(ламинир|броширов|переплет|переплёт|пружин|резк[аи]\s+бумаг)/.test(n))return 'POST_PRINT';
