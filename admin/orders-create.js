@@ -110,7 +110,7 @@ function applyCatalogPrice(){
 }
 
 function clearPartnerFields(){
-  for(const id of ['partnerMaterial','partnerFormat','partnerColor','partnerFinishing','partnerReference'])if($(id))$(id).value='';
+  for(const id of ['partnerMaterial','partnerFormat','partnerColor','partnerFinishing','partnerReference','partnerText'])if($(id))$(id).value='';
   if($('partnerCost'))$('partnerCost').value='0';
 }
 
@@ -134,6 +134,12 @@ function setOrderKind(kind){
   $('partnerFormatLabel').textContent=labels.format||'Размер / формат';$('partnerFormat').placeholder=placeholders.format||'';
   $('partnerColorLabel').textContent=labels.color||'Цветность';$('partnerColor').placeholder=placeholders.color||'';
   $('partnerFinishingLabel').textContent=labels.finishing||'Обработка';$('partnerFinishing').placeholder=placeholders.finishing||'';
+  const textLabel=$('partnerTextLabel'),textInput=$('partnerText');
+  if(textLabel&&textInput){
+    if(next==='MEMORIAL'){textLabel.textContent='ФИО / даты / текст на изделии';textInput.placeholder='ФИО, даты жизни, эпитафия или подпись'}
+    else if(next==='TYPOGRAPHY'){textLabel.textContent='Примечания к макету';textInput.placeholder='Текст, персонализация, нумерация и другие данные'}
+    else{textLabel.textContent='Текст / дополнительные данные';textInput.placeholder='Текст, надпись или данные для изготовления'}
+  }
   $('partnerOrderPresets').innerHTML=(flow.presets||[]).map((name,index)=>'<button type="button" data-partner-preset="'+index+'">'+esc(name)+'</button>').join('');
   $('newOrderUnit').value='A4_PRINT';
   updatePartnerMargin();
@@ -158,6 +164,7 @@ function buildOrderComment(){
     $('partnerColor')?.value.trim()?$('partnerColorLabel').textContent+': '+$('partnerColor').value.trim():'',
     $('partnerFinishing')?.value.trim()?$('partnerFinishingLabel').textContent+': '+$('partnerFinishing').value.trim():'',
     $('partnerReference')?.value.trim()?'Артикул / модель / ссылка: '+$('partnerReference').value.trim():'',
+    $('partnerText')?.value.trim()?$('partnerTextLabel').textContent+': '+$('partnerText').value.trim():'',
     Number($('partnerCost')?.value||0)>0?'Себестоимость партнёра: '+money(Number($('partnerCost').value||0))+' ₽ / ед.':'',
     'Каталог партнёра: '+flow.url,
     note?'Комментарий клиента: '+note:''
