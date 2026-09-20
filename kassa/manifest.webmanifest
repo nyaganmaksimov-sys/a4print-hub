@@ -10,8 +10,8 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "./assets/a4-kassa-icon.webp",
-      "sizes": "153x140",
+      "src": "./assets/a4-kassa-program-icon.webp",
+      "sizes": "1362x1298",
       "type": "image/webp",
       "purpose": "any"
     }
