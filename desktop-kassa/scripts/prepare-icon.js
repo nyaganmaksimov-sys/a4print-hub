@@ -4,7 +4,7 @@ const sharp=require('sharp');
 const pngToIco=require('png-to-ico');
 (async()=>{
   const root=path.join(__dirname,'..');
-  const source=path.join(root,'..','kassa','assets','a4-kassa-icon.webp');
+  const source=path.join(root,'..','kassa','assets','a4-kassa-program-icon.webp');
   const build=path.join(root,'build');
   fs.mkdirSync(build,{recursive:true});
   const png=path.join(build,'icon.png');
