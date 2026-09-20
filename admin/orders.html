@@ -53,7 +53,7 @@
   <dialog id="newOrderDlg" class="order-create-dialog">
     <form id="newOrderForm">
       <div class="order-create-head">
-        <div><h2>Новый заказ</h2><p>Создание заказа A4PRINT HUB без перехода в другой раздел</p></div>
+        <div><h2>Новый заказ</h2><p>Выберите отдел и заполните заказ без перехода в другой раздел</p></div>
         <button id="closeNewOrder" class="order-create-close" type="button" aria-label="Закрыть">×</button>
       </div>
       <div class="order-create-body">
@@ -63,7 +63,7 @@
             <label class="order-create-field"><span>Имя / контакт *</span><input id="newOrderCustomerName" autocomplete="name" placeholder="Иван Иванов"></label>
             <label class="order-create-field"><span>Телефон</span><input id="newOrderCustomerPhone" autocomplete="tel" placeholder="+7 ..."></label>
           </div>
-          <label class="order-create-field"><span>Направление *</span><select id="newOrderUnit"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общее</option></select></label>
+          <label class="order-create-field"><span>Отдел / направление *</span><select id="newOrderUnit"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общее</option></select></label>
           <label class="order-create-field"><span>Источник</span><select id="newOrderSource"><option>Офис</option><option>Телефон</option><option>WhatsApp</option><option>Telegram</option><option>Сайт</option><option>Другое</option></select></label>
           <label class="order-create-field full"><span>Услуга / товар *</span><input id="newOrderItem" list="orderCatalogList" autocomplete="off" placeholder="Начните вводить название из каталога или укажите вручную" required><datalist id="orderCatalogList"></datalist></label>
           <label class="order-create-field"><span>Количество *</span><input id="newOrderQty" type="number" min="0.001" step="0.001" value="1" required></label>
