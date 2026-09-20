@@ -22,6 +22,7 @@ on:
       - 'admin/equipment-incidents.js'
       - 'docs/PRODUCTION_FARM_PHASE55.md'
       - '.github/workflows/check-production-farm-phase55.yml'
+      - 'database/migrations/20260920_production_farm_server_side_risk_triage.sql'
 
 jobs:
   phase55-static:
@@ -52,10 +53,10 @@ jobs:
           grep -q 'Мои риски' admin/production-farm-risk.html
           grep -q 'Без ответственного' admin/production-farm-risk.html
           grep -q 'Принято в работу (ACK)' admin/production-farm-risk.html
-          grep -q "get_my_staff_profile" admin/production-farm-risk.js
-          grep -q "triage==='mine'" admin/production-farm-risk.js
-          grep -q "triage==='unassigned'" admin/production-farm-risk.js
-          grep -q "triage==='ack'" admin/production-farm-risk.js
+          grep -q "get_production_farm_risk_cockpit_page" admin/production-farm-risk.js
+          grep -q "p_triage" admin/production-farm-risk.js
+          grep -q "p_search" admin/production-farm-risk.js
+          grep -q "p_overdue_only" admin/production-farm-risk.js
           grep -q 'history.replaceState' admin/production-farm-risk.js
           grep -q "searchParams.set('cockpit'" admin/production-farm-risk.js
 

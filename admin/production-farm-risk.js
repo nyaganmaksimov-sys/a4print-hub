@@ -12,14 +12,14 @@ const categoryLabel={
   PARTNER_DISPUTE:'Спор владельца',
   EQUIPMENT_INCIDENT:'Инцидент оборудования'
 };
-const state={data:null,items:[],assignees:[],canAct:false,loading:false,history:null,currentStaffId:null};
+const state={data:null,items:[],assignees:[],assigneesLoaded:false,canAct:false,loading:false,loadingMore:false,pendingReload:false,history:null,page:{offset:0,limit:50,total:0,returned:0,hasMore:false},searchTimer:null};
 const triageValues=new Set(['mine','unassigned','ack']);
 const severityValues=new Set(['CRITICAL','HIGH','MEDIUM','LOW']);
 
 hydrateFiltersFromUrl();
 style();
 bind();
-load();
+load(true);
 
 function style(){
   const s=document.createElement('style');
@@ -56,6 +56,8 @@ function style(){
   .pfr-empty{padding:28px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:12px}
   .pfr-error{padding:10px 12px;background:#fef2f2;color:#991b1b;border-radius:10px}
   .pfr-info{padding:9px 11px;background:#eff6ff;color:#1e40af;border-radius:10px;margin-bottom:10px;font-size:12px}
+  .pfr-page-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#64748b;font-size:12px;margin:0 0 10px}
+  .pfr-more{display:flex;justify-content:center;margin-top:12px}.pfr-more button{border:1px solid #cbd5e1;border-radius:10px;padding:9px 15px;background:#fff;color:#0f172a;font-weight:800;cursor:pointer}.pfr-more button:disabled{opacity:.55;cursor:wait}
   .pfr-back{display:inline-flex;text-decoration:none;border:1px solid #cbd5e1;border-radius:10px;padding:9px 12px;color:#0f172a;background:#fff;font-weight:700}
   .pfr-history-dialog{width:min(760px,calc(100vw - 28px));max-height:82vh;border:0;border-radius:18px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.24)}
   .pfr-history-dialog::backdrop{background:rgba(15,23,42,.42)}
@@ -77,7 +79,8 @@ function style(){
 }
 
 function bind(){
-  $('pfrRefresh').onclick=load;
+  $('pfrRefresh').onclick=()=>load(true);
+  $('pfrLoadMore').onclick=()=>load(false);
   for(const id of['pfrSearch','pfrCategory','pfrSeverity','pfrTriage','pfrOverdueOnly']){
     $(id).addEventListener(id==='pfrSearch'?'input':'change',applyFilters);
   }
@@ -85,13 +88,30 @@ function bind(){
   $('pfrHistoryClose').onclick=()=>$('pfrHistoryDlg').close();
   window.addEventListener('popstate',()=>{
     hydrateFiltersFromUrl();
-    render();
+    load(true);
   });
 }
 
-function applyFilters(){
-  render();
+function applyFilters(ev){
   syncCockpitUrl();
+  clearTimeout(state.searchTimer);
+  if(ev?.target?.id==='pfrSearch'){
+    state.searchTimer=setTimeout(()=>load(true),250);
+  }else{
+    load(true);
+  }
+}
+
+function rpcFilters(offset=0){
+  return{
+    p_category:$('pfrCategory').value||null,
+    p_severity:$('pfrSeverity').value||null,
+    p_overdue_only:$('pfrOverdueOnly').checked,
+    p_triage:$('pfrTriage').value||null,
+    p_search:$('pfrSearch').value.trim().slice(0,120)||null,
+    p_limit:state.page.limit,
+    p_offset:offset
+  };
 }
 
 function hydrateFiltersFromUrl(){
@@ -140,28 +160,54 @@ function actionableHref(href){
   }
 }
 
-async function load(){
-  if(state.loading)return;
-  state.loading=true;
-  $('pfrRefresh').disabled=true;
-  $('pfrError').innerHTML='';
-  try{
-    const[cockpit,profile]=await Promise.all([
-      supabase.rpc('get_production_farm_risk_cockpit',{p_limit_per_category:20}),
-      supabase.rpc('get_my_staff_profile')
-    ]);
-    if(cockpit.error)throw cockpit.error;
-    const data=cockpit.data;
-    state.data=data||{};
-    state.items=Array.isArray(data?.items)?data.items:[];
-    state.currentStaffId=profile.error?null:(profile.data?.status==='ACTIVE'?profile.data?.user?.id||null:null);
-    state.assignees=[];
-    state.canAct=false;
+async function load(reset=true){
+  if(state.loading||state.loadingMore){
+    if(reset)state.pendingReload=true;
+    return;
+  }
+  const offset=reset?0:state.items.length;
+  if(reset){
+    state.loading=true;
+    $('pfrRefresh').disabled=true;
+    $('pfrError').innerHTML='';
+  }else{
+    state.loadingMore=true;
+    $('pfrLoadMore').disabled=true;
+  }
 
-    const assignees=await supabase.rpc('get_production_farm_risk_assignees');
-    if(!assignees.error){
-      state.assignees=Array.isArray(assignees.data)?assignees.data:[];
-      state.canAct=true;
+  try{
+    const needAssignees=!state.assigneesLoaded;
+    const requests=[
+      supabase.rpc('get_production_farm_risk_cockpit_page',rpcFilters(offset))
+    ];
+    if(needAssignees)requests.push(supabase.rpc('get_production_farm_risk_assignees'));
+    const results=await Promise.all(requests);
+    const cockpit=results[0];
+    if(cockpit.error)throw cockpit.error;
+
+    const data=cockpit.data||{};
+    state.data=data;
+    const incoming=Array.isArray(data.items)?data.items:[];
+    state.items=reset?incoming:[...state.items,...incoming];
+    const page=data.page||{};
+    state.page={
+      offset:Number(page.offset||0),
+      limit:Number(page.limit||state.page.limit||50),
+      total:Number(page.total||0),
+      returned:Number(page.returned||incoming.length),
+      hasMore:Boolean(page.has_more)
+    };
+
+    if(needAssignees){
+      state.assigneesLoaded=true;
+      const assignees=results[1];
+      if(!assignees?.error){
+        state.assignees=Array.isArray(assignees.data)?assignees.data:[];
+        state.canAct=true;
+      }else{
+        state.assignees=[];
+        state.canAct=false;
+      }
     }
 
     fillKpis();
@@ -170,7 +216,13 @@ async function load(){
     $('pfrError').innerHTML='<div class="pfr-error">'+esc(friendly(e))+'</div>';
   }finally{
     state.loading=false;
+    state.loadingMore=false;
     $('pfrRefresh').disabled=false;
+    $('pfrLoadMore').disabled=false;
+    if(state.pendingReload){
+      state.pendingReload=false;
+      queueMicrotask(()=>load(true));
+    }
   }
 }
 
@@ -191,33 +243,17 @@ function fillKpis(){
 }
 
 function render(){
-  const q=$('pfrSearch').value.trim().toLowerCase();
-  const cat=$('pfrCategory').value;
-  const sev=$('pfrSeverity').value;
-  const triage=$('pfrTriage').value;
-  const overdueOnly=$('pfrOverdueOnly').checked;
-  const rows=state.items.filter(x=>{
-    const meta=x.meta||{};
-    const assigned=meta.risk_assigned_to||meta.assigned_to||'';
-    const acknowledged=Boolean(meta.risk_acknowledged);
-    const triageMatch=!triage
-      ||(triage==='mine'&&Boolean(state.currentStaffId)&&assigned===state.currentStaffId)
-      ||(triage==='unassigned'&&!assigned)
-      ||(triage==='ack'&&acknowledged);
-    return (!cat||x.category===cat)
-    &&(!sev||x.severity===sev)
-    &&triageMatch
-    &&(!overdueOnly||x.overdue)
-    &&(!q||[
-      x.title,x.subtitle,x.state,x.entity_type,
-      x.meta?.risk_assigned_to_name,x.meta?.assigned_to_name,x.meta?.risk_note
-    ].join(' ').toLowerCase().includes(q));
-  });
-
-  const mineWarning=triage==='mine'&&!state.currentStaffId
-    ?'<div class="pfr-info">Не удалось определить staff-профиль для фильтра «Мои риски».</div>':'';
-  const banner=(state.canAct?'':'<div class="pfr-info">У вас есть доступ к просмотру рисков. Для назначения и ACK нужны управляющие права Production Farm.</div>')+mineWarning;
+  const rows=state.items;
+  const banner=state.canAct?'':'<div class="pfr-info">У вас есть доступ к просмотру рисков. Для назначения и ACK нужны управляющие права Production Farm.</div>';
   $('pfrList').innerHTML=banner+(rows.length?rows.map(card).join(''):'<div class="pfr-empty">Активных рисков по выбранному фильтру нет.</div>');
+
+  const filtered=state.data?.filtered_summary||{};
+  const total=Number(state.page.total||0);
+  const shown=state.items.length;
+  const parts=['Найдено '+total,'показано '+shown];
+  if(Number(filtered.overdue||0)>0)parts.push('просрочено '+Number(filtered.overdue||0));
+  $('pfrPageMeta').textContent=parts.join(' · ');
+  $('pfrLoadMore').hidden=!state.page.hasMore;
 }
 
 function assigneeOptions(selected){
@@ -320,7 +356,7 @@ async function handleListClick(ev){
       p_note:note
     });
     if(error)throw error;
-    await load();
+    await load(true);
   }catch(e){
     alert(friendly(e));
   }finally{
