@@ -246,9 +246,13 @@ export async function createRetailSale({token,items,paymentMethod,operatorName,c
   const {store,organization,shift}=await getRetailContext(token);
   const positions=items.map(x=>{
     if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);
-    return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
+    const discount=Math.min(100,Math.max(0,Number(x.discount||0)));
+    return{quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
   });
-  const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);
+  const total=Math.round(items.reduce((s,x)=>{
+    const discount=Math.min(100,Math.max(0,Number(x.discount||0)));
+    return s+Number(x.price)*Number(x.qty)*(1-discount/100);
+  },0)*100);
   const customerText=customer?` · Клиент: ${customer.name||'без имени'}${customer.phone?` ${customer.phone}`:''}${customer.company?` (${customer.company})`:''}`:'';
   const payment=String(paymentMethod||'Наличные').toLowerCase();
   const payload={
@@ -276,9 +280,13 @@ export async function createRetailReturn({token,saleId,items,paymentMethod,opera
   try{template=await ms(token,'/entity/retailsalesreturn/new',{method:'PUT',body:JSON.stringify({demand:{meta:{href:demandHref,type:'retaildemand',mediaType:'application/json'}}})})}catch(e){throw new Error(`Не удалось подготовить возврат по продаже ${saleId}: ${e.message}`)}
   const positions=items.map(x=>{
     if(!x.external_href)throw new Error(`Позиция ${x.name||x.id} не связана с МойСклад`);
-    return {quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount:0,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
+    const discount=Math.min(100,Math.max(0,Number(x.discount||0)));
+    return {quantity:Number(x.qty),price:Math.round(Number(x.price)*100),discount,vat:0,assortment:{meta:{href:x.external_href,type:x.external_type||'product',mediaType:'application/json'}}};
   });
-  const total=Math.round(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)*100);
+  const total=Math.round(items.reduce((s,x)=>{
+    const discount=Math.min(100,Math.max(0,Number(x.discount||0)));
+    return s+Number(x.price)*Number(x.qty)*(1-discount/100);
+  },0)*100);
   const payment=String(paymentMethod||'Наличные').toLowerCase();
   const returnMoment=resolveRetailReturnMoment(template?.moment,sourceDemand?.moment);
   const payload={

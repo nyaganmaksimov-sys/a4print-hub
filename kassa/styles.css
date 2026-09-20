@@ -32,3 +32,26 @@ body.nav-collapsed .nav-brand>span{display:none!important}
   .nav-brand-full{width:156px!important}
   .header-brand img{width:160px!important;max-height:42px!important}
 }
+
+/* 2026-09-20: cashier price editor + receipt discount controls */
+.price-edit{border:1px solid #dce3ea;background:#f7f9fb;color:#344054;padding:6px 9px;border-radius:7px;cursor:pointer;font-weight:750}
+.price-edit:hover{border-color:#7ed0d7;background:#eefafb}
+.price-edit.overridden{border-color:#f0b44c;background:#fff8e8;color:#9a6700}
+.discount-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 12px 0;padding:9px 10px;border:1px solid #dce3e9;background:#fff;border-radius:8px}
+.discount-strip>div{min-width:0;display:grid;gap:2px}.discount-strip span{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#98a2b3}.discount-strip b{font-size:12px;color:#344054;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.discount-strip button{border:1px solid #94d7dd;background:#effbfc;color:#087f89;border-radius:7px;padding:7px 11px;font-weight:800;cursor:pointer;white-space:nowrap}
+.discount-strip button:hover{background:#daf5f7}
+.kassa-adjust-modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(15,23,42,.45);z-index:250;padding:20px}
+.kassa-adjust-modal.open{display:grid}
+.kassa-adjust-card{width:min(460px,100%);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.24);overflow:hidden}
+.kassa-adjust-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px 14px;border-bottom:1px solid #e7edf2}
+.kassa-adjust-head h2{margin:0;font-size:21px;color:#14243c}.kassa-adjust-head span{display:block;margin-top:4px;font-size:12px;color:#7d8ba0;line-height:1.35}
+.kassa-adjust-body{padding:18px 20px}.adjust-type-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.adjust-type-row button{border:1px solid #d7e1e8;background:#fff;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;color:#344054}
+.adjust-type-row button.active{background:#0aaeba;border-color:#0aaeba;color:#fff}
+.adjust-value-label{display:grid;gap:8px;font-size:12px;font-weight:800;color:#344054}.adjust-value-box{display:grid;grid-template-columns:1fr auto;align-items:center;border:1px solid #cfd9e2;border-radius:10px;overflow:hidden;background:#fff}
+.adjust-value-box:focus-within{border-color:#0aaeba;box-shadow:0 0 0 3px rgba(10,174,186,.12)}
+.adjust-value-box input{width:100%;border:0;outline:0;padding:13px 14px;font-size:22px;font-weight:850;color:#172033}.adjust-value-box b{padding:0 14px;color:#667085;font-size:18px}
+.adjust-hint{margin-top:12px;padding:10px 12px;background:#f5f8fa;border-radius:9px;color:#667085;font-size:12px;line-height:1.45}
+.kassa-adjust-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 20px 18px;border-top:1px solid #e7edf2}.kassa-adjust-foot>div{display:flex;gap:8px}
+@media(max-width:600px){.kassa-adjust-modal{padding:10px}.kassa-adjust-card{border-radius:12px}.kassa-adjust-foot{align-items:stretch;flex-direction:column}.kassa-adjust-foot>div{display:grid;grid-template-columns:1fr 1fr}.kassa-adjust-foot>button{width:100%}}

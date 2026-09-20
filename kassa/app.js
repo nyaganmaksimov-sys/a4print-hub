@@ -20,15 +20,33 @@
     session:null,profile:null,organizationId:null,isAdmin:false,isOperator:false,backendOnline:false,syncing:false,
     catalog:[],filtered:[],stock:{},accounts:[],operators:[],cart:[],customer:null,
     category:'ALL',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',
-    catalogUpdated:null,installPrompt:null
+    catalogUpdated:null,installPrompt:null,discount:{type:'PERCENT',value:0}
   };
 
   let toastTimer=null,customerTimer=null,healthTimer=null,syncTimer=null;
   function toast(text,error=false){const n=$('toast');n.textContent=text;n.className='toast show'+(error?' error':'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.className='toast',3200)}
   function friendly(e,fallback='Ошибка'){const m=String(e?.message||e||'').trim();if(!m)return fallback;if(/invalid login credentials|invalid_credentials/i.test(m))return'Неверный email или пароль.';if(/failed to fetch|network|load failed|abort|socket|fetch failed/i.test(m))return'Нет связи с сервером.';if(/POS_ACCESS_REQUIRED|ADMIN_REQUIRED|Нет доступа/i.test(m))return'У этой учётной записи нет доступа к кассе.';return m}
   function uuid(){return crypto.randomUUID?crypto.randomUUID():`k2-${Date.now()}-${Math.random().toString(36).slice(2)}`}
-  function total(){return state.cart.reduce((s,x)=>s+Number(x.price||0)*Number(x.qty||0),0)}
+  const round2=value=>Math.round((Number(value||0)+Number.EPSILON)*100)/100;
+  const clamp=(value,min,max)=>Math.min(max,Math.max(min,Number(value||0)));
+  function subtotal(){return round2(state.cart.reduce((s,x)=>s+Number(x.price||0)*Number(x.qty||0),0))}
+  function discountAmount(){
+    const base=subtotal();
+    if(!(base>0))return 0;
+    const value=Math.max(0,Number(state.discount?.value||0));
+    if(state.discount?.type==='RUB')return round2(Math.min(base,value));
+    return round2(base*clamp(value,0,100)/100);
+  }
+  function discountPercent(){
+    const base=subtotal();
+    return base>0?clamp(discountAmount()/base*100,0,100):0;
+  }
+  function total(){return round2(Math.max(0,subtotal()-discountAmount()))}
   function count(){return state.cart.reduce((s,x)=>s+Number(x.qty||0),0)}
+  function saleItems(){
+    const discount=Math.round(discountPercent()*1000000)/1000000;
+    return state.cart.map(x=>({...x,discount,base_price:Number(x.price||0)}));
+  }
   function favoritesKey(){return `a4_kassa_favorites_${state.profile?.id||'default'}`}
   function loadFavorites(){try{state.favorites=new Set(JSON.parse(localStorage.getItem(favoritesKey())||'[]'))}catch{state.favorites=new Set()}}
   function saveFavorites(){try{localStorage.setItem(favoritesKey(),JSON.stringify([...state.favorites]))}catch{}}
@@ -188,16 +206,101 @@
   }
   function toggleFavorite(id){state.favorites.has(id)?state.favorites.delete(id):state.favorites.add(id);saveFavorites();filterCatalog()}
 
-  function addToCart(id){const g=state.catalog.find(x=>x.id===id);if(!g)return;const row=state.cart.find(x=>x.id===id&&Number(x.price)===Number(g.sale_price));if(row)row.qty+=1;else state.cart.push({key:uuid(),id:g.id,name:g.name,qty:1,price:Number(g.sale_price||0),article:g.article||g.sku||''});renderCart()}
+  function addToCart(id){
+    const g=state.catalog.find(x=>x.id===id);if(!g)return;
+    const catalogPrice=Number(g.sale_price||0);
+    const row=state.cart.find(x=>x.id===id&&Number(x.price)===catalogPrice&&!x.price_overridden);
+    if(row)row.qty+=1;
+    else state.cart.push({key:uuid(),id:g.id,name:g.name,qty:1,price:catalogPrice,catalog_price:catalogPrice,price_overridden:false,article:g.article||g.sku||''});
+    renderCart();
+  }
+
+  let adjustMode='PRICE',adjustIndex=-1;
+  function closeAdjustModal(){
+    const modal=$('adjustModal');if(!modal)return;
+    modal.classList.remove('open');modal.setAttribute('aria-hidden','true');
+  }
+  function setAdjustType(type){
+    state.__adjustType=type==='RUB'?'RUB':'PERCENT';
+    document.querySelectorAll('[data-adjust-type]').forEach(b=>b.classList.toggle('active',b.dataset.adjustType===state.__adjustType));
+    $('adjustSuffix').textContent=state.__adjustType==='RUB'?'₽':'%';
+    $('adjustValue').max=state.__adjustType==='PERCENT'?'100':String(subtotal());
+    updateAdjustPreview();
+  }
+  function updateAdjustPreview(){
+    const hint=$('adjustHint'),input=$('adjustValue');if(!hint||!input)return;
+    const value=Math.max(0,Number(String(input.value||'0').replace(',','.'))||0);
+    if(adjustMode==='PRICE'){
+      const row=state.cart[adjustIndex];if(!row)return;
+      hint.textContent=`Стоимость позиции: ${money(value*Number(row.qty||0))}${Number(row.catalog_price)!==value?` · цена каталога ${money(row.catalog_price)}`:''}`;
+      return;
+    }
+    const base=subtotal();
+    const amount=state.__adjustType==='RUB'?Math.min(base,value):base*clamp(value,0,100)/100;
+    hint.textContent=`Подытог ${money(base)} · скидка ${money(amount)} · к оплате ${money(Math.max(0,base-amount))}`;
+  }
+  function openPriceEditor(index){
+    const row=state.cart[index];if(!row)return;
+    adjustMode='PRICE';adjustIndex=index;
+    $('adjustTitle').textContent='Изменить цену';
+    $('adjustProductName').textContent=row.name;
+    $('adjustTypeRow').hidden=true;
+    $('adjustValueLabel').textContent='Цена за единицу';
+    $('adjustSuffix').textContent='₽';
+    $('adjustValue').min='0';$('adjustValue').max='';$('adjustValue').step='0.01';$('adjustValue').value=String(Number(row.price||0));
+    $('adjustReset').textContent='Цена из каталога';
+    $('adjustModal').classList.add('open');$('adjustModal').setAttribute('aria-hidden','false');
+    updateAdjustPreview();
+    setTimeout(()=>{$('adjustValue').focus();$('adjustValue').select()},0);
+  }
+  function openDiscountEditor(){
+    if(!state.cart.length){toast('Сначала добавьте позицию в чек.',true);return}
+    adjustMode='DISCOUNT';adjustIndex=-1;
+    $('adjustTitle').textContent='Скидка на чек';
+    $('adjustProductName').textContent=`Подытог: ${money(subtotal())}`;
+    $('adjustTypeRow').hidden=false;
+    state.__adjustType=state.discount?.type==='RUB'?'RUB':'PERCENT';
+    $('adjustValueLabel').textContent='Размер скидки';
+    $('adjustValue').min='0';$('adjustValue').step='0.01';$('adjustValue').value=String(Number(state.discount?.value||0));
+    $('adjustReset').textContent='Убрать скидку';
+    $('adjustModal').classList.add('open');$('adjustModal').setAttribute('aria-hidden','false');
+    setAdjustType(state.__adjustType);
+    setTimeout(()=>{$('adjustValue').focus();$('adjustValue').select()},0);
+  }
+  function saveAdjustment(){
+    const raw=Number(String($('adjustValue').value||'').replace(',','.'));
+    if(!Number.isFinite(raw)||raw<0){toast('Укажите корректное значение.',true);return}
+    if(adjustMode==='PRICE'){
+      const row=state.cart[adjustIndex];if(!row)return;
+      row.price=round2(raw);
+      row.price_overridden=Math.abs(Number(row.price)-Number(row.catalog_price||0))>0.0001;
+    }else{
+      if(state.__adjustType==='PERCENT'&&raw>100){toast('Скидка не может быть больше 100%.',true);return}
+      if(state.__adjustType==='RUB'&&raw>subtotal()){toast('Скидка не может быть больше суммы чека.',true);return}
+      state.discount={type:state.__adjustType,value:round2(raw)};
+    }
+    closeAdjustModal();renderCart();
+  }
+  function resetAdjustment(){
+    if(adjustMode==='PRICE'){
+      const row=state.cart[adjustIndex];if(row){row.price=Number(row.catalog_price||0);row.price_overridden=false}
+    }else state.discount={type:'PERCENT',value:0};
+    closeAdjustModal();renderCart();
+  }
+
   function renderCart(){
+    if(state.discount?.type==='RUB'&&Number(state.discount.value||0)>subtotal())state.discount.value=subtotal();
     $('cartCount').textContent=`${count()} поз.`;$('cartTotal').textContent=money(total());
     const pay=$('payButton');pay.querySelector('strong').textContent=money(total());pay.disabled=!state.cart.length||!state.shift;
-    if(!state.cart.length){$('cartItems').innerHTML='<div class="empty-cart"><div>🧾</div><b>Чек пока пуст</b><span>Нажмите на товар или услугу слева</span></div>';return}
-    $('cartItems').innerHTML=state.cart.map((x,i)=>`<div class="cart-row"><div class="cart-row-head"><div class="cart-row-name">${esc(x.name)}</div><div class="cart-row-total">${money(x.price*x.qty)}</div></div><div class="cart-row-actions"><div class="qty"><button data-minus="${i}">−</button><span>${x.qty}</span><button data-plus="${i}">+</button></div><button class="price-edit" data-price="${i}">${money(x.price)} / шт</button><button class="remove" data-remove="${i}">×</button></div></div>`).join('');
+    const d=discountAmount();
+    $('discountLabel').textContent=d>0?`Подытог ${money(subtotal())} · скидка −${money(d)}`:'Скидка на чек';
+    $('discountButton').textContent=d>0?(state.discount.type==='RUB'?`−${money(state.discount.value)}`:`−${Number(state.discount.value).toLocaleString('ru-RU')}%`):'Добавить';
+    if(!state.cart.length){state.discount={type:'PERCENT',value:0};$('cartItems').innerHTML='<div class="empty-cart"><div>🧾</div><b>Чек пока пуст</b><span>Нажмите на товар или услугу слева</span></div>';return}
+    $('cartItems').innerHTML=state.cart.map((x,i)=>`<div class="cart-row"><div class="cart-row-head"><div class="cart-row-name">${esc(x.name)}</div><div class="cart-row-total">${money(x.price*x.qty)}</div></div><div class="cart-row-actions"><div class="qty"><button data-minus="${i}">−</button><span>${x.qty}</span><button data-plus="${i}">+</button></div><button class="price-edit${x.price_overridden?' overridden':''}" data-price="${i}" title="Изменить цену">${money(x.price)} / шт${x.price_overridden?' · изменена':''}</button><button class="remove" data-remove="${i}">×</button></div></div>`).join('');
     document.querySelectorAll('[data-minus]').forEach(b=>b.onclick=()=>{const x=state.cart[+b.dataset.minus];x.qty-=1;if(x.qty<1)state.cart.splice(+b.dataset.minus,1);renderCart()});
     document.querySelectorAll('[data-plus]').forEach(b=>b.onclick=()=>{state.cart[+b.dataset.plus].qty+=1;renderCart()});
     document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{state.cart.splice(+b.dataset.remove,1);renderCart()});
-    document.querySelectorAll('[data-price]').forEach(b=>b.onclick=()=>{const i=+b.dataset.price;const v=prompt('Цена за единицу, ₽',String(state.cart[i].price));if(v===null)return;const n=Number(String(v).replace(',','.'));if(n>=0){state.cart[i].price=n;renderCart()}else toast('Укажите корректную цену',true)});
+    document.querySelectorAll('[data-price]').forEach(b=>b.onclick=()=>openPriceEditor(+b.dataset.price));
   }
 
   function renderAccounts(){const el=$('cashAccount');const prev=el.value;el.innerHTML=state.accounts.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');if(state.accounts.some(x=>x.id===prev))el.value=prev}
@@ -211,9 +314,9 @@
 
   async function queueSale(){
     if(!state.cart.length)return;if(!state.shift){toast('Сначала откройте смену.',true);return}
-    const sale={id:uuid(),created_at:nowIso(),stage:'queued',tries:0,last_error:null,items:state.cart.map(x=>({...x})),payment_method:state.payment,customer_id:state.customer?.id||null,customer_name:state.customer?.full_name||null,operator_id:$('operatorSelect').value||state.profile?.id||null,operator_name:$('operatorSelect').selectedOptions[0]?.textContent||state.profile?.full_name||'',cash_account_id:$('cashAccount').value||null,total:total(),shift:{id:state.shift.id,name:state.shift.name||null,openDate:state.shift.openDate||null}};
+    const sale={id:uuid(),created_at:nowIso(),stage:'queued',tries:0,last_error:null,items:saleItems(),payment_method:state.payment,customer_id:state.customer?.id||null,customer_name:state.customer?.full_name||null,operator_id:$('operatorSelect').value||state.profile?.id||null,operator_name:$('operatorSelect').selectedOptions[0]?.textContent||state.profile?.full_name||'',cash_account_id:$('cashAccount').value||null,subtotal:subtotal(),discount_type:state.discount.type,discount_value:state.discount.value,discount_amount:discountAmount(),total:total(),shift:{id:state.shift.id,name:state.shift.name||null,openDate:state.shift.openDate||null}};
     await DB.put('queue',sale);
-    state.cart=[];state.customer=null;$('customerName').textContent='Не выбран';renderCart();
+    state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;$('customerName').textContent='Не выбран';renderCart();
     // The durable IndexedDB write is the cashier commit point. Do not block the
     // next receipt on rescanning the queue or any network synchronization.
     state.queue=[...state.queue,sale].sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
@@ -274,14 +377,19 @@
   function bind(){
     $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin').onclick=googleLogin;$('logout').onclick=logout;
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
-    $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];renderCart()}};
+    $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];state.discount={type:'PERCENT',value:0};renderCart()}};
+    $('discountButton').onclick=openDiscountEditor;
+    $('adjustClose').onclick=closeAdjustModal;$('adjustCancel').onclick=closeAdjustModal;$('adjustSave').onclick=saveAdjustment;$('adjustReset').onclick=resetAdjustment;
+    $('adjustValue').oninput=updateAdjustPreview;$('adjustValue').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveAdjustment()}};
+    document.querySelectorAll('[data-adjust-type]').forEach(b=>b.onclick=()=>setAdjustType(b.dataset.adjustType));
+    $('adjustModal').onclick=e=>{if(e.target===$('adjustModal'))closeAdjustModal()};
     document.querySelectorAll('.pay-tab').forEach(b=>b.onclick=()=>choosePayment(b.dataset.payment,b));$('payButton').onclick=queueSale;
     $('shiftButton').onclick=toggleShift;$('shiftChip').onclick=toggleShift;$('queueChip').onclick=openQueue;$('closeQueue').onclick=closeQueue;$('queueDrawer').onclick=e=>{if(e.target===$('queueDrawer'))closeQueue()};$('retryQueue').onclick=async()=>{await health();await syncQueue();toast(state.queue.length?'Не все чеки отправлены':'Очередь синхронизирована',!!state.queue.length)};
     $('refreshCatalog').onclick=()=>refreshRemoteData(true);$('syncNow').onclick=async()=>{await health();await Promise.allSettled([refreshRemoteData(true),loadShift(),loadStock(),syncQueue()])};$('toggleFavoritesOnly').onclick=()=>{const b=document.querySelector('[data-category="FAVORITES"]');setCategory('FAVORITES',b)};
     $('customerToggle').onclick=toggleCustomerPanel;$('customerSearch').oninput=()=>{clearTimeout(customerTimer);customerTimer=setTimeout(searchCustomers,250)};$('clearCustomer').onclick=()=>{state.customer=null;$('customerName').textContent='Не выбран';$('customerPanel').hidden=true};
     $('openOldPos').onclick=()=>location.href='../pos/';
     window.addEventListener('online',()=>health());window.addEventListener('offline',()=>{state.backendOnline=false;renderNetwork()});
-    window.addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();$('search').focus();$('search').select()}if(e.key==='F8'){e.preventDefault();if(!$('payButton').disabled)queueSale()}if(e.key==='Escape'){closeQueue();$('customerPanel').hidden=true}});
+    window.addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();$('search').focus();$('search').select()}if(e.key==='F4'){e.preventDefault();openDiscountEditor()}if(e.key==='F8'){e.preventDefault();if(!$('payButton').disabled)queueSale()}if(e.key==='Escape'){closeAdjustModal();closeQueue();$('customerPanel').hidden=true}});
     if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn),{once:true});
   }
 

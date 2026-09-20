@@ -178,7 +178,7 @@ function normalizeSaleItems(items = []) {
     name: cleanText(x?.name, 300) || 'Позиция',
     quantity: Math.max(0, Number(x?.qty || 0)),
     price: Math.max(0, Number(x?.price || 0)),
-    discount: Math.max(0, Number(x?.discount || 0))
+    discount: Math.min(100, Math.max(0, Number(x?.discount || 0)))
   }));
 }
 
@@ -355,13 +355,17 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
     const items = input.items.map(x => {
       const g = byId.get(x.id);
       if (!g) throw new Error('Товар не найден: ' + x.id);
+      const price = Number(x.price ?? g.sale_price ?? 0);
+      const discount = Math.min(100, Math.max(0, Number(x.discount || 0)));
+      if (!Number.isFinite(price) || price < 0) throw new Error('Некорректная цена: ' + g.name);
       return {
         id: g.id,
         name: g.name,
         qty: Math.max(1, Number(x.qty || 1)),
-        price: Number(x.price ?? g.sale_price ?? 0),
+        price,
+        discount,
         external_href: g.external_href,
-        external_type: g.external_href?.split('/').slice(-2, -1)[0] || 'product'
+        external_type: g.external_href?.split('/').slice(-2, -1)[0] || (g.item_type === 'SERVICE' ? 'service' : 'product')
       };
     });
     const profile = await resolvePosOperator(req, cleanText(input.operator_id, 80));
@@ -515,6 +519,7 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
         name: x.name,
         qty: x.qty,
         price: x.price,
+        discount: Math.min(100, Math.max(0, Number(x.discount || 0))),
         external_href: g.external_href,
         external_type: g.external_href.split('/').slice(-2, -1)[0] || (g.item_type === 'SERVICE' ? 'service' : 'product')
       };
@@ -539,7 +544,7 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
       if (shiftRow.error) throw shiftRow.error;
       shiftSessionId = shiftRow.data?.id || null;
     }
-    const savedItems = selected.map(x => ({ position_id: x.id, catalog_id: x.catalog_id, name: x.name, qty: x.qty, price: x.price }));
+    const savedItems = selected.map(x => ({ position_id: x.id, catalog_id: x.catalog_id, name: x.name, qty: x.qty, price: x.price, discount: Math.min(100, Math.max(0, Number(x.discount || 0))) }));
     const { data: savedReturn, error: saveError } = await supabase.from('pos_returns').insert({
       organization_id: state.sale.organization_id,
       shift_session_id: shiftSessionId,
