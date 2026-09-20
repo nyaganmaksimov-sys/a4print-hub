@@ -1,0 +1,101 @@
+name: Check Production Farm Phase 55
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/production-farm-risk.html'
+      - 'admin/production-farm-risk.js'
+      - 'admin/production-farm-deep-link.js'
+      - 'admin/equipment-condition-claims.html'
+      - 'admin/equipment-condition-claims.js'
+      - 'admin/equipment-contract-deadlines.html'
+      - 'admin/equipment-contract-deadlines.js'
+      - 'admin/equipment-payment-control.html'
+      - 'admin/equipment-payment-control.js'
+      - 'admin/equipment-payment-reconciliation.html'
+      - 'admin/equipment-payment-integrity-incidents.js'
+      - 'admin/equipment-partner-responses.html'
+      - 'admin/equipment-partner-responses.js'
+      - 'admin/equipment.html'
+      - 'admin/equipment-incidents.js'
+      - 'docs/PRODUCTION_FARM_PHASE55.md'
+      - '.github/workflows/check-production-farm-phase55.yml'
+
+jobs:
+  phase55-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check admin/production-farm-risk.js
+          node --check admin/production-farm-deep-link.js
+          node --check admin/equipment-condition-claims.js
+          node --check admin/equipment-contract-deadlines.js
+          node --check admin/equipment-payment-control.js
+          node --check admin/equipment-payment-integrity-incidents.js
+          node --check admin/equipment-partner-responses.js
+          node --check admin/equipment-incidents.js
+
+      - name: Verify cockpit triage and URL state
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'id="pfrTriage"' admin/production-farm-risk.html
+          grep -q 'Мои риски' admin/production-farm-risk.html
+          grep -q 'Без ответственного' admin/production-farm-risk.html
+          grep -q 'Принято в работу (ACK)' admin/production-farm-risk.html
+          grep -q "get_my_staff_profile" admin/production-farm-risk.js
+          grep -q "triage==='mine'" admin/production-farm-risk.js
+          grep -q "triage==='unassigned'" admin/production-farm-risk.js
+          grep -q "triage==='ack'" admin/production-farm-risk.js
+          grep -q 'history.replaceState' admin/production-farm-risk.js
+          grep -q "searchParams.set('cockpit'" admin/production-farm-risk.js
+
+      - name: Verify sanitized return state
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper='admin/production-farm-deep-link.js'
+          grep -q "params.get('cockpit')" "$helper"
+          grep -q "slice(0,600)" "$helper"
+          grep -q "slice(0,120)" "$helper"
+          grep -q "triageValues" "$helper"
+          grep -q "production-farm-risk.html" "$helper"
+          ! grep -R -F '?v=20260919-phase55-1?v=' admin/*.js
+
+      - name: Verify all six target routes use Phase 55 helper/cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'production-farm-deep-link.js?v=20260919-phase55-1' admin/equipment-condition-claims.js
+          grep -q 'production-farm-deep-link.js?v=20260919-phase55-1' admin/equipment-contract-deadlines.js
+          grep -q 'production-farm-deep-link.js?v=20260919-phase55-1' admin/equipment-payment-control.js
+          grep -q 'production-farm-deep-link.js?v=20260919-phase55-1' admin/equipment-payment-integrity-incidents.js
+          grep -q 'production-farm-deep-link.js?v=20260919-phase55-1' admin/equipment-partner-responses.js
+          grep -q 'production-farm-deep-link.js?v=20260919-phase55-1' admin/equipment-incidents.js
+
+          grep -q 'phase55-1' admin/equipment-condition-claims.html
+          grep -q 'phase55-1' admin/equipment-contract-deadlines.html
+          grep -q 'phase55-1' admin/equipment-payment-control.html
+          grep -q 'phase55-1' admin/equipment-payment-reconciliation.html
+          grep -q 'equipment-partner-responses.js?v=20260919-phase53-1-phase55-1' admin/equipment-partner-responses.html
+          grep -q 'equipment-incidents.js?v=20260919-phase53-1-phase55-1' admin/equipment.html
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE55.md'
+          test -s "$doc"
+          grep -q 'phase55_risk_triage_state_ok' "$doc"
+          grep -q 'не требует database migration' "$doc"
+          grep -q 'allow-list sanitization' "$doc"
+          grep -q 'Browser acceptance contract' "$doc"
