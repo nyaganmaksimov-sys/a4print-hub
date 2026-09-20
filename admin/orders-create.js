@@ -244,6 +244,9 @@ async function openDialog(){
   try{
     await loadReferenceData();
     $('newOrderCustomer').value='';
+    state.orderKind='STANDARD';
+    clearPartnerFields();
+    setOrderKind('STANDARD');
     $('newOrderCustomerName').value='';
     $('newOrderCustomerPhone').value='';
     $('newOrderUnit').value='A4_PRINT';
@@ -288,7 +291,7 @@ async function submitOrder(event){
       p_item_name:itemName,
       p_quantity:qty,
       p_unit_price:price,
-      p_comment:$('newOrderComment').value.trim()||null,
+      p_comment:buildOrderComment(),
       p_source:$('newOrderSource').value||'Офис'
     });
     if(error)throw error;
@@ -340,6 +343,9 @@ function bind(){
   $('closeNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('cancelNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('newOrderCustomer')?.addEventListener('change',toggleNewCustomer);
+  document.querySelectorAll('[data-order-kind]').forEach(button=>button.addEventListener('click',()=>{clearPartnerFields();setOrderKind(button.dataset.orderKind)}));
+  $('partnerOrderPresets')?.addEventListener('click',event=>{const button=event.target.closest('[data-partner-preset]');if(button)choosePartnerPreset(button.dataset.partnerPreset)});
+  $('partnerCost')?.addEventListener('input',updatePartnerMargin);
   $('newOrderItem')?.addEventListener('change',applyCatalogPrice);
   $('newOrderItem')?.addEventListener('blur',applyCatalogPrice);
   $('newOrderQty')?.addEventListener('input',recalc);
