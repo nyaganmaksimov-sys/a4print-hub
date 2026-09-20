@@ -55,3 +55,41 @@ body.nav-collapsed .nav-brand>span{display:none!important}
 .adjust-hint{margin-top:12px;padding:10px 12px;background:#f5f8fa;border-radius:9px;color:#667085;font-size:12px;line-height:1.45}
 .kassa-adjust-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 20px 18px;border-top:1px solid #e7edf2}.kassa-adjust-foot>div{display:flex;gap:8px}
 @media(max-width:600px){.kassa-adjust-modal{padding:10px}.kassa-adjust-card{border-radius:12px}.kassa-adjust-foot{align-items:stretch;flex-direction:column}.kassa-adjust-foot>div{display:grid;grid-template-columns:1fr 1fr}.kassa-adjust-foot>button{width:100%}}
+
+/* 2026-09-20: transparent white sidebar branding requested for teal Kassa navigation. */
+.nav-brand{padding:17px 14px 14px!important;background:transparent!important}
+.nav-brand-full{
+  display:block!important;
+  width:188px!important;
+  max-width:100%!important;
+  height:auto!important;
+  object-fit:contain!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  padding:0!important;
+}
+.nav-brand-icon{
+  display:none!important;
+  width:52px!important;
+  height:42px!important;
+  object-fit:contain!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  padding:0!important;
+}
+.nav-brand>span{
+  color:#fff!important;
+  opacity:.96;
+  font-size:10px!important;
+  font-weight:650!important;
+  letter-spacing:.16em!important;
+  margin-top:2px!important;
+}
+body.nav-collapsed .nav-brand{padding:14px 7px!important}
+body.nav-collapsed .nav-brand-full{display:none!important}
+body.nav-collapsed .nav-brand-icon{display:block!important}
+body.nav-collapsed .nav-brand>span{display:none!important}
+@media(max-width:1280px){.nav-brand-full{width:160px!important}}
