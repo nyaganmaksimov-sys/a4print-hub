@@ -44,6 +44,12 @@
             <option value="EQUIPMENT_INCIDENT">Инциденты оборудования</option>
           </select>
           <select id="pfrSeverity"><option value="">Все приоритеты</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+          <select id="pfrTriage">
+            <option value="">Все назначения</option>
+            <option value="mine">Мои риски</option>
+            <option value="unassigned">Без ответственного</option>
+            <option value="ack">Принято в работу (ACK)</option>
+          </select>
           <label><input id="pfrOverdueOnly" type="checkbox"> Только просроченные</label>
         </div>
         <div id="pfrError"></div>
@@ -59,7 +65,7 @@
       <div id="pfrHistoryList" class="pfr-history-list"><div class="pfr-empty">Загрузка…</div></div>
     </dialog>
   </main>
-  <script type="module" src="./production-farm-risk.js?v=20260919-phase54-1"></script>
+  <script type="module" src="./production-farm-risk.js?v=20260919-phase54-1-phase55-1"></script>
   <script type="module" src="./navigation.js?v=20260919-phase52-1"></script>
 </body>
 </html>

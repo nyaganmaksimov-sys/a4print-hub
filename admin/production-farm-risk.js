@@ -12,8 +12,11 @@ const categoryLabel={
   PARTNER_DISPUTE:'Спор владельца',
   EQUIPMENT_INCIDENT:'Инцидент оборудования'
 };
-const state={data:null,items:[],assignees:[],canAct:false,loading:false,history:null};
+const state={data:null,items:[],assignees:[],canAct:false,loading:false,history:null,currentStaffId:null};
+const triageValues=new Set(['mine','unassigned','ack']);
+const severityValues=new Set(['CRITICAL','HIGH','MEDIUM','LOW']);
 
+hydrateFiltersFromUrl();
 style();
 bind();
 load();
@@ -30,7 +33,7 @@ function style(){
   .pfr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
   .pfr-grid article{padding:13px}.pfr-grid strong{font-size:22px}
   .pfr-grid a{font-size:12px;text-decoration:none;color:#2563eb;font-weight:800}
-  .pfr-toolbar{display:grid;grid-template-columns:1fr 210px 170px auto;gap:10px;align-items:center;margin-bottom:14px}
+  .pfr-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 210px 170px 190px auto;gap:10px;align-items:center;margin-bottom:14px}
   .pfr-toolbar input,.pfr-toolbar select,.pfr-actions select{border:1px solid #cbd5e1;border-radius:10px;padding:9px;background:#fff}
   .pfr-toolbar label{display:flex;gap:7px;align-items:center}
   .pfr-list{display:grid;gap:9px}
@@ -75,11 +78,66 @@ function style(){
 
 function bind(){
   $('pfrRefresh').onclick=load;
-  for(const id of['pfrSearch','pfrCategory','pfrSeverity','pfrOverdueOnly']){
-    $(id).addEventListener(id==='pfrSearch'?'input':'change',render);
+  for(const id of['pfrSearch','pfrCategory','pfrSeverity','pfrTriage','pfrOverdueOnly']){
+    $(id).addEventListener(id==='pfrSearch'?'input':'change',applyFilters);
   }
   $('pfrList').addEventListener('click',handleListClick);
   $('pfrHistoryClose').onclick=()=>$('pfrHistoryDlg').close();
+  window.addEventListener('popstate',()=>{
+    hydrateFiltersFromUrl();
+    render();
+  });
+}
+
+function applyFilters(){
+  render();
+  syncCockpitUrl();
+}
+
+function hydrateFiltersFromUrl(){
+  const p=new URLSearchParams(window.location.search);
+  const category=p.get('category')||'';
+  const severity=(p.get('severity')||'').toUpperCase();
+  const triage=p.get('triage')||'';
+  $('pfrSearch').value=String(p.get('q')||'').slice(0,120);
+  $('pfrCategory').value=Object.prototype.hasOwnProperty.call(categoryLabel,category)?category:'';
+  $('pfrSeverity').value=severityValues.has(severity)?severity:'';
+  $('pfrTriage').value=triageValues.has(triage)?triage:'';
+  $('pfrOverdueOnly').checked=p.get('overdue')==='1';
+}
+
+function cockpitStateParams(){
+  const p=new URLSearchParams();
+  const q=$('pfrSearch').value.trim().slice(0,120);
+  const category=$('pfrCategory').value;
+  const severity=$('pfrSeverity').value;
+  const triage=$('pfrTriage').value;
+  if(q)p.set('q',q);
+  if(Object.prototype.hasOwnProperty.call(categoryLabel,category))p.set('category',category);
+  if(severityValues.has(severity))p.set('severity',severity);
+  if(triageValues.has(triage))p.set('triage',triage);
+  if($('pfrOverdueOnly').checked)p.set('overdue','1');
+  return p;
+}
+
+function syncCockpitUrl(){
+  const p=cockpitStateParams();
+  const next=window.location.pathname+(p.size?'?'+p.toString():'')+window.location.hash;
+  window.history.replaceState(null,'',next);
+}
+
+function actionableHref(href){
+  if(!href)return'#';
+  try{
+    const u=new URL(href,window.location.href);
+    if(u.origin!==window.location.origin)return href;
+    const cockpit=cockpitStateParams().toString();
+    if(cockpit)u.searchParams.set('cockpit',cockpit);
+    else u.searchParams.delete('cockpit');
+    return u.href;
+  }catch{
+    return href;
+  }
 }
 
 async function load(){
@@ -88,10 +146,15 @@ async function load(){
   $('pfrRefresh').disabled=true;
   $('pfrError').innerHTML='';
   try{
-    const{data,error}=await supabase.rpc('get_production_farm_risk_cockpit',{p_limit_per_category:20});
-    if(error)throw error;
+    const[cockpit,profile]=await Promise.all([
+      supabase.rpc('get_production_farm_risk_cockpit',{p_limit_per_category:20}),
+      supabase.rpc('get_my_staff_profile')
+    ]);
+    if(cockpit.error)throw cockpit.error;
+    const data=cockpit.data;
     state.data=data||{};
     state.items=Array.isArray(data?.items)?data.items:[];
+    state.currentStaffId=profile.error?null:(profile.data?.status==='ACTIVE'?profile.data?.user?.id||null:null);
     state.assignees=[];
     state.canAct=false;
 
@@ -131,18 +194,29 @@ function render(){
   const q=$('pfrSearch').value.trim().toLowerCase();
   const cat=$('pfrCategory').value;
   const sev=$('pfrSeverity').value;
+  const triage=$('pfrTriage').value;
   const overdueOnly=$('pfrOverdueOnly').checked;
-  const rows=state.items.filter(x=>
-    (!cat||x.category===cat)
+  const rows=state.items.filter(x=>{
+    const meta=x.meta||{};
+    const assigned=meta.risk_assigned_to||meta.assigned_to||'';
+    const acknowledged=Boolean(meta.risk_acknowledged);
+    const triageMatch=!triage
+      ||(triage==='mine'&&Boolean(state.currentStaffId)&&assigned===state.currentStaffId)
+      ||(triage==='unassigned'&&!assigned)
+      ||(triage==='ack'&&acknowledged);
+    return (!cat||x.category===cat)
     &&(!sev||x.severity===sev)
+    &&triageMatch
     &&(!overdueOnly||x.overdue)
     &&(!q||[
       x.title,x.subtitle,x.state,x.entity_type,
       x.meta?.risk_assigned_to_name,x.meta?.assigned_to_name,x.meta?.risk_note
-    ].join(' ').toLowerCase().includes(q))
-  );
+    ].join(' ').toLowerCase().includes(q));
+  });
 
-  const banner=state.canAct?'':'<div class="pfr-info">У вас есть доступ к просмотру рисков. Для назначения и ACK нужны управляющие права Production Farm.</div>';
+  const mineWarning=triage==='mine'&&!state.currentStaffId
+    ?'<div class="pfr-info">Не удалось определить staff-профиль для фильтра «Мои риски».</div>':'';
+  const banner=(state.canAct?'':'<div class="pfr-info">У вас есть доступ к просмотру рисков. Для назначения и ACK нужны управляющие права Production Farm.</div>')+mineWarning;
   $('pfrList').innerHTML=banner+(rows.length?rows.map(card).join(''):'<div class="pfr-empty">Активных рисков по выбранному фильтру нет.</div>');
 }
 
@@ -176,6 +250,7 @@ function card(x){
     +(!assigned?'<span class="pfr-pill UNASSIGNED">БЕЗ ОТВЕТСТВЕННОГО</span>':'');
 
   const historyButton='<button type="button" data-risk-history>История</button>';
+  const openHref=actionableHref(x.href||'#');
   const controls=state.canAct
     ?'<div class="pfr-actions">'
       +'<select data-risk-assignee>'+assigneeOptions(assigned)+'</select>'
@@ -183,9 +258,9 @@ function card(x){
       +(acknowledged?'':'<button type="button" data-risk-action="ack">ACK</button>')
       +'<button type="button" data-risk-action="note">Заметка</button>'
       +historyButton
-      +'<a class="pfr-open" href="'+esc(x.href||'#')+'">Открыть →</a>'
+      +'<a class="pfr-open" href="'+esc(openHref)+'">Открыть →</a>'
       +'</div>'
-    :'<div class="pfr-actions">'+historyButton+'<a class="pfr-open" href="'+esc(x.href||'#')+'">Открыть →</a></div>';
+    :'<div class="pfr-actions">'+historyButton+'<a class="pfr-open" href="'+esc(openHref)+'">Открыть →</a></div>';
 
   return '<article class="pfr-row '+(x.overdue?'overdue ':'')+(acknowledged?'acknowledged':'')+'" data-category="'+esc(x.category)+'" data-entity-id="'+esc(x.entity_id)+'">'
     +'<div><h3>'+esc(x.title||'Риск')+'</h3>'
