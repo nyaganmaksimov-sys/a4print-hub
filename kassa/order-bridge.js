@@ -13,7 +13,7 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
   const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Пауза'};
-  let overlay=null,listEl=null,detailEl=null,searchEl=null,current=null,loading=false,serviceItem=null;
+  let overlay=null,listEl=null,detailEl=null,searchEl=null,current=null,loading=false,serviceItem=null,orders=[];\n  let activeFilter='ALL',activeSort='NEWEST';
 
   async function token(){const {data,error}=await supabase.auth.getSession();if(error)throw error;const t=data?.session?.access_token;if(!t)throw new Error('Сессия кассы завершена. Войдите снова.');return t}
   async function api(path,opt={}){const t=await token();const r=await fetch(API+path,{...opt,cache:'no-store',headers:{Authorization:`Bearer ${t}`,'Content-Type':'application/json',Accept:'application/json',...(opt.headers||{})}});const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);return d}
@@ -24,7 +24,17 @@
     overlay=document.createElement('section');overlay.className='hub-orders-overlay';overlay.hidden=true;
     overlay.innerHTML=`<div class="hub-orders-card" role="dialog" aria-modal="true" aria-label="Заказы HUB">
       <header class="hub-orders-head"><div><h2>Заказы HUB</h2><p>Выберите заказ и проведите оплату через кассу</p></div><button type="button" class="hub-orders-close">×</button></header>
-      <div class="hub-orders-search"><input id="hubOrdersSearch" autocomplete="off" placeholder="Номер заказа, клиент или телефон"><button type="button" id="hubOrdersRefresh">↻</button></div>
+      <div class="hub-orders-search"><input id="hubOrdersSearch" autocomplete="off" placeholder="Номер заказа, клиент или телефон"><button type="button" id="hubOrdersRefresh" title="Обновить">↻</button></div>
+      <div class="hub-orders-controls">
+        <div class="hub-orders-filters" role="group" aria-label="Фильтр заказов">
+          <button type="button" class="active" data-hub-filter="ALL">Все <span data-filter-count="ALL">0</span></button>
+          <button type="button" data-hub-filter="NEW">Новые <span data-filter-count="NEW">0</span></button>
+          <button type="button" data-hub-filter="ACTIVE">В работе <span data-filter-count="ACTIVE">0</span></button>
+          <button type="button" data-hub-filter="READY">Готовы <span data-filter-count="READY">0</span></button>
+        </div>
+        <label class="hub-orders-sort"><span>Сортировка</span><select id="hubOrdersSort"><option value="NEWEST">Сначала новые</option><option value="OLDEST">Сначала старые</option><option value="DEBT_DESC">Больше к оплате</option><option value="TOTAL_DESC">Больше сумма</option><option value="STATUS">По статусу</option></select></label>
+      </div>
+      <div id="hubOrdersSummary" class="hub-orders-summary">Загрузка заказов…</div>
       <div class="hub-orders-layout"><div id="hubOrdersList" class="hub-orders-list"></div><div id="hubOrderDetail" class="hub-order-detail"><div class="hub-orders-empty">Выберите заказ слева</div></div></div>
     </div>`;
     document.body.appendChild(overlay);listEl=$('hubOrdersList');detailEl=$('hubOrderDetail');searchEl=$('hubOrdersSearch');
@@ -32,6 +42,8 @@
     overlay.onclick=e=>{if(e.target===overlay)close()};
     $('hubOrdersRefresh').onclick=()=>loadOrders(searchEl.value);
     let timer=null;searchEl.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>loadOrders(searchEl.value),280)};
+    overlay.querySelectorAll('[data-hub-filter]').forEach(b=>b.onclick=()=>{activeFilter=b.dataset.hubFilter||'ALL';overlay.querySelectorAll('[data-hub-filter]').forEach(x=>x.classList.toggle('active',x===b));renderOrderList()});
+    const sort=$('hubOrdersSort');if(sort)sort.onchange=()=>{activeSort=sort.value||'NEWEST';renderOrderList()};
   }
 
   function addLaunchers(){
@@ -44,14 +56,82 @@
   async function open(){ensureUi();overlay.hidden=false;document.body.classList.add('hub-orders-opened');searchEl.focus();await loadOrders(searchEl.value)}
   function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('hub-orders-opened')}
 
+  function statusBucket(status){
+    const s=String(status||'').toUpperCase();
+    if(s==='NEW'||s==='CONFIRMED')return 'NEW';
+    if(s==='IN_PROGRESS'||s==='ON_HOLD')return 'ACTIVE';
+    if(s==='READY')return 'READY';
+    return 'OTHER';
+  }
+
+  function orderDate(value){
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())?{short:'—',full:'Дата не указана'}:{
+      short:d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' · '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}),
+      full:d.toLocaleString('ru-RU')
+    };
+  }
+
+  function sortOrders(rows){
+    const statusRank={READY:0,NEW:1,CONFIRMED:2,IN_PROGRESS:3,ON_HOLD:4,COMPLETED:5};
+    return [...rows].sort((a,b)=>{
+      if(activeSort==='OLDEST')return new Date(a.created_at||0)-new Date(b.created_at||0);
+      if(activeSort==='DEBT_DESC')return Number(b.debt||0)-Number(a.debt||0);
+      if(activeSort==='TOTAL_DESC')return Number(b.total||0)-Number(a.total||0);
+      if(activeSort==='STATUS'){
+        const ar=statusRank[String(a.status||'').toUpperCase()]??99,br=statusRank[String(b.status||'').toUpperCase()]??99;
+        return ar-br||new Date(b.created_at||0)-new Date(a.created_at||0);
+      }
+      return new Date(b.created_at||0)-new Date(a.created_at||0);
+    });
+  }
+
+  function updateOrderCounts(){
+    const counts={ALL:orders.length,NEW:0,ACTIVE:0,READY:0};
+    orders.forEach(o=>{const b=statusBucket(o.status);if(counts[b]!=null)counts[b]++});
+    Object.entries(counts).forEach(([k,v])=>{const el=overlay?.querySelector(`[data-filter-count="${k}"]`);if(el)el.textContent=String(v)});
+  }
+
+  function renderOrderList(){
+    if(!listEl)return;
+    updateOrderCounts();
+    const filtered=orders.filter(o=>activeFilter==='ALL'||statusBucket(o.status)===activeFilter);
+    const rows=sortOrders(filtered);
+    const summary=$('hubOrdersSummary');
+    if(summary)summary.textContent=orders.length
+      ?`Показано ${rows.length} из ${orders.length} · неоплаченные заказы HUB`
+      :'Неоплаченных заказов нет';
+    listEl.innerHTML=rows.map(o=>{
+      const dt=orderDate(o.created_at);
+      const st=String(o.status||'').toUpperCase();
+      const phone=o.customer_phone||o.phone||'';
+      return `<button class="hub-order-row" type="button" data-hub-order="${esc(o.id)}" data-status="${esc(st)}">
+        <span class="hub-order-main">
+          <span class="hub-order-row-top"><b>№${esc(o.order_number)}</b><em class="hub-order-row-status">${esc(labels[o.status]||o.status||'Без статуса')}</em></span>
+          <strong>${esc(o.customer_name||'Клиент не указан')}</strong>
+          <small title="${esc(dt.full)}">${esc(dt.short)}${phone?' · '+esc(phone):''}</small>
+        </span>
+        <span class="hub-order-money"><small>К оплате</small><strong>${money(o.debt)}</strong><em>заказ ${money(o.total)}</em></span>
+      </button>`;
+    }).join('')||'<div class="hub-orders-empty">В этой группе заказов нет</div>';
+    listEl.querySelectorAll('[data-hub-order]').forEach(b=>b.onclick=()=>selectOrder(b.dataset.hubOrder,b));
+    if(current?.id){const selected=listEl.querySelector(`[data-hub-order="${CSS.escape(String(current.id))}"]`);selected?.classList.add('active')}
+  }
+
   async function loadOrders(q=''){
-    if(loading)return;loading=true;listEl.innerHTML='<div class="hub-orders-empty">Загрузка заказов…</div>';
+    if(loading)return;loading=true;
+    listEl.innerHTML='<div class="hub-orders-empty">Загрузка заказов…</div>';
+    const summary=$('hubOrdersSummary');if(summary)summary.textContent='Обновляем очередь заказов…';
     try{
-      const {data,error}=await supabase.rpc('get_pos_hub_orders',{p_query:String(q||'').trim(),p_limit:60});if(error)throw error;
-      const rows=Array.isArray(data)?data:[];
-      listEl.innerHTML=rows.map(o=>`<button class="hub-order-row" type="button" data-hub-order="${esc(o.id)}"><span><b>№${esc(o.order_number)} · ${esc(o.customer_name||'Клиент не указан')}</b><small>${esc(labels[o.status]||o.status||'')} · ${new Date(o.created_at).toLocaleDateString('ru-RU')}</small></span><span class="hub-order-money"><strong>${money(o.debt)}</strong><small>из ${money(o.total)}</small></span></button>`).join('')||'<div class="hub-orders-empty">Неоплаченных заказов не найдено</div>';
-      listEl.querySelectorAll('[data-hub-order]').forEach(b=>b.onclick=()=>selectOrder(b.dataset.hubOrder,b));
-    }catch(error){listEl.innerHTML=`<div class="hub-orders-error">Не удалось загрузить заказы: ${esc(error.message||error)}</div>`}
+      const {data,error}=await supabase.rpc('get_pos_hub_orders',{p_query:String(q||'').trim(),p_limit:100});if(error)throw error;
+      orders=Array.isArray(data)?data:[];
+      renderOrderList();
+    }catch(error){
+      orders=[];
+      updateOrderCounts();
+      listEl.innerHTML=`<div class="hub-orders-error">Не удалось загрузить заказы: ${esc(error.message||error)}</div>`;
+      if(summary)summary.textContent='Ошибка загрузки заказов';
+    }
     finally{loading=false}
   }
 
