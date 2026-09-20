@@ -153,6 +153,13 @@ function choosePartnerPreset(index){
   $('newOrderPrice')?.focus();
 }
 
+function persistedItemName(raw){
+  const name=String(raw||'').trim();
+  if(state.orderKind==='STANDARD')return name;
+  const flow=ORDER_WORKFLOWS[state.orderKind];
+  return flow?.partner?flow.partner+' · '+name:name;
+}
+
 function buildOrderComment(){
   const note=$('newOrderComment')?.value.trim()||'';
   if(state.orderKind==='STANDARD')return note||null;
@@ -295,7 +302,7 @@ async function submitOrder(event){
       p_customer_name:newCustomer?customerName:null,
       p_customer_phone:newCustomer?($('newOrderCustomerPhone').value.trim()||null):null,
       p_business_unit:$('newOrderUnit').value,
-      p_item_name:itemName,
+      p_item_name:persistedItemName(itemName),
       p_quantity:qty,
       p_unit_price:price,
       p_comment:buildOrderComment(),
@@ -350,7 +357,7 @@ function bind(){
   $('closeNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('cancelNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('newOrderCustomer')?.addEventListener('change',toggleNewCustomer);
-  document.querySelectorAll('[data-order-kind]').forEach(button=>button.addEventListener('click',()=>{clearPartnerFields();setOrderKind(button.dataset.orderKind)}));
+  document.querySelectorAll('[data-order-kind]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.orderKind!==state.orderKind){$('newOrderItem').value='';$('newOrderPrice').value='0'}clearPartnerFields();setOrderKind(button.dataset.orderKind);recalc()}));
   $('partnerOrderPresets')?.addEventListener('click',event=>{const button=event.target.closest('[data-partner-preset]');if(button)choosePartnerPreset(button.dataset.partnerPreset)});
   $('partnerCost')?.addEventListener('input',updatePartnerMargin);
   $('newOrderItem')?.addEventListener('change',applyCatalogPrice);
