@@ -1,5 +1,5 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
-import {riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing} from './production-farm-deep-link.js';
+import {riskParam,installRiskCockpitReturnLink,focusRiskElement,showRiskLinkMissing} from './production-farm-deep-link.js?v=20260919-phase55-1';
 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
