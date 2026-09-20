@@ -197,7 +197,7 @@
     {id:'OTHER',label:'Прочее',icon:'•••'}
   ];
   const CATALOG_GROUP_BY_ID=Object.fromEntries(CATALOG_GROUPS.map(x=>[x.id,x]));
-  const CORE_GROUPS=new Set(['PRINT_BASIC','PRINT_COLOR','PRINT_SPECIAL','PHOTO_DOCS','PHOTO_SMALL','PHOTO_LARGE','POST_PRINT','POLYGRAPHY','DIGITAL']);
+  const CORE_GROUPS=new Set(['PRINT_BASIC','PRINT_COLOR','PRINT_SPECIAL','PHOTO_DOCS','PHOTO_SMALL','PHOTO_LARGE','POST_PRINT','POLYGRAPHY','STAMP_MAKE','DIGITAL']);
 
   function catalogText(row){
     return String(row?.name||'').toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x').replace(/\s+/g,' ').trim();
@@ -227,7 +227,7 @@
     if(/(фото\s+на\s+(паспорт|загран|документ|удостовер|виз|анкет)|фнд\b|3\s*[x*]\s*4)/.test(n))return 'PHOTO_DOCS';
     if(/(фото\s+на\s+памятник|фото\s*рамк)/.test(n))return 'PHOTO_SPECIAL';
     if(/(10\s*x\s*15|фотопечат.*10\s*x\s*15|фото\s*печат.*10\s*x\s*15|печать\s+фото\s+10\s*x\s*15)/.test(n))return 'PHOTO_SMALL';
-    if(/(15\s*x\s*21|21\s*x\s*30|30\s*x\s*42|фотопечат|фото\s*печат|печать\s+фото|а[345]\s+глянцев)/.test(n))return 'PHOTO_LARGE';
+    if(/(15\s*x\s*21|21\s*x\s*30|30\s*x\s*42|фотопечат|фото\s*печат|печать\s+фото|печать\s+а[345].*фото|а[345]\s+глянцев)/.test(n))return 'PHOTO_LARGE';
     if(/(ламинир|броширов|переплет|переплёт|пружин|резк[аи]\s+бумаг)/.test(n))return 'POST_PRINT';
     if(/(визит|листов|буклет|флаер|накле|баннер|плакат|календар|открытк|грамот|сертификат|меню|табличк|изготовлени[ея]\s+карточ)/.test(n))return 'POLYGRAPHY';
     if(/(дизайн|макет|ретуш|цветокорр|набор\s+текст)/.test(n))return 'DESIGN';
@@ -247,7 +247,7 @@
     if(cat==='FAVORITES')return 'Избранное';
     return CATALOG_GROUP_BY_ID[cat]?.label||'Каталог';
   }
-  function regularCatalog(){return state.catalog.filter(x=>!isHiddenCatalogItem(x)&&!isSampleCatalogItem(x))}
+  function regularCatalog(){return dedupeCatalogRows(state.catalog.filter(x=>!isHiddenCatalogItem(x)&&!isSampleCatalogItem(x)))}
   function isCoreCatalogItem(row){return CORE_GROUPS.has(catalogGroupId(row))}
   function renderCategories(){
     const regular=regularCatalog();
