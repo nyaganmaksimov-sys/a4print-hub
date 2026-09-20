@@ -52,6 +52,18 @@
           </select>
           <label><input id="pfrOverdueOnly" type="checkbox"> Только просроченные</label>
         </div>
+        <div class="pfr-presets">
+          <select id="pfrPreset">
+            <option value="">Сохранённые представления</option>
+          </select>
+          <button id="pfrPresetApply" type="button" disabled>Применить</button>
+          <button id="pfrPresetSave" type="button">Сохранить текущее</button>
+          <button id="pfrPresetUpdate" type="button" disabled>Обновить</button>
+          <button id="pfrPresetDefault" type="button" disabled>По умолчанию</button>
+          <button id="pfrPresetDelete" type="button" disabled>Удалить</button>
+          <button id="pfrPresetClear" type="button">Сбросить фильтры</button>
+          <span id="pfrPresetStatus" class="pfr-preset-status"></span>
+        </div>
         <div id="pfrError"></div>
         <div id="pfrPageMeta" class="pfr-page-meta"></div>
         <div id="pfrList" class="pfr-list"><div class="pfr-empty">Загрузка…</div></div>
@@ -67,7 +79,7 @@
       <div id="pfrHistoryList" class="pfr-history-list"><div class="pfr-empty">Загрузка…</div></div>
     </dialog>
   </main>
-  <script type="module" src="./production-farm-risk.js?v=20260920-phase56-1"></script>
+  <script type="module" src="./production-farm-risk.js?v=20260920-phase57-1"></script>
   <script type="module" src="./navigation.js?v=20260919-phase52-1"></script>
 </body>
 </html>

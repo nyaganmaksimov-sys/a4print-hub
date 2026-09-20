@@ -1,0 +1,86 @@
+name: Check Production Farm Phase 57
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'database/migrations/20260920_production_farm_risk_presets.sql'
+      - 'admin/production-farm-risk.html'
+      - 'admin/production-farm-risk.js'
+      - 'docs/PRODUCTION_FARM_PHASE57.md'
+      - '.github/workflows/check-production-farm-phase57.yml'
+
+jobs:
+  phase57-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: node --check admin/production-farm-risk.js
+
+      - name: Verify saved views UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          js='admin/production-farm-risk.js'
+          html='admin/production-farm-risk.html'
+
+          grep -q "get_my_production_farm_risk_presets" "$js"
+          grep -q "save_my_production_farm_risk_preset" "$js"
+          grep -q "delete_my_production_farm_risk_preset" "$js"
+
+          grep -q "hasExplicitCockpitFilters" "$js"
+          grep -q "state.presets.find(x=>x.is_default)" "$js"
+          grep -q "syncPresetSelectionFromFilters" "$js"
+          grep -q "applyPresetFilters" "$js"
+
+          for id in             pfrPreset pfrPresetApply pfrPresetSave pfrPresetUpdate             pfrPresetDefault pfrPresetDelete pfrPresetClear pfrPresetStatus
+          do
+            grep -q "$id" "$html"
+          done
+
+          grep -q "20260920-phase57-1" "$html"
+          grep -q "get_production_farm_risk_cockpit_page" "$js"
+          grep -q "cockpitStateParams" "$js"
+
+      - name: Verify preset migration security
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql='database/migrations/20260920_production_farm_risk_presets.sql'
+          test -s "$sql"
+
+          grep -q "production_farm_risk_presets" "$sql"
+          grep -q "enable row level security" "$sql"
+          grep -q "revoke all on table public.production_farm_risk_presets from public,anon,authenticated" "$sql"
+          grep -q "uq_production_farm_risk_presets_name" "$sql"
+          grep -q "uq_production_farm_risk_presets_default" "$sql"
+
+          grep -q "RISK_PRESET_LIMIT_REACHED" "$sql"
+          grep -q "v_count>=20" "$sql"
+          grep -q "RISK_PRESET_FILTER_KEY_INVALID" "$sql"
+          grep -q "RISK_PRESET_SEARCH_TOO_LONG" "$sql"
+
+          grep -q "risk_private.assert_production_farm_risk_preset_context" "$sql"
+          grep -q "security definer" "$sql"
+          grep -q "security invoker" "$sql"
+          grep -q "set search_path=''" "$sql"
+          grep -q "select private.assert_production_farm_security_baseline();" "$sql"
+
+          ! grep -qi "grant .* on table public.production_farm_risk_presets.*authenticated" "$sql"
+
+      - name: Verify documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          doc='docs/PRODUCTION_FARM_PHASE57.md'
+          test -s "$doc"
+          grep -q "phase57_risk_presets_ok" "$doc"
+          grep -q "phase57_risk_presets_tenant_isolation_ok" "$doc"
+          grep -q "20260920203649" "$doc"
+          grep -q "test residue = 0" "$doc"
+          grep -q "explicit URL filters" "$doc"
