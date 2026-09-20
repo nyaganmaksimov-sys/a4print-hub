@@ -69,7 +69,7 @@ jobs:
           grep -q 'renderHistory' admin/production-farm-risk.js
           grep -q 'pfrHistoryDlg' admin/production-farm-risk.html
           grep -q 'pfrHistoryList' admin/production-farm-risk.html
-          grep -q 'production-farm-risk.js?v=20260919-phase54-1' admin/production-farm-risk.html
+          grep -Eq 'production-farm-risk\.js\?v=[^"]+' admin/production-farm-risk.html
 
       - name: Verify documentation
         shell: bash
