@@ -2,9 +2,17 @@ import { supabase } from './guard.js?v=20260905-netfix1';
 
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2});
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m==='"'?'&quot;':'&#39;');
 const MAX_FILE_SIZE=50*1024*1024;
-const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[]};
+const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[],orderKind:'STANDARD'};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
+
+const ORDER_WORKFLOWS={
+  STANDARD:{partner:null,title:'Обычный заказ',url:'',description:'Стандартный заказ А4-Принт или 3D-ARTPRINT.',presets:[]},
+  MEMORIAL:{partner:'Сфера',title:'Памятники / фотокерамика',url:'https://shop.sferazakaz.ru/catalog/photokeramika',description:'Портреты и изделия для памятников. Фото и макеты прикрепляйте к заказу ниже.',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / композиция сложной формы','Нестандартная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона в золотом обрамлении','Временная табличка','Вкладка в цветник'],labels:{material:'Материал',format:'Размер / форма',color:'Цветность',finishing:'Ретушь / отверстия'},placeholders:{material:'Металл, керамика, фарфор, керамогранит…',format:'Например 18×24, овал / прямоугольник',color:'Цветной / чёрно-белый / сепия',finishing:'Без ретуши, сложная ретушь; отверстия…'}},
+  SOUVENIR:{partner:'Сфера',title:'Сувенирная продукция и знаки',url:'https://sferazakaz.ru/',description:'Заказы на сувенирные изделия, информационные знаки, таблички и нестандартную продукцию «Сферы».',presets:['Информационный знак','Табличка','Сувенирная продукция','Памятное изделие','Нестандартное изделие'],labels:{material:'Материал',format:'Размер / габариты',color:'Цвет / нанесение',finishing:'Обработка / крепление'},placeholders:{material:'Металл, пластик, керамика и т. п.',format:'Размер изделия',color:'Цвет, печать, гравировка…',finishing:'Отверстия, крепление, упаковка…'}},
+  TYPOGRAPHY:{partner:'Группа М',title:'Типография',url:'https://gmprint.ru/',description:'Заказы на полиграфию через типографию «Группа М». Укажите тираж в количестве, а производственные параметры — ниже.',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:{material:'Бумага / материал',format:'Формат',color:'Цветность / стороны',finishing:'Постпечатная обработка'},placeholders:{material:'Мелованная, дизайнерская, плотность…',format:'A6, A5, A4, 90×50 мм…',color:'4+0, 4+4, ч/б…',finishing:'Ламинация, скругление, фальцовка, сверление…'}}
+};
 
 function normalizeRoles(data){
   if(Array.isArray(data))return data.map(String);
@@ -70,13 +78,28 @@ function toggleNewCustomer(){
   if(wrap)wrap.hidden=$('newOrderCustomer')?.value!=='__NEW__';
 }
 
+function updatePartnerMargin(){
+  const node=$('partnerMargin');if(!node)return;
+  if(state.orderKind==='STANDARD'){node.textContent='';return}
+  const qty=Math.max(0,Number($('newOrderQty')?.value||0));
+  const price=Math.max(0,Number($('newOrderPrice')?.value||0));
+  const cost=Math.max(0,Number($('partnerCost')?.value||0));
+  if(!(cost>0)){node.textContent='Себестоимость партнёра можно указать для контроля маржи.';node.classList.remove('negative');return}
+  const revenue=qty*price,costTotal=qty*cost,margin=revenue-costTotal;
+  const percent=revenue>0?(margin/revenue)*100:0;
+  node.textContent='Партнёр: '+money(costTotal)+' ₽ · клиент: '+money(revenue)+' ₽ · маржа: '+money(margin)+' ₽ ('+percent.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%)';
+  node.classList.toggle('negative',margin<0);
+}
+
 function recalc(){
   const qty=Math.max(0,Number($('newOrderQty')?.value||0));
   const price=Math.max(0,Number($('newOrderPrice')?.value||0));
-  if($('newOrderTotal'))$('newOrderTotal').value=`${money(qty*price)} ₽`;
+  if($('newOrderTotal'))$('newOrderTotal').value=money(qty*price)+' ₽';
+  updatePartnerMargin();
 }
 
 function applyCatalogPrice(){
+  if(state.orderKind!=='STANDARD')return;
   const value=$('newOrderItem')?.value.trim().toLowerCase();
   if(!value)return;
   const item=state.catalog.find(x=>String(x.name||'').trim().toLowerCase()===value);
@@ -84,6 +107,76 @@ function applyCatalogPrice(){
     $('newOrderPrice').value=Number(item.sale_price||0);
     recalc();
   }
+}
+
+function clearPartnerFields(){
+  for(const id of ['partnerMaterial','partnerFormat','partnerColor','partnerFinishing','partnerReference','partnerText'])if($(id))$(id).value='';
+  if($('partnerCost'))$('partnerCost').value='0';
+}
+
+function setOrderKind(kind){
+  const next=ORDER_WORKFLOWS[kind]?kind:'STANDARD';
+  state.orderKind=next;
+  document.querySelectorAll('[data-order-kind]').forEach(button=>button.classList.toggle('active',button.dataset.orderKind===next));
+  const panel=$('partnerOrderPanel'),flow=ORDER_WORKFLOWS[next];
+  if(next==='STANDARD'){
+    if(panel)panel.hidden=true;
+    updatePartnerMargin();
+    return;
+  }
+  if(panel)panel.hidden=false;
+  $('partnerOrderEyebrow').textContent='Партнёр · '+flow.partner;
+  $('partnerOrderTitle').textContent=flow.title;
+  $('partnerOrderDescription').textContent=flow.description;
+  const link=$('partnerCatalogLink');link.href=flow.url;link.textContent='Открыть каталог «'+flow.partner+'» ↗';
+  const labels=flow.labels||{},placeholders=flow.placeholders||{};
+  $('partnerMaterialLabel').textContent=labels.material||'Материал';$('partnerMaterial').placeholder=placeholders.material||'';
+  $('partnerFormatLabel').textContent=labels.format||'Размер / формат';$('partnerFormat').placeholder=placeholders.format||'';
+  $('partnerColorLabel').textContent=labels.color||'Цветность';$('partnerColor').placeholder=placeholders.color||'';
+  $('partnerFinishingLabel').textContent=labels.finishing||'Обработка';$('partnerFinishing').placeholder=placeholders.finishing||'';
+  const textLabel=$('partnerTextLabel'),textInput=$('partnerText');
+  if(textLabel&&textInput){
+    if(next==='MEMORIAL'){textLabel.textContent='ФИО / даты / текст на изделии';textInput.placeholder='ФИО, даты жизни, эпитафия или подпись'}
+    else if(next==='TYPOGRAPHY'){textLabel.textContent='Примечания к макету';textInput.placeholder='Текст, персонализация, нумерация и другие данные'}
+    else{textLabel.textContent='Текст / дополнительные данные';textInput.placeholder='Текст, надпись или данные для изготовления'}
+  }
+  $('partnerOrderPresets').innerHTML=(flow.presets||[]).map((name,index)=>'<button type="button" data-partner-preset="'+index+'">'+esc(name)+'</button>').join('');
+  $('newOrderUnit').value='A4_PRINT';
+  updatePartnerMargin();
+}
+
+function choosePartnerPreset(index){
+  const flow=ORDER_WORKFLOWS[state.orderKind];const name=flow?.presets?.[Number(index)];
+  if(!name)return;
+  $('newOrderItem').value=name;
+  $('partnerOrderPresets')?.querySelectorAll('[data-partner-preset]').forEach(button=>button.classList.toggle('active',Number(button.dataset.partnerPreset)===Number(index)));
+  $('newOrderPrice')?.focus();
+}
+
+function persistedItemName(raw){
+  const name=String(raw||'').trim();
+  if(state.orderKind==='STANDARD')return name;
+  const flow=ORDER_WORKFLOWS[state.orderKind];
+  return flow?.partner?flow.partner+' · '+name:name;
+}
+
+function buildOrderComment(){
+  const note=$('newOrderComment')?.value.trim()||'';
+  if(state.orderKind==='STANDARD')return note||null;
+  const flow=ORDER_WORKFLOWS[state.orderKind];
+  const fields=[
+    'Партнёрский заказ: '+flow.partner+' — '+flow.title,
+    $('partnerMaterial')?.value.trim()?$('partnerMaterialLabel').textContent+': '+$('partnerMaterial').value.trim():'',
+    $('partnerFormat')?.value.trim()?$('partnerFormatLabel').textContent+': '+$('partnerFormat').value.trim():'',
+    $('partnerColor')?.value.trim()?$('partnerColorLabel').textContent+': '+$('partnerColor').value.trim():'',
+    $('partnerFinishing')?.value.trim()?$('partnerFinishingLabel').textContent+': '+$('partnerFinishing').value.trim():'',
+    $('partnerReference')?.value.trim()?'Артикул / модель / ссылка: '+$('partnerReference').value.trim():'',
+    $('partnerText')?.value.trim()?$('partnerTextLabel').textContent+': '+$('partnerText').value.trim():'',
+    Number($('partnerCost')?.value||0)>0?'Себестоимость партнёра: '+money(Number($('partnerCost').value||0))+' ₽ / ед.':'',
+    'Каталог партнёра: '+flow.url,
+    note?'Комментарий клиента: '+note:''
+  ].filter(Boolean);
+  return fields.join('\n');
 }
 
 function fileSize(bytes){
@@ -165,6 +258,9 @@ async function openDialog(){
   try{
     await loadReferenceData();
     $('newOrderCustomer').value='';
+    state.orderKind='STANDARD';
+    clearPartnerFields();
+    setOrderKind('STANDARD');
     $('newOrderCustomerName').value='';
     $('newOrderCustomerPhone').value='';
     $('newOrderUnit').value='A4_PRINT';
@@ -206,10 +302,10 @@ async function submitOrder(event){
       p_customer_name:newCustomer?customerName:null,
       p_customer_phone:newCustomer?($('newOrderCustomerPhone').value.trim()||null):null,
       p_business_unit:$('newOrderUnit').value,
-      p_item_name:itemName,
+      p_item_name:persistedItemName(itemName),
       p_quantity:qty,
       p_unit_price:price,
-      p_comment:$('newOrderComment').value.trim()||null,
+      p_comment:buildOrderComment(),
       p_source:$('newOrderSource').value||'Офис'
     });
     if(error)throw error;
@@ -261,6 +357,9 @@ function bind(){
   $('closeNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('cancelNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('newOrderCustomer')?.addEventListener('change',toggleNewCustomer);
+  document.querySelectorAll('[data-order-kind]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.orderKind!==state.orderKind){$('newOrderItem').value='';$('newOrderPrice').value='0'}clearPartnerFields();setOrderKind(button.dataset.orderKind);recalc()}));
+  $('partnerOrderPresets')?.addEventListener('click',event=>{const button=event.target.closest('[data-partner-preset]');if(button)choosePartnerPreset(button.dataset.partnerPreset)});
+  $('partnerCost')?.addEventListener('input',updatePartnerMargin);
   $('newOrderItem')?.addEventListener('change',applyCatalogPrice);
   $('newOrderItem')?.addEventListener('blur',applyCatalogPrice);
   $('newOrderQty')?.addEventListener('input',recalc);
