@@ -6,6 +6,53 @@ const MAX_FILE_SIZE=50*1024*1024;
 const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[]};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
 
+
+function ensureCreateDialog(){
+  if($('newOrderDlg'))return;
+  const dlg=document.createElement('dialog');
+  dlg.id='newOrderDlg';
+  dlg.className='order-create-dialog';
+  dlg.innerHTML=`
+    <form id="newOrderForm">
+      <div class="order-create-head">
+        <div><h2>Новый заказ</h2><p>Выберите отдел и заполните заказ без перехода в другой раздел</p></div>
+        <button id="closeNewOrder" class="order-create-close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div class="order-create-body">
+        <div class="order-create-grid">
+          <label class="order-create-field full"><span>Клиент</span><select id="newOrderCustomer"><option>Загрузка клиентов…</option></select></label>
+          <div id="newOrderCustomerFields" class="order-create-new-customer" hidden>
+            <label class="order-create-field"><span>Имя / контакт *</span><input id="newOrderCustomerName" autocomplete="name" placeholder="Иван Иванов"></label>
+            <label class="order-create-field"><span>Телефон</span><input id="newOrderCustomerPhone" autocomplete="tel" placeholder="+7 ..."></label>
+          </div>
+          <label class="order-create-field"><span>Отдел / направление *</span><select id="newOrderUnit"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option><option value="COMMON">Общее</option></select></label>
+          <label class="order-create-field"><span>Источник</span><select id="newOrderSource"><option>Офис</option><option>Телефон</option><option>WhatsApp</option><option>Telegram</option><option>Сайт</option><option>Другое</option></select></label>
+          <label class="order-create-field full"><span>Услуга / товар *</span><input id="newOrderItem" list="orderCatalogList" autocomplete="off" placeholder="Начните вводить название из каталога или укажите вручную" required><datalist id="orderCatalogList"></datalist></label>
+          <label class="order-create-field"><span>Количество *</span><input id="newOrderQty" type="number" min="0.001" step="0.001" value="1" required></label>
+          <label class="order-create-field"><span>Цена за единицу, ₽ *</span><input id="newOrderPrice" type="number" min="0" step="0.01" value="0" required></label>
+          <label class="order-create-field full"><span>Итого</span><input id="newOrderTotal" value="0 ₽" readonly></label>
+          <label class="order-create-field full"><span>Комментарий</span><textarea id="newOrderComment" placeholder="Пожелания клиента, параметры заказа, срок и другая важная информация"></textarea></label>
+          <div class="order-create-field full">
+            <span>Файлы заказа</span>
+            <input id="newOrderFiles" class="order-create-file-native" type="file" multiple tabindex="-1" aria-hidden="true">
+            <div id="newOrderFileDrop" class="order-create-file-drop" role="button" tabindex="0" aria-controls="newOrderFiles">
+              <b>📎 Прикрепить файлы</b>
+              <small>Нажмите или перетащите сюда макеты, PDF, изображения, документы и 3D-модели. До 50 МБ на файл.</small>
+            </div>
+            <div id="newOrderFilesList" class="order-create-files-list"><span>Файлы не выбраны</span></div>
+          </div>
+        </div>
+        <div class="order-create-hint">Если выбрать позицию из каталога, текущая цена подставится автоматически. Если позиции нет, рядом с названием появится кнопка «+ В каталог».</div>
+        <div id="newOrderError" class="order-create-error"></div>
+      </div>
+      <div class="order-create-foot">
+        <small>После создания откроется карточка нового заказа. Прикреплённые файлы сохранятся в заказе.</small>
+        <div class="order-create-foot-actions"><button id="cancelNewOrder" type="button">Отмена</button><button id="saveNewOrder" class="primary" type="submit">Создать заказ</button></div>
+      </div>
+    </form>`;
+  document.body.appendChild(dlg);
+}
+
 function normalizeRoles(data){
   if(Array.isArray(data))return data.map(String);
   if(Array.isArray(window.__A4_CURRENT_ROLES__))return window.__A4_CURRENT_ROLES__.map(String);
@@ -23,7 +70,7 @@ async function loadRoles(){
     state.roles=normalizeRoles(null);
   }
   const allowed=canManage();
-  if(btn)btn.hidden=!allowed;
+  if(btn){btn.hidden=!allowed;btn.style.display=allowed?'':'none'}
   if(note)note.innerHTML=allowed?'<b>ADMIN / MANAGER</b> · можно создавать и менять заказы':'Только просмотр заказов';
   syncStatusControls();
 }
@@ -256,7 +303,8 @@ async function patchVisibleItemTitles(){
 }
 
 function bind(){
-  $('newOrderBtn')?.addEventListener('click',openDialog);
+  ensureCreateDialog();
+  $('newOrderBtn')?.addEventListener('click',event=>{event.preventDefault();openDialog()});
   $('newOrderForm')?.addEventListener('submit',submitOrder);
   $('closeNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
   $('cancelNewOrder')?.addEventListener('click',()=>$('newOrderDlg')?.close());
