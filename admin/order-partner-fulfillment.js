@@ -12,7 +12,7 @@ const stages=[
   ['RECEIVED','Получен']
 ];
 const workflowLabels={MEMORIAL:'Памятники / фотокерамика',SOUVENIR:'Сувениры и знаки',TYPOGRAPHY:'Типография'};
-const workflowUrls={MEMORIAL:'https://shop.sferazakaz.ru/catalog/photokeramika',SOUVENIR:'https://sferazakaz.ru/',TYPOGRAPHY:'https://gmprint.ru/'};
+const workflowUrls={MEMORIAL:'https://sferazakaz.ru/katalog/fotokeramika',SOUVENIR:'https://sferazakaz.ru/',TYPOGRAPHY:'https://gmprint.ru/'};
 const timestampFields={SENT:'partner_sent_at',CONFIRMED:'partner_confirmed_at',IN_PRODUCTION:'partner_production_at',SHIPPED:'partner_shipped_at',RECEIVED:'partner_received_at'};
 let roles=[],order=null,channel=null;
 
