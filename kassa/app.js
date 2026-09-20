@@ -19,7 +19,7 @@
   const state={
     session:null,profile:null,organizationId:null,isAdmin:false,isOperator:false,backendOnline:false,syncing:false,
     catalog:[],filtered:[],stock:{},accounts:[],operators:[],cart:[],customer:null,
-    category:'ALL',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',
+    category:'CORE',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',catalogSort:'SMART',
     catalogUpdated:null,installPrompt:null,discount:{type:'PERCENT',value:0}
   };
 
@@ -176,35 +176,143 @@
 
   async function loadStock(){try{const d=await api('/api/v1/integrations/moysklad/stock');state.stock=d.stock||{};filterCatalog()}catch(e){console.warn('Stock:',e)}}
 
-  function categoryLabel(row){const raw=String(row.category||'').trim();if(raw)return raw;return row.item_type==='SERVICE'?'Услуги':'Товары'}
-  function renderCategories(){
-    const counts=new Map();state.catalog.forEach(x=>{const k=categoryLabel(x);counts.set(k,(counts.get(k)||0)+1)});
-    const rows=[...counts].sort((a,b)=>a[0].localeCompare(b[0],'ru')).slice(0,20);
-    $('dynamicCategories').innerHTML=rows.map(([name,n])=>`<button class="category" data-category="${esc(name)}"><span>${name==='Услуги'?'◆':'□'}</span>${esc(name)} <small>${n}</small></button>`).join('');
-    document.querySelectorAll('.category').forEach(b=>b.onclick=()=>setCategory(b.dataset.category,b));
+  const CATALOG_GROUPS=[
+    {id:'PRINT_COPY',label:'Печать и копирование',icon:'▤'},
+    {id:'PHOTO_DOCS',label:'Фото на документы',icon:'▣'},
+    {id:'PHOTO_PRINT',label:'Фотопечать',icon:'▧'},
+    {id:'POST_PRINT',label:'Ламинация и переплёт',icon:'▥'},
+    {id:'POLYGRAPHY',label:'Полиграфия',icon:'◇'},
+    {id:'STAMPS',label:'Печати и штампы',icon:'◉'},
+    {id:'DESIGN',label:'Дизайн и обработка',icon:'✦'},
+    {id:'TRANSLATIONS',label:'Переводы',icon:'≡'},
+    {id:'DIGITAL',label:'Файлы и оцифровка',icon:'▱'},
+    {id:'STATIONERY',label:'Канцтовары',icon:'□'},
+    {id:'COUNTER_GOODS',label:'Товары у кассы',icon:'▰'},
+    {id:'OTHER',label:'Прочее',icon:'•••'}
+  ];
+  const CATALOG_GROUP_BY_ID=Object.fromEntries(CATALOG_GROUPS.map(x=>[x.id,x]));
+  const CORE_GROUPS=new Set(['PRINT_COPY','PHOTO_DOCS','PHOTO_PRINT','POST_PRINT','POLYGRAPHY','DIGITAL']);
+
+  function catalogText(row){
+    return String(row?.name||'').toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x').replace(/\s+/g,' ').trim();
   }
-  function setCategory(cat,button){state.category=cat;document.querySelectorAll('.category').forEach(x=>x.classList.toggle('active',x===button));$('catalogTitle').textContent=cat==='ALL'?'Все позиции':cat==='FAVORITES'?'Избранное':cat;filterCatalog()}
-  function filterCatalog(){
-    const q=state.search.trim().toLowerCase();
-    state.filtered=state.catalog.filter(x=>{
-      if(state.category==='FAVORITES'&&!state.favorites.has(x.id))return false;
-      if(state.category!=='ALL'&&state.category!=='FAVORITES'&&categoryLabel(x)!==state.category)return false;
-      if(!q)return true;
-      return `${x.name||''} ${x.sku||''} ${x.article||''} ${x.barcode||''} ${x.category||''}`.toLowerCase().includes(q);
+  function isSampleCatalogItem(row){
+    const n=catalogText(row);
+    return /^образец\b.*печат/.test(n)||/^образец\s+дизайнерской\s+печати/.test(n);
+  }
+  function isHiddenCatalogItem(row){
+    const category=String(row?.category||'').trim().toLowerCase();
+    const article=String(row?.article||'').trim().toUpperCase();
+    if(article==='A4HUB-ORDER'||category==='заказы hub')return true;
+    if(Number(row?.sale_price||0)<=0)return true;
+    if(String(row?.item_type||'').toUpperCase()==='MATERIAL'&&category==='краски')return true;
+    return false;
+  }
+  function catalogGroupId(row){
+    const n=catalogText(row);
+    if(/(штамп|оснастк|датер|trodat|colop|штемпельн|факсимил|изготовлени[ея]\s+печат|печат[ьи]\s+(ооо|ип|врач|педагог|нотари|кадастр)|оттиск)/.test(n))return 'STAMPS';
+    if(/(фото\s+на\s+(паспорт|загран|документ|удостовер|виз|анкет)|фнд\b|3\s*[x*]\s*4)/.test(n))return 'PHOTO_DOCS';
+    if(/(фотопечат|фото\s*печат|печать\s+фото|10\s*x\s*15|15\s*x\s*21|21\s*x\s*30|30\s*x\s*42|фото\s*рамк)/.test(n))return 'PHOTO_PRINT';
+    if(/(ламинир|броширов|переплет|переплёт|пружин|резк[аи]\s+бумаг)/.test(n))return 'POST_PRINT';
+    if(/(визит|листов|буклет|флаер|накле|баннер|плакат|календар|открытк|грамот|сертификат|меню|табличк)/.test(n))return 'POLYGRAPHY';
+    if(/(дизайн|макет|ретуш|цветокорр|набор\s+текст)/.test(n))return 'DESIGN';
+    if(/(нотариальн.*перевод|перевод\s+(документ|паспорт|водитель|свидетель))/.test(n))return 'TRANSLATIONS';
+    if(/(оцифров|запись\s+на\s+флеш|отправк.*email|электронн.*фото|сканир|скан\b)/.test(n))return 'DIGITAL';
+    if(/(черно-бел|чёрно-бел|цветн.*печат|печать\s*а[0-5]|а[0-5]\s+.*печат|копи[яир]|ксерок|печать\/копия|печать\s+диплом|печать\s+презентац|^печать$)/.test(n))return 'PRINT_COPY';
+    if(/(бумаг|папк|файл\b|ручк|карандаш|маркер|скотч|клей|конверт|тетрад)/.test(n))return 'STATIONERY';
+    if(/(батарей|брелок|игрушк|статуэт|смартфон|кабель|заряд|наушник|сувенир)/.test(n))return 'COUNTER_GOODS';
+    return 'OTHER';
+  }
+  function categoryLabel(row){return CATALOG_GROUP_BY_ID[catalogGroupId(row)]?.label||'Прочее'}
+  function categoryTitle(cat){
+    if(cat==='CORE')return 'Основные услуги';
+    if(cat==='ALL')return 'Все позиции';
+    if(cat==='FAVORITES')return 'Избранное';
+    return CATALOG_GROUP_BY_ID[cat]?.label||'Каталог';
+  }
+  function regularCatalog(){return state.catalog.filter(x=>!isHiddenCatalogItem(x)&&!isSampleCatalogItem(x))}
+  function isCoreCatalogItem(row){return CORE_GROUPS.has(catalogGroupId(row))}
+  function renderCategories(){
+    const regular=regularCatalog();
+    const counts=new Map(CATALOG_GROUPS.map(x=>[x.id,0]));
+    regular.forEach(x=>{const id=catalogGroupId(x);counts.set(id,(counts.get(id)||0)+1)});
+    const favorites=state.catalog.filter(x=>!isHiddenCatalogItem(x)&&state.favorites.has(x.id)).length;
+    const core=regular.filter(isCoreCatalogItem).length;
+    if($('coreCategoryCount'))$('coreCategoryCount').textContent=String(core);
+    if($('favoritesCategoryCount'))$('favoritesCategoryCount').textContent=String(favorites);
+    if($('allCategoryCount'))$('allCategoryCount').textContent=String(regular.length);
+    $('dynamicCategories').innerHTML=CATALOG_GROUPS.filter(x=>(counts.get(x.id)||0)>0).map(x=>`<button class="category" data-category="${x.id}"><span>${x.icon}</span><b>${esc(x.label)}</b><small>${counts.get(x.id)}</small></button>`).join('');
+    document.querySelectorAll('.category').forEach(b=>b.onclick=()=>setCategory(b.dataset.category,b));
+    document.querySelectorAll('.category').forEach(b=>b.classList.toggle('active',b.dataset.category===state.category));
+  }
+  function setCategory(cat,button){
+    state.category=cat;
+    document.querySelectorAll('.category').forEach(x=>x.classList.toggle('active',x===button||x.dataset.category===cat));
+    $('catalogTitle').textContent=categoryTitle(cat);
+    if(state.search){state.search='';$('search').value=''}
+    filterCatalog();
+  }
+  function searchableText(x){return `${x.name||''} ${x.sku||''} ${x.article||''} ${x.barcode||''} ${x.category||''}`.toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x')}
+  function catalogSearchRank(x,q){
+    const needle=q.toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x');
+    const code=[x.barcode,x.article,x.sku].filter(Boolean).map(v=>String(v).toLowerCase());
+    const name=String(x.name||'').toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x');
+    if(code.some(v=>v===needle))return 0;
+    if(name===needle)return 1;
+    if(name.startsWith(needle))return 2;
+    return 3;
+  }
+  function sortCatalogRows(rows,q=''){
+    const groupRank=Object.fromEntries(CATALOG_GROUPS.map((x,i)=>[x.id,i]));
+    return [...rows].sort((a,b)=>{
+      if(q){const r=catalogSearchRank(a,q)-catalogSearchRank(b,q);if(r)return r}
+      if(state.catalogSort==='PRICE_ASC')return Number(a.sale_price||0)-Number(b.sale_price||0)||String(a.name||'').localeCompare(String(b.name||''),'ru');
+      if(state.catalogSort==='PRICE_DESC')return Number(b.sale_price||0)-Number(a.sale_price||0)||String(a.name||'').localeCompare(String(b.name||''),'ru');
+      if(state.catalogSort==='NAME')return String(a.name||'').localeCompare(String(b.name||''),'ru');
+      const fav=Number(state.favorites.has(b.id))-Number(state.favorites.has(a.id));if(fav)return fav;
+      const gr=(groupRank[catalogGroupId(a)]??99)-(groupRank[catalogGroupId(b)]??99);if(gr)return gr;
+      return String(a.name||'').localeCompare(String(b.name||''),'ru');
     });
+  }
+  function filterCatalog(){
+    const q=state.search.trim().toLowerCase().replaceAll('ё','е').replace(/[×х]/g,'x');
+    const allUsable=state.catalog.filter(x=>!isHiddenCatalogItem(x));
+    let rows;
+    if(q){
+      rows=allUsable.filter(x=>searchableText(x).includes(q));
+      $('catalogTitle').textContent='Результаты поиска';
+    }else{
+      const regular=allUsable.filter(x=>!isSampleCatalogItem(x));
+      if(state.category==='FAVORITES')rows=allUsable.filter(x=>state.favorites.has(x.id));
+      else if(state.category==='CORE')rows=regular.filter(isCoreCatalogItem);
+      else if(state.category==='ALL')rows=regular;
+      else rows=regular.filter(x=>catalogGroupId(x)===state.category);
+      $('catalogTitle').textContent=categoryTitle(state.category);
+    }
+    state.filtered=sortCatalogRows(rows,q);
     renderCatalog();
   }
   function renderCatalog(){
-    $('catalogMeta').textContent=`${state.filtered.length} из ${state.catalog.length}${state.catalogUpdated?' · данные '+new Date(state.catalogUpdated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):''}`;
-    if(!state.filtered.length){$('catalogGrid').innerHTML='<div class="empty-grid">Ничего не найдено</div>';return}
+    const q=state.search.trim();
+    const regularCount=regularCatalog().length;
+    $('catalogMeta').textContent=q
+      ?`Найдено ${state.filtered.length} позиций по запросу «${q}»`
+      :`${state.filtered.length} позиций${state.category!=='ALL'?` · всего в кассе ${regularCount}`:''}${state.catalogUpdated?' · обновлено '+new Date(state.catalogUpdated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):''}`;
+    if(!state.filtered.length){
+      const text=state.category==='FAVORITES'&&!q?'Здесь пока пусто. Нажмите ★ у нужных товаров и услуг — они появятся в избранном.':'Ничего не найдено';
+      $('catalogGrid').innerHTML=`<div class="empty-grid"><b>${esc(text)}</b>${q?'<span>Попробуйте название, артикул или штрихкод.</span>':''}</div>`;return
+    }
     $('catalogGrid').innerHTML=state.filtered.slice(0,400).map(x=>{
-      const st=state.stock[x.external_id];const meta=[x.article||x.sku||x.barcode,categoryLabel(x)].filter(Boolean).join(' · ');
-      return `<article class="product-card" data-add="${x.id}"><button class="fav ${state.favorites.has(x.id)?'on':''}" data-fav="${x.id}" title="Избранное">★</button><div><div class="name">${esc(x.name)}</div><div class="meta">${esc(meta)}</div></div><div><div class="price">${money(x.sale_price)}</div>${st!=null?`<div class="stock">Остаток: ${Number(st).toLocaleString('ru-RU')}</div>`:''}</div></article>`
+      const st=state.stock[x.external_id],group=categoryLabel(x),code=x.article||x.sku||x.barcode||'';
+      return `<article class="product-card ${state.favorites.has(x.id)?'is-favorite':''}" data-add="${x.id}"><button class="fav ${state.favorites.has(x.id)?'on':''}" data-fav="${x.id}" title="${state.favorites.has(x.id)?'Убрать из избранного':'Добавить в избранное'}">★</button><div><div class="name">${esc(x.name)}</div><div class="meta"><span class="product-group">${esc(group)}</span>${code?`<span class="product-code">${esc(code)}</span>`:''}</div></div><div><div class="price">${money(x.sale_price)}</div>${st!=null?`<div class="stock">Остаток: ${Number(st).toLocaleString('ru-RU')}</div>`:''}</div></article>`
     }).join('');
     document.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>addToCart(el.dataset.add));
     document.querySelectorAll('[data-fav]').forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFavorite(b.dataset.fav)});
   }
-  function toggleFavorite(id){state.favorites.has(id)?state.favorites.delete(id):state.favorites.add(id);saveFavorites();filterCatalog()}
+  function toggleFavorite(id){
+    state.favorites.has(id)?state.favorites.delete(id):state.favorites.add(id);
+    saveFavorites();renderCategories();filterCatalog();
+  }
 
   function addToCart(id){
     const g=state.catalog.find(x=>x.id===id);if(!g)return;
@@ -385,7 +493,7 @@
     $('adjustModal').onclick=e=>{if(e.target===$('adjustModal'))closeAdjustModal()};
     document.querySelectorAll('.pay-tab').forEach(b=>b.onclick=()=>choosePayment(b.dataset.payment,b));$('payButton').onclick=queueSale;
     $('shiftButton').onclick=toggleShift;$('shiftChip').onclick=toggleShift;$('queueChip').onclick=openQueue;$('closeQueue').onclick=closeQueue;$('queueDrawer').onclick=e=>{if(e.target===$('queueDrawer'))closeQueue()};$('retryQueue').onclick=async()=>{await health();await syncQueue();toast(state.queue.length?'Не все чеки отправлены':'Очередь синхронизирована',!!state.queue.length)};
-    $('refreshCatalog').onclick=()=>refreshRemoteData(true);$('syncNow').onclick=async()=>{await health();await Promise.allSettled([refreshRemoteData(true),loadShift(),loadStock(),syncQueue()])};$('toggleFavoritesOnly').onclick=()=>{const b=document.querySelector('[data-category="FAVORITES"]');setCategory('FAVORITES',b)};
+    $('refreshCatalog').onclick=()=>refreshRemoteData(true);$('syncNow').onclick=async()=>{await health();await Promise.allSettled([refreshRemoteData(true),loadShift(),loadStock(),syncQueue()])};$('catalogSort').onchange=()=>{state.catalogSort=$('catalogSort').value||'SMART';filterCatalog()};
     $('customerToggle').onclick=toggleCustomerPanel;$('customerSearch').oninput=()=>{clearTimeout(customerTimer);customerTimer=setTimeout(searchCustomers,250)};$('clearCustomer').onclick=()=>{state.customer=null;$('customerName').textContent='Не выбран';$('customerPanel').hidden=true};
     $('openOldPos').onclick=()=>location.href='../pos/';
     window.addEventListener('online',()=>health());window.addEventListener('offline',()=>{state.backendOnline=false;renderNetwork()});
