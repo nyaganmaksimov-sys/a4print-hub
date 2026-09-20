@@ -83,7 +83,7 @@ function isManagerOrder(order){
   if(String(order.source||'').toUpperCase()==='KASSA') return false;
   const direction=String(order.partner_direction||'NONE').toUpperCase();
   if(direction==='INBOUND') return false;
-  if(direction==='OUTBOUND') return Boolean(order.fulfillment_partner_id);
+  if(direction==='OUTBOUND') return Boolean(order.fulfillment_partner_id)&&String(order.partner_workflow||'NONE').toUpperCase()!=='NONE';
   return !order.partner_id;
 }
 
