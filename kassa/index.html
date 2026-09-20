@@ -85,6 +85,7 @@
             <div class="customer-box"><button id="customerToggle" class="customer-toggle" type="button"><span>♙ Покупатель</span><b id="customerName">Не выбран</b><i>›</i></button><div id="customerPanel" class="customer-panel" hidden><input id="customerSearch" autocomplete="off" placeholder="Имя, телефон или email"><div id="customerResults" class="customer-results"></div><button id="clearCustomer" class="link-btn" type="button">Без покупателя</button></div></div>
             <div class="cashier-strip"><span>▣ Кассир:</span><select id="operatorSelect" aria-label="Оператор"></select></div>
             <div class="payment-tabs" role="group" aria-label="Способ оплаты"><button class="pay-tab active" data-payment="Наличные" type="button">▤ Наличные</button><button class="pay-tab" data-payment="Карта" type="button">▣ Карта</button><button class="pay-tab" data-payment="СБП" type="button">▷ СБП</button></div>
+            <div class="discount-strip"><div><span>Скидка</span><b id="discountLabel">Скидка на чек</b></div><button id="discountButton" type="button">Добавить</button></div>
             <select id="cashAccount" class="account-select" aria-label="Счёт"></select>
             <div class="checkout-bar"><div class="total-row"><span>Итого:</span><strong id="cartTotal">0 ₽</strong></div><button id="payButton" class="pay-button" type="button" disabled><span>Оплатить</span><strong>0 ₽</strong><i>→</i></button></div>
             <div class="bottom-info"><span id="shiftInfo">Смена не открыта</span><button id="shiftButton" class="link-btn" type="button">Открыть смену</button></div>
@@ -111,8 +112,23 @@
     <section id="queueDrawer" class="drawer" aria-hidden="true"><div class="drawer-card"><div class="drawer-head"><div><h2>Очередь синхронизации</h2><span>Чеки, сохранённые локально</span></div><button id="closeQueue" class="icon-btn" type="button">×</button></div><div id="queueList" class="queue-list"></div><div class="drawer-foot"><button id="retryQueue" class="btn primary" type="button">Повторить синхронизацию</button></div></div></section>
 
     <section id="utilityDrawer" class="utility-drawer" aria-hidden="true"><div class="utility-card"><div class="utility-head"><div><h2 id="utilityTitle">Настройки</h2><span id="utilitySubtitle">A4PRINT KASSA</span></div><button id="closeUtility" class="icon-btn" type="button">×</button></div><div id="utilityBody" class="utility-body"></div></div></section>
+
+    <section id="adjustModal" class="kassa-adjust-modal" aria-hidden="true">
+      <div class="kassa-adjust-card" role="dialog" aria-modal="true" aria-labelledby="adjustTitle">
+        <div class="kassa-adjust-head"><div><h2 id="adjustTitle">Изменение</h2><span id="adjustProductName"></span></div><button id="adjustClose" class="icon-btn" type="button">×</button></div>
+        <div class="kassa-adjust-body">
+          <div id="adjustTypeRow" class="adjust-type-row" hidden>
+            <button type="button" data-adjust-type="PERCENT">Проценты %</button>
+            <button type="button" data-adjust-type="RUB">Рубли ₽</button>
+          </div>
+          <label class="adjust-value-label"><span id="adjustValueLabel">Значение</span><div class="adjust-value-box"><input id="adjustValue" inputmode="decimal" type="number" min="0" step="0.01"><b id="adjustSuffix">₽</b></div></label>
+          <div id="adjustHint" class="adjust-hint"></div>
+        </div>
+        <div class="kassa-adjust-foot"><button id="adjustReset" class="btn light" type="button">Сбросить</button><div><button id="adjustCancel" class="btn light" type="button">Отмена</button><button id="adjustSave" class="btn primary" type="button">Применить</button></div></div>
+      </div>
+    </section>
   </section>
 
-  <script src="./bootstrap.js?v=20260910-fastfail3"></script>
+  <script src="./bootstrap.js?v=20260920-price-discount1"></script>
 </body>
 </html>
