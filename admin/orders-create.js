@@ -2,9 +2,17 @@ import { supabase } from './guard.js?v=20260905-netfix1';
 
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2});
+const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[m]));
 const MAX_FILE_SIZE=50*1024*1024;
-const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[]};
+const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[],orderKind:'STANDARD'};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
+
+const ORDER_WORKFLOWS={
+  STANDARD:{partner:null,title:'Обычный заказ',url:'',description:'Стандартный заказ А4-Принт или 3D-ARTPRINT.',presets:[]},
+  MEMORIAL:{partner:'Сфера',title:'Памятники / фотокерамика',url:'https://shop.sferazakaz.ru/catalog/photokeramika',description:'Портреты и изделия для памятников. Фото и макеты прикрепляйте к заказу ниже.',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / композиция сложной формы','Нестандартная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона в золотом обрамлении','Временная табличка','Вкладка в цветник'],labels:{material:'Материал',format:'Размер / форма',color:'Цветность',finishing:'Ретушь / отверстия'},placeholders:{material:'Металл, керамика, фарфор, керамогранит…',format:'Например 18×24, овал / прямоугольник',color:'Цветной / чёрно-белый / сепия',finishing:'Без ретуши, сложная ретушь; отверстия…'}},
+  SOUVENIR:{partner:'Сфера',title:'Сувенирная продукция и знаки',url:'https://sferazakaz.ru/',description:'Заказы на сувенирные изделия, информационные знаки, таблички и нестандартную продукцию «Сферы».',presets:['Информационный знак','Табличка','Сувенирная продукция','Памятное изделие','Нестандартное изделие'],labels:{material:'Материал',format:'Размер / габариты',color:'Цвет / нанесение',finishing:'Обработка / крепление'},placeholders:{material:'Металл, пластик, керамика и т. п.',format:'Размер изделия',color:'Цвет, печать, гравировка…',finishing:'Отверстия, крепление, упаковка…'}},
+  TYPOGRAPHY:{partner:'Группа М',title:'Типография',url:'https://gmprint.ru/',description:'Заказы на полиграфию через типографию «Группа М». Укажите тираж в количестве, а производственные параметры — ниже.',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:{material:'Бумага / материал',format:'Формат',color:'Цветность / стороны',finishing:'Постпечатная обработка'},placeholders:{material:'Мелованная, дизайнерская, плотность…',format:'A6, A5, A4, 90×50 мм…',color:'4+0, 4+4, ч/б…',finishing:'Ламинация, скругление, фальцовка, сверление…'}}
+};
 
 function normalizeRoles(data){
   if(Array.isArray(data))return data.map(String);
