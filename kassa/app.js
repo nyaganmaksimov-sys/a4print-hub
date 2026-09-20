@@ -44,8 +44,8 @@
   function total(){return round2(Math.max(0,subtotal()-discountAmount()))}
   function count(){return state.cart.reduce((s,x)=>s+Number(x.qty||0),0)}
   function saleItems(){
-    const discount=discountPercent();
-    return state.cart.map(x=>({...x,discount:round2(discount),base_price:Number(x.price||0)}));
+    const discount=Math.round(discountPercent()*1000000)/1000000;
+    return state.cart.map(x=>({...x,discount,base_price:Number(x.price||0)}));
   }
   function favoritesKey(){return `a4_kassa_favorites_${state.profile?.id||'default'}`}
   function loadFavorites(){try{state.favorites=new Set(JSON.parse(localStorage.getItem(favoritesKey())||'[]'))}catch{state.favorites=new Set()}}
@@ -289,6 +289,7 @@
   }
 
   function renderCart(){
+    if(state.discount?.type==='RUB'&&Number(state.discount.value||0)>subtotal())state.discount.value=subtotal();
     $('cartCount').textContent=`${count()} поз.`;$('cartTotal').textContent=money(total());
     const pay=$('payButton');pay.querySelector('strong').textContent=money(total());pay.disabled=!state.cart.length||!state.shift;
     const d=discountAmount();
