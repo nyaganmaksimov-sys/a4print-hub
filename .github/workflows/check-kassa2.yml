@@ -72,6 +72,7 @@ jobs:
           node --check kassa/desktop-updater.js
           node --check desktop-kassa/main.js
           node --check desktop-kassa/preload.js
+          node desktop-kassa/scripts/prepare-web.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
           node --check api/src/pos-shift-live-patch.js
