@@ -171,6 +171,17 @@ export async function repairMoySkladSaleItems({token,items,error}){
       replacement=live.find(row=>String(row?.meta?.type||'').toLowerCase()==='product'&&normalizedKey(row.name)===parentName)||null;
     }
   }
+  if(!replacement){
+    // The original MoySklad object is confirmed deleted (HTTP 404/1021) and no
+    // current assortment row matches it. Recreate a standalone sellable item so
+    // an already-paid receipt is not trapped in the local queue forever.
+    const entity=String(target.external_type||missing.type||'product').toLowerCase()==='service'?'service':'product';
+    const payload={
+      name:String(target.name||'Позиция A4PRINT').trim().slice(0,255),
+      description:'Автоматически восстановлено A4PRINT KASSA после удаления исходной позиции в МойСклад.'
+    };
+    replacement=await ms(token,`/entity/${entity}`,{method:'POST',body:JSON.stringify(payload)});
+  }
   const href=replacement?.meta?.href||null;
   if(!replacement||!href)return{changed:false,missing,target};
 
