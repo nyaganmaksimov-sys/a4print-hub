@@ -32,8 +32,8 @@
     overlay=document.createElement('section');
     overlay.className='partner-order-overlay';overlay.hidden=true;
     overlay.innerHTML=`
-      <div class="partner-order-shell" role="dialog" aria-modal="true" aria-label="Партнёрский заказ">
-        <header class="partner-order-head"><div><h2>Партнёрский заказ</h2><p>Оформление памятников, сувенирной продукции и полиграфии прямо из кассы</p></div><button id="partnerOrderClose" type="button">×</button></header>
+      <div class="partner-order-shell" role="dialog" aria-modal="true" aria-label="Оформление заказа">
+        <header class="partner-order-head"><div><h2>Оформление заказа</h2><p>Заполните клиента, параметры производства, стоимость, срок и приложите необходимые файлы.</p></div><button id="partnerOrderClose" type="button">×</button></header>
         <form id="partnerOrderForm">
           <div class="partner-order-scroll">
             <section class="partner-order-card">
@@ -124,9 +124,10 @@
 
   function recalc(){
     const qty=Math.max(0,Number($('partnerQty')?.value||0)),price=Math.max(0,Number($('partnerPrice')?.value||0)),cost=Math.max(0,Number($('partnerCost')?.value||0));
-    const total=qty*price,partner=qty*cost,profit=total-partner,margin=total>0?profit/total*100:0;
+    const total=qty*price,planned=qty*cost,profit=total-planned,margin=total>0?profit/total*100:0;
+    const costTitle=FLOW[flow]?.partner?'Партнёр':'Себестоимость';
     $('partnerOrderTotal').textContent=money(total);
-    $('partnerOrderEconomics').innerHTML='<div><span>Клиент</span><b>'+money(total)+'</b></div><div><span>Партнёр</span><b>'+money(partner)+'</b></div><div><span>Плановая прибыль</span><b class="'+(profit<0?'negative':'')+'">'+money(profit)+'</b><small>'+margin.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%</small></div>';
+    $('partnerOrderEconomics').innerHTML='<div><span>Клиент</span><b>'+money(total)+'</b></div><div><span>'+costTitle+'</span><b>'+money(planned)+'</b></div><div><span>Плановая прибыль</span><b class="'+(profit<0?'negative':'')+'">'+money(profit)+'</b><small>'+margin.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%</small></div>';
   }
 
   function clearCustomer(){selectedCustomerId=null;for(const id of ['partnerFullName','partnerCompanyName','partnerPhone','partnerEmail','partnerInn'])$(id).value='';$('partnerCustomerResults').innerHTML=''}
