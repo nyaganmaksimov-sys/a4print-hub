@@ -132,7 +132,7 @@ jobs:
           grep -q '127.0.0.1' desktop-kassa/main.js
           grep -q 'prepare:web' desktop-kassa/package.json
           grep -q 'extraResources' desktop-kassa/package.json
-          grep -q 'stamp-nav-icon' kassa/stamp-orders.js
+          grep -q 'ICONS.stamp' kassa/order-entry-menu.js
           grep -q 'a4-kassa-logo.webp' kassa/index.html
           grep -q 'updater:Object.freeze' desktop-kassa/preload.js
           grep -q 'desktop-updater.js' kassa/bootstrap.js
