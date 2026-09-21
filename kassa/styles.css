@@ -265,3 +265,19 @@ body.nav-collapsed .nav-brand>span{display:none!important}
   .nav-icon{width:20px;min-width:20px;height:20px;font-size:16px}
   .stamp-nav-icon svg{width:19px!important;height:19px!important}
 }
+
+/* 2026-09-21: transparent brand logo on compact sidebar */
+@media (min-width:981px){
+  .nav-brand-full{
+    width:150px!important;
+    max-width:150px!important;
+    height:46px!important;
+    object-fit:contain!important;
+    background:transparent!important;
+    border-radius:0!important;
+    padding:0!important
+  }
+}
+@media (min-width:981px) and (max-height:760px){
+  .nav-brand-full{width:138px!important;max-width:138px!important;height:40px!important}
+}
