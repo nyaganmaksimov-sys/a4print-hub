@@ -28,6 +28,7 @@
       "preload.js",
       "splash.html",
       "package.json",
+      "update-notes.json",
       "build/icon.ico"
     ],
     "win": {
