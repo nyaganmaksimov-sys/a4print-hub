@@ -13,7 +13,7 @@ const service = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
 
-const REMINDER_INTERVAL_MS = Math.max(30_000, Number(process.env.MANAGER_REMINDER_INTERVAL_MS || 60_000));
+const REMINDER_INTERVAL_MS = Math.max(60_000, Number(process.env.MANAGER_REMINDER_INTERVAL_MS || 5 * 60_000));
 const CLOSED_ORDER = new Set(['COMPLETED', 'CANCELLED', 'CANCELED']);
 const workerState = { running: false, runs: 0, notifications: 0, last_run_at: null, last_error: null };
 
@@ -271,7 +271,7 @@ async function runReminders() {
 function installWorker() {
   if (globalThis[workerInstalled] || !service) return;
   globalThis[workerInstalled]=true;
-  const first=setTimeout(runReminders,12_000); first.unref?.();
+  const first=setTimeout(runReminders,45_000); first.unref?.();
   const timer=setInterval(runReminders,REMINDER_INTERVAL_MS); timer.unref?.();
 }
 
