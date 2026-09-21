@@ -108,8 +108,7 @@ import { supabase } from './guard.js?v=20260905-netfix1';
 
   function init(){
     refresh();
-    setTimeout(refresh,1500);
-    setInterval(refresh,60000);
+    setInterval(()=>{if(!document.hidden)refresh()},300000);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
   }
 

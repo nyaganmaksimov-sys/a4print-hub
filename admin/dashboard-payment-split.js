@@ -112,4 +112,4 @@ if(typeof supabase.channel === 'function'){
 }
 
 load();
-setInterval(() => { if(!document.hidden) load(); }, 60000);
+setInterval(() => { if(!document.hidden) load(); }, 300000);

@@ -24,7 +24,7 @@
       const{data:p}=await supabase.from('users').select('id').eq('auth_user_id',session.user.id).maybeSingle();if(!p)return;profile=p;
       await sync(false);
       channel=supabase.channel(`a4-support-notify-${p.id}-${Date.now()}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`user_id=eq.${p.id}`},payload=>{const n=payload.new;if(n?.type==='SUPPORT_MESSAGE'&&!n.is_read){toast(n);sync(false).catch(()=>{})}}).subscribe();
-      timer=setInterval(()=>{if(!document.hidden)sync(true).catch(()=>{})},30000);
+      timer=setInterval(()=>{if(!document.hidden)sync(true).catch(()=>{})},120000);
     }catch(e){console.warn('Support notifications unavailable',e)}
   }
   window.addEventListener('beforeunload',()=>{if(timer)clearInterval(timer);if(channel&&supabase)supabase.removeChannel(channel).catch(()=>{})});
