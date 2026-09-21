@@ -17,7 +17,10 @@
   const FLOW={
     MEMORIAL:{title:'Памятники / фотокерамика',partner:'Сфера',url:'https://sferazakaz.ru/katalog/fotokeramika',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / сложная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона','Временная табличка','Вкладка в цветник'],labels:['Материал','Размер / форма','Цветность','Ретушь / отверстия']},
     SOUVENIR:{title:'Сувениры и знаки',partner:'Сфера',url:'https://sferazakaz.ru/',presets:['Информационный знак','Табличка','Сувенирная продукция','Памятное изделие','Нестандартное изделие'],labels:['Материал','Размер / габариты','Цвет / нанесение','Обработка / крепление']},
-    TYPOGRAPHY:{title:'Типография',partner:'Группа М',url:'https://gmprint.ru/',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:['Бумага / материал','Формат','Цветность / стороны','Постпечатная обработка']}
+    TYPOGRAPHY:{title:'Типография',partner:'Группа М',url:'https://gmprint.ru/',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:['Бумага / материал','Формат','Цветность / стороны','Постпечатная обработка']},
+    WIDE_FORMAT:{title:'Широкоформатная печать',department:'А4-Принт',url:null,presets:['Баннер','Плакат / постер','Самоклеящаяся плёнка','Холст','Фотообои','Roll-Up / X-banner','Чертёж / схема','Другое'],labels:['Материал','Размер / формат','Качество / цветность','Постпечатная обработка'],textLabel:'Монтаж / дополнительные требования',costLabel:'Плановая себестоимость за ед., ₽'},
+    THREE_D:{title:'3D-печать',department:'3D-ARTPRINT',url:null,presets:['FDM-печать','Фотополимерная печать','Прототип','Деталь / запчасть','Макет / модель','Сувенир / фигурка','Серийная печать','Другое'],labels:['Технология / материал','Размер / габариты','Цвет / смола','Качество / постобработка'],textLabel:'Заполнение / поддержка / требования',costLabel:'Плановая себестоимость за ед., ₽'},
+    OUTDOOR:{title:'Наружная реклама',department:'3D-ARTPRINT',url:null,presets:['Вывеска','Световой короб','Объёмные буквы','Табличка','Навигация / указатель','Оформление витрины','Брендирование фасада','Стенд','Другое'],labels:['Материал','Размер / габариты','Подсветка / цвет','Крепление / монтаж'],textLabel:'Адрес монтажа / дополнительные требования',costLabel:'Плановая себестоимость за ед., ₽'}
   };
   let overlay=null,flow='MEMORIAL',selectedCustomerId=null,files=[],searchTimer=null;
 
@@ -29,8 +32,8 @@
     overlay=document.createElement('section');
     overlay.className='partner-order-overlay';overlay.hidden=true;
     overlay.innerHTML=`
-      <div class="partner-order-shell" role="dialog" aria-modal="true" aria-label="Партнёрский заказ">
-        <header class="partner-order-head"><div><h2>Партнёрский заказ</h2><p>Оформление памятников, сувенирной продукции и полиграфии прямо из кассы</p></div><button id="partnerOrderClose" type="button">×</button></header>
+      <div class="partner-order-shell" role="dialog" aria-modal="true" aria-label="Оформление заказа">
+        <header class="partner-order-head"><div><h2>Оформление заказа</h2><p>Заполните клиента, параметры производства, стоимость, срок и приложите необходимые файлы.</p></div><button id="partnerOrderClose" type="button">×</button></header>
         <form id="partnerOrderForm">
           <div class="partner-order-scroll">
             <section class="partner-order-card">
@@ -38,6 +41,9 @@
                 <button type="button" data-partner-flow="MEMORIAL" class="active"><b>Памятники / фотокерамика</b><small>Сфера</small></button>
                 <button type="button" data-partner-flow="SOUVENIR"><b>Сувениры и знаки</b><small>Сфера</small></button>
                 <button type="button" data-partner-flow="TYPOGRAPHY"><b>Типография</b><small>Группа М</small></button>
+                <button type="button" data-partner-flow="WIDE_FORMAT"><b>Широкоформатная печать</b><small>А4-Принт</small></button>
+                <button type="button" data-partner-flow="THREE_D"><b>3D-печать</b><small>3D-ARTPRINT</small></button>
+                <button type="button" data-partner-flow="OUTDOOR"><b>Наружная реклама</b><small>3D-ARTPRINT</small></button>
               </div>
               <div class="partner-flow-info"><div><span id="partnerFlowPartner">Сфера</span><b id="partnerFlowTitle"></b></div><a id="partnerFlowCatalog" target="_blank" rel="noopener noreferrer">Открыть каталог ↗</a></div>
               <div id="partnerPresetList" class="partner-preset-list"></div>
@@ -69,7 +75,7 @@
                 <label class="wide"><span id="partnerTextLabel">Текст / данные для макета</span><textarea id="partnerText" rows="3" placeholder="ФИО, даты, надпись, персонализация или примечания к макету"></textarea></label>
                 <label><span>Количество / тираж *</span><input id="partnerQty" type="number" min="1" step="1" value="1"></label>
                 <label><span>Цена клиенту за ед., ₽ *</span><input id="partnerPrice" type="number" min="0" step="0.01" value="0"></label>
-                <label><span>Цена партнёра за ед., ₽</span><input id="partnerCost" type="number" min="0" step="0.01" value="0"></label>
+                <label><span id="partnerCostLabel">Цена партнёра за ед., ₽</span><input id="partnerCost" type="number" min="0" step="0.01" value="0"></label>
                 <label><span>Желаемый срок</span><input id="partnerDueAt" type="datetime-local"></label>
                 <label class="wide"><span>Комментарий клиента</span><textarea id="partnerComment" rows="3"></textarea></label>
                 <label class="wide"><span>Файлы заказа</span><input id="partnerFiles" type="file" multiple></label>
