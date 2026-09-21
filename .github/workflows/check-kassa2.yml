@@ -69,6 +69,7 @@ jobs:
           node --check kassa/settings-help.js
           node --check kassa/sale-view-fix.js
           node --check kassa/runtime-stability.js
+          node --check kassa/desktop-updater.js
           node --check desktop-kassa/main.js
           node --check desktop-kassa/preload.js
           node --check api/src/moysklad.js
@@ -95,13 +96,24 @@ jobs:
           test -f kassa/startup-shift.js
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
+          test -f kassa/desktop-updater.js
           test -f kassa/manifest.webmanifest
           test -f desktop-kassa/main.js
           test -f desktop-kassa/package.json
+          test -f desktop-kassa/update-notes.json
           grep -q 'TRANSIENT_LOAD_CODES' desktop-kassa/main.js
           grep -q 'RETRY_DELAYS' desktop-kassa/main.js
           grep -q 'auto-retry' desktop-kassa/main.js
-          grep -q '2.1.2' desktop-kassa/package.json
+          grep -q 'electron-updater' desktop-kassa/main.js
+          grep -q 'a4-kassa:update:check' desktop-kassa/main.js
+          grep -q 'quitAndInstall' desktop-kassa/main.js
+          grep -q 'updater:Object.freeze' desktop-kassa/preload.js
+          grep -q 'desktop-updater.js' kassa/bootstrap.js
+          grep -q 'Перезапустить и установить' kassa/desktop-updater.js
+          grep -q '2.1.3' desktop-kassa/package.json
+          node -e "const p=require('./desktop-kassa/package.json'),n=require('./desktop-kassa/update-notes.json');if(p.version!==n.version)throw new Error('release notes version mismatch')"
+          grep -q 'Что нового' kassa/desktop-updater.js
+          grep -q 'showWhatsNew' desktop-kassa/main.js
           test ! -e kassa/shift-live.js
           test ! -e api/src/shift-debug.js
           test -f api/src/pos-shift-live-patch.js
