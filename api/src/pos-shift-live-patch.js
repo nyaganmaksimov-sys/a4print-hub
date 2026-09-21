@@ -4,8 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 const BASE='https://api.moysklad.ru/api/remap/1.2';
 const BUILD='20260918-mslive-throttle1';
 const LIVE_REFRESH_TTL_MS=120000;
+const HUB_FRESH_MS=5000;
+const HUB_STALE_MS=60000;
 let liveRefreshInFlight=null;
 let lastLiveRefreshAt=0;
+let hubSnapshotCache=null;
+let hubSnapshotInFlight=null;
 const token=process.env.MOYSKLAD_TOKEN;
 const supabase=process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY
   ?createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{autoRefreshToken:false,persistSession:false}})
@@ -126,16 +130,20 @@ async function liveShift(){
   };
 }
 
-async function hubShift(){
+async function calculateHubShift(){
   if(!supabase)return null;
   try{
-    const {data,error}=await supabase.from('pos_shift_sessions')
-      .select('moysklad_shift_id,moysklad_shift_name,opened_at,status,updated_at,store_id,store_name')
-      .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle();
-    if(error||!data?.moysklad_shift_id)return null;
+    const [shiftResult,baselineResult]=await Promise.all([
+      supabase.from('pos_shift_sessions')
+        .select('moysklad_shift_id,moysklad_shift_name,opened_at,status,updated_at,store_id,store_name')
+        .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle(),
+      supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle()
+    ]);
+    if(shiftResult.error||!shiftResult.data?.moysklad_shift_id)return null;
+    if(baselineResult.error)throw baselineResult.error;
+    const data=shiftResult.data;
+    const baseline=baselineResult.data;
     const after=data.opened_at;
-    const {data:baseline,error:baselineError}=await supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle();
-    if(baselineError)throw baselineError;
     const baselineAt=baseline?.baseline_at||after;
     const [salesResult,returnsResult,opsResult,balanceSalesTimed,balanceSalesUntimed,balanceReturnsTimed,balanceReturnsUntimed,balanceOps]=await Promise.all([
       supabase.from('pos_sales').select('total,payment_method').gte('sold_at',after),
@@ -178,6 +186,29 @@ async function hubShift(){
       }
     };
   }catch{return null}
+}
+
+function refreshHubSnapshot(){
+  if(hubSnapshotInFlight)return hubSnapshotInFlight;
+  hubSnapshotInFlight=calculateHubShift()
+    .then(result=>{if(result)hubSnapshotCache={at:Date.now(),result};return result})
+    .finally(()=>{hubSnapshotInFlight=null});
+  return hubSnapshotInFlight;
+}
+
+async function hubShift(){
+  const now=Date.now();
+  if(hubSnapshotCache&&now-hubSnapshotCache.at<HUB_FRESH_MS)return hubSnapshotCache.result;
+  if(hubSnapshotCache&&now-hubSnapshotCache.at<HUB_STALE_MS){
+    refreshHubSnapshot().catch(()=>{});
+    return hubSnapshotCache.result;
+  }
+  return refreshHubSnapshot();
+}
+
+if(supabase){
+  const warm=setTimeout(()=>refreshHubSnapshot().catch(()=>{}),2500);
+  warm.unref?.();
 }
 
 function refreshLiveShiftInBackground(){
