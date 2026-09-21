@@ -17,7 +17,10 @@
   const FLOW={
     MEMORIAL:{title:'Памятники / фотокерамика',partner:'Сфера',url:'https://sferazakaz.ru/katalog/fotokeramika',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / сложная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона','Временная табличка','Вкладка в цветник'],labels:['Материал','Размер / форма','Цветность','Ретушь / отверстия']},
     SOUVENIR:{title:'Сувениры и знаки',partner:'Сфера',url:'https://sferazakaz.ru/',presets:['Информационный знак','Табличка','Сувенирная продукция','Памятное изделие','Нестандартное изделие'],labels:['Материал','Размер / габариты','Цвет / нанесение','Обработка / крепление']},
-    TYPOGRAPHY:{title:'Типография',partner:'Группа М',url:'https://gmprint.ru/',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:['Бумага / материал','Формат','Цветность / стороны','Постпечатная обработка']}
+    TYPOGRAPHY:{title:'Типография',partner:'Группа М',url:'https://gmprint.ru/',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:['Бумага / материал','Формат','Цветность / стороны','Постпечатная обработка']},
+    WIDE_FORMAT:{title:'Широкоформатная печать',department:'А4-Принт',url:null,presets:['Баннер','Плакат / постер','Самоклеящаяся плёнка','Холст','Фотообои','Roll-Up / X-banner','Чертёж / схема','Другое'],labels:['Материал','Размер / формат','Качество / цветность','Постпечатная обработка'],textLabel:'Монтаж / дополнительные требования',costLabel:'Плановая себестоимость за ед., ₽'},
+    THREE_D:{title:'3D-печать',department:'3D-ARTPRINT',url:null,presets:['FDM-печать','Фотополимерная печать','Прототип','Деталь / запчасть','Макет / модель','Сувенир / фигурка','Серийная печать','Другое'],labels:['Технология / материал','Размер / габариты','Цвет / смола','Качество / постобработка'],textLabel:'Заполнение / поддержка / требования',costLabel:'Плановая себестоимость за ед., ₽'},
+    OUTDOOR:{title:'Наружная реклама',department:'3D-ARTPRINT',url:null,presets:['Вывеска','Световой короб','Объёмные буквы','Табличка','Навигация / указатель','Оформление витрины','Брендирование фасада','Стенд','Другое'],labels:['Материал','Размер / габариты','Подсветка / цвет','Крепление / монтаж'],textLabel:'Адрес монтажа / дополнительные требования',costLabel:'Плановая себестоимость за ед., ₽'}
   };
   let overlay=null,flow='MEMORIAL',selectedCustomerId=null,files=[],searchTimer=null;
 
@@ -29,8 +32,8 @@
     overlay=document.createElement('section');
     overlay.className='partner-order-overlay';overlay.hidden=true;
     overlay.innerHTML=`
-      <div class="partner-order-shell" role="dialog" aria-modal="true" aria-label="Партнёрский заказ">
-        <header class="partner-order-head"><div><h2>Партнёрский заказ</h2><p>Оформление памятников, сувенирной продукции и полиграфии прямо из кассы</p></div><button id="partnerOrderClose" type="button">×</button></header>
+      <div class="partner-order-shell" role="dialog" aria-modal="true" aria-label="Оформление заказа">
+        <header class="partner-order-head"><div><h2>Оформление заказа</h2><p>Заполните клиента, параметры производства, стоимость, срок и приложите необходимые файлы.</p></div><button id="partnerOrderClose" type="button">×</button></header>
         <form id="partnerOrderForm">
           <div class="partner-order-scroll">
             <section class="partner-order-card">
@@ -38,6 +41,9 @@
                 <button type="button" data-partner-flow="MEMORIAL" class="active"><b>Памятники / фотокерамика</b><small>Сфера</small></button>
                 <button type="button" data-partner-flow="SOUVENIR"><b>Сувениры и знаки</b><small>Сфера</small></button>
                 <button type="button" data-partner-flow="TYPOGRAPHY"><b>Типография</b><small>Группа М</small></button>
+                <button type="button" data-partner-flow="WIDE_FORMAT"><b>Широкоформатная печать</b><small>А4-Принт</small></button>
+                <button type="button" data-partner-flow="THREE_D"><b>3D-печать</b><small>3D-ARTPRINT</small></button>
+                <button type="button" data-partner-flow="OUTDOOR"><b>Наружная реклама</b><small>3D-ARTPRINT</small></button>
               </div>
               <div class="partner-flow-info"><div><span id="partnerFlowPartner">Сфера</span><b id="partnerFlowTitle"></b></div><a id="partnerFlowCatalog" target="_blank" rel="noopener noreferrer">Открыть каталог ↗</a></div>
               <div id="partnerPresetList" class="partner-preset-list"></div>
@@ -69,7 +75,7 @@
                 <label class="wide"><span id="partnerTextLabel">Текст / данные для макета</span><textarea id="partnerText" rows="3" placeholder="ФИО, даты, надпись, персонализация или примечания к макету"></textarea></label>
                 <label><span>Количество / тираж *</span><input id="partnerQty" type="number" min="1" step="1" value="1"></label>
                 <label><span>Цена клиенту за ед., ₽ *</span><input id="partnerPrice" type="number" min="0" step="0.01" value="0"></label>
-                <label><span>Цена партнёра за ед., ₽</span><input id="partnerCost" type="number" min="0" step="0.01" value="0"></label>
+                <label><span id="partnerCostLabel">Цена партнёра за ед., ₽</span><input id="partnerCost" type="number" min="0" step="0.01" value="0"></label>
                 <label><span>Желаемый срок</span><input id="partnerDueAt" type="datetime-local"></label>
                 <label class="wide"><span>Комментарий клиента</span><textarea id="partnerComment" rows="3"></textarea></label>
                 <label class="wide"><span>Файлы заказа</span><input id="partnerFiles" type="file" multiple></label>
@@ -96,18 +102,23 @@
   function setFlow(next){
     if(!FLOW[next])return;flow=next;const f=FLOW[flow];
     overlay?.querySelectorAll('[data-partner-flow]').forEach(b=>b.classList.toggle('active',b.dataset.partnerFlow===flow));
-    $('partnerFlowPartner').textContent=f.partner;$('partnerFlowTitle').textContent=f.title;$('partnerFlowCatalog').href=f.url;
+    $('partnerFlowPartner').textContent=f.partner||f.department||'A4PRINT';
+    $('partnerFlowTitle').textContent=f.title;
+    const catalog=$('partnerFlowCatalog');
+    if(f.url){catalog.href=f.url;catalog.hidden=false}else{catalog.removeAttribute('href');catalog.hidden=true}
     [$('partnerMaterialLabel'),$('partnerFormatLabel'),$('partnerColorLabel'),$('partnerFinishingLabel')].forEach((el,i)=>{if(el)el.textContent=f.labels[i]});
-    $('partnerTextLabel').textContent=flow==='MEMORIAL'?'ФИО / даты / текст на изделии':flow==='TYPOGRAPHY'?'Примечания к макету':'Текст / дополнительные данные';
+    $('partnerTextLabel').textContent=f.textLabel||(flow==='MEMORIAL'?'ФИО / даты / текст на изделии':flow==='TYPOGRAPHY'?'Примечания к макету':'Текст / дополнительные данные');
+    $('partnerCostLabel').textContent=f.costLabel||(f.partner?'Цена партнёра за ед., ₽':'Плановая себестоимость за ед., ₽');
     $('partnerPresetList').innerHTML=f.presets.map((x,i)=>'<button type="button" data-partner-preset="'+i+'">'+esc(x)+'</button>').join('');
     $('partnerItemName').value='';
   }
 
   function recalc(){
     const qty=Math.max(0,Number($('partnerQty')?.value||0)),price=Math.max(0,Number($('partnerPrice')?.value||0)),cost=Math.max(0,Number($('partnerCost')?.value||0));
-    const total=qty*price,partner=qty*cost,profit=total-partner,margin=total>0?profit/total*100:0;
+    const total=qty*price,planned=qty*cost,profit=total-planned,margin=total>0?profit/total*100:0;
+    const costTitle=FLOW[flow]?.partner?'Партнёр':'Себестоимость';
     $('partnerOrderTotal').textContent=money(total);
-    $('partnerOrderEconomics').innerHTML='<div><span>Клиент</span><b>'+money(total)+'</b></div><div><span>Партнёр</span><b>'+money(partner)+'</b></div><div><span>Плановая прибыль</span><b class="'+(profit<0?'negative':'')+'">'+money(profit)+'</b><small>'+margin.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%</small></div>';
+    $('partnerOrderEconomics').innerHTML='<div><span>Клиент</span><b>'+money(total)+'</b></div><div><span>'+costTitle+'</span><b>'+money(planned)+'</b></div><div><span>Плановая прибыль</span><b class="'+(profit<0?'negative':'')+'">'+money(profit)+'</b><small>'+margin.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%</small></div>';
   }
 
   function clearCustomer(){selectedCustomerId=null;for(const id of ['partnerFullName','partnerCompanyName','partnerPhone','partnerEmail','partnerInn'])$(id).value='';$('partnerCustomerResults').innerHTML=''}
@@ -142,12 +153,17 @@
     save.disabled=true;save.textContent='Создаём заказ…';
     try{
       const customer={id:selectedCustomerId,customer_type:$('partnerCustomerType').value,full_name:fullName,company_name:company,phone:$('partnerPhone').value.trim(),email:$('partnerEmail').value.trim(),inn:$('partnerInn').value.trim()};
-      const order={workflow:flow,item_name:item,material:$('partnerMaterial').value.trim(),format:$('partnerFormat').value.trim(),color:$('partnerColor').value.trim(),finishing:$('partnerFinishing').value.trim(),reference:$('partnerReference').value.trim(),text:$('partnerText').value.trim(),quantity:qty,unit_price:price,partner_unit_cost:cost};
+      const current=FLOW[flow];
+      const isPartner=Boolean(current.partner);
+      const order={workflow:flow,item_name:item,material:$('partnerMaterial').value.trim(),format:$('partnerFormat').value.trim(),color:$('partnerColor').value.trim(),finishing:$('partnerFinishing').value.trim(),reference:$('partnerReference').value.trim(),text:$('partnerText').value.trim(),quantity:qty,unit_price:price};
+      if(isPartner)order.partner_unit_cost=cost;else order.planned_unit_cost=cost;
       const raw=$('partnerDueAt').value,due=raw?new Date(raw).toISOString():null;
-      const {data,error}=await supabase.rpc('create_kassa_partner_order',{p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
+      const rpc=isPartner?'create_kassa_partner_order':'create_kassa_production_order';
+      const {data,error}=await supabase.rpc(rpc,{p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
       const result=Array.isArray(data)?data[0]:data;if(!result?.id)throw new Error('HUB не вернул ID заказа.');
       const failures=files.length?await uploadFiles(result.id,save):[];
-      overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан</h3><p>'+esc(FLOW[flow].partner)+' · '+esc(FLOW[flow].title)+'. Плановая себестоимость '+money(result.partner_planned_cost||0)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
+      const planned=result.partner_planned_cost??result.planned_total_cost??0;
+      overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан</h3><p>'+esc(current.partner||current.department||'A4PRINT')+' · '+esc(current.title)+'. Плановая себестоимость '+money(planned)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
       $('partnerOrderSave').hidden=true;$('partnerOrderAnother').onclick=()=>{close();location.reload()};
     }catch(error){err.textContent='Не удалось создать заказ: '+String(error.message||error)}
     finally{save.disabled=false;save.textContent='Создать заказ в HUB'}
