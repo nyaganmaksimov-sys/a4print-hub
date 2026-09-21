@@ -85,35 +85,59 @@ async function organizationIdForUnit(unitId) {
 
 async function operatorProfile(authUserId) {
   if (!supabase || !authUserId) return null;
-  const { data, error } = await supabase.from('users').select('id,full_name,email,is_active,organization_unit_id').eq('auth_user_id', authUserId).maybeSingle();
+  const { data, error } = await supabase
+    .from('users')
+    .select('id,full_name,email,is_active,organization_unit_id,organization_units(organization_id,is_active)')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { ...data, organization_id: await organizationIdForUnit(data.organization_unit_id) };
+  const unit = data.organization_units;
+  const { organization_units: _unit, ...profile } = data;
+  return {
+    ...profile,
+    organization_id: unit && unit.is_active !== false ? unit.organization_id || null : null
+  };
+}
+
+async function posStaffAccess(authUserId) {
+  if (!supabase || !authUserId) return null;
+  const { data, error } = await supabase
+    .from('users')
+    .select('id,full_name,email,is_active,organization_unit_id,organization_units(organization_id,is_active),user_roles(roles(name))')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const unit = data.organization_units;
+  const roles = (data.user_roles || []).map(row => String(row?.roles?.name || '').trim().toUpperCase()).filter(Boolean);
+  const { organization_units: _unit, user_roles: _userRoles, ...profile } = data;
+  return {
+    profile: {
+      ...profile,
+      organization_id: unit && unit.is_active !== false ? unit.organization_id || null : null
+    },
+    roles,
+    isAdmin: roles.includes('ADMIN'),
+    isOperator: roles.includes('POS_OPERATOR')
+  };
 }
 
 async function requirePosUser(req, res, next) {
+  const startedAt = Date.now();
   try {
     const ctx = await authContext(req);
     if (ctx.error) return res.status(401).json({ success: false, error: ctx.error });
-    const [roleResults, profile] = await Promise.all([
-      Promise.all([
-        ctx.client.rpc('has_role', { required_role: 'ADMIN' }),
-        ctx.client.rpc('has_role', { required_role: 'POS_OPERATOR' })
-      ]),
-      operatorProfile(ctx.user.id)
-    ]);
-    const [{ data: isAdmin, error: aErr }, { data: isOperator, error: oErr }] = roleResults;
-    if (aErr) throw aErr;
-    if (oErr) throw oErr;
-    if (!isAdmin && !isOperator) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
+
+    // Read current staff status, organization unit and roles in one PostgREST
+    // request. This preserves live authorization checks while removing multiple
+    // sequential Oregon <-> Frankfurt round trips on every cashier request.
+    const access = await posStaffAccess(ctx.user.id);
+    const profile = access?.profile || null;
+    if (!access?.isAdmin && !access?.isOperator) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
     if (!profile || profile.is_active === false) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
     if (!profile.organization_id) return res.status(403).json({ success: false, error: 'POS_ORGANIZATION_REQUIRED', message: 'Сотрудник не привязан к компании.' });
 
-    // A4PRINT KASSA is a dedicated POS application. Staff accounts may belong
-    // to another HUB company (for example 3D-ARTPRINT), while the Kassa catalog,
-    // customers, shifts, idempotency registry and MoySklad documents all belong
-    // to the configured A4PRINT POS tenant. Resolve that tenant here, before the
-    // route handler and before the sale-idempotency wrapper reserves an operation.
     const posTenant = await requireMoySkladOrganization({
       service: supabase,
       authUserId: ctx.user.id,
@@ -126,7 +150,10 @@ async function requirePosUser(req, res, next) {
     req.authProfile = profile;
     req.staffOrganizationId = profile.organization_id;
     req.posOrganizationId = posTenant.organization.id;
-    req.isAdmin = Boolean(isAdmin);
+    req.isAdmin = Boolean(access.isAdmin);
+
+    const durationMs = Date.now() - startedAt;
+    if (durationMs >= 500) console.warn('[POS_AUTH_TIMING]', JSON.stringify({ duration_ms: durationMs }));
     next();
   } catch (e) { next(e); }
 }
