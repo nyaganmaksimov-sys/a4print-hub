@@ -115,19 +115,6 @@
     reset();
   }
 
-  function addLauncher(){
-    const nav=document.querySelector('.nav-menu');
-    if(nav&&!$('navStampOrder')){
-      const b=document.createElement('button');
-      b.id='navStampOrder';b.className='nav-item';b.type='button';
-      b.innerHTML='<span class="nav-icon stamp-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><path d="M8.1 3.2h7.8c.7 0 1.3.6 1.3 1.3v2.2c0 .7-.3 1.3-.8 1.8l-1.3 1.2c-.3.3-.5.7-.5 1.1v1H9.4v-1c0-.4-.2-.8-.5-1.1L7.6 8.5c-.5-.5-.8-1.1-.8-1.8V4.5c0-.7.6-1.3 1.3-1.3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6.1 12.2h11.8c.8 0 1.5.7 1.5 1.5v2.4H4.6v-2.4c0-.8.7-1.5 1.5-1.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3.6 18.1h16.8v2.7H3.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><b>Печати и штампы</b>';
-      b.onclick=()=>{document.getElementById('appView')?.classList.remove('nav-open');open()};
-      const hub=$('navHubOrders');
-      if(hub&&hub.nextSibling)nav.insertBefore(b,hub.nextSibling);
-      else nav.insertBefore(b,nav.querySelector('[data-section="returns"]')||null);
-    }
-  }
-
   function open(){ensureUi();overlay.hidden=false;document.body.classList.add('stamp-order-open');setTimeout(()=>$('stampFullName')?.focus(),0)}
   function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('stamp-order-open')}
 
@@ -313,11 +300,7 @@
     window.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay&&!overlay.hidden)close()});
   }
 
-  function init(){
-    ensureUi();addLauncher();
-    const app=$('appView');
-    if(app)new MutationObserver(()=>{if(!app.hidden)addLauncher()}).observe(app,{attributes:true,attributeFilter:['hidden']});
-    setInterval(addLauncher,2500);
-  }
+  window.A4KassaStampOrders=Object.freeze({open});
+  function init(){ensureUi()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
