@@ -133,7 +133,7 @@ export async function installHubChatDrawer({supabase,context='staff',loginUrl='.
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages'},()=>setTimeout(refreshUnread,120))
       .subscribe();
   }catch(error){console.warn('HUB chat badge realtime',error)}
-  badgeTimer=setInterval(refreshUnread,30000);
+  badgeTimer=setInterval(()=>{if(!document.hidden)refreshUnread()},120000);
   window.addEventListener('beforeunload',()=>{if(badgeTimer)clearInterval(badgeTimer);if(badgeChannel)supabase.removeChannel(badgeChannel);uiObserver.disconnect()},{once:true});
 
   const api={open,close,refresh:async()=>{await refreshUnread();return chatApi?.refresh?.()},get mounted(){return Boolean(chatApi)}};
