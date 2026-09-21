@@ -1,5 +1,8 @@
 name: Build A4PRINT KASSA Desktop
 
+permissions:
+  contents: write
+
 on:
   pull_request:
     paths:
@@ -30,9 +33,31 @@ jobs:
         run: npm run check
       - name: Build Windows installer
         run: npm run dist:win
+      - name: Verify updater metadata
+        shell: pwsh
+        run: |
+          if (-not (Test-Path release/latest.yml)) { throw 'latest.yml was not generated' }
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
           name: A4PRINT-KASSA-Windows
-          path: desktop-kassa/release/*.exe
+          path: |
+            desktop-kassa/release/*.exe
+            desktop-kassa/release/latest.yml
+            desktop-kassa/release/*.blockmap
           if-no-files-found: error
+      - name: Publish stable updater channel
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          $tag = 'kassa-desktop'
+          gh release view $tag --repo ${{ github.repository }} *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo ${{ github.repository }} --title "A4PRINT KASSA $version" --notes "Стабильный канал автоматических обновлений A4PRINT KASSA."
+          } else {
+            gh release edit $tag --repo ${{ github.repository }} --title "A4PRINT KASSA $version"
+          }
+          gh release upload $tag release/*.exe release/latest.yml release/*.blockmap --clobber --repo ${{ github.repository }}
