@@ -158,6 +158,19 @@ export async function repairMoySkladSaleItems({token,items,error}){
     const wantedName=normalizedKey(target.name);
     if(wantedName)replacement=lookup.find(row=>normalizedKey(row.name)===wantedName)||null;
   }
+  if(!replacement){
+    const wantedName=normalizedKey(target.name);
+    if(wantedName)replacement=live.find(row=>normalizedKey(row.name)===wantedName)||null;
+  }
+  if(!replacement){
+    // Deleted MoySklad variants often leave the parent product intact. KASSA
+    // keeps the retail price from the receipt, so using that live parent as
+    // assortment is safer than leaving an already-paid receipt stuck forever.
+    const parentName=normalizedKey(String(target.name||'').replace(/\s*\([^()]+\)\s*$/,''));
+    if(parentName&&parentName!==normalizedKey(target.name)){
+      replacement=live.find(row=>String(row?.meta?.type||'').toLowerCase()==='product'&&normalizedKey(row.name)===parentName)||null;
+    }
+  }
   const href=replacement?.meta?.href||null;
   if(!replacement||!href)return{changed:false,missing,target};
 
