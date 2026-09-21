@@ -60,6 +60,40 @@
     else if(event.target.closest('[data-updater-hide]'))ensure().classList.remove('show');
   });
 
-  api.onState(render);
-  api.state().then(render).catch(()=>{});
+  function renderSettingsCard(){
+    const grid=document.querySelector('#utilityDrawer.a4-settings-mode .a4-sh-grid');
+    if(!grid||document.getElementById('a4DesktopUpdateCard'))return;
+    const card=document.createElement('section');
+    card.id='a4DesktopUpdateCard';
+    card.className='a4-sh-card wide';
+    card.innerHTML='<h3>Обновление программы</h3><p>Установлена версия '+(window.A4KassaDesktop?.version||'—')+'.</p><div class="a4-sh-actions"><button id="a4UpdateCheck" class="a4-sh-btn primary">Проверить обновления</button><button id="a4UpdateDownload" class="a4-sh-btn" hidden>Скачать обновление</button><button id="a4UpdateInstall" class="a4-sh-btn primary" hidden>Перезапустить и установить</button></div><div id="a4UpdateStatus" class="a4-cash-msg"></div>';
+    grid.appendChild(card);
+    const paint=()=>{
+      const s=state||{};
+      const status=document.getElementById('a4UpdateStatus');
+      const download=document.getElementById('a4UpdateDownload');
+      const install=document.getElementById('a4UpdateInstall');
+      if(!status)return;
+      status.textContent=
+        s.status==='available'?'Доступна версия '+(s.availableVersion||''):
+        s.status==='downloading'?'Скачивание: '+Number(s.percent||0)+'%':
+        s.status==='downloaded'?'Обновление скачано и готово к установке.':
+        s.status==='current'?'Установлена актуальная версия.':
+        s.status==='checking'?'Проверяем обновления…':
+        s.status==='error'?'Ошибка: '+(s.message||'не удалось проверить обновление'):
+        'Нажмите «Проверить обновления».';
+      if(download)download.hidden=s.status!=='available';
+      if(install)install.hidden=s.status!=='downloaded';
+    };
+    card.querySelector('#a4UpdateCheck')?.addEventListener('click',async()=>render(await api.check()));
+    card.querySelector('#a4UpdateDownload')?.addEventListener('click',async()=>render(await api.download()));
+    card.querySelector('#a4UpdateInstall')?.addEventListener('click',()=>api.install());
+    paint();
+  }
+
+  const settingsObserver=new MutationObserver(()=>renderSettingsCard());
+  settingsObserver.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+
+  api.onState(next=>{render(next);renderSettingsCard()});
+  api.state().then(next=>{render(next);renderSettingsCard()}).catch(()=>{});
 })();
