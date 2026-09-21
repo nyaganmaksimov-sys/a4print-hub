@@ -16,9 +16,9 @@ const service = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
 
-const AI_INTERVAL_MS = Math.max(90_000, Number(process.env.JARVIS_INCIDENT_AI_INTERVAL_MS || 120_000));
-const AI_MAX_PER_RUN = Math.max(1, Math.min(5, Number(process.env.JARVIS_INCIDENT_AI_BATCH || 2)));
-const AI_RETRY_MS = Math.max(AI_INTERVAL_MS, Number(process.env.JARVIS_INCIDENT_AI_RETRY_MS || 1_800_000));
+const AI_INTERVAL_MS = Math.max(120_000, Number(process.env.JARVIS_INCIDENT_AI_INTERVAL_MS || 10 * 60_000));
+const AI_MAX_PER_RUN = Math.max(1, Math.min(5, Number(process.env.JARVIS_INCIDENT_AI_BATCH || 1)));
+const AI_RETRY_MS = Math.max(AI_INTERVAL_MS, Number(process.env.JARVIS_INCIDENT_AI_RETRY_MS || 3_600_000));
 const workerState = { running: false, scans: 0, analyzed: 0, last_run_at: null, last_error: null };
 
 function nowIso() { return new Date().toISOString(); }
@@ -369,7 +369,7 @@ async function incidentAnalysis(req, res, force = false) {
 function installWorker() {
   if (globalThis[workerInstalled] || !service) return;
   globalThis[workerInstalled] = true;
-  const first = setTimeout(() => runIncidentAi(), 18_000); first.unref?.();
+  const first = setTimeout(() => runIncidentAi(), 60_000); first.unref?.();
   const timer = setInterval(() => runIncidentAi(), AI_INTERVAL_MS); timer.unref?.();
 }
 

@@ -13,6 +13,8 @@ const supabase = supabaseUrl && serviceKey
   : null;
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const RECENT_SYNC_INTERVAL_MS = Math.max(5 * 60_000, Number(process.env.MOYSKLAD_RECEIPT_SYNC_INTERVAL_MS || 10 * 60_000));
+const INITIAL_SYNC_DELAY_MS = Math.max(15_000, Number(process.env.MOYSKLAD_RECEIPT_INITIAL_DELAY_MS || 60_000));
 let running = false;
 
 function msHeaders() {
@@ -452,7 +454,7 @@ async function runSync(label, options) {
 }
 
 if (isInternalApiProcess && token && supabase) {
-  setTimeout(() => runSync('initial', { days: 1095, maxSales: 5000, maxReturns: 2000 }), 7000);
-  const timer = setInterval(() => runSync('recent', { days: 3, maxSales: 500, maxReturns: 500 }), 2 * 60 * 1000);
+  setTimeout(() => runSync('initial', { days: 1095, maxSales: 5000, maxReturns: 2000 }), INITIAL_SYNC_DELAY_MS);
+  const timer = setInterval(() => runSync('recent', { days: 3, maxSales: 500, maxReturns: 500 }), RECENT_SYNC_INTERVAL_MS);
   timer.unref?.();
 }

@@ -50,6 +50,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 
+// Render does not expose request logs/latency for this service, so keep a
+// lightweight server-side trace for genuinely slow requests. Never log query
+// strings or request bodies here because they may contain sensitive data.
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    const durationMs = Date.now() - startedAt;
+    if (durationMs < 750) return;
+    console.warn('[SLOW_REQUEST]', JSON.stringify({
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      duration_ms: durationMs
+    }));
+  });
+  next();
+});
+
 const service = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;

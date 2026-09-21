@@ -14,7 +14,7 @@ const service = supabaseUrl && serviceKey
   : null;
 
 const SENTINEL_VERSION = '1.0.0';
-const SCAN_INTERVAL_MS = Math.max(30_000, Number(process.env.JARVIS_SENTINEL_INTERVAL_MS || 60_000));
+const SCAN_INTERVAL_MS = Math.max(60_000, Number(process.env.JARVIS_SENTINEL_INTERVAL_MS || 5 * 60_000));
 const MANAGED_BY = 'jarvis_sentinel_v1';
 const state = {
   running: false,
@@ -405,7 +405,7 @@ function canSeeIncident(v, incident) { return v.isAdmin || incident.organization
 function installWorker() {
   if (globalThis[workerInstalled] || !service) return;
   globalThis[workerInstalled] = true;
-  const first = setTimeout(() => runSentinel(), 8_000); first.unref?.();
+  const first = setTimeout(() => runSentinel(), 45_000); first.unref?.();
   const timer = setInterval(() => runSentinel(), SCAN_INTERVAL_MS); timer.unref?.();
 }
 
