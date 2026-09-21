@@ -12,6 +12,10 @@ const CACHE_TTL_MS=15000;
 const STALE_TTL_MS=5*60*1000;
 let balanceCache=null;
 let balanceInFlight=null;
+let localBalanceCache=null;
+let localBalanceInFlight=null;
+const LOCAL_BALANCE_FRESH_MS=5000;
+const LOCAL_BALANCE_STALE_MS=60000;
 
 function clean(value,max=3000){return String(value||'').trim().slice(0,max)}
 function isRateLimit(error){return /MoySklad HTTP 429|"code"\s*:\s*(1049|1073)|code\D+(1049|1073)/i.test(String(error?.message||error||''))}
@@ -21,16 +25,18 @@ async function auth(req){
   if(!service)return{error:'DATABASE_NOT_CONFIGURED'};
   const bearer=clean(req.headers.authorization).replace(/^Bearer\s+/i,'');
   if(!bearer)return{error:'AUTH_REQUIRED'};
-  const {data,error}=await service.auth.getUser(bearer);
-  if(error||!data?.user)return{error:'INVALID_SESSION'};
-  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',data.user.id).eq('is_active',true).limit(1).maybeSingle();
+  const {data,error}=await service.auth.getClaims(bearer);
+  const claims=data?.claims;
+  if(error||!claims?.sub)return{error:'INVALID_SESSION'};
+  const user={id:String(claims.sub),email:String(claims.email||'')};
+  const {data:profile,error:pErr}=await service.from('users').select('id,is_active').eq('auth_user_id',user.id).eq('is_active',true).limit(1).maybeSingle();
   if(pErr)throw pErr;
   if(!profile||profile.is_active===false)return{error:'POS_ACCESS_REQUIRED'};
   const {data:roles,error:rErr}=await service.from('user_roles').select('roles(name)').eq('user_id',profile.id);
   if(rErr)throw rErr;
   const names=(roles||[]).map(x=>x.roles?.name).filter(Boolean);
   if(!names.some(x=>x==='ADMIN'||x==='POS_OPERATOR'))return{error:'POS_ACCESS_REQUIRED'};
-  return{user:data.user,profile,isAdmin:names.includes('ADMIN')};
+  return{user,profile,isAdmin:names.includes('ADMIN')};
 }
 
 async function getCashBalance(){
@@ -53,7 +59,7 @@ async function getCashBalance(){
 
 function sum(rows,field){return (rows||[]).reduce((total,row)=>total+Number(row?.[field]||0),0)}
 
-async function databaseCashBalance(){
+async function calculateDatabaseCashBalance(){
   if(!service)throw new Error('DATABASE_NOT_CONFIGURED');
   const {data:baseline,error:bErr}=await service
     .from('pos_cash_balance_state')
@@ -110,6 +116,24 @@ async function databaseCashBalance(){
   };
 }
 
+function refreshDatabaseCashBalance(){
+  if(localBalanceInFlight)return localBalanceInFlight;
+  localBalanceInFlight=calculateDatabaseCashBalance()
+    .then(result=>{localBalanceCache={at:Date.now(),result};return result})
+    .finally(()=>{localBalanceInFlight=null});
+  return localBalanceInFlight;
+}
+
+async function databaseCashBalance(){
+  const now=Date.now();
+  if(localBalanceCache&&now-localBalanceCache.at<LOCAL_BALANCE_FRESH_MS)return{...localBalanceCache.result,cached:true};
+  if(localBalanceCache&&now-localBalanceCache.at<LOCAL_BALANCE_STALE_MS){
+    refreshDatabaseCashBalance().catch(()=>{});
+    return{...localBalanceCache.result,cached:true,refreshing:true};
+  }
+  return refreshDatabaseCashBalance();
+}
+
 async function responsiveCashBalance(){
   // Cashier UI is local-first: HUB is the immediate operational ledger.
   // Start MoySklad reconciliation in the background only; it must never delay
@@ -117,6 +141,11 @@ async function responsiveCashBalance(){
   const local=await databaseCashBalance();
   getCashBalance().catch(()=>{});
   return local;
+}
+
+if(service){
+  const warm=setTimeout(()=>refreshDatabaseCashBalance().catch(()=>{}),2500);
+  warm.unref?.();
 }
 
 const originalListen=express.application.listen;
