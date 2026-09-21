@@ -124,5 +124,5 @@ if(!window.__A4_DASH_EQUIPMENT_WIDGET__){
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{load();initRealtime()},{once:true});else{load();initRealtime()}
-  setInterval(()=>{if(!document.hidden)load()},60000);
+  setInterval(()=>{if(!document.hidden)load()},300000);
 }
