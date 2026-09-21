@@ -102,18 +102,23 @@
   function setFlow(next){
     if(!FLOW[next])return;flow=next;const f=FLOW[flow];
     overlay?.querySelectorAll('[data-partner-flow]').forEach(b=>b.classList.toggle('active',b.dataset.partnerFlow===flow));
-    $('partnerFlowPartner').textContent=f.partner;$('partnerFlowTitle').textContent=f.title;$('partnerFlowCatalog').href=f.url;
+    $('partnerFlowPartner').textContent=f.partner||f.department||'A4PRINT';
+    $('partnerFlowTitle').textContent=f.title;
+    const catalog=$('partnerFlowCatalog');
+    if(f.url){catalog.href=f.url;catalog.hidden=false}else{catalog.removeAttribute('href');catalog.hidden=true}
     [$('partnerMaterialLabel'),$('partnerFormatLabel'),$('partnerColorLabel'),$('partnerFinishingLabel')].forEach((el,i)=>{if(el)el.textContent=f.labels[i]});
-    $('partnerTextLabel').textContent=flow==='MEMORIAL'?'ФИО / даты / текст на изделии':flow==='TYPOGRAPHY'?'Примечания к макету':'Текст / дополнительные данные';
+    $('partnerTextLabel').textContent=f.textLabel||(flow==='MEMORIAL'?'ФИО / даты / текст на изделии':flow==='TYPOGRAPHY'?'Примечания к макету':'Текст / дополнительные данные');
+    $('partnerCostLabel').textContent=f.costLabel||(f.partner?'Цена партнёра за ед., ₽':'Плановая себестоимость за ед., ₽');
     $('partnerPresetList').innerHTML=f.presets.map((x,i)=>'<button type="button" data-partner-preset="'+i+'">'+esc(x)+'</button>').join('');
     $('partnerItemName').value='';
   }
 
   function recalc(){
     const qty=Math.max(0,Number($('partnerQty')?.value||0)),price=Math.max(0,Number($('partnerPrice')?.value||0)),cost=Math.max(0,Number($('partnerCost')?.value||0));
-    const total=qty*price,partner=qty*cost,profit=total-partner,margin=total>0?profit/total*100:0;
+    const total=qty*price,planned=qty*cost,profit=total-planned,margin=total>0?profit/total*100:0;
+    const costTitle=FLOW[flow]?.partner?'Партнёр':'Себестоимость';
     $('partnerOrderTotal').textContent=money(total);
-    $('partnerOrderEconomics').innerHTML='<div><span>Клиент</span><b>'+money(total)+'</b></div><div><span>Партнёр</span><b>'+money(partner)+'</b></div><div><span>Плановая прибыль</span><b class="'+(profit<0?'negative':'')+'">'+money(profit)+'</b><small>'+margin.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%</small></div>';
+    $('partnerOrderEconomics').innerHTML='<div><span>Клиент</span><b>'+money(total)+'</b></div><div><span>'+costTitle+'</span><b>'+money(planned)+'</b></div><div><span>Плановая прибыль</span><b class="'+(profit<0?'negative':'')+'">'+money(profit)+'</b><small>'+margin.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%</small></div>';
   }
 
   function clearCustomer(){selectedCustomerId=null;for(const id of ['partnerFullName','partnerCompanyName','partnerPhone','partnerEmail','partnerInn'])$(id).value='';$('partnerCustomerResults').innerHTML=''}
@@ -148,12 +153,17 @@
     save.disabled=true;save.textContent='Создаём заказ…';
     try{
       const customer={id:selectedCustomerId,customer_type:$('partnerCustomerType').value,full_name:fullName,company_name:company,phone:$('partnerPhone').value.trim(),email:$('partnerEmail').value.trim(),inn:$('partnerInn').value.trim()};
-      const order={workflow:flow,item_name:item,material:$('partnerMaterial').value.trim(),format:$('partnerFormat').value.trim(),color:$('partnerColor').value.trim(),finishing:$('partnerFinishing').value.trim(),reference:$('partnerReference').value.trim(),text:$('partnerText').value.trim(),quantity:qty,unit_price:price,partner_unit_cost:cost};
+      const current=FLOW[flow];
+      const isPartner=Boolean(current.partner);
+      const order={workflow:flow,item_name:item,material:$('partnerMaterial').value.trim(),format:$('partnerFormat').value.trim(),color:$('partnerColor').value.trim(),finishing:$('partnerFinishing').value.trim(),reference:$('partnerReference').value.trim(),text:$('partnerText').value.trim(),quantity:qty,unit_price:price};
+      if(isPartner)order.partner_unit_cost=cost;else order.planned_unit_cost=cost;
       const raw=$('partnerDueAt').value,due=raw?new Date(raw).toISOString():null;
-      const {data,error}=await supabase.rpc('create_kassa_partner_order',{p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
+      const rpc=isPartner?'create_kassa_partner_order':'create_kassa_production_order';
+      const {data,error}=await supabase.rpc(rpc,{p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
       const result=Array.isArray(data)?data[0]:data;if(!result?.id)throw new Error('HUB не вернул ID заказа.');
       const failures=files.length?await uploadFiles(result.id,save):[];
-      overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан</h3><p>'+esc(FLOW[flow].partner)+' · '+esc(FLOW[flow].title)+'. Плановая себестоимость '+money(result.partner_planned_cost||0)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
+      const planned=result.partner_planned_cost??result.planned_total_cost??0;
+      overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан</h3><p>'+esc(current.partner||current.department||'A4PRINT')+' · '+esc(current.title)+'. Плановая себестоимость '+money(planned)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
       $('partnerOrderSave').hidden=true;$('partnerOrderAnother').onclick=()=>{close();location.reload()};
     }catch(error){err.textContent='Не удалось создать заказ: '+String(error.message||error)}
     finally{save.disabled=false;save.textContent='Создать заказ в HUB'}
