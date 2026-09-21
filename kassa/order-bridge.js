@@ -101,8 +101,8 @@
     const rows=sortOrders(filtered);
     const summary=$('hubOrdersSummary');
     if(summary)summary.textContent=orders.length
-      ?`Показано ${rows.length} из ${orders.length} · неоплаченные заказы HUB`
-      :'Неоплаченных заказов нет';
+      ?`Показано ${rows.length} из ${orders.length} · заказы HUB`
+      :'Заказов HUB нет';
     listEl.innerHTML=rows.map(o=>{
       const dt=orderDate(o.created_at);
       const st=String(o.status||'').toUpperCase();
@@ -215,7 +215,9 @@
     }catch(error){err.textContent=String(error?.message||error);btn.disabled=false;btn.textContent=`Провести через кассу · ${money(amount)}`}
   }
 
-  async function openFromQuery(){const id=new URLSearchParams(location.search).get('order');if(!id)return;ensureUi();overlay.hidden=false;document.body.classList.add('hub-orders-opened');await loadOrders('');await selectOrder(id,null);history.replaceState({},'',location.pathname)}
+  async function openOrder(id){ensureUi();overlay.hidden=false;document.body.classList.add('hub-orders-opened');searchEl.value='';await loadOrders('');const button=listEl.querySelector(`[data-hub-order="${CSS.escape(String(id))}"]`);await selectOrder(id,button)}
+  async function openFromQuery(){const id=new URLSearchParams(location.search).get('order');if(!id)return;await openOrder(id);history.replaceState({},'',location.pathname)}
+  window.A4KassaHubOrders=Object.freeze({open,openOrder});
   function ready(){return !$('appView')?.hidden}
   function init(){ensureUi();addLaunchers();const app=$('appView');if(app)new MutationObserver(()=>{if(ready()){addLaunchers();openFromQuery().catch(console.warn)}}).observe(app,{attributes:true,attributeFilter:['hidden']});if(ready())openFromQuery().catch(console.warn);setInterval(addLaunchers,3000)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
