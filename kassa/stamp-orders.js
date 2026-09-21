@@ -272,8 +272,9 @@
           <div class="stamp-order-success-icon">✓</div>
           <h3>Заказ №${esc(result.order_number||'')} создан в HUB</h3>
           <p>Клиент и реквизиты сохранены. Позиции печатей/штампов переданы в заказ.${failures.length?` Не загрузились файлы: ${esc(failures.join(', '))}.`:''}</p>
-          <div><a href="../admin/order.html?id=${encodeURIComponent(result.id)}" target="_blank" rel="noopener">Открыть заказ в HUB</a><button id="stampOrderAnother" type="button">Создать ещё один</button></div>
+          <div><button id="stampOrderPay" type="button">Оплатить через кассу</button><a href="../admin/order.html?id=${encodeURIComponent(result.id)}" target="_blank" rel="noopener">Открыть заказ в HUB</a><button id="stampOrderAnother" type="button">Создать ещё один</button></div>
         </div>`;
+      $('stampOrderPay').onclick=()=>{close();window.A4KassaHubOrders?.openOrder?.(result.id)};
       $('stampOrderAnother').onclick=()=>{overlay.remove();overlay=null;ensureUi();open()};
       overlay.querySelector('.stamp-order-foot').hidden=true;
       window.dispatchEvent(new CustomEvent('a4:kassa-stamp-order-created',{detail:result}));
