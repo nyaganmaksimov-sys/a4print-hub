@@ -119,7 +119,7 @@
   function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('stamp-order-open')}
 
   function reset(){
-    selectedCustomerId=null;items=[blankItem()];files=[];
+    selectedCustomerId=null;items=[blankItem()];files=[];submitBusy=false;submitOperationId=uid();
     if(!$('stampOrderForm'))return;
     $('stampOrderForm').reset();
     $('stampCustomerType').value='PERSON';
@@ -240,20 +240,24 @@
 
   async function submit(event){
     event.preventDefault();
+    if(submitBusy)return;
+    submitBusy=true;
     captureItems();
     const err=$('stampOrderError'),save=$('stampOrderSave');err.textContent='';
     const customer=customerPayload();
-    if(!customer.full_name&&!customer.company_name&&!customer.legal_name){err.textContent='Укажите ФИО или название клиента.';return}
+    if(!customer.full_name&&!customer.company_name&&!customer.legal_name){submitBusy=false;err.textContent='Укажите ФИО или название клиента.';return}
     for(const [index,item] of items.entries()){
-      if(!item.type){err.textContent=`Укажите вид в позиции ${index+1}.`;return}
-      if(!(Number(item.quantity)>0)){err.textContent=`Количество в позиции ${index+1} должно быть больше нуля.`;return}
-      if(Number(item.unit_price)<0){err.textContent=`Цена в позиции ${index+1} не может быть отрицательной.`;return}
+      if(!item.type){submitBusy=false;err.textContent=`Укажите вид в позиции ${index+1}.`;return}
+      if(!(Number(item.quantity)>0)){submitBusy=false;err.textContent=`Количество в позиции ${index+1} должно быть больше нуля.`;return}
+      if(Number(item.unit_price)<0){submitBusy=false;err.textContent=`Цена в позиции ${index+1} не может быть отрицательной.`;return}
     }
     save.disabled=true;save.textContent='Создаём заказ…';
     try{
       const raw=$('stampDueAt').value;
       const due=raw?new Date(raw).toISOString():null;
-      const {data,error}=await supabase.rpc('create_kassa_stamp_order',{
+      if(!submitOperationId)submitOperationId=uid();
+      const {data,error}=await supabase.rpc('create_kassa_stamp_order_v2',{
+        p_client_operation_id:submitOperationId,
         p_customer:customer,
         p_items:items.map(({key,...item})=>item),
         p_comment:$('stampComment').value.trim()||null,
@@ -276,6 +280,7 @@
     }catch(error){
       console.error('Kassa stamp order:',error);
       err.textContent=String(error?.message||error);
+      submitBusy=false;
       save.disabled=false;save.textContent='Создать заказ в HUB';
     }
   }
