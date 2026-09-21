@@ -23,6 +23,7 @@ on:
     branches: [main]
     paths:
       - 'kassa/**'
+      - 'desktop-kassa/**'
       - 'api/src/moysklad.js'
       - 'api/src/moysklad-shift-sanity.js'
       - 'api/src/shift-debug.js'
@@ -102,16 +103,25 @@ jobs:
           test -f desktop-kassa/main.js
           test -f desktop-kassa/package.json
           test -f desktop-kassa/update-notes.json
+          test -f desktop-kassa/scripts/prepare-web.js
+          test -f desktop-kassa/web/kassa/index.html
+          test -f desktop-kassa/web/admin/vendor/supabase.js
           grep -q 'TRANSIENT_LOAD_CODES' desktop-kassa/main.js
           grep -q 'RETRY_DELAYS' desktop-kassa/main.js
           grep -q 'auto-retry' desktop-kassa/main.js
           grep -q 'electron-updater' desktop-kassa/main.js
           grep -q 'a4-kassa:update:check' desktop-kassa/main.js
           grep -q 'quitAndInstall' desktop-kassa/main.js
+          grep -q 'startLocalKassaServer' desktop-kassa/main.js
+          grep -q '127.0.0.1' desktop-kassa/main.js
+          grep -q 'prepare:web' desktop-kassa/package.json
+          grep -q 'extraResources' desktop-kassa/package.json
+          grep -q 'stamp-nav-icon' kassa/stamp-orders.js
+          grep -q 'a4-kassa-logo.webp' kassa/index.html
           grep -q 'updater:Object.freeze' desktop-kassa/preload.js
           grep -q 'desktop-updater.js' kassa/bootstrap.js
           grep -q 'Перезапустить и установить' kassa/desktop-updater.js
-          grep -q '2.1.3' desktop-kassa/package.json
+          grep -q '2.1.4' desktop-kassa/package.json
           node -e "const p=require('./desktop-kassa/package.json'),n=require('./desktop-kassa/update-notes.json');if(p.version!==n.version)throw new Error('release notes version mismatch')"
           grep -q 'Что нового' kassa/desktop-updater.js
           grep -q 'showWhatsNew' desktop-kassa/main.js
