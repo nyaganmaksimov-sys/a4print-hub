@@ -2,10 +2,12 @@ const {app,BrowserWindow,session,ipcMain,net}=require('electron');
 const {autoUpdater}=require('electron-updater');
 const fs=require('fs');
 const path=require('path');
+const http=require('http');
 
 const PRIMARY_KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/?desktop=1';
-const KASSA_URLS=[PRIMARY_KASSA_URL,'https://a4print-hub.ru/kassa/index.html?desktop=1']
+const REMOTE_KASSA_URLS=[PRIMARY_KASSA_URL,'https://a4print-hub.ru/kassa/index.html?desktop=1']
   .filter((value,index,array)=>value&&array.indexOf(value)===index);
+const LOCAL_WEB_PORTS=[47841,47842,47843];
 const APP_ICON=path.join(__dirname,'build','icon.ico');
 const TRANSIENT_LOAD_CODES=new Set([-7,-21,-101,-102,-105,-106,-109,-118,-137,-138,-324]);
 const RETRY_DELAYS=[1500,3000,5000,8000,12000,20000,30000];
@@ -21,6 +23,8 @@ let mainWindow;
 let retryTimer=null;
 let retryAttempt=0;
 let lastFailedUrl='';
+let localWebServer=null;
+let localKassaUrl='';
 let updateState={status:'idle',currentVersion:app.getVersion(),availableVersion:null,percent:0,message:'',releaseNotes:null,whatsNew:null,showWhatsNew:false};
 let localReleaseNotes=null;
 let updatePrefs={lastSeenWhatsNewVersion:null};
@@ -99,6 +103,101 @@ function log(...parts){
   }catch{}
 }
 
+
+function localWebRoot(){
+  return app.isPackaged?path.join(process.resourcesPath,'web'):path.join(__dirname,'web');
+}
+
+function mimeType(file){
+  const ext=path.extname(file).toLowerCase();
+  return {
+    '.html':'text/html; charset=utf-8',
+    '.js':'text/javascript; charset=utf-8',
+    '.css':'text/css; charset=utf-8',
+    '.json':'application/json; charset=utf-8',
+    '.webmanifest':'application/manifest+json; charset=utf-8',
+    '.svg':'image/svg+xml',
+    '.png':'image/png',
+    '.jpg':'image/jpeg',
+    '.jpeg':'image/jpeg',
+    '.webp':'image/webp',
+    '.ico':'image/x-icon',
+    '.woff':'font/woff',
+    '.woff2':'font/woff2'
+  }[ext]||'application/octet-stream';
+}
+
+function createLocalServer(port){
+  return new Promise((resolve,reject)=>{
+    const root=path.resolve(localWebRoot());
+    const server=http.createServer((req,res)=>{
+      try{
+        const host=req.headers.host||'127.0.0.1';
+        const u=new URL(req.url||'/',`http://${host}`);
+        let pathname=decodeURIComponent(u.pathname||'/');
+        if(pathname==='/'||pathname==='/kassa'||pathname==='/kassa/')pathname='/kassa/index.html';
+        let file=path.resolve(root,'.'+pathname);
+        if(file!==root&&!file.startsWith(root+path.sep)){
+          res.writeHead(403,{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'});
+          res.end('Forbidden');
+          return;
+        }
+        let stat;
+        try{stat=fs.statSync(file)}catch{
+          res.writeHead(404,{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'});
+          res.end('Not found');
+          return;
+        }
+        if(stat.isDirectory())file=path.join(file,'index.html');
+        if(!fs.existsSync(file)){
+          res.writeHead(404,{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'});
+          res.end('Not found');
+          return;
+        }
+        res.writeHead(200,{
+          'content-type':mimeType(file),
+          'cache-control':'no-store, max-age=0',
+          'x-content-type-options':'nosniff'
+        });
+        fs.createReadStream(file).pipe(res);
+      }catch(error){
+        log('LOCAL WEB REQUEST FAIL',String(error));
+        if(!res.headersSent)res.writeHead(500,{'content-type':'text/plain; charset=utf-8'});
+        res.end('Local Kassa error');
+      }
+    });
+    server.once('error',reject);
+    server.listen(port,'127.0.0.1',()=>{
+      server.removeListener('error',reject);
+      resolve(server);
+    });
+  });
+}
+
+async function startLocalKassaServer(){
+  if(localWebServer&&localKassaUrl)return localKassaUrl;
+  const root=localWebRoot();
+  const index=path.join(root,'kassa','index.html');
+  if(!fs.existsSync(index))throw new Error('LOCAL_KASSA_FILES_MISSING: '+index);
+  let lastError=null;
+  for(const port of LOCAL_WEB_PORTS){
+    try{
+      localWebServer=await createLocalServer(port);
+      localKassaUrl=`http://127.0.0.1:${port}/kassa/index.html?desktop=1&local=1`;
+      log('LOCAL WEB READY',localKassaUrl,root);
+      return localKassaUrl;
+    }catch(error){
+      lastError=error;
+      log('LOCAL WEB PORT FAIL',port,String(error));
+    }
+  }
+  throw lastError||new Error('LOCAL_KASSA_SERVER_FAILED');
+}
+
+function kassaTargets(){
+  return [localKassaUrl,...REMOTE_KASSA_URLS].filter((value,index,array)=>value&&array.indexOf(value)===index);
+}
+
 function safeHtml(value){
   return String(value??'').replace(/[&<>"']/g,m=>({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -108,7 +207,7 @@ function safeHtml(value){
 function recoveryPage({title,detail,attempt=0,delayMs=0,automatic=false}){
   if(!mainWindow||mainWindow.isDestroyed())return;
   const logPath=path.join(app.getPath('userData'),'desktop.log');
-  const retryUrl=PRIMARY_KASSA_URL;
+  const retryUrl=localKassaUrl||PRIMARY_KASSA_URL;
   const seconds=Math.max(1,Math.ceil(delayMs/1000));
   const status=automatic
     ? `Повторное подключение выполняется автоматически. Следующая попытка через <b id="retrySeconds">${seconds}</b> сек.`
@@ -160,7 +259,8 @@ function retryDelay(){
 }
 
 function currentTarget(){
-  return KASSA_URLS[retryAttempt%KASSA_URLS.length]||PRIMARY_KASSA_URL;
+  const targets=kassaTargets();
+  return targets[retryAttempt%Math.max(targets.length,1)]||PRIMARY_KASSA_URL;
 }
 
 function isRemoteUrl(url){
@@ -306,6 +406,7 @@ async function createWindow(){
 
   mainWindow.webContents.on('child-process-gone',(_e,d)=>log('CHILD GONE',d));
 
+  try{await startLocalKassaServer()}catch(error){log('LOCAL WEB START FAIL',String(error))}
   retryAttempt=0;
   await loadKassa('startup');
   reveal();
@@ -322,5 +423,6 @@ app.whenReady().then(async()=>{
   await createWindow();
   if(app.isPackaged)setTimeout(()=>autoUpdater.checkForUpdates().catch(error=>sendUpdateState({status:'error',message:String(error?.message||error)})),10000);
 });
+app.on('before-quit',()=>{try{localWebServer?.close()}catch{}});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
