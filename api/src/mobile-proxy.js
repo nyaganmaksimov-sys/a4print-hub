@@ -157,9 +157,10 @@ function authMessage(error) {
 async function currentUser(req) {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   if (!token || !service) return { error: 'AUTH_REQUIRED' };
-  const { data, error } = await service.auth.getUser(token);
-  if (error || !data?.user) return { error: 'INVALID_SESSION' };
-  return { token, user: data.user };
+  const { data, error } = await service.auth.getClaims(token);
+  const claims = data?.claims;
+  if (error || !claims?.sub) return { error: 'INVALID_SESSION' };
+  return { token, user: { id: String(claims.sub), email: String(claims.email || '') } };
 }
 
 async function requireAdmin(req, res, next) {
