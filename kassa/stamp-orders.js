@@ -120,7 +120,7 @@
     if(nav&&!$('navStampOrder')){
       const b=document.createElement('button');
       b.id='navStampOrder';b.className='nav-item';b.type='button';
-      b.innerHTML='<span class="nav-icon">◉</span><b>Заказ печатей<br>и штампов</b>';
+      b.innerHTML='<span class="nav-icon stamp-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><path d="M8.1 3.2h7.8c.7 0 1.3.6 1.3 1.3v2.2c0 .7-.3 1.3-.8 1.8l-1.3 1.2c-.3.3-.5.7-.5 1.1v1H9.4v-1c0-.4-.2-.8-.5-1.1L7.6 8.5c-.5-.5-.8-1.1-.8-1.8V4.5c0-.7.6-1.3 1.3-1.3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6.1 12.2h11.8c.8 0 1.5.7 1.5 1.5v2.4H4.6v-2.4c0-.8.7-1.5 1.5-1.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3.6 18.1h16.8v2.7H3.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><b>Печати и штампы</b>';
       b.onclick=()=>{document.getElementById('appView')?.classList.remove('nav-open');open()};
       const hub=$('navHubOrders');
       if(hub&&hub.nextSibling)nav.insertBefore(b,hub.nextSibling);
