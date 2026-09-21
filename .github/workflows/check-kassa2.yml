@@ -104,6 +104,7 @@ jobs:
           test -f kassa/order-entry-menu.css
           test -f supabase/migrations/20260921172409_kassa_stamp_visibility_and_idempotency.sql
           test -f supabase/migrations/20260921172554_kassa_stamp_legacy_duplicate_guard.sql
+          test -f supabase/migrations/20260921173755_kassa_keep_special_orders_visible_when_paid.sql
           test -f kassa/manifest.webmanifest
           test -f desktop-kassa/main.js
           test -f desktop-kassa/splash.html
@@ -144,7 +145,7 @@ jobs:
           grep -q 'updater:Object.freeze' desktop-kassa/preload.js
           grep -q 'desktop-updater.js' kassa/bootstrap.js
           grep -q 'Перезапустить и установить' kassa/desktop-updater.js
-          grep -q '2.1.7' desktop-kassa/package.json
+          grep -q '2.1.8' desktop-kassa/package.json
           node -e "const p=require('./desktop-kassa/package.json'),n=require('./desktop-kassa/update-notes.json');if(p.version!==n.version)throw new Error('release notes version mismatch')"
           grep -q 'Что нового' kassa/desktop-updater.js
           grep -q 'showWhatsNew' desktop-kassa/main.js
