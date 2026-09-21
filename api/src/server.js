@@ -57,9 +57,10 @@ async function authContext(req) {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { autoRefreshToken: false, persistSession: false }
   });
-  const { data: { user }, error } = await c.auth.getUser(token);
-  if (error || !user) return { error: 'INVALID_SESSION' };
-  return { client: c, user };
+  const { data, error } = await c.auth.getClaims(token);
+  const claims = data?.claims;
+  if (error || !claims?.sub) return { error: 'INVALID_SESSION' };
+  return { client: c, user: { id: String(claims.sub), email: String(claims.email || '') } };
 }
 
 async function requireAdmin(req, res, next) {
@@ -94,14 +95,17 @@ async function requirePosUser(req, res, next) {
   try {
     const ctx = await authContext(req);
     if (ctx.error) return res.status(401).json({ success: false, error: ctx.error });
-    const [{ data: isAdmin, error: aErr }, { data: isOperator, error: oErr }] = await Promise.all([
-      ctx.client.rpc('has_role', { required_role: 'ADMIN' }),
-      ctx.client.rpc('has_role', { required_role: 'POS_OPERATOR' })
+    const [roleResults, profile] = await Promise.all([
+      Promise.all([
+        ctx.client.rpc('has_role', { required_role: 'ADMIN' }),
+        ctx.client.rpc('has_role', { required_role: 'POS_OPERATOR' })
+      ]),
+      operatorProfile(ctx.user.id)
     ]);
+    const [{ data: isAdmin, error: aErr }, { data: isOperator, error: oErr }] = roleResults;
     if (aErr) throw aErr;
     if (oErr) throw oErr;
     if (!isAdmin && !isOperator) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
-    const profile = await operatorProfile(ctx.user.id);
     if (!profile || profile.is_active === false) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
     if (!profile.organization_id) return res.status(403).json({ success: false, error: 'POS_ORGANIZATION_REQUIRED', message: 'Сотрудник не привязан к компании.' });
 

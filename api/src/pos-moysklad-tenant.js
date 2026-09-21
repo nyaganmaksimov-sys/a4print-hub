@@ -1,4 +1,6 @@
 const DEFAULT_MOYSKLAD_ORGANIZATION_CODE='A4PRINT';
+const POS_ORGANIZATION_CACHE_MS=5*60*1000;
+let posOrganizationCache=null;
 
 export function configuredMoySkladOrganizationCode(){
   return String(process.env.MOYSKLAD_ORGANIZATION_CODE||DEFAULT_MOYSKLAD_ORGANIZATION_CODE).trim().toUpperCase();
@@ -33,18 +35,25 @@ export function isMoySkladOrganizationAllowed(organization){
   return Boolean(organization?.code)&&String(organization.code).trim().toUpperCase()===configured;
 }
 
+async function configuredPosOrganization(service){
+  const now=Date.now();
+  if(posOrganizationCache&&now-posOrganizationCache.at<POS_ORGANIZATION_CACHE_MS)return posOrganizationCache.organization;
+  const configured=configuredMoySkladOrganizationCode();
+  const {data,error}=await service.from('organizations').select('id,code,name,is_active').eq('code',configured).maybeSingle();
+  if(error)throw error;
+  const organization=data&&data.is_active!==false?data:null;
+  posOrganizationCache={at:now,organization};
+  return organization;
+}
+
 export async function requireMoySkladOrganization({service,authUserId=null,organizationId=null,posApp=false}={}){
-  let organization=organizationId
-    ?await organizationById(service,organizationId)
-    :await organizationForAuthUser(service,authUserId);
-  // The deployed A4PRINT KASSA uses one dedicated MoySklad tenant. A staff member may
-  // also belong to another HUB company, but POS requests must stay pinned to A4PRINT.
-  if(posApp&&(!organization||!isMoySkladOrganizationAllowed(organization))){
-    const configured=configuredMoySkladOrganizationCode();
-    const {data,error}=await service.from('organizations').select('id,code,name,is_active').eq('code',configured).maybeSingle();
-    if(error)throw error;
-    if(data&&data.is_active!==false)organization=data;
-  }
+  // A4PRINT KASSA is deliberately pinned to one configured MoySklad tenant. Callers
+  // already perform staff authentication/role checks, so resolving the employee's
+  // organization again here only adds 2-3 remote DB round trips without changing
+  // which POS tenant is selected.
+  let organization=posApp
+    ?await configuredPosOrganization(service)
+    :(organizationId?await organizationById(service,organizationId):await organizationForAuthUser(service,authUserId));
   if(!organization){
     return{ok:false,error:'POS_ORGANIZATION_REQUIRED',status:403,organization:null};
   }
