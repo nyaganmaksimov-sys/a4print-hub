@@ -313,6 +313,7 @@
     window.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay&&!overlay.hidden)close()});
   }
 
+  window.A4KassaStampOrders=Object.freeze({open});
   function init(){
     ensureUi();addLauncher();
     const app=$('appView');
