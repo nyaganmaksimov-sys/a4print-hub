@@ -111,7 +111,7 @@
 
     const scripts=['./catalog-quick-add.js','./shift-operator.js'];
     if(jarvisOn)scripts.push('./jarvis-workday.js','./jarvis-cashier-events.js');
-    scripts.push('./shift-state-sync.js','./shift-profile.js','./shift-profile-compact.js','./cash-operations.js','./cash-balance-dialog-sync.js','./sale-submit-guard.js','./sale-finish.js','./return-finish.js','./history-hub.js','./held-receipts.js','./report-source-summary.js','./settings-help.js','./sale-view-fix.js','./order-bridge.js','./stamp-orders.js','./partner-orders.js','./customer-directory.js','./startup-shift.js','./runtime-stability.js','./mobile-ui.js','./shift-mobile-action-fix.js','./shift-mobile.js');
+    scripts.push('./shift-state-sync.js','./shift-profile.js','./shift-profile-compact.js','./cash-operations.js','./cash-balance-dialog-sync.js','./sale-submit-guard.js','./sale-finish.js','./return-finish.js','./history-hub.js','./held-receipts.js','./report-source-summary.js','./settings-help.js','./sale-view-fix.js','./order-bridge.js','./stamp-orders.js','./partner-orders.js','./desktop-updater.js','./customer-directory.js','./startup-shift.js','./runtime-stability.js','./mobile-ui.js','./shift-mobile-action-fix.js','./shift-mobile.js');
     for(const src of scripts)await soft(()=>loadScript(src,5000),src);
   }
 
