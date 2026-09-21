@@ -71,6 +71,7 @@ jobs:
           node --check kassa/sale-view-fix.js
           node --check kassa/runtime-stability.js
           node --check kassa/desktop-updater.js
+          node --check kassa/order-entry-menu.js
           node --check desktop-kassa/main.js
           node --check desktop-kassa/preload.js
           node desktop-kassa/scripts/prepare-web.js
@@ -99,6 +100,8 @@ jobs:
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
           test -f kassa/desktop-updater.js
+          test -f kassa/order-entry-menu.js
+          test -f kassa/order-entry-menu.css
           test -f kassa/manifest.webmanifest
           test -f desktop-kassa/main.js
           test -f desktop-kassa/splash.html
@@ -117,6 +120,15 @@ jobs:
           grep -q 'pathToFileURL' desktop-kassa/main.js
           grep -q 'a4-kassa-logo.webp' desktop-kassa/main.js
           grep -q 'brandLogo' desktop-kassa/splash.html
+          grep -q 'navCreateOrder' kassa/order-entry-menu.js
+          grep -q 'Печати и штампы' kassa/order-entry-menu.js
+          grep -q 'MEMORIAL' kassa/order-entry-menu.js
+          grep -q 'SOUVENIR' kassa/order-entry-menu.js
+          grep -q 'TYPOGRAPHY' kassa/order-entry-menu.js
+          grep -q 'A4KassaStampOrders' kassa/stamp-orders.js
+          grep -q 'A4KassaPartnerOrders' kassa/partner-orders.js
+          ! grep -q 'navStampOrder' kassa/stamp-orders.js
+          ! grep -q 'navPartnerOrder' kassa/partner-orders.js
           grep -q '127.0.0.1' desktop-kassa/main.js
           grep -q 'prepare:web' desktop-kassa/package.json
           grep -q 'extraResources' desktop-kassa/package.json
