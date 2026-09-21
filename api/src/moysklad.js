@@ -65,7 +65,124 @@ function resolveRetailReturnMoment(templateMoment,demandMoment){
   return suggested||msDate();
 }
 export async function fetchAssortment(token){if(!token)throw new Error('MOYSKLAD_TOKEN is not configured');const rows=[];let url=`${BASE}/entity/assortment?limit=1000`;while(url){const data=await ms(token,url);rows.push(...(data.rows||[]));url=data.meta?.nextHref||null}return rows}
-export async function syncMoySkladCatalog({supabase,token,organizationId}){const sourceRows=await fetchAssortment(token);let created=0,updated=0;for(const row of sourceRows){const type=row.meta?.type;if(!['product','variant','service','bundle'].includes(type))continue;const payload={organization_id:organizationId,external_source:'MOYSKLAD',external_id:row.id,external_href:row.meta?.href||null,sku:sku(row),name:row.name||sku(row),item_type:itemType(type),article:row.article||null,barcode:row.barcodes?.[0]?.ean13||row.barcodes?.[0]?.ean8||row.barcodes?.[0]?.code128||null,unit:row.uom?.name||'шт',description:row.description||null,sale_price:salePrice(row),external_updated_at:row.updated||null,last_synced_at:new Date().toISOString(),is_active:row.archived!==true};const {data:existing,error:findError}=await supabase.from('catalog_items').select('id').eq('external_source','MOYSKLAD').eq('external_id',row.id).maybeSingle();if(findError)throw findError;if(existing){const {error}=await supabase.from('catalog_items').update(payload).eq('id',existing.id);if(error)throw error;updated++}else{const {error}=await supabase.from('catalog_items').insert(payload);if(error)throw error;created++}}return{received:sourceRows.length,created,updated}}
+export async function syncMoySkladCatalog({supabase,token,organizationId}){
+  const sourceRows=await fetchAssortment(token);
+  const now=new Date().toISOString();
+  const supported=new Set(['product','variant','service','bundle']);
+  const liveIds=new Set();
+  let created=0,updated=0,deactivated=0;
+
+  for(const row of sourceRows){
+    const type=String(row.meta?.type||'').toLowerCase();
+    if(!supported.has(type))continue;
+    liveIds.add(row.id);
+    const payload={
+      organization_id:organizationId,
+      external_source:'MOYSKLAD',
+      external_id:row.id,
+      external_href:row.meta?.href||null,
+      sku:sku(row),
+      name:row.name||sku(row),
+      item_type:itemType(type),
+      article:row.article||null,
+      barcode:row.barcodes?.[0]?.ean13||row.barcodes?.[0]?.ean8||row.barcodes?.[0]?.code128||null,
+      unit:row.uom?.name||'шт',
+      description:row.description||null,
+      sale_price:salePrice(row),
+      external_updated_at:row.updated||null,
+      last_synced_at:now,
+      is_active:row.archived!==true
+    };
+    const {data:existing,error:findError}=await supabase.from('catalog_items').select('id').eq('organization_id',organizationId).eq('external_source','MOYSKLAD').eq('external_id',row.id).maybeSingle();
+    if(findError)throw findError;
+    if(existing){
+      const {error}=await supabase.from('catalog_items').update(payload).eq('id',existing.id);
+      if(error)throw error;
+      updated++;
+    }else{
+      const {error}=await supabase.from('catalog_items').insert(payload);
+      if(error)throw error;
+      created++;
+    }
+  }
+
+  // MoySklad can delete/recreate variants. Previously those deleted rows stayed
+  // active forever and KASSA kept sending a dead external_href on every retry.
+  const {data:localRows,error:localError}=await supabase.from('catalog_items')
+    .select('id,external_id,is_active')
+    .eq('organization_id',organizationId)
+    .eq('external_source','MOYSKLAD');
+  if(localError)throw localError;
+  const staleIds=(localRows||[]).filter(row=>row.external_id&&!liveIds.has(row.external_id)&&row.is_active!==false).map(row=>row.id);
+  for(let i=0;i<staleIds.length;i+=200){
+    const chunk=staleIds.slice(i,i+200);
+    const {error}=await supabase.from('catalog_items').update({is_active:false,last_synced_at:now}).in('id',chunk);
+    if(error)throw error;
+    deactivated+=chunk.length;
+  }
+
+  return{received:sourceRows.length,created,updated,deactivated};
+}
+
+const normalizedKey=value=>String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
+const hrefId=href=>String(href||'').split('/').filter(Boolean).pop()||null;
+function missingAssortmentRef(error){
+  const message=String(error?.message||error||'');
+  if(!/MoySklad HTTP 404/i.test(message))return null;
+  const match=message.match(/типом\s+'(product|variant|service|bundle)'\s+и идентификатором\s+'([^']+)'\s+не найден/i);
+  return match?{type:String(match[1]).toLowerCase(),id:match[2]}:null;
+}
+
+export async function repairMoySkladSaleItems({token,items,error}){
+  const missing=missingAssortmentRef(error);
+  if(!missing)return null;
+  const list=Array.isArray(items)?items:[];
+  const target=list.find(item=>hrefId(item?.external_href)===missing.id)||null;
+  if(!target)return{changed:false,missing,target:null};
+
+  const sourceRows=await fetchAssortment(token);
+  const supported=new Set(['product','variant','service','bundle']);
+  const live=sourceRows.filter(row=>supported.has(String(row?.meta?.type||'').toLowerCase())&&row.archived!==true);
+  const sameType=live.filter(row=>String(row?.meta?.type||'').toLowerCase()===missing.type);
+  const lookup=sameType.length?sameType:live;
+
+  const identityKeys=new Set([target.article,target.sku]
+    .map(normalizedKey)
+    .filter(Boolean)
+    .filter(value=>!value.startsWith('ms-')));
+  let replacement=null;
+  if(identityKeys.size){
+    replacement=lookup.find(row=>[row.article,row.code].map(normalizedKey).some(value=>value&&identityKeys.has(value)))||null;
+  }
+  if(!replacement){
+    const wantedName=normalizedKey(target.name);
+    if(wantedName)replacement=lookup.find(row=>normalizedKey(row.name)===wantedName)||null;
+  }
+  const href=replacement?.meta?.href||null;
+  if(!replacement||!href)return{changed:false,missing,target};
+
+  const repaired=list.map(item=>item===target?{
+    ...item,
+    external_id:replacement.id,
+    external_href:href,
+    external_type:String(replacement.meta?.type||missing.type||item.external_type||'product').toLowerCase()
+  }:item);
+
+  return{
+    changed:true,
+    missing,
+    target,
+    replacement:{
+      id:replacement.id,
+      name:replacement.name||target.name,
+      href,
+      type:String(replacement.meta?.type||missing.type||'product').toLowerCase(),
+      updated:replacement.updated||null
+    },
+    items:repaired
+  };
+}
+
 export async function fetchMoySkladStock(token){const data=await ms(token,'/report/stock/all?limit=1000');const map={};for(const row of data.rows||[]){const id=row.meta?.href?.split('/').pop();if(id)map[id]=Number(row.stock??row.quantity??0)}return map}
 
 function metaId(entity){return entity?.id||entity?.meta?.href?.split('/').pop()||null}
