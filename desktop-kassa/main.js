@@ -1,4 +1,4 @@
-const {app,BrowserWindow,session,ipcMain}=require('electron');
+const {app,BrowserWindow,session,ipcMain,net}=require('electron');
 const {autoUpdater}=require('electron-updater');
 const fs=require('fs');
 const path=require('path');
@@ -9,6 +9,9 @@ const KASSA_URLS=[PRIMARY_KASSA_URL,'https://a4print-hub.ru/kassa/index.html?des
 const APP_ICON=path.join(__dirname,'build','icon.ico');
 const TRANSIENT_LOAD_CODES=new Set([-7,-21,-101,-102,-105,-106,-109,-118,-137,-138,-324]);
 const RETRY_DELAYS=[1500,3000,5000,8000,12000,20000,30000];
+const RELEASE_NOTES_URL='https://github.com/nyaganmaksimov-sys/a4print-hub/releases/download/kassa-desktop/update-notes.json';
+const LOCAL_NOTES_FILE=path.join(__dirname,'update-notes.json');
+const UPDATE_PREFS_FILE=()=>path.join(app.getPath('userData'),'update-state.json');
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
@@ -18,7 +21,31 @@ let mainWindow;
 let retryTimer=null;
 let retryAttempt=0;
 let lastFailedUrl='';
-let updateState={status:'idle',currentVersion:app.getVersion(),availableVersion:null,percent:0,message:''};
+let updateState={status:'idle',currentVersion:app.getVersion(),availableVersion:null,percent:0,message:'',releaseNotes:null,whatsNew:null,showWhatsNew:false};
+let localReleaseNotes=null;
+let updatePrefs={lastSeenWhatsNewVersion:null};
+
+function readJson(file,fallback=null){try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return fallback}}
+function writeJson(file,value){try{fs.writeFileSync(file,JSON.stringify(value,null,2),'utf8')}catch(error){log('WRITE JSON FAIL',file,String(error))}}
+function normalizeNotes(notes,version){
+  if(!notes||typeof notes!=='object')return null;
+  const changes=Array.isArray(notes.changes)?notes.changes.filter(Boolean).map(String):[];
+  return {version:String(notes.version||version||''),title:String(notes.title||'Что нового'),summary:String(notes.summary||''),changes,important:String(notes.important||'')};
+}
+async function fetchRemoteReleaseNotes(version){
+  try{
+    const response=await net.fetch(RELEASE_NOTES_URL+'?v='+encodeURIComponent(version||Date.now()),{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    return normalizeNotes(await response.json(),version);
+  }catch(error){log('RELEASE NOTES FETCH FAIL',String(error));return null}
+}
+function loadLocalWhatsNew(){
+  localReleaseNotes=normalizeNotes(readJson(LOCAL_NOTES_FILE,null),app.getVersion());
+  updatePrefs=readJson(UPDATE_PREFS_FILE(),{lastSeenWhatsNewVersion:null})||{lastSeenWhatsNewVersion:null};
+  const current=app.getVersion();
+  const shouldShow=Boolean(localReleaseNotes&&localReleaseNotes.version===current&&updatePrefs.lastSeenWhatsNewVersion!==current);
+  updateState={...updateState,whatsNew:localReleaseNotes,showWhatsNew:shouldShow};
+}
 
 function sendUpdateState(patch={}){
   updateState={...updateState,...patch,currentVersion:app.getVersion()};
@@ -32,12 +59,22 @@ function setupUpdater(){
   autoUpdater.autoInstallOnAppQuit=true;
   autoUpdater.allowDowngrade=false;
   autoUpdater.on('checking-for-update',()=>sendUpdateState({status:'checking',message:'Проверяем обновления…'}));
-  autoUpdater.on('update-available',info=>sendUpdateState({status:'available',availableVersion:info.version,percent:0,message:'Доступна новая версия'}));
+  autoUpdater.on('update-available',async info=>{
+    sendUpdateState({status:'available',availableVersion:info.version,percent:0,message:'Доступна новая версия'});
+    const releaseNotes=await fetchRemoteReleaseNotes(info.version);
+    if(releaseNotes&&String(releaseNotes.version)===String(info.version))sendUpdateState({releaseNotes});
+  });
   autoUpdater.on('update-not-available',info=>sendUpdateState({status:'current',availableVersion:info?.version||null,percent:0,message:'Установлена актуальная версия'}));
   autoUpdater.on('download-progress',progress=>sendUpdateState({status:'downloading',percent:Math.round(Number(progress.percent||0)),message:'Скачивание обновления'}));
   autoUpdater.on('update-downloaded',info=>sendUpdateState({status:'downloaded',availableVersion:info.version,percent:100,message:'Обновление готово к установке'}));
   autoUpdater.on('error',error=>sendUpdateState({status:'error',message:String(error?.message||error)}));
   ipcMain.handle('a4-kassa:update:state',()=>updateState);
+  ipcMain.handle('a4-kassa:update:whats-new-seen',()=>{
+    const version=app.getVersion();
+    updatePrefs={...updatePrefs,lastSeenWhatsNewVersion:version};
+    writeJson(UPDATE_PREFS_FILE(),updatePrefs);
+    return sendUpdateState({showWhatsNew:false});
+  });
   ipcMain.handle('a4-kassa:update:check',async()=>{
     if(!app.isPackaged)return sendUpdateState({status:'dev',message:'Проверка обновлений доступна в установленной версии'});
     try{await autoUpdater.checkForUpdates();return updateState}catch(error){return sendUpdateState({status:'error',message:String(error?.message||error)})}
@@ -280,6 +317,7 @@ async function createWindow(){
 }
 
 app.whenReady().then(async()=>{
+  loadLocalWhatsNew();
   setupUpdater();
   await createWindow();
   if(app.isPackaged)setTimeout(()=>autoUpdater.checkForUpdates().catch(error=>sendUpdateState({status:'error',message:String(error?.message||error)})),10000);
