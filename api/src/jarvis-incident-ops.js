@@ -9,7 +9,7 @@ const supabaseUrl=String(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const publishableKey=String(process.env.SUPABASE_PUBLISHABLE_KEY||'');
 const serviceKey=String(process.env.SUPABASE_SERVICE_ROLE_KEY||'');
 const service=supabaseUrl&&serviceKey?createClient(supabaseUrl,serviceKey,{auth:{autoRefreshToken:false,persistSession:false}}):null;
-const INTERVAL_MS=Math.max(45_000,Number(process.env.JARVIS_INCIDENT_TASK_INTERVAL_MS||90_000));
+const INTERVAL_MS=Math.max(60_000,Number(process.env.JARVIS_INCIDENT_TASK_INTERVAL_MS||5*60_000));
 const state={running:false,runs:0,created:0,completed:0,last_run_at:null,last_error:null};
 const upper=v=>String(v||'').trim().toUpperCase();
 const compact=(v,max=5000)=>String(v||'').replace(/\s+/g,' ').trim().slice(0,max);
@@ -104,6 +104,6 @@ async function resolveWithNote(req,res){
     return res.json({success:true,incident:resolved,memory:{id:memoryRow.id,resolution_text:memoryRow.resolution_text,created_at:memoryRow.created_at}});
   }catch(error){return res.status(error.status||500).json({success:false,error:String(error.message||error)})}
 }
-function installWorker(){if(globalThis[workerInstalled]||!service)return;globalThis[workerInstalled]=true;const first=setTimeout(runIncidentTasks,16_000);first.unref?.();const timer=setInterval(runIncidentTasks,INTERVAL_MS);timer.unref?.();}
+function installWorker(){if(globalThis[workerInstalled]||!service)return;globalThis[workerInstalled]=true;const first=setTimeout(runIncidentTasks,45_000);first.unref?.();const timer=setInterval(runIncidentTasks,INTERVAL_MS);timer.unref?.();}
 express.application.listen=function patchedIncidentOpsListen(...args){if(!this[installed]){this[installed]=true;this.get('/api/v1/jarvis/incidents/:id/memory',requireSession,memory);this.post('/api/v1/jarvis/incidents/:id/resolve-with-note',requireSession,resolveWithNote);this.get('/api/v1/jarvis/incident-task-status',requireSession,async(req,res)=>{try{const v=await viewer(req);if(!v.isAdmin)return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});return res.json({success:true,worker:{...state,interval_ms:INTERVAL_MS}})}catch(error){return res.status(error.status||500).json({success:false,error:String(error.message||error)})}})}installWorker();return originalListen.apply(this,args)};
 export{runIncidentTasks};
