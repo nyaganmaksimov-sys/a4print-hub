@@ -88,7 +88,11 @@
       })
     });
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.message||data.error||`HTTP ${response.status}`);
+    if(!response.ok){
+      const error=new Error(data.message||data.error||`HTTP ${response.status}`);
+      error.code=data.error||`HTTP_${response.status}`;
+      throw error;
+    }
     if(!data?.moysklad?.id)throw new Error('MOYSKLAD_SALE_ID_MISSING');
     return data;
   }
@@ -172,7 +176,13 @@
             continue;
           }
         }catch(error){
-          const failed={...sale,tries:Number(sale.tries||0)+1,last_error:String(error?.message||error||'SYNC_ERROR')};
+          const message=String(error?.message||error||'SYNC_ERROR');
+          const busy=String(error?.code||'')==='SALE_SYNC_IN_PROGRESS'||/Чек уже синхронизируется/i.test(message);
+          const failed={
+            ...sale,
+            tries:Number(sale.tries||0)+1,
+            last_error:busy&&sale.last_error?sale.last_error:message
+          };
           await DB.put('queue',failed).catch(()=>{});
         }
       }
