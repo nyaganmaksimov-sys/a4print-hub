@@ -171,7 +171,7 @@
       const {data,error}=await supabase.rpc(rpc,{p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
       const result=Array.isArray(data)?data[0]:data;if(!result?.id)throw new Error('HUB не вернул ID заказа.');
       const failures=files.length?await uploadFiles(result.id,save):[];
-      const current=FLOW[flow];const planned=result.partner_planned_cost??result.planned_total_cost??0;
+      const planned=result.partner_planned_cost??result.planned_total_cost??0;
       overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан</h3><p>'+esc(current.partner||current.department||'A4PRINT')+' · '+esc(current.title)+'. Плановая себестоимость '+money(planned)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
       $('partnerOrderSave').hidden=true;$('partnerOrderAnother').onclick=()=>{close();location.reload()};
     }catch(error){err.textContent='Не удалось создать заказ: '+String(error.message||error)}
