@@ -1,4 +1,111 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#111;display:grid;place-items:center;height:100vh;border:1px solid #d9e6e8}
-.wrap{text-align:center}.mark{width:118px;height:118px;margin:0 auto 14px;background:#fff;border:3px solid #08aebb;border-radius:26px;display:grid;place-items:center;font-weight:900;font-size:40px;letter-spacing:-4px}.mark span{color:#000}.mark i{font-style:normal;color:#ec008c}.brand{font-size:31px;font-weight:900;letter-spacing:3px}.line{width:250px;height:4px;margin:20px auto 12px;background:linear-gradient(90deg,#ffe500 0 25%,#ed008c 25% 50%,#00aeef 50% 75%,#111 75%)}.status{font-size:12px;color:#6a7b80}
-</style></head><body><div class="wrap"><div class="mark"><span>A4<i>▮</i></span></div><div class="brand">A4-КАССА</div><div class="line"></div><div class="status">Система продаж, расчётов и управления</div></div></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<title>A4PRINT KASSA</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{width:100%;height:100%}
+  body{
+    margin:0;
+    overflow:hidden;
+    font-family:Inter,Segoe UI,Arial,sans-serif;
+    color:#172033;
+    background:
+      radial-gradient(circle at 50% 0%,rgba(8,174,187,.08),transparent 46%),
+      #fff;
+    border:1px solid #dce7ea;
+    display:grid;
+    place-items:center;
+  }
+  .wrap{
+    width:100%;
+    display:grid;
+    justify-items:center;
+    padding:28px 42px 24px;
+    text-align:center;
+  }
+  .logo-shell{
+    width:360px;
+    max-width:86vw;
+    min-height:92px;
+    display:grid;
+    place-items:center;
+  }
+  #brandLogo{
+    display:block;
+    width:100%;
+    max-width:340px;
+    max-height:92px;
+    object-fit:contain;
+  }
+  .fallback{
+    display:none;
+    font-size:31px;
+    font-weight:900;
+    letter-spacing:.08em;
+    color:#0a8d99;
+  }
+  .accent{
+    width:280px;
+    max-width:72vw;
+    height:4px;
+    border-radius:99px;
+    margin:18px auto 13px;
+    background:linear-gradient(90deg,#ffe500 0 25%,#ed008c 25% 50%,#00aeef 50% 75%,#111 75%);
+  }
+  .status{font-size:13px;font-weight:650;color:#52616f}
+  .version{margin-top:7px;font-size:10px;color:#8a98a6;letter-spacing:.04em}
+  .loader{
+    width:280px;
+    max-width:72vw;
+    height:3px;
+    margin-top:18px;
+    overflow:hidden;
+    border-radius:99px;
+    background:#edf3f5;
+  }
+  .loader i{
+    display:block;
+    width:38%;
+    height:100%;
+    border-radius:inherit;
+    background:#08aebb;
+    animation:load 1.15s ease-in-out infinite;
+  }
+  @keyframes load{
+    0%{transform:translateX(-110%)}
+    55%{transform:translateX(110%)}
+    100%{transform:translateX(300%)}
+  }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="logo-shell">
+      <img id="brandLogo" alt="A4PRINT KASSA">
+      <div id="brandFallback" class="fallback">A4PRINT KASSA</div>
+    </div>
+    <div class="accent"></div>
+    <div class="status">Запуск кассы…</div>
+    <div id="version" class="version"></div>
+    <div class="loader" aria-hidden="true"><i></i></div>
+  </main>
+<script>
+  const params=new URLSearchParams(location.search);
+  const logo=params.get('logo')||'';
+  const version=params.get('version')||'';
+  const img=document.getElementById('brandLogo');
+  const fallback=document.getElementById('brandFallback');
+  if(logo){
+    img.src=logo;
+    img.addEventListener('error',()=>{img.style.display='none';fallback.style.display='block'},{once:true});
+  }else{
+    img.style.display='none';
+    fallback.style.display='block';
+  }
+  document.getElementById('version').textContent=version?'Версия '+version:'';
+</script>
+</body>
+</html>
