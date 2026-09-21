@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('A4KassaDesktop',Object.freeze({
     check:()=>ipcRenderer.invoke('a4-kassa:update:check'),
     download:()=>ipcRenderer.invoke('a4-kassa:update:download'),
     install:()=>ipcRenderer.invoke('a4-kassa:update:install'),
+    markWhatsNewSeen:()=>ipcRenderer.invoke('a4-kassa:update:whats-new-seen'),
     onState:(handler)=>{
       if(typeof handler!=='function')return()=>{};
       const listener=(_event,state)=>handler(state);
