@@ -80,13 +80,13 @@ if(!window.__A4_EQUIPMENT_MAINTENANCE_BADGE__){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{load();openCalendarFromHash()},{once:true});
   else{load();openCalendarFromHash()}
   window.addEventListener('hashchange',openCalendarFromHash);
-  setInterval(()=>{if(!document.hidden)load()},60000);
+  setInterval(()=>{if(!document.hidden)load()},300000);
 }
 
 // Sidebar order badge: total ordinary HUB/manager orders created in the current
 // Moscow calendar month. POS receipts and partner-direction orders belong to
 // their own workflows and are deliberately excluded from this counter.
-if(!window.__A4_SIDEBAR_MONTH_ORDER_COUNT__){
+if(!window.__A4_SIDEBAR_MONTH_ORDER_COUNT__&&!/\/admin\/(?:index\.html)?$/.test(location.pathname)){
   window.__A4_SIDEBAR_MONTH_ORDER_COUNT__=true;
   let orderBusy=false;
 
@@ -157,5 +157,5 @@ if(!window.__A4_SIDEBAR_MONTH_ORDER_COUNT__){
   else loadOrderCount();
   window.addEventListener('focus',loadOrderCount);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadOrderCount()});
-  setInterval(()=>{if(!document.hidden)loadOrderCount()},60000);
+  setInterval(()=>{if(!document.hidden)loadOrderCount()},300000);
 }
