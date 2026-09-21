@@ -3,6 +3,7 @@ const {autoUpdater}=require('electron-updater');
 const fs=require('fs');
 const path=require('path');
 const http=require('http');
+const {pathToFileURL}=require('url');
 
 const PRIMARY_KASSA_URL=process.env.A4_KASSA_URL||'https://a4print-hub.ru/kassa/?desktop=1';
 const REMOTE_KASSA_URLS=[PRIMARY_KASSA_URL,'https://a4print-hub.ru/kassa/index.html?desktop=1']
@@ -315,7 +316,10 @@ async function createWindow(){
     width:520,height:300,frame:false,resizable:false,show:true,
     backgroundColor:'#ffffff',icon:APP_ICON
   });
-  await splash.loadFile(path.join(__dirname,'splash.html')).catch(()=>{});
+  const splashLogo=path.join(localWebRoot(),'kassa','assets','a4-kassa-logo.webp');
+  await splash.loadFile(path.join(__dirname,'splash.html'),{
+    query:{logo:pathToFileURL(splashLogo).href,version:app.getVersion()}
+  }).catch(error=>log('SPLASH LOAD FAIL',String(error)));
 
   const partition='persist:a4kassa';
   const ses=session.fromPartition(partition,{cache:true});
@@ -326,7 +330,7 @@ async function createWindow(){
 
   mainWindow=new BrowserWindow({
     width:1440,height:900,minWidth:1100,minHeight:700,show:false,
-    title:'A4PRINT KASSA 2.1',icon:APP_ICON,backgroundColor:'#f6fbfc',autoHideMenuBar:true,
+    title:`A4PRINT KASSA ${app.getVersion()}`,icon:APP_ICON,backgroundColor:'#f6fbfc',autoHideMenuBar:true,
     webPreferences:{
       partition,contextIsolation:true,nodeIntegration:false,sandbox:false,
       backgroundThrottling:false
