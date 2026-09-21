@@ -102,6 +102,8 @@ jobs:
           test -f kassa/desktop-updater.js
           test -f kassa/order-entry-menu.js
           test -f kassa/order-entry-menu.css
+          test -f supabase/migrations/20260921172409_kassa_stamp_visibility_and_idempotency.sql
+          test -f supabase/migrations/20260921172554_kassa_stamp_legacy_duplicate_guard.sql
           test -f kassa/manifest.webmanifest
           test -f desktop-kassa/main.js
           test -f desktop-kassa/splash.html
