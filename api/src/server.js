@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
+import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, repairMoySkladSaleItems, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
 import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 
 const app = express();
@@ -349,7 +349,7 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
     const input = req.body || {};
     if (!Array.isArray(input.items) || !input.items.length) return res.status(400).json({ success: false, error: 'EMPTY_CART' });
     const ids = input.items.map(x => x.id);
-    const { data: rows, error } = await supabase.from('catalog_items').select('id,name,sale_price,external_id,external_href,item_type').eq('organization_id', req.posOrganizationId).in('id', ids);
+    const { data: rows, error } = await supabase.from('catalog_items').select('id,name,sku,article,sale_price,external_id,external_href,item_type').eq('organization_id', req.posOrganizationId).in('id', ids);
     if (error) throw error;
     const byId = new Map((rows || []).map(x => [x.id, x]));
     const items = input.items.map(x => {
@@ -365,7 +365,9 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
         price,
         discount,
         external_href: g.external_href,
-        external_type: g.external_href?.split('/').slice(-2, -1)[0] || (g.item_type === 'SERVICE' ? 'service' : 'product')
+        external_type: g.external_href?.split('/').slice(-2, -1)[0] || (g.item_type === 'SERVICE' ? 'service' : 'product'),
+        sku: g.sku || null,
+        article: g.article || null
       };
     });
     const profile = await resolvePosOperator(req, cleanText(input.operator_id, 80));
@@ -381,13 +383,78 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
       customer = data;
     }
 
-    const sale = await createRetailSale({
-      token: process.env.MOYSKLAD_TOKEN,
-      items,
-      paymentMethod: input.payment_method,
-      operatorName,
-      customer: customer ? { name: customer.full_name, phone: customer.phone, company: customer.company_name } : null
-    });
+    let saleItems=items;
+    let repairedCatalog=null;
+    let sale;
+    try{
+      sale=await createRetailSale({
+        token:process.env.MOYSKLAD_TOKEN,
+        items:saleItems,
+        paymentMethod:input.payment_method,
+        operatorName,
+        customer:customer?{name:customer.full_name,phone:customer.phone,company:customer.company_name}:null
+      });
+    }catch(error){
+      repairedCatalog=await repairMoySkladSaleItems({
+        token:process.env.MOYSKLAD_TOKEN,
+        items:saleItems,
+        error
+      });
+      if(!repairedCatalog?.changed){
+        if(repairedCatalog?.missing){
+          const label=repairedCatalog.target?.name||repairedCatalog.missing.id;
+          throw new Error(`Позиция «${label}» была удалена или изменена в МойСклад. Обновите каталог кассы и повторите отправку чека.`);
+        }
+        throw error;
+      }
+
+      saleItems=repairedCatalog.items;
+      const replacement=repairedCatalog.replacement;
+      const target=repairedCatalog.target;
+      try{
+        const existing=await supabase.from('catalog_items')
+          .select('id')
+          .eq('organization_id',req.posOrganizationId)
+          .eq('external_source','MOYSKLAD')
+          .eq('external_id',replacement.id)
+          .maybeSingle();
+        if(existing.error)throw existing.error;
+        if(!existing.data||existing.data.id===target.id){
+          const update=await supabase.from('catalog_items').update({
+            external_id:replacement.id,
+            external_href:replacement.href,
+            external_updated_at:replacement.updated,
+            last_synced_at:new Date().toISOString(),
+            is_active:true
+          }).eq('organization_id',req.posOrganizationId).eq('id',target.id);
+          if(update.error)throw update.error;
+        }else{
+          const retire=await supabase.from('catalog_items').update({
+            is_active:false,
+            last_synced_at:new Date().toISOString()
+          }).eq('organization_id',req.posOrganizationId).eq('id',target.id);
+          if(retire.error)throw retire.error;
+        }
+      }catch(catalogError){
+        console.warn('POS stale MoySklad assortment repair persistence warning:',catalogError?.message||catalogError);
+      }
+
+      sale=await createRetailSale({
+        token:process.env.MOYSKLAD_TOKEN,
+        items:saleItems,
+        paymentMethod:input.payment_method,
+        operatorName,
+        customer:customer?{name:customer.full_name,phone:customer.phone,company:customer.company_name}:null
+      });
+
+      // Refresh/deactivate the rest of the catalog after a successful repair,
+      // but never hold the cashier response on a full catalog scan.
+      syncMoySkladCatalog({
+        supabase,
+        token:process.env.MOYSKLAD_TOKEN,
+        organizationId:req.posOrganizationId
+      }).catch(syncError=>console.warn('POS catalog refresh after repair warning:',syncError?.message||syncError));
+    }
     res.json({
       success: true,
       operator: { id: profile?.id || null, name: operatorName },
