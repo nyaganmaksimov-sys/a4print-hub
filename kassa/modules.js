@@ -75,12 +75,13 @@
       }
       if(!organizationId)throw new Error('Компания кассы недоступна.');
       state.organizationId=organizationId;
-      const [accounts,operators]=await Promise.all([
-        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',organizationId).eq('is_active',true).order('name'),
+      const [accountsResponse,operators]=await Promise.all([
+        api('/api/v1/pos/accounts'),
         supabase.rpc('get_pos_operators')
       ]);
-      if(accounts.error)throw accounts.error;if(operators.error)throw operators.error;
-      state.accounts=accounts.data||[];state.operators=operators.data||[];
+      if(operators.error)throw operators.error;
+      state.accounts=Array.isArray(accountsResponse?.accounts)?accountsResponse.accounts:[];
+      state.operators=operators.data||[];
       fillReportOperators();state.referenceReady=true;
     })().finally(()=>{state.referencePromise=null});
     return state.referencePromise;
@@ -145,6 +146,16 @@
       </div>
       <div class="return-total"><span>К возврату</span><strong id="returnTotal">0 ₽</strong></div>
       <div class="return-actions"><button id="returnAll" class="btn light" type="button">Вернуть всё</button><button id="submitReturn" class="btn primary" type="button">Провести возврат</button></div>`;
+    const methodSelect=$('returnMethod');
+    if(methodSelect&&sale.payment_method&&[...methodSelect.options].some(o=>o.value===sale.payment_method))methodSelect.value=sale.payment_method;
+    const preferredAccountType=/налич/i.test(String(methodSelect?.value||sale.payment_method||''))?'CASH':'BANK';
+    const preferredAccount=state.accounts.find(a=>String(a.account_type||'').toUpperCase()===preferredAccountType)||state.accounts[0]||null;
+    if($('returnAccount')&&preferredAccount)$('returnAccount').value=preferredAccount.id;
+    if(methodSelect)methodSelect.onchange=()=>{
+      const wanted=/налич/i.test(String(methodSelect.value||''))?'CASH':'BANK';
+      const account=state.accounts.find(a=>String(a.account_type||'').toUpperCase()===wanted)||state.accounts[0]||null;
+      if(account&&$('returnAccount'))$('returnAccount').value=account.id;
+    };
     document.querySelectorAll('[data-return-qty]').forEach(i=>i.oninput=calcReturnTotal);
     $('returnAll').onclick=()=>{document.querySelectorAll('[data-return-qty]').forEach(i=>i.value=i.max);calcReturnTotal()};
     $('submitReturn').onclick=submitReturn;calcReturnTotal();

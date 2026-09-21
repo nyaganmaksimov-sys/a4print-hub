@@ -261,6 +261,20 @@ app.post('/api/v1/pos/shift/close', requirePosUser, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+app.get('/api/v1/pos/accounts', requirePosUser, async (req, res, next) => {
+  try {
+    if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
+    const { data, error } = await supabase
+      .from('cash_accounts')
+      .select('id,name,account_type,is_active')
+      .eq('organization_id', req.posOrganizationId)
+      .eq('is_active', true)
+      .order('name');
+    if (error) throw error;
+    res.json({ success: true, accounts: data || [] });
+  } catch (e) { next(e); }
+});
+
 app.get('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
   try {
     if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
