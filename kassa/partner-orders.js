@@ -84,21 +84,7 @@
     document.body.appendChild(overlay);bind();setFlow('MEMORIAL');reset();
   }
 
-  function addLaunchers(){
-    const nav=document.querySelector('.nav-menu');
-    if(nav&&!$('navPartnerOrder')){
-      const b=document.createElement('button');b.id='navPartnerOrder';b.className='nav-item';b.type='button';
-      b.innerHTML='<span class="nav-icon">◇</span><b>Памятники /<br>Типография</b>';
-      b.onclick=()=>{document.getElementById('appView')?.classList.remove('nav-open');open()};
-      const stamp=$('navStampOrder');if(stamp&&stamp.nextSibling)nav.insertBefore(b,stamp.nextSibling);else nav.insertBefore(b,nav.querySelector('[data-section="returns"]')||null);
-    }
-    const toolbar=document.querySelector('.catalog-toolbar .toolbar-actions');
-    if(toolbar&&!$('partnerOrderQuick')){
-      const b=document.createElement('button');b.id='partnerOrderQuick';b.className='btn light';b.type='button';b.textContent='◇ Оформить заказ';b.onclick=open;toolbar.prepend(b);
-    }
-  }
-
-  function open(){ensureUi();overlay.hidden=false;document.body.classList.add('partner-order-open');setTimeout(()=>$('partnerFullName')?.focus(),0)}
+  function open(nextFlow){ensureUi();if(nextFlow&&FLOW[nextFlow])setFlow(nextFlow);overlay.hidden=false;document.body.classList.add('partner-order-open');setTimeout(()=>$('partnerFullName')?.focus(),0)}
   function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('partner-order-open')}
 
   function reset(){
@@ -178,6 +164,7 @@
     $('partnerOrderForm').onsubmit=submit;
   }
 
-  function init(){ensureUi();addLaunchers();const app=$('appView');if(app)new MutationObserver(()=>{if(!app.hidden)addLaunchers()}).observe(app,{attributes:true,attributeFilter:['hidden']});setInterval(addLaunchers,3000)}
+  window.A4KassaPartnerOrders=Object.freeze({open});
+  function init(){ensureUi()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
