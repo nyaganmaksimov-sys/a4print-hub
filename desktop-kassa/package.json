@@ -1,13 +1,13 @@
 {
   "name": "a4print-kassa-desktop",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "private": true,
   "description": "A4PRINT KASSA Desktop for Windows",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "check": "node --check main.js && node --check preload.js",
-    "dist:win": "npm run prepare:icon && electron-builder --win nsis",
+    "dist:win": "npm run prepare:icon && electron-builder --win nsis --publish never",
     "prepare:icon": "node scripts/prepare-icon.js"
   },
   "devDependencies": {
@@ -45,6 +45,15 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico"
-    }
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/nyaganmaksimov-sys/a4print-hub/releases/download/kassa-desktop"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   }
 }
