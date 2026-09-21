@@ -45,6 +45,7 @@ jobs:
             desktop-kassa/release/*.exe
             desktop-kassa/release/latest.yml
             desktop-kassa/release/*.blockmap
+            desktop-kassa/update-notes.json
           if-no-files-found: error
       - name: Publish stable updater channel
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -60,4 +61,4 @@ jobs:
           } else {
             gh release edit $tag --repo ${{ github.repository }} --title "A4PRINT KASSA $version"
           }
-          gh release upload $tag release/*.exe release/latest.yml release/*.blockmap --clobber --repo ${{ github.repository }}
+          gh release upload $tag release/*.exe release/latest.yml release/*.blockmap update-notes.json --clobber --repo ${{ github.repository }}
