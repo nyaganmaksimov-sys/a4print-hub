@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'kassa/**'
+      - 'desktop-kassa/**'
+      - 'desktop-kassa/**'
       - 'api/src/moysklad.js'
       - 'api/src/moysklad-shift-sanity.js'
       - 'api/src/shift-debug.js'
@@ -67,6 +69,8 @@ jobs:
           node --check kassa/settings-help.js
           node --check kassa/sale-view-fix.js
           node --check kassa/runtime-stability.js
+          node --check desktop-kassa/main.js
+          node --check desktop-kassa/preload.js
           node --check api/src/moysklad.js
           node --check api/src/moysklad-shift-sanity.js
           node --check api/src/pos-shift-live-patch.js
@@ -92,6 +96,12 @@ jobs:
           test -f kassa/settings-help.js
           test -f kassa/runtime-stability.js
           test -f kassa/manifest.webmanifest
+          test -f desktop-kassa/main.js
+          test -f desktop-kassa/package.json
+          grep -q 'TRANSIENT_LOAD_CODES' desktop-kassa/main.js
+          grep -q 'RETRY_DELAYS' desktop-kassa/main.js
+          grep -q 'auto-retry' desktop-kassa/main.js
+          grep -q '2.1.2' desktop-kassa/package.json
           test ! -e kassa/shift-live.js
           test ! -e api/src/shift-debug.js
           test -f api/src/pos-shift-live-patch.js
