@@ -1,4 +1,5 @@
-const {app,BrowserWindow,session}=require('electron');
+const {app,BrowserWindow,session,ipcMain}=require('electron');
+const {autoUpdater}=require('electron-updater');
 const fs=require('fs');
 const path=require('path');
 
@@ -17,6 +18,40 @@ let mainWindow;
 let retryTimer=null;
 let retryAttempt=0;
 let lastFailedUrl='';
+let updateState={status:'idle',currentVersion:app.getVersion(),availableVersion:null,percent:0,message:''};
+
+function sendUpdateState(patch={}){
+  updateState={...updateState,...patch,currentVersion:app.getVersion()};
+  log('UPDATE STATE',updateState);
+  if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('a4-kassa:update:state',updateState);
+  return updateState;
+}
+
+function setupUpdater(){
+  autoUpdater.autoDownload=false;
+  autoUpdater.autoInstallOnAppQuit=true;
+  autoUpdater.allowDowngrade=false;
+  autoUpdater.on('checking-for-update',()=>sendUpdateState({status:'checking',message:'Проверяем обновления…'}));
+  autoUpdater.on('update-available',info=>sendUpdateState({status:'available',availableVersion:info.version,percent:0,message:'Доступна новая версия'}));
+  autoUpdater.on('update-not-available',info=>sendUpdateState({status:'current',availableVersion:info?.version||null,percent:0,message:'Установлена актуальная версия'}));
+  autoUpdater.on('download-progress',progress=>sendUpdateState({status:'downloading',percent:Math.round(Number(progress.percent||0)),message:'Скачивание обновления'}));
+  autoUpdater.on('update-downloaded',info=>sendUpdateState({status:'downloaded',availableVersion:info.version,percent:100,message:'Обновление готово к установке'}));
+  autoUpdater.on('error',error=>sendUpdateState({status:'error',message:String(error?.message||error)}));
+  ipcMain.handle('a4-kassa:update:state',()=>updateState);
+  ipcMain.handle('a4-kassa:update:check',async()=>{
+    if(!app.isPackaged)return sendUpdateState({status:'dev',message:'Проверка обновлений доступна в установленной версии'});
+    try{await autoUpdater.checkForUpdates();return updateState}catch(error){return sendUpdateState({status:'error',message:String(error?.message||error)})}
+  });
+  ipcMain.handle('a4-kassa:update:download',async()=>{
+    if(updateState.status!=='available'&&updateState.status!=='error')return updateState;
+    try{sendUpdateState({status:'downloading',percent:0,message:'Скачивание обновления'});await autoUpdater.downloadUpdate();return updateState}catch(error){return sendUpdateState({status:'error',message:String(error?.message||error)})}
+  });
+  ipcMain.handle('a4-kassa:update:install',()=>{
+    if(updateState.status!=='downloaded')return false;
+    setImmediate(()=>autoUpdater.quitAndInstall(false,true));
+    return true;
+  });
+}
 
 function log(...parts){
   try{
@@ -244,6 +279,10 @@ async function createWindow(){
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async()=>{
+  setupUpdater();
+  await createWindow();
+  if(app.isPackaged)setTimeout(()=>autoUpdater.checkForUpdates().catch(error=>sendUpdateState({status:'error',message:String(error?.message||error)})),10000);
+});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
