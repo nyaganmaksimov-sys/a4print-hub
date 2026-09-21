@@ -41,16 +41,18 @@ async function staffContext(req){
   if(!service)return{error:'DATABASE_NOT_CONFIGURED',status:503};
   const bearer=clean(req.headers.authorization,6000).replace(/^Bearer\s+/i,'');
   if(!bearer)return{error:'AUTH_REQUIRED',status:401};
-  const {data,error}=await service.auth.getUser(bearer);
-  if(error||!data?.user)return{error:'INVALID_SESSION',status:401};
-  const {data:profile,error:pErr}=await service.from('users').select('id,full_name,email,is_active').eq('auth_user_id',data.user.id).eq('is_active',true).limit(1).maybeSingle();
+  const {data,error}=await service.auth.getClaims(bearer);
+  const claims=data?.claims;
+  if(error||!claims?.sub)return{error:'INVALID_SESSION',status:401};
+  const user={id:String(claims.sub),email:String(claims.email||'')};
+  const {data:profile,error:pErr}=await service.from('users').select('id,full_name,email,is_active').eq('auth_user_id',user.id).eq('is_active',true).limit(1).maybeSingle();
   if(pErr)throw pErr;
   if(!profile||profile.is_active===false)return{error:'STAFF_ACCESS_REQUIRED',status:403};
   const {data:roleRows,error:rErr}=await service.from('user_roles').select('roles(name)').eq('user_id',profile.id);
   if(rErr)throw rErr;
   const roles=(roleRows||[]).map(x=>x.roles?.name).filter(Boolean);
   if(!roles.some(x=>x==='ADMIN'||x==='POS_OPERATOR'))return{error:'POS_ACCESS_REQUIRED',status:403};
-  return{user:data.user,profile,roles,isAdmin:roles.includes('ADMIN')};
+  return{user,profile,roles,isAdmin:roles.includes('ADMIN')};
 }
 
 async function guard(req,res,handler,{admin=false}={}){
