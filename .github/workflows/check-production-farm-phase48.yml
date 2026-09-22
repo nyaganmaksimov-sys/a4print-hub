@@ -10,7 +10,7 @@ on:
       - 'admin/equipment-payment-reconciliation.html'
       - 'admin/equipment-payment-reconciliation.js'
       - 'admin/equipment-payment-control.html'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'partner/equipment-owner-payment-reconciliation.js'
       - 'partner/equipment.html'
       - '.github/workflows/check-production-farm-phase48.yml'
@@ -53,7 +53,7 @@ jobs:
           set -euo pipefail
           grep -q 'equipment-payment-reconciliation.js' admin/equipment-payment-reconciliation.html
           grep -q 'equipment-payment-reconciliation.html' admin/equipment-payment-control.html
-          grep -q 'Сверка выплат' admin/navigation.js
+          grep -q 'equipment-payment-reconciliation.html.*Сверка выплат' admin/equipment.html
           grep -q 'equipment-owner-payment-reconciliation.js' partner/equipment.html
           grep -q 'НА ПРОВЕРКЕ' partner/equipment-owner-payment-reconciliation.js
 
