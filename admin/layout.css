@@ -1,0 +1,46 @@
+/* A4PRINT HUB — Phase 3 application layout */
+html{background:var(--hub-bg)}
+body{
+  margin:0;
+  background:var(--hub-bg);
+  color:var(--hub-text);
+  font-family:var(--hub-font);
+}
+.sidebar{
+  width:var(--hub-sidebar-expanded);
+  background:var(--hub-surface);
+  border-right:1px solid var(--hub-border);
+  box-shadow:none;
+}
+.main{
+  margin-left:var(--hub-sidebar-expanded);
+  min-width:0;
+}
+.a4-sidebar-collapsed .sidebar{width:var(--hub-sidebar-collapsed)}
+.a4-sidebar-collapsed .main{margin-left:var(--hub-sidebar-collapsed)}
+.topbar{
+  min-height:56px;
+  display:flex;
+  align-items:center;
+}
+.a4-page-shell{
+  width:min(100%,1600px);
+  margin:0 auto;
+}
+.a4-page-section{margin-top:18px}
+.a4-stack{display:flex;flex-direction:column;gap:12px}
+.a4-row{display:flex;align-items:center;gap:10px}
+.a4-row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.a4-grid{display:grid;gap:12px}
+.a4-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.a4-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:900px){
+  .sidebar{width:var(--hub-sidebar-collapsed)}
+  .main{margin-left:var(--hub-sidebar-collapsed)}
+  .a4-grid-2,.a4-grid-3{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .main{margin-left:0}
+  .sidebar{transform:translateX(-100%)}
+  body.a4-mobile-nav-open .sidebar{transform:translateX(0)}
+}

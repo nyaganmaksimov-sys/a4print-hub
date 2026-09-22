@@ -1,0 +1,39 @@
+/* A4PRINT HUB — Phase 3 design tokens
+   Single source of truth for the light business UI. */
+:root{
+  --hub-bg:#F5F6F8;
+  --hub-surface:#FFFFFF;
+  --hub-surface-secondary:#F9FAFB;
+  --hub-border:#E2E5E9;
+  --hub-border-strong:#CDD3DA;
+  --hub-text:#20252D;
+  --hub-text-secondary:#687382;
+  --hub-text-subtle:#8B96A3;
+  --hub-blue:#2563EB;
+  --hub-blue-soft:#EEF4FF;
+  --hub-success:#18794E;
+  --hub-success-soft:#ECFDF3;
+  --hub-warning:#A15C00;
+  --hub-warning-soft:#FFF7E8;
+  --hub-danger:#B42318;
+  --hub-danger-soft:#FEF3F2;
+  --hub-info:#2563EB;
+  --hub-neutral:#667085;
+  --hub-radius-xs:5px;
+  --hub-radius-sm:6px;
+  --hub-radius-md:8px;
+  --hub-radius-lg:10px;
+  --hub-radius-dialog:12px;
+  --hub-sidebar-expanded:232px;
+  --hub-sidebar-collapsed:60px;
+  --hub-control-height:36px;
+  --hub-control-height-lg:40px;
+  --hub-shadow-popup:0 12px 30px rgba(32,37,45,.14);
+  --hub-shadow-dialog:0 18px 50px rgba(32,37,45,.18);
+  --hub-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  --hub-transition:120ms ease;
+  --hub-z-sidebar:30;
+  --hub-z-topbar:20;
+  --hub-z-popup:1000;
+  --hub-z-dialog:1100;
+}
