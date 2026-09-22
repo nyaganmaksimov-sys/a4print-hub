@@ -11,6 +11,7 @@ const recoveryEmail=document.getElementById('recoveryEmail');
 const recoveryError=document.getElementById('recoveryError');
 const recoverySuccess=document.getElementById('recoverySuccess');
 const sendRecovery=document.getElementById('sendRecovery');
+let authSettings=null;
 
 function showError(message){error.textContent=message||'Не удалось выполнить вход.';error.style.display='block'}
 function hideError(){error.textContent='';error.style.display='none'}
@@ -26,6 +27,21 @@ function friendlyError(ex,fallback='Не удалось выполнить вх�
   return msg;
 }
 function providerName(provider){if(provider==='google')return'Google';if(provider==='custom:yandex')return'Яндекс';if(provider==='custom:mailru')return'Mail.ru';return provider}
+async function loadProviderSettings(){
+  if(authSettings)return authSettings;
+  if(!config.supabaseUrl||!config.supabasePublishableKey)return null;
+  try{
+    const r=await fetch(String(config.supabaseUrl).replace(/\/$/,'')+'/auth/v1/settings',{headers:{apikey:config.supabasePublishableKey},cache:'no-store'});
+    if(!r.ok)return null;
+    authSettings=await r.json();return authSettings;
+  }catch{return null}
+}
+function providerConnected(settings,provider){
+  const ext=settings?.external;if(!ext||typeof ext!=='object')return null;
+  if(Object.prototype.hasOwnProperty.call(ext,provider))return Boolean(ext[provider]);
+  if(provider.startsWith('custom:')){const key=provider.slice(7);if(Object.prototype.hasOwnProperty.call(ext,key))return Boolean(ext[key])}
+  return null;
+}
 function validReturn(raw){
   if(!raw)return null;
   try{const u=new URL(raw,location.origin);if(u.origin===location.origin&&(u.pathname.startsWith('/chat/')||u.pathname.startsWith('/mobile/')||u.pathname.startsWith('/admin/')||u.pathname.startsWith('/pos/')))return u.pathname+u.search+u.hash}catch{}
@@ -68,6 +84,8 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     if(button){button.disabled=true;button.textContent=`Открываем ${providerName(provider)}…`}
     try{
       if(window.A4AuthUI&&!(await window.A4AuthUI.isEnabled('login',provider)))throw new Error(`${providerName(provider)} отключён администратором для входа A4PRINT HUB.`);
+      const providerState=providerConnected(await loadProviderSettings(),provider);
+      if(providerState===false)throw new Error(`${providerName(provider)} пока не подключён к A4PRINT HUB. Используйте email или обратитесь к администратору.`);
       const redirectTo=new URL('./login.html?oauth=1',location.href).href;
       const {error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo}});
       if(error)throw error;
