@@ -55,7 +55,23 @@ async function requireAdmin(req,res,next){
     const {data:isAdmin,error:rErr}=await client.rpc('has_role',{required_role:'ADMIN'});
     if(rErr) throw rErr;
     if(!isAdmin) return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
-    req.authUser=user; req.authClient=client; next();
+
+    const {data:profile,error:pErr}=await supabase
+      .from('users')
+      .select('id,organization_unit_id,organization_units!users_organization_unit_id_fkey(id,organization_id)')
+      .eq('auth_user_id',user.id)
+      .maybeSingle();
+    if(pErr) throw pErr;
+    const organizationId=profile?.organization_units?.organization_id||null;
+    if(!profile?.id||!profile?.organization_unit_id||!organizationId){
+      return res.status(403).json({success:false,error:'ADMIN_ORGANIZATION_REQUIRED',message:'Администратор не привязан к подразделению организации.'});
+    }
+
+    req.authUser=user;
+    req.authClient=client;
+    req.staffProfile=profile;
+    req.organizationId=organizationId;
+    next();
   }catch(e){next(e)}
 }
 
@@ -88,9 +104,13 @@ app.get('/api/v1/users/roles',requireAdmin,async(_req,res,next)=>{
   }catch(e){next(e)}
 });
 
-app.get('/api/v1/users',requireAdmin,async(_req,res,next)=>{
+app.get('/api/v1/users',requireAdmin,async(req,res,next)=>{
   try{
-    const {data,error}=await supabase.from('users').select('id,auth_user_id,full_name,email,phone,is_active,created_at,user_roles(role_id,roles(id,name,description))').order('created_at',{ascending:false});
+    const {data:units,error:unitsErr}=await supabase.from('organization_units').select('id').eq('organization_id',req.organizationId);
+    if(unitsErr) throw unitsErr;
+    const unitIds=(units||[]).map(x=>x.id);
+    if(!unitIds.length) return res.json({success:true,users:[]});
+    const {data,error}=await supabase.from('users').select('id,auth_user_id,full_name,email,phone,is_active,created_at,organization_unit_id,user_roles(role_id,roles(id,name,description))').in('organization_unit_id',unitIds).order('created_at',{ascending:false});
     if(error) throw error;
     const users=(data||[]).map(u=>({...u,roles:(u.user_roles||[]).map(x=>x.roles).filter(Boolean),user_roles:undefined}));
     res.json({success:true,users});
@@ -112,7 +132,7 @@ app.post('/api/v1/users',requireAdmin,async(req,res,next)=>{
     if(authErr) throw authErr;
     const authUser=authData.user;
     try{
-      const {data:profile,error:pErr}=await supabase.from('users').upsert({auth_user_id:authUser.id,full_name:fullName,email,phone:phone||null,is_active:true},{onConflict:'auth_user_id'}).select('id,auth_user_id,full_name,email,phone,is_active').single();
+      const {data:profile,error:pErr}=await supabase.from('users').upsert({auth_user_id:authUser.id,full_name:fullName,email,phone:phone||null,is_active:true,organization_unit_id:req.staffProfile.organization_unit_id},{onConflict:'auth_user_id'}).select('id,auth_user_id,full_name,email,phone,is_active,organization_unit_id').single();
       if(pErr) throw pErr;
       const {error:urErr}=await supabase.from('user_roles').insert(roleIds.map(role_id=>({user_id:profile.id,role_id})));
       if(urErr) throw urErr;
@@ -123,8 +143,15 @@ app.post('/api/v1/users',requireAdmin,async(req,res,next)=>{
 
 app.patch('/api/v1/users/:id',requireAdmin,async(req,res,next)=>{
   try{
-    const {data:user,error:findErr}=await supabase.from('users').select('id,auth_user_id').eq('id',req.params.id).single();
+    const {data:user,error:findErr}=await supabase
+      .from('users')
+      .select('id,auth_user_id,organization_unit_id,organization_units!users_organization_unit_id_fkey(organization_id)')
+      .eq('id',req.params.id)
+      .single();
     if(findErr) throw findErr;
+    if(user?.organization_units?.organization_id!==req.organizationId){
+      return res.status(404).json({success:false,error:'USER_NOT_FOUND'});
+    }
     const updates={};
     if(typeof req.body?.full_name==='string'&&req.body.full_name.trim()) updates.full_name=req.body.full_name.trim();
     if(typeof req.body?.phone==='string') updates.phone=req.body.phone.trim()||null;

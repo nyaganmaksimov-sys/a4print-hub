@@ -1,0 +1,58 @@
+name: Check MASTER PROMPT Admin Settings
+
+on:
+  pull_request:
+    paths:
+      - 'admin/users.html'
+      - 'admin/users.js'
+      - 'admin/staff-structure.html'
+      - 'admin/staff-structure.js'
+      - 'admin/settings.html'
+      - 'admin/settings-core.js'
+      - 'api/src/gateway-users.js'
+      - '.github/workflows/check-master-prompt-admin-settings.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/users.html'
+      - 'admin/users.js'
+      - 'admin/staff-structure.html'
+      - 'admin/staff-structure.js'
+      - 'admin/settings.html'
+      - 'admin/settings-core.js'
+      - 'api/src/gateway-users.js'
+
+jobs:
+  admin-settings-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/users.js
+          node --input-type=module --check < admin/staff-structure.js
+          node --input-type=module --check < admin/settings-core.js
+          node --input-type=module --check < api/src/gateway-users.js
+      - name: Admin tenant and UI contract
+        shell: bash
+        run: |
+          grep -q "req.organizationId" api/src/gateway-users.js
+          grep -q "in('organization_unit_id',unitIds)" api/src/gateway-users.js
+          grep -q "organization_unit_id:req.staffProfile.organization_unit_id" api/src/gateway-users.js
+          grep -q "users_organization_unit_id_fkey" api/src/gateway-users.js
+          grep -q 'src="./users.js?v=20260922-phase5-1"' admin/users.html
+          grep -q 'src="./staff-structure.js?v=20260922-phase5-1"' admin/staff-structure.html
+          grep -q 'src="./settings-core.js?v=20260922-phase5-1"' admin/settings.html
+          grep -q 'human-light-ui.css' admin/users.html
+          grep -q 'human-light-ui.css' admin/staff-structure.html
+          grep -q 'human-light-ui.css' admin/settings.html
+          ! grep -q 'window.alert' admin/users.js
+          ! grep -q 'window.alert' admin/staff-structure.js
+          ! grep -q 'window.alert' admin/settings-core.js
+          ! grep -q "createClient}from'https://cdn.jsdelivr.net" admin/users.js
+          ! grep -q "createClient}from'https://cdn.jsdelivr.net" admin/staff-structure.js
+          ! grep -q "createClient}from'https://cdn.jsdelivr.net" admin/settings-core.js
