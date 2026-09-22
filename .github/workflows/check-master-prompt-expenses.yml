@@ -1,0 +1,35 @@
+name: Check MASTER PROMPT Expenses
+
+on:
+  pull_request:
+    paths:
+      - 'admin/expenses.html'
+      - 'admin/expenses.js'
+      - '.github/workflows/check-master-prompt-expenses.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/expenses.html'
+      - 'admin/expenses.js'
+
+jobs:
+  expenses-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --input-type=module --check < admin/expenses.js
+      - name: Expenses architecture contract
+        shell: bash
+        run: |
+          grep -q 'organization_id' admin/expenses.js
+          grep -q 'list_expenses_masked' admin/expenses.js
+          grep -q 'human-light-ui.css' admin/expenses.html
+          grep -q 'expenses.js?v=' admin/expenses.html
+          ! grep -q "eq('code','A4PRINT')" admin/expenses.js
+          ! grep -q 'window.alert' admin/expenses.js
+          ! grep -q "select('\*')" admin/expenses.js
+          ! grep -q 'MutationObserver' admin/expenses.js
