@@ -1,10 +1,10 @@
+import {supabase} from './guard.js?v=20260922-profile1';
 (async()=>{
   const cfg=window.A4PRINT_CONFIG||{};
   const SUPABASE_URL=cfg.supabaseUrl||'https://qgakliolffnwkymoqvzn.supabase.co';
-  const SUPABASE_KEY=cfg.supabasePublishableKey||'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
   const $=id=>document.getElementById(id);
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
-  let authUser=null,profile=null,supabase=null;
+  let authUser=null,profile=null;
 
   function setMsg(id,text,type='ok'){
     const el=$(id);if(!el)return;
@@ -18,44 +18,6 @@
     if(/email.*invalid/i.test(m))return'Проверьте правильность email.';
     if(/network|failed to fetch|load failed|abort/i.test(m))return'Не удалось связаться с сервером. Проверьте интернет.';
     return m||fallback;
-  }
-
-  async function loadLocalSupabase(){
-    if(window.supabase?.createClient)return window.supabase.createClient;
-    await new Promise((resolve,reject)=>{
-      const existing=document.querySelector('script[data-a4-supabase-local]');
-      if(existing){
-        if(window.supabase?.createClient)return resolve();
-        existing.addEventListener('load',resolve,{once:true});
-        existing.addEventListener('error',()=>reject(new Error('Не удалось загрузить модуль авторизации.')),{once:true});
-        return;
-      }
-      const script=document.createElement('script');
-      script.src='/admin/vendor/supabase.js?v=20260905-1';
-      script.dataset.a4SupabaseLocal='1';
-      script.onload=resolve;
-      script.onerror=()=>reject(new Error('Не удалось загрузить модуль авторизации.'));
-      document.head.appendChild(script);
-    });
-    if(!window.supabase?.createClient)throw new Error('Модуль авторизации загружен некорректно.');
-    return window.supabase.createClient;
-  }
-
-  async function getSharedClient(){
-    if(window.__A4_SUPABASE_CLIENT__)return window.__A4_SUPABASE_CLIENT__;
-    if(window.__A4_SUPABASE_CLIENT_PROMISE__)return window.__A4_SUPABASE_CLIENT_PROMISE__;
-    window.__A4_SUPABASE_CLIENT_PROMISE__=(async()=>{
-      const createClient=await loadLocalSupabase();
-      if(window.__A4_SUPABASE_CLIENT__)return window.__A4_SUPABASE_CLIENT__;
-      const client=createClient(SUPABASE_URL,SUPABASE_KEY,{
-        global:{fetch:window.A4SupabaseFetch||fetch},
-        auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-      });
-      window.__A4_SUPABASE_CLIENT__=client;
-      return client;
-    })();
-    try{return await window.__A4_SUPABASE_CLIENT_PROMISE__}
-    catch(e){delete window.__A4_SUPABASE_CLIENT_PROMISE__;throw e}
   }
 
   async function currentSession(){
@@ -129,7 +91,6 @@
   }
 
   async function load(){
-    supabase=await getSharedClient();
     const session=await currentSession();
     if(!session){goLogin('session');return}
     profile=await rpc('get_my_staff_profile');
