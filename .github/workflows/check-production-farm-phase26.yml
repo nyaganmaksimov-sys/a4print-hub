@@ -7,7 +7,7 @@ on:
     paths:
       - 'admin/equipment-condition-claims.html'
       - 'admin/equipment-condition-claims.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'partner/equipment.html'
       - 'partner/equipment-owner-condition-claims.js'
       - 'database/migrations/20260915_production_farm_condition_claims.sql'
@@ -46,7 +46,7 @@ jobs:
           grep -q 'save_equipment_condition_claim' admin/equipment-condition-claims.js
           grep -q 'issue_equipment_condition_claim' admin/equipment-condition-claims.js
           grep -q 'resolve_equipment_condition_claim' admin/equipment-condition-claims.js
-          grep -q 'equipment-condition-claims.html.*Требования по состоянию' admin/navigation.js
+          grep -q 'equipment-condition-claims.html.*Требования по состоянию' admin/equipment.html
           grep -q 'equipment-owner-condition-claims.js?v=20260915-phase' partner/equipment.html
           grep -q 'get_my_equipment_condition_claims' partner/equipment-owner-condition-claims.js
           grep -q 'submit_equipment_condition_claim_response' partner/equipment-owner-condition-claims.js
