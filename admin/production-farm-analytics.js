@@ -6,7 +6,7 @@ const pct=v=>v==null||!Number.isFinite(Number(v))?'—':`${Number(v).toFixed(1)}
 const num=(v,d=1)=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:d});
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽';
 const reasonLabels={EQUIPMENT:'Поломка / станок',MATERIAL:'Материал',QUALITY:'Качество',OPERATOR:'Оператор',MAINTENANCE:'ТО / обслуживание',WAITING_APPROVAL:'Ожидание согласования',BREAK:'Перерыв',POWER:'Электричество',SOFTWARE:'ПО / файл',OTHER:'Другое'};
-const state={loading:false,channel:null,reloadTimer:null};
+const state={loading:false,channel:null,realtimeStarted:false,reloadTimer:null};
 
 function injectStyle(){if(document.querySelector('link[data-production-analytics]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='./production-farm-analytics.css?v=20260914-1';l.dataset.productionAnalytics='1';document.head.appendChild(l)}
 function isoDate(d){return d.toISOString().slice(0,10)}
@@ -44,8 +44,8 @@ async function load(){
   try{
     const days=Math.max(1,Number($('prodAnPeriod')?.value||30)),{from,to}=range(days);
     const [oeeR,paretoR,capacityR]=await Promise.all([
-      supabase.from('production_oee_daily').select('*').gte('metric_date',from).lte('metric_date',to),
-      supabase.from('production_downtime_pareto_daily').select('*').gte('metric_date',from).lte('metric_date',to),
+      supabase.from('production_oee_daily').select('metric_date,equipment_id,inventory_number,equipment_name,runtime_minutes,downtime_minutes,pause_events,good_quantity,scrap_quantity,rework_quantity,completed_jobs,planned_machine_minutes,actual_machine_minutes,operation_revenue,production_cost,availability_percent,performance_percent,quality_percent,oee_percent,production_margin').gte('metric_date',from).lte('metric_date',to),
+      supabase.from('production_downtime_pareto_daily').select('metric_date,equipment_id,inventory_number,equipment_name,reason_code,pause_events,downtime_minutes').gte('metric_date',from).lte('metric_date',to),
       supabase.rpc('production_capacity_between',{p_from:from,p_to:to})
     ]);
     if(oeeR.error)throw oeeR.error;if(paretoR.error)throw paretoR.error;if(capacityR.error)throw capacityR.error;
@@ -56,7 +56,7 @@ async function load(){
     renderPareto(paretoR.data||[]);
   }catch(error){console.warn('Production analytics unavailable',error);$('prodAnKpis').innerHTML=`<div class="prod-an-empty">Не удалось загрузить аналитику: ${esc(error?.message||'ошибка')}</div>`;$('prodAnEquipment').innerHTML='<div class="prod-an-empty">Нет данных</div>';$('prodAnPareto').innerHTML='<div class="prod-an-empty">Нет данных</div>'}finally{state.loading=false}
 }
-function open(){ensureUi();const d=$('productionAnalyticsDlg');if(!d)return;typeof d.showModal==='function'?d.showModal():d.setAttribute('open','');load()}
-function realtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(()=>{if($('productionAnalyticsDlg')?.open)load()},600)};let ch=supabase.channel('production-analytics-v1');for(const table of ['production_job_runs','production_job_events','production_jobs','equipment_capacity_rules'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
-function boot(){ensureUi();realtime()}
+function open(){ensureUi();const d=$('productionAnalyticsDlg');if(!d)return;typeof d.showModal==='function'?d.showModal():d.setAttribute('open','');realtime();load()}
+function realtime(){if(state.realtimeStarted||typeof supabase.channel!=='function')return;state.realtimeStarted=true;const reload=()=>{clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(()=>{if($('productionAnalyticsDlg')?.open)load()},600)};let ch=supabase.channel('production-analytics-v1');for(const table of ['production_job_runs','production_job_events','production_jobs','equipment_capacity_rules'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
+function boot(){ensureUi()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
