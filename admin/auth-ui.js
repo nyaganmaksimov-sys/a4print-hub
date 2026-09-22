@@ -4,8 +4,6 @@
     login:{email:true,google:true,yandex:false,mailru:false},
     registration:{email:true,google:true,yandex:false,mailru:false}
   };
-  const FALLBACK_URL='https://qgakliolffnwkymoqvzn.supabase.co';
-  const FALLBACK_KEY='sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
   let cache=null,pending=null;
 
   const cloneDefaults=()=>JSON.parse(JSON.stringify(DEFAULTS));
@@ -27,7 +25,8 @@
     if(cache&&!force)return cache;
     if(pending&&!force)return pending;
     const cfg=window.A4PRINT_CONFIG||{};
-    const url=cfg.supabaseUrl||FALLBACK_URL,key=cfg.supabasePublishableKey||FALLBACK_KEY;
+    const url=String(cfg.supabaseUrl||'').replace(/\/$/,''),key=cfg.supabasePublishableKey||'';
+    if(!url||!key){cache=cloneDefaults();return cache}
     pending=(async()=>{
       try{
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
