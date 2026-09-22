@@ -4,8 +4,13 @@ const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2});
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>m==='&'?'&amp;':m==='<'?'&lt;':m==='>'?'&gt;':m==='"'?'&quot;':'&#39;');
 const MAX_FILE_SIZE=50*1024*1024;
-const state={roles:[],customers:[],catalog:[],loaded:false,patchTimer:null,files:[],orderKind:'STANDARD'};
+const state={roles:[],customers:[],catalog:[],loaded:false,referencePromise:null,files:[],orderKind:'STANDARD'};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
+const notify=(tone,title,message,options={})=>{
+  if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});
+  const method=tone==='error'?'error':tone==='warning'?'warn':'log';
+  console[method]('[A4PRINT HUB]',title,message);
+};
 
 const ORDER_WORKFLOWS={
   STANDARD:{partner:null,title:'Обычный заказ',url:'',description:'Стандартный заказ А4-Принт или 3D-ARTPRINT.',presets:[]},
@@ -46,17 +51,21 @@ function syncStatusControls(){
 
 async function loadReferenceData(){
   if(state.loaded)return;
-  const [customersR,catalogR]=await Promise.all([
-    supabase.from('customers').select('id,full_name,company_name,phone,email').order('full_name',{ascending:true}).limit(1000),
-    supabase.from('catalog_items').select('id,name,sku,category,item_type,sale_price,is_active').eq('is_active',true).order('name',{ascending:true}).limit(1500)
-  ]);
-  if(customersR.error)throw customersR.error;
-  if(catalogR.error)console.warn('Catalog for order creation unavailable',catalogR.error);
-  state.customers=customersR.data||[];
-  state.catalog=catalogR.data||[];
-  state.loaded=true;
-  renderCustomerOptions();
-  renderCatalogOptions();
+  if(state.referencePromise)return state.referencePromise;
+  state.referencePromise=(async()=>{
+    const [customersR,catalogR]=await Promise.all([
+      supabase.from('customers').select('id,full_name,company_name,phone,email').order('full_name',{ascending:true}).limit(1000),
+      supabase.from('catalog_items').select('id,name,sku,category,item_type,sale_price,is_active').eq('is_active',true).order('name',{ascending:true}).limit(1500)
+    ]);
+    if(customersR.error)throw customersR.error;
+    if(catalogR.error)console.warn('Catalog for order creation unavailable',catalogR.error);
+    state.customers=customersR.data||[];
+    state.catalog=catalogR.data||[];
+    state.loaded=true;
+    renderCustomerOptions();
+    renderCatalogOptions();
+  })().finally(()=>{state.referencePromise=null});
+  return state.referencePromise;
 }
 
 function renderCustomerOptions(){
@@ -254,28 +263,33 @@ async function uploadOrderFiles(orderId,saveButton){
 async function openDialog(){
   if(!canManage())return;
   const dlg=$('newOrderDlg');if(!dlg)return;
-  $('newOrderError').textContent='';$('newOrderError').classList.remove('ok');
+  const errorNode=$('newOrderError');
+  errorNode.textContent='';errorNode.classList.remove('ok');
+  $('newOrderCustomer').innerHTML=state.loaded?$('newOrderCustomer').innerHTML:'<option value="">Загрузка клиентов…</option>';
+  state.orderKind='STANDARD';
+  clearPartnerFields();
+  setOrderKind('STANDARD');
+  $('newOrderCustomerName').value='';
+  $('newOrderCustomerPhone').value='';
+  $('newOrderUnit').value='A4_PRINT';
+  $('newOrderItem').value='';
+  $('newOrderQty').value='1';
+  $('newOrderPrice').value='0';
+  $('newOrderSource').value='Офис';
+  $('newOrderComment').value='';
+  resetFiles();
+  toggleNewCustomer();recalc();
+  dlg.showModal();
+  setTimeout(()=>$('newOrderCustomer')?.focus(),0);
   try{
     await loadReferenceData();
+    if(!$('newOrderDlg')?.open)return;
     $('newOrderCustomer').value='';
-    state.orderKind='STANDARD';
-    clearPartnerFields();
-    setOrderKind('STANDARD');
-    $('newOrderCustomerName').value='';
-    $('newOrderCustomerPhone').value='';
-    $('newOrderUnit').value='A4_PRINT';
-    $('newOrderItem').value='';
-    $('newOrderQty').value='1';
-    $('newOrderPrice').value='0';
-    $('newOrderSource').value='Офис';
-    $('newOrderComment').value='';
-    resetFiles();
-    toggleNewCustomer();recalc();
-    dlg.showModal();
-    setTimeout(()=>$('newOrderCustomer')?.focus(),0);
+    toggleNewCustomer();
   }catch(error){
     console.error(error);
-    alert(`Не удалось подготовить форму заказа: ${error.message||error}`);
+    errorNode.textContent=`Не удалось загрузить справочники: ${error.message||error}`;
+    notify('error','Справочники заказа недоступны',error.message||String(error));
   }
 }
 
@@ -319,7 +333,7 @@ async function submitOrder(event){
       const failures=state.files.length?await uploadOrderFiles(result.id,save):[];
       if(failures.length){
         const names=failures.map(x=>x.name).join(', ');
-        window.alert(`Заказ создан, но не удалось прикрепить ${failures.length} файл(а): ${names}. Их можно добавить позже из карточки заказа.`);
+        notify('warning','Заказ создан, часть файлов не прикрепилась',`${failures.length} файл(а): ${names}. Их можно добавить позже из карточки заказа.`,{duration:9000});
       }
       $('newOrderDlg').close();
       location.href=`./order.html?id=${encodeURIComponent(result.id)}`;
@@ -334,26 +348,6 @@ async function submitOrder(event){
   }finally{
     save.disabled=false;save.textContent='Создать заказ';
   }
-}
-
-async function patchVisibleItemTitles(){
-  clearTimeout(state.patchTimer);
-  state.patchTimer=setTimeout(async()=>{
-    const rows=[...document.querySelectorAll('[data-order-id]')];
-    const ids=[...new Set(rows.map(r=>r.dataset.orderId).filter(Boolean))];
-    if(!ids.length)return;
-    try{
-      const {data,error}=await supabase.from('order_items').select('id,order_id,name').in('order_id',ids);
-      if(error)throw error;
-      const first=new Map();
-      for(const item of data||[])if(!first.has(item.order_id))first.set(item.order_id,item.name);
-      for(const row of rows){
-        const name=first.get(row.dataset.orderId);
-        const node=row.querySelector('.order-service b');
-        if(name&&node)node.textContent=name;
-      }
-    }catch(error){console.warn('Order item titles unavailable',error)}
-  },120);
 }
 
 function bind(){
@@ -383,14 +377,9 @@ function bind(){
     state.files.splice(index,1);renderFiles();
   });
 
-  const list=$('list');
-  if(list){
-    const observer=new MutationObserver(()=>{syncStatusControls();patchVisibleItemTitles()});
-    observer.observe(list,{childList:true,subtree:true});
-  }
+  document.addEventListener('a4:orders-rendered',syncStatusControls);
 }
 
 bind();
 await loadRoles();
-patchVisibleItemTitles();
 if(new URLSearchParams(location.search).get('new')==='1'&&canManage())openDialog();
