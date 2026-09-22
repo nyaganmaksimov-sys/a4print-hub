@@ -99,8 +99,8 @@ function render(){
   $('doneCol').innerHTML=done.map(jobHtml).join('')||'<div class="production-empty">Готовых заданий пока нет</div>';
   $('cancelledCount').textContent=state.metrics?Number(state.metrics.cancelled_count||0):cancelled.length;
   $('cancelledList').innerHTML=cancelled.map(j=>`<div class="production-cancelled-row"><span><b>${esc(j.title)}</b>${j.order_id?' · заказ №'+esc(j.order_number||'—'):''}</span><span>${esc(fmtDate(j.updated_at||j.created_at))}</span></div>`).join('')||'<div class="production-empty">Отменённых заданий нет</div>';
-  window.__A4_PRODUCTION_BOARD__={jobs:state.jobs.map(x=>({...x}))};
-  document.dispatchEvent(new CustomEvent('a4:production-board-rendered',{detail:window.__A4_PRODUCTION_BOARD__}));
+  window.__A4_PRODUCTION_WORKSPACE__={jobs:state.jobs.map(x=>({...x}))};
+  document.dispatchEvent(new CustomEvent('a4:production-rendered',{detail:window.__A4_PRODUCTION_WORKSPACE__}));
 }
 function renderLoading(){
   for(const id of ['queueCol','workCol','doneCol'])$(id).innerHTML='<div class="production-empty">Загрузка…</div>';
