@@ -72,25 +72,45 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   try { supabaseOrigin = new URL(cfg.supabaseUrl).origin; } catch {}
   const isStorage = target.origin === supabaseOrigin && /^\/storage\/v1(?:\/|$)/.test(target.pathname);
   const isSupabase = target.origin === supabaseOrigin && /^\/(auth|rest|functions|storage)\/v1(?:\/|$)/.test(target.pathname);
-  if (!apiBase || !isSupabase) return fetch(request);
-  const proxyFetch = async () => {
-    const headers = new Headers(request.headers);
-    const method = request.method.toUpperCase();
-    const options = { method, headers, cache: 'no-store', credentials: 'omit', redirect: 'follow' };
-    if (!['GET', 'HEAD'].includes(method)) options.body = await request.clone().arrayBuffer();
+  if (!isSupabase) return fetch(request);
+
+  const method = request.method.toUpperCase();
+  const readOnly = method === 'GET' || method === 'HEAD';
+  const timeoutMs = isStorage ? 65000 : 5500;
+
+  const directFetch = async () => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), isStorage ? 65000 : 6500);
-    options.signal = controller.signal;
-    try { return await fetch(`${apiBase}/api/v1/supabase${target.pathname}${target.search}`, options); }
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try { return await fetch(request.clone(), { signal: controller.signal }); }
     finally { clearTimeout(timer); }
   };
+
+  const proxyFetch = async () => {
+    if (!apiBase) throw new Error('API_PROXY_NOT_CONFIGURED');
+    const headers = new Headers(request.headers);
+    const options = { method, headers, cache: 'no-store', credentials: 'omit', redirect: 'follow' };
+    if (!readOnly) options.body = await request.clone().arrayBuffer();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    options.signal = controller.signal;
+    try { return await fetch(apiBase + '/api/v1/supabase' + target.pathname + target.search, options); }
+    finally { clearTimeout(timer); }
+  };
+
+  // Supabase is in Frankfurt. Talk to it directly instead of bouncing normal
+  // browser traffic through the Render API in Oregon. Reads may fall back to
+  // the proxy; mutations stay single-route to avoid duplicate writes.
+  try {
+    const response = await directFetch();
+    if (!readOnly || response.ok || response.status < 500 || !apiBase) return response;
+  } catch (directError) {
+    if (!readOnly || !apiBase) throw directError;
+  }
+
   try { return await proxyFetch(); }
   catch (proxyError) {
-    try {
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),isStorage?65000:5500);
-      try{return await fetch(request.clone(),{signal:controller.signal})}finally{clearTimeout(timer)}
-    }
-    catch (directError) { console.warn('A4 Supabase proxy/direct failed', proxyError, directError); throw proxyError; }
+    console.warn('A4 Supabase direct/proxy read failed', proxyError);
+    throw proxyError;
   }
 };
 
