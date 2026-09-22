@@ -1,0 +1,54 @@
+name: Check MASTER PROMPT Reports
+
+on:
+  pull_request:
+    paths:
+      - 'admin/reports.html'
+      - 'admin/reports-modern.js'
+      - 'admin/reports-orders-drilldown.js'
+      - 'admin/reports-orders-drilldown.css'
+      - 'supabase/migrations/*reports_workspace_rpc.sql'
+      - '.github/workflows/check-master-prompt-reports.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/reports.html'
+      - 'admin/reports-modern.js'
+      - 'admin/reports-orders-drilldown.js'
+      - 'admin/reports-orders-drilldown.css'
+      - 'supabase/migrations/*reports_workspace_rpc.sql'
+
+jobs:
+  reports-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/reports-modern.js
+          node --input-type=module --check < admin/reports-orders-drilldown.js
+      - name: Reports architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_reports_workspace' admin/reports-modern.js
+          grep -q 'get_reports_order_drilldown' admin/reports-orders-drilldown.js
+          grep -q 'reportOrdersLoadMore' admin/reports-orders-drilldown.js
+          grep -q 'a4:reports-status-rendered' admin/reports-modern.js
+          grep -q 'human-light-ui.css' admin/reports.html
+          grep -q 'security invoker' supabase/migrations/20260922211004_reports_workspace_rpc.sql
+          grep -q "revoke execute on function public.get_reports_workspace" supabase/migrations/20260922211004_reports_workspace_rpc.sql
+          grep -q "revoke execute on function public.get_reports_order_drilldown" supabase/migrations/20260922211004_reports_workspace_rpc.sql
+          ! grep -q "from('orders')" admin/reports-modern.js
+          ! grep -q "from('payments')" admin/reports-modern.js
+          ! grep -q "from('pos_sales')" admin/reports-modern.js
+          ! grep -q "from('pos_returns')" admin/reports-modern.js
+          ! grep -q "from('orders')" admin/reports-orders-drilldown.js
+          ! grep -q "from('payments')" admin/reports-orders-drilldown.js
+          ! grep -q 'MutationObserver' admin/reports-orders-drilldown.js
+          ! grep -q 'limit(5000)' admin/reports-modern.js
+          ! grep -q 'limit(3000)' admin/reports-modern.js
+          ! grep -q 'limit(1000)' admin/reports-orders-drilldown.js
