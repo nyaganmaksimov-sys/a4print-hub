@@ -5,8 +5,9 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;
 const operationLabels={PRINT_2D:'2D-печать',PRINT_3D_FDM:'3D FDM',PRINT_3D_RESIN:'3D фотополимер',LASER_CUT:'Лазерная резка',LASER_ENGRAVE:'Лазерная гравировка',CNC:'ЧПУ',LAMINATION:'Ламинация',POSTPRESS:'Постпечатная обработка',ASSEMBLY:'Сборка',OTHER:'Другое'};
 const machineStatusLabels={FREE:'Свободно',WORKING:'В работе',QUEUED:'В очереди',MAINTENANCE:'ТО',REPAIR:'Ремонт',FAULT:'Неисправность',WAITING_PARTS:'Ждёт запчасти',OFFLINE:'Не используется',RETIRED:'Выведено'};
 const unavailable=new Set(['MAINTENANCE','REPAIR','FAULT','WAITING_PARTS','OFFLINE','RETIRED']);
-const state={jobs:new Map(),equipment:new Map(),runs:[],permissions:[],channel:null,loading:false,materials:[],reloadTimer:null};
-let observer=null,timer=null,enhanceScheduled=false;
+const state={jobs:new Map(),equipment:new Map(),runs:[],permissions:[],channel:null,loading:false,reloadQueued:false,materials:[],reloadTimer:null};
+let timer=null;
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 function can(code){return state.permissions.includes(code)}
 function machine(id){return state.equipment.get(id)||null}
@@ -54,18 +55,36 @@ function installTopButton(){
 }
 
 async function loadPermissions(){const {data,error}=await supabase.rpc('get_my_permissions');if(error)throw error;state.permissions=Array.isArray(data)?data:[]}
-async function loadData(){
-  if(state.loading)return;state.loading=true;
+function mergeBoardSnapshot(snapshot){
+  const rows=Array.isArray(snapshot?.jobs)?snapshot.jobs:[];
+  for(const job of rows)if(job?.id)state.jobs.set(job.id,{...(state.jobs.get(job.id)||{}),...job});
+}
+async function loadData(force=false){
+  if(state.loading){if(force)state.reloadQueued=true;return}
+  state.loading=true;
   try{
-    const [jobs,equipment,runs]=await Promise.all([
-      supabase.from('production_jobs').select('id,order_id,order_item_id,equipment_id,status,title,quantity,operation_type,planned_machine_minutes,actual_machine_minutes,operation_amount,primary_material_id,production_cost,priority,created_at,updated_at'),
+    const dayStart=new Date();dayStart.setHours(0,0,0,0);
+    const [jobs,equipment,todayRuns,openRuns]=await Promise.all([
+      supabase.from('production_jobs')
+        .select('id,order_id,order_item_id,equipment_id,status,title,quantity,operation_type,planned_machine_minutes,actual_machine_minutes,operation_amount,primary_material_id,production_cost,priority,created_at,updated_at')
+        .in('status',['NEW','QUEUED','IN_PROGRESS','PAUSED'])
+        .order('priority',{ascending:false})
+        .order('created_at',{ascending:false}),
       supabase.from('equipment_assets').select('id,inventory_number,name,brand,model,status,operational_status,ownership_type,location').order('name'),
-      supabase.from('production_job_runs').select('id,production_job_id,equipment_id,operator_user_id,started_at,ended_at,elapsed_seconds,end_reason').order('started_at',{ascending:false}).limit(2000)
+      supabase.from('production_job_runs').select('id,production_job_id,equipment_id,operator_user_id,started_at,ended_at,elapsed_seconds,end_reason').gte('started_at',dayStart.toISOString()).order('started_at',{ascending:false}),
+      supabase.from('production_job_runs').select('id,production_job_id,equipment_id,operator_user_id,started_at,ended_at,elapsed_seconds,end_reason').is('ended_at',null).order('started_at',{ascending:false})
     ]);
-    for(const result of [jobs,equipment,runs])if(result.error)throw result.error;
-    state.jobs=new Map((jobs.data||[]).map(j=>[j.id,j]));state.equipment=new Map((equipment.data||[]).map(e=>[e.id,e]));state.runs=runs.data||[];
+    for(const result of [jobs,equipment,todayRuns,openRuns])if(result.error)throw result.error;
+    state.jobs=new Map((jobs.data||[]).map(j=>[j.id,j]));
+    mergeBoardSnapshot(window.__A4_PRODUCTION_BOARD__);
+    state.equipment=new Map((equipment.data||[]).map(e=>[e.id,e]));
+    const runs=new Map();for(const row of [...(todayRuns.data||[]),...(openRuns.data||[])])runs.set(row.id,row);state.runs=[...runs.values()];
     enhanceCards();renderMachines();
-  }catch(error){console.warn('Production farm runtime load failed',error)}finally{state.loading=false}
+  }catch(error){console.warn('Production farm runtime load failed',error)}
+  finally{
+    state.loading=false;
+    if(state.reloadQueued){state.reloadQueued=false;setTimeout(()=>loadData(),0)}
+  }
 }
 
 function runtimeActions(job){
@@ -151,7 +170,7 @@ function translateError(error){
 async function runAction(id,action,button){
   button?.classList.add('farm-action-busy');
   try{const {error}=await supabase.rpc('transition_production_job',{p_job_id:id,p_action:action});if(error)throw error;await loadData()}
-  catch(error){window.alert(translateError(error))}finally{button?.classList.remove('farm-action-busy')}
+  catch(error){notify('error','Операция производства не выполнена',translateError(error))}finally{button?.classList.remove('farm-action-busy')}
 }
 
 function bindDelegatedActions(){
@@ -160,25 +179,20 @@ function bindDelegatedActions(){
     const action=event.target.closest('[data-farm-action]');if(action){event.preventDefault();const[id,verb]=action.dataset.farmAction.split('|');runAction(id,verb,action)}
   });
 }
-function isRuntimeOnlyMutation(mutation){
-  const nodes=[...mutation.addedNodes,...mutation.removedNodes].filter(node=>node.nodeType===1);
-  return nodes.length>0&&nodes.every(node=>node.matches?.('[data-farm-runtime-for]')||node.closest?.('[data-farm-runtime-for]'));
-}
-function scheduleEnhanceCards(){
-  if(enhanceScheduled)return;enhanceScheduled=true;
-  requestAnimationFrame(()=>{enhanceScheduled=false;enhanceCards()});
-}
-function observeBoard(){
-  const board=document.querySelector('.production-board');if(!board)return;
-  observer=new MutationObserver(mutations=>{if(mutations.length&&mutations.every(isRuntimeOnlyMutation))return;scheduleEnhanceCards()});
-  observer.observe(board,{subtree:true,childList:true});
-}
 function initRealtime(){
-  if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(loadData,300)};
+  if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(()=>loadData(true),300)};
   state.channel=supabase.channel('production-farm-runtime-v1').on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'production_job_runs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'equipment_assets'},reload).subscribe();
 }
 async function init(){
-  try{await loadPermissions();if(!can('production.view'))return;injectStyle();ensureDialogs();installTopButton();bindDelegatedActions();observeBoard();await loadData();timer=setInterval(updateTimers,1000);initRealtime();$('refresh')?.addEventListener('click',()=>setTimeout(loadData,250));window.addEventListener('beforeunload',()=>{observer?.disconnect();if(timer)clearInterval(timer);if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
-  catch(error){console.warn('Production farm runtime unavailable',error)}
+  try{
+    await loadPermissions();if(!can('production.view'))return;
+    injectStyle();ensureDialogs();installTopButton();bindDelegatedActions();
+    document.addEventListener('a4:production-board-rendered',event=>{mergeBoardSnapshot(event.detail);enhanceCards();renderMachines()});
+    mergeBoardSnapshot(window.__A4_PRODUCTION_BOARD__);
+    await loadData();
+    timer=setInterval(updateTimers,1000);initRealtime();
+    $('refresh')?.addEventListener('click',()=>setTimeout(()=>loadData(true),250));
+    window.addEventListener('beforeunload',()=>{if(timer)clearInterval(timer);if(state.channel)supabase.removeChannel(state.channel)},{once:true});
+  }catch(error){console.warn('Production farm runtime unavailable',error)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
