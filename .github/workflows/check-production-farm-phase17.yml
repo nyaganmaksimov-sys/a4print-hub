@@ -9,7 +9,7 @@ on:
       - 'partner/equipment-owner-responses.js'
       - 'admin/equipment-partner-responses.html'
       - 'admin/equipment-partner-responses.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'database/migrations/20260915_production_farm_partner_responses.sql'
       - 'database/migrations/20260915_production_farm_partner_responses_ordering.sql'
       - 'docs/PRODUCTION_FARM_PHASE17.md'
