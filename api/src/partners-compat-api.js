@@ -50,22 +50,37 @@ express.application.listen=function patchedPartnersCompatListen(...args){
     this[installed]=true;
 
     this.get('/api/v1/partners',(req,res)=>staff(req,res,async()=>{
-      const {data,error}=await service.from('partners')
-        .select('id,name,legal_name,tax_id,contact_name,email,phone,address,discount_percent,credit_limit,payment_terms_days,notes,is_active,created_at,updated_at,partner_users(id,full_name,email,phone,is_admin,is_active,created_at)')
-        .order('created_at',{ascending:false});
-      if(error)throw error;
-      const rows=data||[];
-      const ids=rows.map(x=>x.id);
-      const counts={};
-      if(ids.length){
-        const {data:orders,error:oErr}=await service.from('orders').select('partner_id,fulfillment_partner_id').or(`partner_id.in.(${ids.join(',')}),fulfillment_partner_id.in.(${ids.join(',')})`);
-        if(oErr)throw oErr;
-        for(const order of orders||[]){
-          if(order.partner_id)counts[order.partner_id]=(counts[order.partner_id]||0)+1;
-          if(order.fulfillment_partner_id&&order.fulfillment_partner_id!==order.partner_id)counts[order.fulfillment_partner_id]=(counts[order.fulfillment_partner_id]||0)+1;
-        }
+      const page=Math.max(1,Math.floor(clamp(req.query.page,1,100000,1)));
+      const pageSize=Math.max(1,Math.floor(clamp(req.query.page_size,1,100,50)));
+      const query=clean(req.query.q,200);
+      const status=clean(req.query.status,20).toLowerCase();
+      const from=(page-1)*pageSize,to=from+pageSize-1;
+
+      let partnersQuery=service.from('partners')
+        .select('id,name,legal_name,tax_id,contact_name,email,phone,address,discount_percent,credit_limit,payment_terms_days,notes,is_active,created_at,updated_at,partner_users(id,full_name,email,phone,is_admin,is_active,created_at)',{count:'exact'})
+        .order('created_at',{ascending:false})
+        .range(from,to);
+
+      if(query){
+        const q=query.replace(/[%(),]/g,' ').trim();
+        if(q)partnersQuery=partnersQuery.or(`name.ilike.%${q}%,legal_name.ilike.%${q}%,contact_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
       }
-      return res.json({success:true,partners:rows.map(p=>({...p,orders_count:counts[p.id]||0}))});
+      if(status==='active')partnersQuery=partnersQuery.eq('is_active',true);
+      else if(status==='off'||status==='inactive')partnersQuery=partnersQuery.eq('is_active',false);
+
+      const {data,error,count}=await partnersQuery;
+      if(error)throw error;
+      const rows=data||[],ids=rows.map(x=>x.id),counts={};
+      if(ids.length){
+        const {data:countRows,error:cErr}=await service.rpc('get_partner_order_counts',{p_partner_ids:ids});
+        if(cErr)throw cErr;
+        for(const row of countRows||[])counts[row.partner_id]=Number(row.orders_count||0);
+      }
+      return res.json({
+        success:true,
+        partners:rows.map(p=>({...p,orders_count:counts[p.id]||0})),
+        page,page_size:pageSize,total:Number(count||0)
+      });
     }));
 
     this.post('/api/v1/partners',express.json(),(req,res)=>staff(req,res,async()=>{
