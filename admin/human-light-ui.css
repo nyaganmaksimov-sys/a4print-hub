@@ -3,23 +3,23 @@
    Keep surfaces calm, compact and consistent. */
 
 :root{
-  --a4-bg:#f4f6f8;
-  --a4-surface:#ffffff;
-  --a4-surface-2:#f8f9fb;
-  --a4-border:#dfe3e8;
-  --a4-border-strong:#ccd3db;
-  --a4-text:#1f2933;
-  --a4-muted:#66717f;
-  --a4-subtle:#8b96a3;
-  --a4-accent:#2457c5;
-  --a4-accent-soft:#edf3ff;
-  --a4-success:#18794e;
-  --a4-warning:#a15c00;
-  --a4-danger:#b42318;
-  --a4-radius:9px;
-  --a4-radius-sm:7px;
-  --a4-sidebar:224px;
-  --a4-shadow:0 1px 2px rgba(20,32,50,.035);
+  --a4-bg:var(--hub-bg,#F5F6F8);
+  --a4-surface:var(--hub-surface,#FFFFFF);
+  --a4-surface-2:var(--hub-surface-secondary,#F9FAFB);
+  --a4-border:var(--hub-border,#E2E5E9);
+  --a4-border-strong:var(--hub-border-strong,#CDD3DA);
+  --a4-text:var(--hub-text,#20252D);
+  --a4-muted:var(--hub-text-secondary,#687382);
+  --a4-subtle:var(--hub-text-subtle,#8B96A3);
+  --a4-accent:var(--hub-blue,#2563EB);
+  --a4-accent-soft:var(--hub-blue-soft,#EEF4FF);
+  --a4-success:var(--hub-success,#18794E);
+  --a4-warning:var(--hub-warning,#A15C00);
+  --a4-danger:var(--hub-danger,#B42318);
+  --a4-radius:var(--hub-radius-lg,10px);
+  --a4-radius-sm:var(--hub-radius-sm,6px);
+  --a4-sidebar:var(--hub-sidebar-expanded,232px);
+  --a4-shadow:none;
 }
 
 html{background:var(--a4-bg)!important}
