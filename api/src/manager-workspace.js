@@ -93,38 +93,35 @@ async function safeQuery(promise, fallback = []) {
 async function briefing(req, res) {
   try {
     const ctx = await actorContext(req);
-    const orders = await safeQuery(ctx.db.from('orders').select('id,order_number,status,total,due_at,assigned_to,updated_at,customers(full_name,company_name)').order('updated_at', { ascending: false }).limit(2000));
-    const production = await safeQuery(ctx.db.from('production_jobs').select('id,order_id,title,status,planned_end').limit(2000));
-    let incidents = [];
-    if (ctx.organizationId) {
-      incidents = await safeQuery(service.from('jarvis_incidents').select('id,severity,title,status,last_seen_at').eq('organization_id', ctx.organizationId).in('status', ['OPEN','ACK']).order('last_seen_at', { ascending: false }).limit(50));
-    }
+    const activeStatuses = ['NEW','CONFIRMED','IN_PROGRESS','READY','ON_HOLD'];
+    const orders = await safeQuery(
+      ctx.db.from('orders')
+        .select('id,order_number,status,total,due_at,assigned_to,updated_at,customers(full_name,company_name)')
+        .in('status', activeStatuses)
+        .order('updated_at', { ascending: false })
+        .limit(1000)
+    );
 
     const now = Date.now();
     const today = moscowDay(now);
-    const openOrders = orders.filter(o => !CLOSED_ORDER.has(upper(o.status)));
+    const openOrders = orders;
     const overdue = openOrders.filter(o => o.due_at && new Date(o.due_at).getTime() < now);
     const dueToday = openOrders.filter(o => o.due_at && moscowDay(o.due_at) === today);
     const ready = openOrders.filter(o => upper(o.status) === 'READY');
     const inProgress = openOrders.filter(o => upper(o.status) === 'IN_PROGRESS');
     const mine = openOrders.filter(o => o.assigned_to === ctx.actor.id);
-    const productionDelayed = production.filter(p => p.planned_end && !['DONE','COMPLETED','CANCELLED','CANCELED'].includes(upper(p.status)) && new Date(p.planned_end).getTime() < now);
     const activeValue = openOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
     const nearest = [...openOrders].filter(o => o.due_at).sort((a,b) => new Date(a.due_at) - new Date(b.due_at)).slice(0, 6).map(o => ({
       id: o.id, order_number: o.order_number, status: o.status, due_at: o.due_at, total: Number(o.total || 0),
       customer: o.customers?.full_name || o.customers?.company_name || ''
     }));
-    const critical = incidents.filter(x => x.severity === 'critical').length;
-    const warning = incidents.filter(x => x.severity === 'warning').length;
-
     return res.json({
       success: true,
       profile: { id: ctx.actor.id, full_name: ctx.actor.full_name, email: ctx.actor.email, first_name: firstName(ctx.actor.full_name, ctx.actor.email), roles: ctx.roles },
       orders_available: orders.length > 0 || ctx.isManager,
       summary: {
         active_orders: openOrders.length, in_progress: inProgress.length, ready: ready.length, overdue: overdue.length,
-        due_today: dueToday.length, my_orders: mine.length, active_value: Math.round(activeValue * 100) / 100,
-        production_delayed: productionDelayed.length, sentinel_critical: critical, sentinel_warning: warning
+        due_today: dueToday.length, my_orders: mine.length, active_value: Math.round(activeValue * 100) / 100
       },
       nearest_orders: nearest,
       generated_at: nowIso(), timezone: 'Europe/Moscow'
@@ -278,7 +275,7 @@ function installWorker() {
 express.application.listen = function patchedManagerWorkspaceListen(...args) {
   if (!this[installed]) {
     this[installed]=true;
-    this.get('/api/v1/jarvis/briefing', requireSession, briefing);
+    this.get('/api/v1/manager/briefing', requireSession, briefing);
     this.get('/api/v1/manager/calendar', requireSession, calendarList);
     this.post('/api/v1/manager/calendar', requireSession, calendarCreate);
     this.patch('/api/v1/manager/calendar/:id', requireSession, calendarUpdate);
