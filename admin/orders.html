@@ -47,7 +47,12 @@
         </div>
       </div>
       <div class="orders-list-head"><span>Заказ</span><span>Клиент</span><span>Услуга</span><span>Оплата</span><span style="text-align:right">Сумма</span><span>Управление</span></div>
-      <div id="list"><div class="orders-empty">Загрузка заказов…</div></div>
+      <div id="list"><div class="orders-loading-list" aria-label="Загрузка заказов"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
+      <div id="ordersPager" class="orders-pager" hidden>
+        <button id="prevPage" type="button">← Назад</button>
+        <span id="pageLabel">Страница 1 из 1</span>
+        <button id="nextPage" type="button">Вперёд →</button>
+      </div>
     </section>
   </main>
 
@@ -116,8 +121,8 @@
     </form>
   </dialog>
 
-  <script type="module" src="./orders.js?v=20260920-partnerflow1"></script>
-  <script type="module" src="./orders-create.js?v=20260920-partners2"></script>
+  <script type="module" src="./orders.js?v=20260922-phase5-1"></script>
+  <script type="module" src="./orders-create.js?v=20260922-phase5-1"></script>
   <script type="module" src="./order-catalog-quick.js?v=20260909-2"></script>
   <script type="module" src="./order-delete-request.js?v=20260912-moderation2"></script>
 </body>

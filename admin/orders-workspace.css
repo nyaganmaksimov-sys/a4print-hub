@@ -116,3 +116,10 @@
   .order-main-link{grid-template-columns:minmax(0,1fr) auto;gap:7px 10px}
   .order-client,.order-service,.order-payment{grid-column:1/-1}
 }
+
+.orders-loading-list{display:grid;gap:7px;padding:12px 2px}
+.orders-loading-list .a4-skeleton{height:54px}
+.orders-pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0 2px;color:var(--hub-text-secondary);font-size:11px}
+.orders-pager button{min-height:32px;padding:5px 10px;border:1px solid var(--hub-border-strong);border-radius:var(--hub-radius-sm);background:#fff;color:var(--hub-text);font:700 10px var(--hub-font);cursor:pointer}
+.orders-pager button:hover:not(:disabled){background:var(--hub-surface-secondary)}
+.orders-pager button:disabled{opacity:.45;cursor:not-allowed}

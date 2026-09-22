@@ -1,0 +1,48 @@
+name: Check MASTER PROMPT Orders
+
+on:
+  pull_request:
+    paths:
+      - 'admin/orders.html'
+      - 'admin/orders.js'
+      - 'admin/orders-create.js'
+      - 'admin/orders-workspace.css'
+      - 'supabase/migrations/*orders_workspace_paged_rpc.sql'
+      - '.github/workflows/check-master-prompt-orders.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/orders.html'
+      - 'admin/orders.js'
+      - 'admin/orders-create.js'
+      - 'admin/orders-workspace.css'
+      - 'supabase/migrations/*orders_workspace_paged_rpc.sql'
+
+jobs:
+  orders-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/orders.js
+          node --input-type=module --check < admin/orders-create.js
+      - name: Orders architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_orders_workspace_page' admin/orders.js
+          grep -q 'get_orders_workspace_metrics' admin/orders.js
+          grep -q 'ordersPager' admin/orders.html
+          grep -q 'a4:orders-rendered' admin/orders.js
+          grep -q 'a4:orders-rendered' admin/orders-create.js
+          grep -q 'security invoker' supabase/migrations/20260922085954_orders_workspace_paged_rpc.sql
+          ! grep -q "from('payments')" admin/orders.js
+          ! grep -q "select('\*')" admin/orders.js
+          ! grep -q 'MutationObserver' admin/orders-create.js
+          ! grep -q 'window.alert' admin/orders.js
+          ! grep -q 'window.alert' admin/orders-create.js
+          ! grep -q 'patchVisibleItemTitles' admin/orders-create.js
