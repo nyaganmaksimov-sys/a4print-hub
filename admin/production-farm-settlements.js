@@ -58,17 +58,26 @@ async function loadPermissions(){const {data,error}=await supabase.rpc('get_my_p
 async function loadData(){
   if(state.loading)return;state.loading=true;if($('farmSettleError'))$('farmSettleError').textContent='';
   try{
-    const [contracts,partners,settlements,lines,jobs]=await Promise.all([
+    const [contracts,partners,settlements]=await Promise.all([
       supabase.from('equipment_contracts').select('id,partner_id,contract_number,contract_type,status,starts_on,ends_on,owner_share_percent,hub_share_percent,calculation_basis,direct_costs_before_split,currency').in('status',['ACTIVE','COMPLETED']).eq('contract_type','REVENUE_SHARE').order('starts_on',{ascending:false}),
       supabase.from('partners').select('id,name,legal_name').order('name'),
-      supabase.from('equipment_owner_settlement_overview').select('*').order('period_end',{ascending:false}).limit(200),
-      supabase.from('equipment_owner_settlement_lines').select('*').order('completed_at',{ascending:false}).limit(5000),
-      supabase.from('production_jobs').select('id,title,order_id,equipment_id').limit(5000)
+      supabase.from('equipment_owner_settlement_overview').select('id,contract_id,partner_id,period_start,period_end,status,calculation_basis,gross_revenue,direct_costs,split_base,owner_amount,hub_amount,currency,generated_by,approved_by,paid_by,generated_at,approved_at,paid_at,payment_reference,notes,created_at,updated_at,received_revenue,owner_share_percent,hub_share_percent,direct_costs_before_split,partner_name,contract_number,jobs_count').order('period_end',{ascending:false}).limit(200)
     ]);
-    for(const r of [contracts,partners,settlements,lines,jobs])if(r.error)throw r.error;
-    state.contracts=contracts.data||[];state.partners=new Map((partners.data||[]).map(p=>[p.id,p]));state.settlements=settlements.data||[];state.lines=lines.data||[];state.jobs=new Map((jobs.data||[]).map(j=>[j.id,j]));
+    for(const r of [contracts,partners,settlements])if(r.error)throw r.error;
+    state.contracts=contracts.data||[];state.partners=new Map((partners.data||[]).map(p=>[p.id,p]));state.settlements=settlements.data||[];
+    const settlementIds=state.settlements.map(x=>x.id);
+    if(settlementIds.length){
+      const lines=await supabase.from('equipment_owner_settlement_lines').select('id,settlement_id,production_job_id,equipment_id,order_id,completed_at,operation_revenue,received_revenue,direct_costs,split_base,owner_amount,hub_amount,created_at').in('settlement_id',settlementIds).order('completed_at',{ascending:false});
+      if(lines.error)throw lines.error;state.lines=lines.data||[];
+      const jobIds=[...new Set(state.lines.map(x=>x.production_job_id).filter(Boolean))];
+      if(jobIds.length){
+        const jobs=await supabase.from('production_jobs').select('id,title,order_id,equipment_id').in('id',jobIds);
+        if(jobs.error)throw jobs.error;state.jobs=new Map((jobs.data||[]).map(j=>[j.id,j]));
+      }else state.jobs=new Map();
+    }else{state.lines=[];state.jobs=new Map()}
     fillContracts();render();
-  }catch(error){if($('farmSettleError'))$('farmSettleError').textContent=translate(error);console.warn('Owner settlements load failed',error)}finally{state.loading=false}
+  }catch(error){if($('farmSettleError'))$('farmSettleError').textContent=translate(error);console.warn('Owner settlements load failed',error)}
+  finally{state.loading=false}
 }
 function fillContracts(){
   if(!$('farmSettleContract'))return;const keep=$('farmSettleContract').value;
