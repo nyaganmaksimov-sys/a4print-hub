@@ -35,13 +35,14 @@ function fillCategories(){
 async function initContext(){
   const {data:{session}}=await supabase.auth.getSession();
   const uid=session?.user?.id;if(!uid)throw new Error('Нет активной сессии');
-  const [profile,leader]=await Promise.all([
-    supabase.from('users').select('id,full_name,organization_id').eq('auth_user_id',uid).eq('is_active',true).maybeSingle(),
+  const [profile,org,leader]=await Promise.all([
+    supabase.from('users').select('id,full_name').eq('auth_user_id',uid).eq('is_active',true).maybeSingle(),
+    supabase.rpc('current_user_organization_id'),
     supabase.rpc('is_hub_leader')
   ]);
-  if(profile.error)throw profile.error;if(leader.error)throw leader.error;
-  state.profile=profile.data||null;state.organizationId=profile.data?.organization_id||null;state.leader=leader.data===true;
-  if(!state.organizationId)throw new Error('У профиля сотрудника не определена организация');
+  if(profile.error)throw profile.error;if(org.error)throw org.error;if(leader.error)throw leader.error;
+  state.profile=profile.data||null;state.organizationId=org.data||null;state.leader=leader.data===true;
+  if(!state.organizationId)throw new Error('Не удалось определить организацию текущего сотрудника');
   window.__A4_IS_HUB_LEADER__=state.leader;applyAccessUi();
 }
 
