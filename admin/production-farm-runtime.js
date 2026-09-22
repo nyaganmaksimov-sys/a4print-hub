@@ -139,7 +139,7 @@ function renderMachines(){
 
 async function loadMaterials(){
   if(state.materials.length)return;
-  const {data,error}=await supabase.from('catalog_items').select('id,sku,name,item_type,is_active').eq('is_active',true).eq('item_type','MATERIAL').order('name').limit(1000);
+  const {data,error}=await supabase.from('catalog_items').select('id,sku,name,item_type,is_active').eq('is_active',true).eq('item_type','MATERIAL').order('name').limit(500);
   if(!error)state.materials=data||[];
 }
 async function openConfig(id){
