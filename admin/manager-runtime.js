@@ -67,7 +67,7 @@
       }catch{}
     }
 
-    async function fetchJson(url,{method='GET',headers={},body,timeout=22000}={}){
+    async function fetchJson(url,{method='GET',headers={},body,timeout=7000}={}){
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),timeout);
       try{
@@ -91,7 +91,7 @@
           method:'POST',
           headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Accept:'application/json'},
           body:JSON.stringify({refresh_token:current.refresh_token}),
-          timeout:18000
+          timeout:9000
         });
         if(!r.ok||!data?.access_token)return null;
         saveSession(data);
@@ -108,7 +108,7 @@
       return s?.access_token||storedSession()?.access_token||'';
     }
 
-    async function request(path,{method='GET',body,prefer,retry=true,timeout=22000}={}){
+    async function request(path,{method='GET',body,prefer,retry=true,timeout=7000}={}){
       const access=await token();
       if(!access){const e=new Error('Требуется повторный вход в A4PRINT HUB.');e.status=401;throw e}
       const headers={apikey:key,Authorization:`Bearer ${access}`,Accept:'application/json'};
@@ -311,7 +311,7 @@
     }
 
     async function loadOrders(){
-      const data=await request('/rest/v1/orders?select=id,order_number,status,total,created_at,customers(full_name,company_name)&order=created_at.desc&limit=8');
+      const data=await request('/rest/v1/orders?select=id,order_number,status,total,created_at,customers(full_name,company_name)&source=neq.KASSA&partner_direction=eq.NONE&partner_id=is.null&fulfillment_partner_id=is.null&order=created_at.desc&limit=8');
       const rows=Array.isArray(data)?data:[];
       $('orders').innerHTML=rows.map(o=>`<a class="order-mini" href="./order.html?id=${encodeURIComponent(o.id)}" style="text-decoration:none;color:inherit"><b>Заказ №${esc(o.order_number||'—')} · ${money(o.total)}</b><small>${esc(o.customers?.full_name||o.customers?.company_name||'Клиент не указан')} · ${esc(o.status||'')}</small></a>`).join('')||'<div class="empty-mini">Заказов пока нет</div>';
       return rows.length;
