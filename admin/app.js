@@ -128,11 +128,11 @@ function renderCashJournal(){
 }
 function renderPos(){
   const root=$('posControlSummary');if(!root)return;ensureCashControls();
-  const shiftPayload=state.pos.shift,shift=shiftPayload?.shift||null,shiftOpen=Boolean(shift),summary=shiftPayload?.summary||null,cash=state.pos.cash,m=state.metrics||{};
+  const shiftPayload=state.pos.shift,shiftUnknown=shiftPayload?.unavailable===true,shift=shiftUnknown?null:(shiftPayload?.shift||null),shiftOpen=Boolean(shift),summary=shiftPayload?.summary||null,cash=state.pos.cash,m=state.metrics||{};
   const salesCount=Number(m.pos_sales_count||0),salesTotal=Number(m.pos_sales_total||0),returnsCount=Number(m.pos_returns_count||0),returnsTotal=Number(m.pos_returns_total||0),net=salesTotal-returnsTotal;
   const syncIssues=Number(m.pos_sync_issues??state.pos.syncIssues??0),apiOk=state.pos.health?.success===true&&state.pos.health?.status==='ok',msOk=state.pos.health?.moyskladConfigured===true,cashAvailable=cash?.available===true&&Number.isFinite(Number(cash.cash));
   root.innerHTML=[
-    attentionRow({href:'../kassa/',tone:shiftOpen?'good':'warn',icon:'work',title:shiftOpen?'Смена открыта':'Смена закрыта',text:shiftOpen?'Смена №'+(shift.name||'—')+' · открыта '+orderDate(shift.openDate):'Открытой розничной смены сейчас нет',count:shiftOpen?'OPEN':'CLOSED'}),
+    attentionRow({href:'../kassa/',tone:shiftUnknown?'danger':shiftOpen?'good':'warn',icon:'work',title:shiftUnknown?'Состояние смены недоступно':shiftOpen?'Смена открыта':'Смена закрыта',text:shiftUnknown?'POS API не ответил вовремя. Остальная главная продолжает работать.':shiftOpen?'Смена №'+(shift.name||'—')+' · открыта '+orderDate(shift.openDate):'Открытой розничной смены сейчас нет',count:shiftUnknown?'—':shiftOpen?'OPEN':'CLOSED'}),
     attentionRow({href:'../kassa/',tone:cashAvailable?'good':'warn',icon:'cash',title:'Наличные в кассе',text:cashAvailable?'Источник: '+(cash.source==='MOYSKLAD_LEDGER'?'МойСклад ledger':(cash.source||'кассовый ledger')):(cash?.requires_baseline?'Нужно задать контрольный остаток':'Точный остаток временно недоступен'),count:cashAvailable?money(cash.cash)+' ₽':'—'}),
     attentionRow({href:'../kassa/',tone:'info',icon:'orders',title:'Продажи сегодня',text:salesCount+' операций · после возвратов '+money(net)+' ₽',count:money(salesTotal)+' ₽'}),
     attentionRow({href:'../kassa/',tone:returnsTotal?'warn':'good',icon:'ready',title:'Возвраты сегодня',text:returnsCount+' операций',count:money(returnsTotal)+' ₽'}),
@@ -210,7 +210,7 @@ async function refreshPosState(){
         apiHealth(),
         apiRequest('/api/v1/pos/cash-operations?limit=20')
       ]);
-      state.pos.shift=shiftR.status==='fulfilled'?shiftR.value:null;
+      state.pos.shift=shiftR.status==='fulfilled'?shiftR.value:{unavailable:true,error:shiftR.reason?.message||'POS shift unavailable'};
       state.pos.cash=cashR.status==='fulfilled'?cashR.value:(cashR.reason?.payload||null);
       state.pos.health=healthR.status==='fulfilled'?healthR.value:null;
       state.pos.operations=opsR.status==='fulfilled'?(opsR.value.operations||[]):[];
