@@ -8,6 +8,10 @@ on:
       - 'mobile/**'
       - 'admin/login.html'
       - 'admin/login.js'
+      - 'admin/register.html'
+      - 'admin/register.js'
+      - 'admin/reset-password.html'
+      - 'admin/reset-password.js'
       - 'admin/mobile-auth-route.js'
       - 'admin/profile.html'
       - 'admin/profile.js'
@@ -132,14 +136,16 @@ jobs:
           grep -q 'get_my_staff_profile' admin/login.js
           grep -q '/api/v1/mobile/auth/password' admin/login.js
           grep -q 'setSession' admin/login.js
-          grep -q 'A4SupabaseFetch' admin/login.js
+          grep -q "import {supabase} from './guard.js" admin/login.js
           grep -q 'A4SupabaseFetch' admin/guard.js
           grep -q 'A4SupabaseFetch' admin/config.js
           grep -q '/api/v1/supabase' admin/config.js
           grep -q "'/api/v1/supabase'" api/src/mobile-proxy.js
           grep -q '/api/v1/mobile/auth/password' api/src/mobile-proxy.js
-          grep -q 'vendor/supabase.js' admin/login.html
-          grep -q 'login.js?v=' admin/login.html
+          grep -q 'auth-ui.js?v=' admin/login.html
+          grep -q 'type="module" src="./login.js?v=' admin/login.html
+          ! grep -q 'vendor/supabase.js' admin/login.html
+          ! grep -q 'createClient' admin/login.js
           ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' admin/login.js
           ! grep -q 'sb-qgakliolffnwkymoqvzn-auth-token' admin/login.js
 
