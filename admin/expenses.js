@@ -25,6 +25,7 @@ function fileSize(bytes){const n=Number(bytes||0);if(n<1024)return `${n} Б`;if(
 function fileExt(name){const m=String(name||'').toLowerCase().match(/\.([a-z0-9]+)$/);return m?m[1]:''}
 function inferredMime(file){if(file?.type)return file.type;return({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',tif:'image/tiff',tiff:'image/tiff',pdf:'application/pdf'})[fileExt(file?.name)]||''}
 function randomId(){return globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function notify(tone,title,message,options={}){if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)}
 
 function fillCategories(){
   $('expenseCategory').innerHTML=categories.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
@@ -36,11 +37,12 @@ async function initContext(){
   const uid=session?.user?.id;if(!uid)throw new Error('Нет активной сессии');
   const [profile,org,leader]=await Promise.all([
     supabase.from('users').select('id,full_name').eq('auth_user_id',uid).eq('is_active',true).maybeSingle(),
-    supabase.from('organizations').select('id').eq('code','A4PRINT').maybeSingle(),
+    supabase.rpc('current_user_organization_id'),
     supabase.rpc('is_hub_leader')
   ]);
   if(profile.error)throw profile.error;if(org.error)throw org.error;if(leader.error)throw leader.error;
-  state.profile=profile.data||null;state.organizationId=org.data?.id||null;state.leader=leader.data===true;
+  state.profile=profile.data||null;state.organizationId=org.data||null;state.leader=leader.data===true;
+  if(!state.organizationId)throw new Error('Не удалось определить организацию текущего сотрудника');
   window.__A4_IS_HUB_LEADER__=state.leader;applyAccessUi();
 }
 
@@ -102,7 +104,7 @@ function validateReceipt(file){
   if(!allowedExt.has(ext)||!allowedMime.has(mime))throw new Error('Поддерживаются JPG, PNG, WebP, HEIC, TIFF и PDF.');
 }
 function chooseReceipt(file){
-  try{validateReceipt(file)}catch(error){window.alert(error.message||error);return}
+  try{validateReceipt(file)}catch(error){notify('warning','Чек не выбран',error.message||String(error));return}
   if(!file)return;revokePreview();state.receiptFile=file;state.removeReceipt=false;
   $('receiptInfoName').textContent=file.name;$('receiptInfoMeta').textContent=`${fileSize(file.size)} · ${inferredMime(file)}`;$('clearReceipt').hidden=false;
   if(inferredMime(file).startsWith('image/')){state.previewUrl=URL.createObjectURL(file);$('receiptPreview').src=state.previewUrl;$('receiptPreview').classList.add('show')}else{$('receiptPreview').classList.remove('show');$('receiptPreview').removeAttribute('src')}
@@ -151,19 +153,19 @@ async function openReceipt(x){
     if(!data?.signedUrl)throw new Error('Не удалось получить ссылку на чек');
     const target=window.A4StorageProxyUrl?window.A4StorageProxyUrl(data.signedUrl):data.signedUrl;
     if(win)win.location.href=target;else window.location.href=target;
-  }catch(error){try{win?.close()}catch{}window.alert(`Не удалось открыть чек: ${error.message||error}`)}
+  }catch(error){try{win?.close()}catch{}notify('error','Не удалось открыть чек',error.message||String(error))}
 }
 
 async function reimburseSelected(){
   if(!state.leader)return;const x=itemById(state.selectedId);if(!x||x.reimbursed_at)return;
-  if(String(x.status||'').toUpperCase()!=='PAID'){window.alert('Выплатить можно только фактически оплаченный расход.');return}
+  if(String(x.status||'').toUpperCase()!=='PAID'){notify('warning','Расход ещё не оплачен','Выплатить сотруднику можно только фактически оплаченный расход.');return}
   const amount=visibleAmount(x)?money(x.amount):'этот расход';
   if(!window.confirm(`Выплатить ${amount} сотруднику «${x.created_by_name||'Сотрудник'}» по расходу «${x.title||'Расход'}»?`))return;
   const b=$('reimburseExpense'),oldText=b.textContent;b.disabled=true;b.textContent='Выплата…';
   try{
     const {error}=await supabase.rpc('reimburse_expense',{p_expense_id:x.id});if(error)throw error;
     $('detailDlg').close();await load();const fresh=itemById(x.id);if(fresh)openDetail(fresh);
-  }catch(error){window.alert(`Не удалось выплатить расход: ${error.message||error}`)}
+  }catch(error){notify('error','Не удалось выплатить расход',error.message||String(error))}
   finally{b.disabled=false;b.textContent=oldText}
 }
 
@@ -185,7 +187,7 @@ async function saveExpense(event){
 }
 async function deleteSelected(){
   if(!state.leader)return;const x=itemById(state.selectedId);if(!x||!window.confirm(`Удалить расход «${x.title}»?`))return;const b=$('deleteExpense');b.disabled=true;
-  try{const {error}=await supabase.from('expenses').delete().eq('id',x.id);if(error)throw error;if(x.receipt_path)await removeStoredReceipt(x.receipt_path);$('detailDlg').close();await load()}catch(error){window.alert(`Не удалось удалить расход: ${error.message||error}`)}finally{b.disabled=false}
+  try{const {error}=await supabase.from('expenses').delete().eq('id',x.id);if(error)throw error;if(x.receipt_path)await removeStoredReceipt(x.receipt_path);$('detailDlg').close();await load()}catch(error){notify('error','Не удалось удалить расход',error.message||String(error))}finally{b.disabled=false}
 }
 
 fillCategories();$('monthFilter').value=currentMonth();
