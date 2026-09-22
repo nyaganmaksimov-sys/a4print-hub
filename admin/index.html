@@ -10,8 +10,8 @@
   <link rel="stylesheet" href="./layout.css?v=20260922-phase3-1">
   <link rel="stylesheet" href="./components.css?v=20260922-phase3-1">
   <link rel="stylesheet" href="./human-light-ui.css?v=20260922-phase3-1">
-  <script src="./config.js?v=20260922-phase3-1"></script>
-  <link rel="stylesheet" href="./dashboard-command-center.css?v=20260922-1">
+  <script src="./config.js?v=20260922-phase4-1"></script>
+  <link rel="stylesheet" href="./dashboard-command-center.css?v=20260922-phase4-1">
 </head>
 <body class="dashboard-home">
   <aside class="sidebar" aria-label="Навигация A4PRINT HUB">
@@ -32,6 +32,7 @@
         <p id="todayLabel">А4-Принт · 3D-ARTPRINT · KASSA</p>
       </div>
       <div class="dashboard-top-meta">
+        <span id="networkStatus" class="dashboard-network is-online" role="status" aria-live="polite"><span class="dashboard-network-dot"></span><span>Онлайн</span></span>
         <div class="dashboard-clock" aria-label="Текущее время в Москве">
           <span id="hubDigitalDate">—</span>
           <strong id="hubDigitalClock">--:--</strong>
@@ -65,19 +66,19 @@
       <section class="dash-today-strip" aria-label="Оперативная сводка за сегодня">
         <a class="dash-today-item" data-tone="new" href="./orders.html?status=NEW">
           <span class="dash-today-label"><span class="dash-today-dot"></span>Новые</span>
-          <strong class="dash-today-value" id="newOrders">0</strong>
+          <strong class="dash-today-value" id="newOrders">—</strong>
         </a>
         <a class="dash-today-item" data-tone="work" href="./orders.html?status=WORK">
           <span class="dash-today-label"><span class="dash-today-dot"></span>В работе</span>
-          <strong class="dash-today-value" id="activeOrders">0</strong>
+          <strong class="dash-today-value" id="activeOrders">—</strong>
         </a>
         <a class="dash-today-item" data-tone="ready" href="./orders.html?status=READY">
           <span class="dash-today-label"><span class="dash-today-dot"></span>Готовы</span>
-          <strong class="dash-today-value" id="readyOrders">0</strong>
+          <strong class="dash-today-value" id="readyOrders">—</strong>
         </a>
         <a class="dash-today-item" data-tone="cash" href="../kassa/">
           <span class="dash-today-label"><span class="dash-today-dot"></span>Касса</span>
-          <strong class="dash-today-value" id="revenueToday">0 ₽</strong>
+          <strong class="dash-today-value" id="revenueToday">—</strong>
         </a>
       </section>
 
@@ -98,7 +99,7 @@
               <span>№</span><span>Клиент</span><span>Услуга</span><span>Направление</span>
               <span>Ответственный</span><span>Сумма</span><span>Срок</span><span>Статус</span>
             </div>
-            <div id="recentOrders"><div class="dash-empty">Загрузка заказов...</div></div>
+            <div id="recentOrders"><div class="dash-loading-list" aria-label="Загрузка заказов"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
           </div>
         </article>
 
@@ -109,9 +110,7 @@
               <p>Только реальные проблемы и риски</p>
             </div>
           </div>
-          <div id="attention" class="dash-attention-list">
-            <div class="dash-empty">Проверяем состояние...</div>
-          </div>
+          <div id="attention" class="dash-attention-list"><div class="dash-loading-list" aria-label="Проверка состояния"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
         </aside>
       </section>
 
@@ -129,9 +128,7 @@
               <a href="#" id="syncMoySklad">Обновить каталог</a>
             </div>
           </div>
-          <div id="posControlSummary" class="dash-attention-list">
-            <div class="dash-empty">Проверка кассы выполняется в фоне...</div>
-          </div>
+          <div id="posControlSummary" class="dash-attention-list"><div class="dash-loading-list" aria-label="Проверка кассы"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
         </article>
 
         <aside class="dash-card">
@@ -142,9 +139,7 @@
             </div>
             <a href="./production.html">Открыть →</a>
           </div>
-          <div id="productionSummary" class="dash-attention-list">
-            <div class="dash-empty">Загрузка...</div>
-          </div>
+          <div id="productionSummary" class="dash-attention-list"><div class="dash-loading-list" aria-label="Загрузка производства"><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
         </aside>
       </section>
 
@@ -164,7 +159,7 @@
     </div>
   </main>
 
-  <script type="module" src="./app.js?v=20260922-runtime-clean1"></script>
+  <script type="module" src="./app.js?v=20260922-phase4-1"></script>
   <script>
     (() => {
       const timeEl=document.getElementById('hubDigitalClock');

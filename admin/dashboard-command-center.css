@@ -131,3 +131,11 @@ body.dashboard-home #a4DashboardPanelColumns{display:none}
   body.dashboard-home .dash-units{grid-template-columns:1fr}
   .dashboard-clock{display:none}
 }
+
+.dashboard-network{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--a4-dashboard-muted);font-size:11px;font-weight:650}
+.dashboard-network-dot{width:7px;height:7px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.10)}
+.dashboard-network.is-offline{color:#b42318}
+.dashboard-network.is-offline .dashboard-network-dot{background:#b42318;box-shadow:0 0 0 2px rgba(180,35,24,.10)}
+.dashboard-network.is-checking .dashboard-network-dot{background:#d97706;box-shadow:0 0 0 2px rgba(217,119,6,.10)}
+.dash-loading-list{display:grid;gap:9px;padding:12px}
+.dash-loading-list .a4-skeleton{height:38px}

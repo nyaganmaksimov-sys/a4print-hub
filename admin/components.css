@@ -70,3 +70,15 @@ dialog::backdrop{background:rgba(32,37,45,.36)}
 @media(prefers-reduced-motion:reduce){
   .a4-skeleton::after{animation:none}
 }
+
+.a4-toast{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:start;gap:10px}
+.a4-toast-copy{display:grid;gap:3px;min-width:0}
+.a4-toast-copy strong{font-size:13px;color:var(--hub-text)}
+.a4-toast-copy span{font-size:12px;line-height:1.45;color:var(--hub-text-secondary)}
+.a4-toast-success{border-left:3px solid var(--hub-success)}
+.a4-toast-warning{border-left:3px solid var(--hub-warning)}
+.a4-toast-error{border-left:3px solid var(--hub-danger)}
+.a4-toast-info{border-left:3px solid var(--hub-info)}
+.a4-toast-action,.a4-toast-close{min-height:28px;padding:4px 8px}
+.a4-toast-action{color:var(--hub-blue);background:var(--hub-blue-soft);border-color:transparent}
+.a4-toast-close{width:30px;padding:0;border-color:transparent;background:transparent;color:var(--hub-text-secondary);font-size:18px}

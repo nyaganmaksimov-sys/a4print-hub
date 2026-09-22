@@ -1,0 +1,57 @@
+name: Check MASTER PROMPT Dashboard
+
+on:
+  pull_request:
+    paths:
+      - 'admin/app.js'
+      - 'admin/config.js'
+      - 'admin/index.html'
+      - 'admin/feedback.js'
+      - 'admin/components.css'
+      - 'admin/dashboard-command-center.css'
+      - 'supabase/migrations/*dashboard_workspace_metrics*.sql'
+      - '.github/workflows/check-master-prompt-dashboard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/app.js'
+      - 'admin/config.js'
+      - 'admin/index.html'
+      - 'admin/feedback.js'
+      - 'admin/components.css'
+      - 'admin/dashboard-command-center.css'
+      - 'supabase/migrations/*dashboard_workspace_metrics*.sql'
+
+jobs:
+  dashboard-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --check admin/config.js
+          node --check admin/feedback.js
+          node --input-type=module --check < admin/app.js
+      - name: Dashboard architecture contract
+        shell: bash
+        run: |
+          grep -q "get_dashboard_workspace_metrics" admin/app.js
+          grep -q "Promise.allSettled" admin/app.js
+          grep -q "feedback.js" admin/config.js
+          grep -q "networkStatus" admin/index.html
+          grep -q "security invoker" supabase/migrations/20260922083327_dashboard_workspace_metrics_threshold_fix.sql
+          ! grep -q "window.alert" admin/app.js
+          ! grep -q "limit(120)" admin/app.js
+          ! grep -q "inventory_balances" admin/app.js
+      - name: Required dashboard assets
+        shell: bash
+        run: |
+          test -s admin/tokens.css
+          test -s admin/layout.css
+          test -s admin/components.css
+          test -s admin/dashboard-command-center.css
+          test -s admin/feedback.js
