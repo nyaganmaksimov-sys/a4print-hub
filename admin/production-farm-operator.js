@@ -169,8 +169,8 @@ async function init(){
         if(current)Object.assign(current,minimal);else state.jobs.push(minimal);
       }
     };
-    document.addEventListener('a4:production-board-rendered',event=>applyBoard(event.detail));
-    applyBoard(window.__A4_PRODUCTION_BOARD__);
+    document.addEventListener('a4:production-rendered',event=>applyBoard(event.detail));
+    applyBoard(window.__A4_PRODUCTION_WORKSPACE__);
     window.addEventListener('production-operator-changed',()=>{if($('productionOperatorDlg')?.open)setTimeout(load,150)});
     window.addEventListener('beforeunload',()=>{if(state.timer)clearInterval(state.timer);if(state.channel)supabase.removeChannel(state.channel)},{once:true});
   }catch(error){console.warn('Production operator station unavailable',error)}
