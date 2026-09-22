@@ -114,31 +114,6 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
 };
 
-(function installManagerRecentOrdersFilter(){
-  if(window.__A4_MANAGER_ORDER_FILTER__)return;
-  if(!/\/admin\/manager\.html$/.test(location.pathname))return;
-  window.__A4_MANAGER_ORDER_FILTER__=true;
-  const previousFetch=window.fetch.bind(window);
-  window.fetch=function managerFilteredFetch(input,init){
-    try{
-      const req=new Request(input,init);
-      const url=new URL(req.url);
-      const isRecentOrders=url.pathname==='/rest/v1/orders'
-        && url.searchParams.get('limit')==='8'
-        && String(url.searchParams.get('order')||'').startsWith('created_at.desc')
-        && String(url.searchParams.get('select')||'').includes('customers(');
-      if(isRecentOrders){
-        if(!url.searchParams.has('source')) url.searchParams.set('source','neq.KASSA');
-        if(!url.searchParams.has('partner_direction')) url.searchParams.set('partner_direction','eq.NONE');
-        if(!url.searchParams.has('partner_id')) url.searchParams.set('partner_id','is.null');
-        if(!url.searchParams.has('fulfillment_partner_id')) url.searchParams.set('fulfillment_partner_id','is.null');
-        return previousFetch(new Request(url.href,req));
-      }
-    }catch{}
-    return previousFetch(input,init);
-  };
-})();
-
 (function loadHubUi(){
   const base = new URL('./', document.currentScript?.src || location.href);
   const isMobile = window.matchMedia?.('(max-width:900px)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
