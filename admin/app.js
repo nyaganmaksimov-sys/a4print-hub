@@ -22,6 +22,24 @@ function deadlineText(value){if(!value)return'—';const d=new Date(value);if(Nu
 function dayStartIso(){const d=new Date();d.setHours(0,0,0,0);return d.toISOString()}
 function setOrderBadge(value){const apply=()=>{const badge=$('orderCount');if(badge)badge.textContent=value};apply();setTimeout(apply,400);setTimeout(apply,1200)}
 
+async function timedFetch(url,options={},timeoutMs=5000){
+  const controller=new AbortController();
+  const upstream=options.signal;
+  const abort=()=>controller.abort(upstream?.reason);
+  if(upstream){
+    if(upstream.aborted)abort();
+    else upstream.addEventListener('abort',abort,{once:true});
+  }
+  const timer=setTimeout(()=>controller.abort(new DOMException('Request timeout','TimeoutError')),timeoutMs);
+  try{return await fetch(url,{...options,signal:controller.signal})}
+  catch(error){
+    if(controller.signal.aborted&&!upstream?.aborted)throw new Error('Сервис отвечает слишком долго. Повторите действие.');
+    throw error;
+  }finally{
+    clearTimeout(timer);
+    upstream?.removeEventListener?.('abort',abort);
+  }
+}
 async function apiRequest(path,options={}){
   const {data:{session}}=await supabase.auth.getSession();
   if(!session?.access_token)throw new Error('Требуется повторный вход в HUB');
@@ -29,12 +47,15 @@ async function apiRequest(path,options={}){
   if(!base)throw new Error('API HUB не настроен');
   const headers=new Headers(options.headers||{});headers.set('Authorization',`Bearer ${session.access_token}`);headers.set('Accept','application/json');
   if(options.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
-  const response=await fetch(`${base}${path}`,{...options,headers,cache:'no-store'});
+  const method=String(options.method||'GET').toUpperCase();
+  const timeoutMs=Number(options.timeoutMs)||(method==='GET'?5500:15000);
+  const requestOptions={...options,headers,cache:'no-store'};delete requestOptions.timeoutMs;
+  const response=await timedFetch(`${base}${path}`,requestOptions,timeoutMs);
   const payload=await response.json().catch(()=>({}));
   if(!response.ok){const error=new Error(payload.message||payload.error||`HTTP ${response.status}`);error.status=response.status;error.payload=payload;throw error}
   return payload;
 }
-async function apiHealth(){const base=String(window.A4PRINT_CONFIG?.apiBaseUrl||'').replace(/\/$/,'');if(!base)return null;const r=await fetch(`${base}/api/v1/health`,{cache:'no-store'});if(!r.ok)throw new Error(`API HTTP ${r.status}`);return r.json()}
+async function apiHealth(){const base=String(window.A4PRINT_CONFIG?.apiBaseUrl||'').replace(/\/$/,'');if(!base)return null;const r=await timedFetch(`${base}/api/v1/health`,{cache:'no-store'},4000);if(!r.ok)throw new Error(`API HTTP ${r.status}`);return r.json()}
 
 async function initUser(){
   try{
@@ -131,7 +152,7 @@ async function loadDashboard(force=false){
   try{
     const start=dayStartIso();
     const [ordersR,itemsR,movesR,productionR,salesR,returnsR,salesIssuesR,returnIssuesR]=await Promise.allSettled([
-      loadOrders(),supabase.from('catalog_items').select('id,name,sku,item_type,min_stock').eq('is_active',true),supabase.from('inventory_balances').select('catalog_item_id,quantity'),supabase.from('production_jobs').select('id,title,status,priority,planned_start,planned_end,created_at').order('created_at',{ascending:false}).limit(200),supabase.from('pos_sales').select('id,total,payment_method,sold_at,sync_status,sync_error').gte('sold_at',start).order('sold_at',{ascending:false}).limit(500),supabase.from('pos_returns').select('id,amount,payment_method,returned_at,sync_status,sync_error').gte('returned_at',start).order('returned_at',{ascending:false}).limit(500),supabase.from('pos_sales').select('id',{count:'exact',head:true}).in('sync_status',['FAILED','WARNING']),supabase.from('pos_returns').select('id',{count:'exact',head:true}).in('sync_status',['FAILED','WARNING'])
+      loadOrders(),supabase.from('catalog_items').select('id,name,min_stock').eq('is_active',true),supabase.from('inventory_balances').select('catalog_item_id,quantity'),supabase.from('production_jobs').select('id,title,status,created_at').order('created_at',{ascending:false}).limit(120),supabase.from('pos_sales').select('id,total').gte('sold_at',start).order('sold_at',{ascending:false}).limit(500),supabase.from('pos_returns').select('id,amount').gte('returned_at',start).order('returned_at',{ascending:false}).limit(500),supabase.from('pos_sales').select('id',{count:'exact',head:true}).in('sync_status',['FAILED','WARNING']),supabase.from('pos_returns').select('id',{count:'exact',head:true}).in('sync_status',['FAILED','WARNING'])
     ]);
     if(ordersR.status==='rejected')throw ordersR.reason;state.orders=ordersR.value||[];setOrderBadge(state.orders.length);
     const items=itemsR.status==='fulfilled'&&!itemsR.value.error?(itemsR.value.data||[]):[],balances=movesR.status==='fulfilled'&&!movesR.value.error?(movesR.value.data||[]):[];const qty=new Map();for(const balance of balances){qty.set(balance.catalog_item_id,(qty.get(balance.catalog_item_id)||0)+Number(balance.quantity||0))}state.lowItems=items.filter(item=>(qty.get(item.id)||0)<=Number(item.min_stock||0)).map(item=>({...item,qty:qty.get(item.id)||0}));
