@@ -16,8 +16,24 @@ const labels = {
 
 const statusOrder = ['NEW','CONFIRMED','IN_PROGRESS','READY','COMPLETED','ON_HOLD','CANCELLED'];
 const partnerStatusLabels={NOT_SENT:'Не отправлен',SENT:'Отправлен партнёру',CONFIRMED:'Подтверждён партнёром',IN_PRODUCTION:'У партнёра в работе',SHIPPED:'Отгружен партнёром',RECEIVED:'Получен',CANCELLED:'Отменён у партнёра'};
-const state = { orders: [], payments: [], paymentsAvailable: true, loading: false, channel: null };
+const state = {
+  orders: [],
+  metrics: null,
+  loading: false,
+  reloadQueued: false,
+  channel: null,
+  page: 1,
+  pageSize: 50,
+  total: 0
+};
 let realtimeTimer = null;
+let searchTimer = null;
+
+function notify(tone,title,message,options={}){
+  if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});
+  const method=tone==='error'?'error':tone==='warning'?'warn':'log';
+  console[method]('[A4PRINT HUB]',title,message);
+}
 
 function unitLabel(unit){
   if(unit === '3D_ARTPRINT') return '3D-ARTPRINT';
@@ -26,17 +42,15 @@ function unitLabel(unit){
 }
 
 function customerName(order){
-  const c = order.customers || {};
-  return c.full_name || c.company_name || order.customer_name || order.client_name || 'Клиент не указан';
+  return order.customer_full_name || order.customer_company_name || 'Клиент не указан';
 }
 
 function customerMeta(order){
-  const c = order.customers || {};
-  return c.phone || c.email || '';
+  return order.customer_phone || order.customer_email || '';
 }
 
 function orderTitle(order){
-  return order.model_name || order.source || (order.business_unit === '3D_ARTPRINT' ? '3D-заказ' : 'Печать / услуга');
+  return order.item_name || order.model_name || order.source || (order.business_unit === '3D_ARTPRINT' ? '3D-заказ' : 'Печать / услуга');
 }
 
 function orderDate(value){
@@ -47,116 +61,66 @@ function orderDate(value){
 }
 
 function paymentSummary(order){
-  const rows = state.payments.filter((p) => p.order_id === order.id && !['CANCELLED','FAILED','REFUNDED'].includes(String(p.status || '').toUpperCase()));
-  const paid = rows.reduce((sum,p) => sum + Number(p.amount || 0), 0);
+  const paid = Number(order.paid_amount || 0);
   const total = Number(order.total || 0);
-  if(!rows.length) return { paid:0, total, label:'Не отмечена', tone:'none' };
+  if(paid <= 0) return { paid:0, total, label:'Не отмечена', tone:'none' };
   if(total > 0 && paid >= total) return { paid, total, label:'Оплачено', tone:'paid' };
   return { paid, total, label:`Оплачено ${money(paid)} ₽`, tone:'part' };
 }
 
-function ageHours(value){
-  const d = new Date(value);
-  return Number.isFinite(d.getTime()) ? Math.max(0,(Date.now()-d.getTime())/36e5) : 0;
-}
-
-function attentionKinds(order){
-  const kinds = new Set();
-  const status = String(order?.status || '').toUpperCase();
-  if(['COMPLETED','DONE','CANCELLED'].includes(status)) return kinds;
-  const hours = ageHours(order?.created_at);
-  const payment = paymentSummary(order);
-  const debt = Math.max(0, Number(payment.total || 0) - Number(payment.paid || 0));
-  if(status === 'ON_HOLD') kinds.add('ATTENTION');
-  if(status === 'NEW' && hours >= 24) kinds.add('ATTENTION');
-  if(['CONFIRMED','IN_PROGRESS'].includes(status) && hours >= 72){ kinds.add('ATTENTION'); kinds.add('OVERDUE_PRODUCTION'); }
-  if(status === 'READY' && hours >= 48) kinds.add('ATTENTION');
-  if(state.paymentsAvailable && debt > .01){
-    kinds.add('UNPAID');
-    if(hours >= 24 || ['READY','ON_HOLD'].includes(status)){ kinds.add('ATTENTION'); kinds.add('OVERDUE_PAYMENT'); }
-  }
-  return kinds;
-}
-
-function isManagerOrder(order){
-  if(!order) return false;
-  if(String(order.source||'').toUpperCase()==='KASSA') return false;
-  const direction=String(order.partner_direction||'NONE').toUpperCase();
-  if(direction==='INBOUND') return false;
-  if(direction==='OUTBOUND') return Boolean(order.fulfillment_partner_id)&&String(order.partner_workflow||'NONE').toUpperCase()!=='NONE';
-  return !order.partner_id;
-}
-
-function managerQuery(select){
-  return supabase.from('orders')
-    .select(select)
-    .in('partner_direction',['NONE','OUTBOUND'])
-    .or('source.is.null,source.neq.KASSA')
-    .order('created_at',{ascending:false});
-}
-
-async function loadOrders(){
-  const full = '*,customers(full_name,company_name,phone,email),executor:partners!orders_fulfillment_partner_id_fkey(id,name)';
-  let result = await managerQuery(full);
-  if(!result.error) return (result.data || []).filter(isManagerOrder);
-
-  console.warn('Manager orders relation query failed, using base fallback', result.error);
-  result = await managerQuery('*');
-  if(result.error) throw result.error;
-  return (result.data || []).filter(isManagerOrder);
-}
-
-async function loadPayments(){
-  const result = await supabase.from('payments').select('id,order_id,status,amount,payment_method,created_at').order('created_at',{ascending:false}).limit(1000);
-  if(result.error){
-    state.paymentsAvailable = false;
-    console.warn('Payments summary unavailable', result.error);
-    return [];
-  }
-  state.paymentsAvailable = true;
-  return result.data || [];
-}
-
 function currentFilters(){
   return {
-    q: $('search').value.trim().toLowerCase(),
-    status: $('status').value,
-    unit: $('unit').value,
+    q: $('search')?.value.trim() || '',
+    status: $('status')?.value || '',
+    unit: $('unit')?.value || '',
     attention: $('attention')?.value || ''
   };
-}
-
-function filteredOrders(){
-  const f = currentFilters();
-  return state.orders.filter((o) => {
-    const c = o.customers || {};
-    const text = [o.order_number,o.model_name,o.source,c.full_name,c.company_name,c.phone,c.email,o.executor?.name,partnerStatusLabels[o.partner_fulfillment_status]].filter(Boolean).join(' ').toLowerCase();
-    const statusOk = !f.status || (f.status === 'WORK' ? ['CONFIRMED','IN_PROGRESS'].includes(o.status) : o.status === f.status);
-    const attentionOk = !f.attention || attentionKinds(o).has(f.attention);
-    return (!f.q || text.includes(f.q)) && statusOk && (!f.unit || o.business_unit === f.unit) && attentionOk;
-  });
 }
 
 function syncUrl(){
   const f = currentFilters();
   const url = new URL(location.href);
-  ['q','status','unit','source','attention'].forEach((key) => url.searchParams.delete(key));
-  if(f.q) url.searchParams.set('q',$('search').value.trim());
+  ['q','status','unit','source','attention','page'].forEach((key) => url.searchParams.delete(key));
+  if(f.q) url.searchParams.set('q',f.q);
   if(f.status) url.searchParams.set('status',f.status);
   if(f.unit) url.searchParams.set('unit',f.unit);
   if(f.attention) url.searchParams.set('attention',f.attention);
+  if(state.page > 1) url.searchParams.set('page',String(state.page));
   history.replaceState(null,'',url.pathname + url.search);
 }
 
+async function loadOrdersPage(){
+  const f=currentFilters();
+  const {data,error}=await supabase.rpc('get_orders_workspace_page',{
+    p_query:f.q,
+    p_status:f.status,
+    p_unit:f.unit,
+    p_attention:f.attention,
+    p_page:state.page,
+    p_page_size:state.pageSize
+  });
+  if(error)throw error;
+  const rows=Array.isArray(data)?data:[];
+  return {
+    rows,
+    total: rows.length ? Number(rows[0].total_count || 0) : 0
+  };
+}
+
+async function loadMetrics(){
+  const {data,error}=await supabase.rpc('get_orders_workspace_metrics');
+  if(error)throw error;
+  return Array.isArray(data)?(data[0]||null):data;
+}
+
 function renderStats(){
-  const orders = state.orders;
-  const active = orders.filter((x) => ['NEW','CONFIRMED','IN_PROGRESS','READY'].includes(x.status));
-  $('all').textContent = orders.length;
-  $('new').textContent = orders.filter((x) => x.status === 'NEW').length;
-  $('work').textContent = orders.filter((x) => ['CONFIRMED','IN_PROGRESS'].includes(x.status)).length;
-  $('ready').textContent = orders.filter((x) => x.status === 'READY').length;
-  if($('attentionCount')) $('attentionCount').textContent = orders.filter((x) => attentionKinds(x).has('ATTENTION')).length;
-  $('activeTotal').textContent = `${money(active.reduce((sum,x) => sum + Number(x.total || 0),0))} ₽`;
+  const m=state.metrics||{};
+  $('all').textContent = Number(m.all_count||0);
+  $('new').textContent = Number(m.new_count||0);
+  $('work').textContent = Number(m.work_count||0);
+  $('ready').textContent = Number(m.ready_count||0);
+  if($('attentionCount')) $('attentionCount').textContent = Number(m.attention_count||0);
+  $('activeTotal').textContent = `${money(m.active_total||0)} ₽`;
 }
 
 function statusOptions(current){
@@ -168,13 +132,14 @@ function rowHtml(order){
   const client = customerName(order);
   const meta = customerMeta(order);
   const isPartner=String(order.partner_direction||'NONE').toUpperCase()==='OUTBOUND'&&order.fulfillment_partner_id;
-  const partnerMeta=isPartner?`Партнёр: ${order.executor?.name||'не указан'} · ${partnerStatusLabels[order.partner_fulfillment_status]||order.partner_fulfillment_status||'Не отправлен'}`:unitLabel(order.business_unit);
+  const partnerMeta=isPartner?`Партнёр: ${order.executor_name||'не указан'} · ${partnerStatusLabels[order.partner_fulfillment_status]||order.partner_fulfillment_status||'Не отправлен'}`:unitLabel(order.business_unit);
+  const productionMeta=order.has_production?'Производство связано':'Без производственного задания';
   return `
     <article class="order-work-row" data-order-id="${esc(order.id)}">
       <a class="order-main-link" href="./order.html?id=${encodeURIComponent(order.id)}">
         <span class="order-number"><b>№${esc(order.order_number ?? '—')}</b><small>${esc(orderDate(order.created_at))}</small></span>
         <span class="order-client"><b>${esc(client)}</b><small>${esc(meta || 'Контакт не указан')}</small></span>
-        <span class="order-service"><b>${esc(orderTitle(order))}</b><small>${esc(partnerMeta)}</small></span>
+        <span class="order-service"><b>${esc(orderTitle(order))}</b><small>${esc(partnerMeta)} · ${esc(productionMeta)}</small></span>
         <span class="order-payment"><b class="pay-${payment.tone}">${esc(payment.label)}</b><small>${payment.paid > 0 && payment.total > 0 ? `${money(payment.paid)} из ${money(payment.total)} ₽` : 'Оплата заказа'}</small></span>
         <span class="order-total"><b>${money(order.total)} ₽</b><small>${esc(labels[order.status] || order.status || '—')}</small></span>
       </a>
@@ -185,12 +150,23 @@ function rowHtml(order){
     </article>`;
 }
 
+function renderPagination(){
+  const totalPages=Math.max(1,Math.ceil(state.total/state.pageSize));
+  const pager=$('ordersPager');
+  if(!pager)return;
+  pager.hidden=state.total<=state.pageSize;
+  $('pageLabel').textContent=`Страница ${state.page} из ${totalPages}`;
+  $('prevPage').disabled=state.page<=1;
+  $('nextPage').disabled=state.page>=totalPages;
+}
+
 function render(){
   syncUrl();
   renderStats();
-  const rows = filteredOrders();
-  $('visibleCount').textContent = `${rows.length} из ${state.orders.length}`;
-  $('list').innerHTML = rows.map(rowHtml).join('') || '<div class="orders-empty">По этим условиям заказов не найдено</div>';
+  $('visibleCount').textContent = `${state.orders.length} на странице · всего ${state.total}`;
+  $('list').innerHTML = state.orders.map(rowHtml).join('') || '<div class="orders-empty">По этим условиям заказов не найдено</div>';
+  renderPagination();
+  document.dispatchEvent(new CustomEvent('a4:orders-rendered'));
 }
 
 async function changeStatus(orderId,nextStatus,select){
@@ -206,7 +182,6 @@ async function changeStatus(orderId,nextStatus,select){
   select.disabled = true;
   select.classList.add('saving');
   order.status = nextStatus;
-  renderStats();
 
   const { error } = await supabase.from('orders').update({status:nextStatus,updated_at:new Date().toISOString()}).eq('id',orderId);
   select.disabled = false;
@@ -214,35 +189,63 @@ async function changeStatus(orderId,nextStatus,select){
   if(error){
     order.status = previous;
     select.value = previous;
-    renderStats();
-    window.alert(`Не удалось изменить статус: ${error.message}`);
+    notify('error','Не удалось изменить статус',error.message||'Повторите действие');
     return;
   }
   select.classList.add('saved');
   setTimeout(() => select.classList.remove('saved'),800);
-  render();
+  await load(true);
 }
 
-async function load(){
-  if(state.loading) return;
-  state.loading = true;
-  $('refresh').disabled = true;
-  $('refresh').textContent = 'Обновление…';
+function renderLoading(){
+  $('list').innerHTML='<div class="orders-loading-list" aria-label="Загрузка заказов"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div>';
+}
+
+function renderError(error){
+  $('list').innerHTML=`<div class="a4-error"><b>Не удалось загрузить заказы</b><div style="margin-top:4px">${esc(error.message||error)}</div><button id="ordersRetry" type="button" class="a4-btn" style="margin-top:10px">Повторить</button></div>`;
+  $('ordersRetry')?.addEventListener('click',()=>load(true));
+}
+
+async function load(force=false){
+  if(state.loading){if(force)state.reloadQueued=true;return}
+  state.loading=true;
+  $('refresh').disabled=true;
+  $('refresh').textContent='Обновление…';
+  if(!state.orders.length)renderLoading();
   try{
-    const [orders,payments] = await Promise.all([loadOrders(),loadPayments()]);
-    state.orders = orders;
-    state.payments = payments;
+    const [pageResult,metricsResult]=await Promise.allSettled([loadOrdersPage(),loadMetrics()]);
+    if(pageResult.status==='rejected')throw pageResult.reason;
+
+    const page=pageResult.value;
+    state.orders=page.rows;
+    state.total=page.total;
+
+    if(!state.orders.length && state.page>1){
+      state.page=Math.max(1,state.page-1);
+      state.loading=false;
+      return load(true);
+    }
+
+    if(metricsResult.status==='fulfilled')state.metrics=metricsResult.value;
+    else console.warn('Orders metrics unavailable',metricsResult.reason);
+
     render();
     $('updatedAt').textContent = `обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
   }catch(error){
     console.error(error);
-    $('list').innerHTML = `<div class="orders-empty error">Не удалось загрузить заказы: ${esc(error.message || error)}</div>`;
+    renderError(error);
     $('updatedAt').textContent = 'ошибка загрузки';
   }finally{
-    state.loading = false;
-    $('refresh').disabled = false;
-    $('refresh').textContent = '↻ Обновить';
+    state.loading=false;
+    $('refresh').disabled=false;
+    $('refresh').textContent='↻ Обновить';
+    if(state.reloadQueued){state.reloadQueued=false;setTimeout(()=>load(),0)}
   }
+}
+
+function resetPageAndLoad(){
+  state.page=1;
+  void load(true);
 }
 
 function initParams(){
@@ -253,14 +256,25 @@ function initParams(){
     const control = $(id);
     if(control && value && [...control.options].some((o) => o.value === value)) control.value = value;
   }
+  const page=Number(params.get('page')||1);
+  state.page=Number.isInteger(page)&&page>0?page:1;
 }
 
 function initEvents(){
-  $('search').addEventListener('input',render);
-  ['status','unit','attention'].forEach((id) => $(id)?.addEventListener('change',render));
-  $('refresh').addEventListener('click',load);
+  $('search').addEventListener('input',()=>{
+    clearTimeout(searchTimer);
+    searchTimer=setTimeout(resetPageAndLoad,280);
+  });
+  ['status','unit','attention'].forEach((id) => $(id)?.addEventListener('change',resetPageAndLoad));
+  $('refresh').addEventListener('click',()=>load(true));
   $('clearFilters').addEventListener('click',() => {
-    $('search').value='';$('status').value='';$('unit').value='';if($('attention')) $('attention').value='';render();
+    $('search').value='';$('status').value='';$('unit').value='';if($('attention')) $('attention').value='';
+    resetPageAndLoad();
+  });
+  $('prevPage')?.addEventListener('click',()=>{if(state.page>1){state.page--;void load(true)}});
+  $('nextPage')?.addEventListener('click',()=>{
+    const totalPages=Math.max(1,Math.ceil(state.total/state.pageSize));
+    if(state.page<totalPages){state.page++;void load(true)}
   });
   $('list').addEventListener('change',(event) => {
     const select = event.target.closest('[data-order-status]');
@@ -273,10 +287,12 @@ function initEvents(){
 
 function initRealtime(){
   if(typeof supabase.channel !== 'function') return;
-  const reload = () => { clearTimeout(realtimeTimer); realtimeTimer = setTimeout(load,450); };
-  state.channel = supabase.channel('manager-orders-workspace-v3')
+  const reload = () => { clearTimeout(realtimeTimer); realtimeTimer = setTimeout(()=>load(true),450); };
+  state.channel = supabase.channel('manager-orders-workspace-v4')
     .on('postgres_changes',{event:'*',schema:'public',table:'orders'},reload)
     .on('postgres_changes',{event:'*',schema:'public',table:'payments'},reload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_items'},reload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload)
     .subscribe();
   window.addEventListener('beforeunload',() => { if(state.channel) supabase.removeChannel(state.channel); },{once:true});
 }
