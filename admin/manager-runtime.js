@@ -31,6 +31,7 @@
     let selectedPriceGroup=null;
     let refreshPromise=null;
     let bootPromise=null;
+    let pricePromise=null;
 
     function setStatus(text,state=''){
       const el=$('managerStatus');
@@ -280,7 +281,24 @@
       return priceGroups.length;
     }
 
-    $('direction').onchange=renderCategories;
+    async function ensurePriceCatalog(){
+      if(priceGroups.length)return priceGroups.length;
+      if(pricePromise)return pricePromise;
+      pricePromise=loadPriceCatalog().catch(error=>{
+        $('serviceHint').textContent='Не удалось загрузить прайс: '+error.message;
+        console.warn('Manager price catalog',error);
+        return 0;
+      }).finally(()=>{pricePromise=null});
+      return pricePromise;
+    }
+
+    function schedulePriceCatalog(){
+      const run=()=>{void ensurePriceCatalog()};
+      if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:1800});
+      else setTimeout(run,500);
+    }
+
+    $('direction').onchange=async()=>{if($('direction').value==='A4_PRINT')await ensurePriceCatalog();renderCategories()};
     $('category').onchange=renderServices;
     $('service').onchange=applySelectedPrice;
     $('qty').oninput=()=>{if(selectedPriceGroup)applySelectedPrice();else calc()};
@@ -379,16 +397,13 @@
         if(s?.user?.email)$('userEmail').textContent=s.user.email;
         await verifyAccess();
         setStatus('Загружаем данные…');
-        const results=await Promise.allSettled([loadPriceCatalog(),loadCustomers(),loadOrders()]);
-        const [priceResult,customersResult,ordersResult]=results;
-        if(priceResult.status==='rejected'){
-          $('serviceHint').textContent='Не удалось загрузить прайс: '+priceResult.reason.message;
-          console.error(priceResult.reason);
-        }
+        const results=await Promise.allSettled([loadCustomers(),loadOrders()]);
+        const [customersResult,ordersResult]=results;
         if(customersResult.status==='rejected')$('customers').innerHTML=`<div class="empty-mini">Не удалось загрузить клиентов: ${esc(customersResult.reason.message)}</div>`;
         if(ordersResult.status==='rejected')$('orders').innerHTML=`<div class="empty-mini">Не удалось загрузить заказы: ${esc(ordersResult.reason.message)}</div>`;
         const failed=results.filter(x=>x.status==='rejected').length;
         setStatus(failed?`Работает частично · ошибок: ${failed}`:'Система готова',failed?'warn':'ok');
+        schedulePriceCatalog();
         return results;
       })().catch(ex=>{handleFatal(ex);throw ex}).finally(()=>{bootPromise=null});
       return bootPromise;
