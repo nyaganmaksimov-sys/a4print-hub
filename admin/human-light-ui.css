@@ -1,0 +1,288 @@
+/* A4PRINT HUB — Human Light UI
+   Design goal: practical desktop software, not a generic AI dashboard.
+   Keep surfaces calm, compact and consistent. */
+
+:root{
+  --a4-bg:#f4f6f8;
+  --a4-surface:#ffffff;
+  --a4-surface-2:#f8f9fb;
+  --a4-border:#dfe3e8;
+  --a4-border-strong:#ccd3db;
+  --a4-text:#1f2933;
+  --a4-muted:#66717f;
+  --a4-subtle:#8b96a3;
+  --a4-accent:#2457c5;
+  --a4-accent-soft:#edf3ff;
+  --a4-success:#18794e;
+  --a4-warning:#a15c00;
+  --a4-danger:#b42318;
+  --a4-radius:9px;
+  --a4-radius-sm:7px;
+  --a4-sidebar:224px;
+  --a4-shadow:0 1px 2px rgba(20,32,50,.035);
+}
+
+html{background:var(--a4-bg)!important}
+body{
+  background:var(--a4-bg)!important;
+  color:var(--a4-text)!important;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important;
+  letter-spacing:0!important;
+}
+
+/* layout */
+.sidebar,
+body.dashboard-home .sidebar,
+body.dashboard-home.a4-side-light .sidebar,
+body.dashboard-home.a4-side-glass .sidebar,
+body.dashboard-home.a4-side-flat .sidebar{
+  width:var(--a4-sidebar)!important;
+  background:#fbfcfd!important;
+  color:var(--a4-text)!important;
+  border-right:1px solid var(--a4-border)!important;
+  box-shadow:none!important;
+  padding:12px 10px 18px!important;
+}
+.main{
+  margin-left:var(--a4-sidebar)!important;
+  padding:24px 28px 40px!important;
+}
+.a4-sidebar-collapsed .sidebar{width:68px!important}
+.a4-sidebar-collapsed .main{margin-left:68px!important}
+
+.hub-logo-wrap,.brand,
+body.dashboard-home .hub-logo-wrap,
+body.dashboard-home .brand{
+  min-height:72px!important;
+  margin:0 0 10px!important;
+  padding:8px 10px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  justify-content:flex-start!important;
+}
+.hub-logo,.brand img{
+  max-width:158px!important;
+  height:54px!important;
+  max-height:54px!important;
+  object-fit:contain!important;
+}
+.a4-sidebar-collapsed .hub-logo-wrap,.a4-sidebar-collapsed .brand{
+  min-height:54px!important;padding:4px!important
+}
+.a4-sidebar-collapsed .hub-logo,.a4-sidebar-collapsed .brand img{
+  width:48px!important;max-width:48px!important;height:44px!important
+}
+
+.a4-sidebar-head{margin:0 0 6px!important;justify-content:flex-end!important}
+.a4-sidebar-toggle{
+  min-height:32px!important;
+  padding:6px 8px!important;
+  border:1px solid transparent!important;
+  border-radius:7px!important;
+  background:transparent!important;
+  color:#6b7582!important;
+  box-shadow:none!important;
+}
+.a4-sidebar-toggle:hover{background:#f0f2f5!important;color:#303846!important}
+
+.sidebar nav{gap:2px!important;padding-bottom:16px!important}
+.sidebar a,
+body.dashboard-home .sidebar a,
+body.dashboard-home.a4-side-light .sidebar a{
+  min-height:38px!important;
+  padding:8px 10px!important;
+  border-radius:7px!important;
+  color:#4c5664!important;
+  font-size:13px!important;
+  font-weight:600!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.sidebar a:hover,
+body.dashboard-home .sidebar a:hover,
+body.dashboard-home.a4-side-light .sidebar a:hover{
+  background:#f0f2f5!important;
+  color:#1f2933!important;
+}
+.sidebar a.active,
+body.dashboard-home .sidebar a.active,
+body.dashboard-home.a4-side-light .sidebar a.active{
+  background:var(--a4-accent-soft)!important;
+  color:#1e4fae!important;
+  box-shadow:none!important;
+}
+.sidebar a.active:before{
+  content:"";
+  position:absolute;
+  left:0;
+  width:3px;
+  height:22px;
+  border-radius:0 2px 2px 0;
+  background:var(--a4-accent);
+}
+.sidebar a{position:relative}
+.a4-nav-icon{width:22px!important;height:22px!important;flex-basis:22px!important}
+.a4-nav-icon svg{width:18px!important;height:18px!important;stroke-width:1.7!important}
+.sidebar b{
+  background:#e9edf2!important;
+  color:#55606d!important;
+  border-radius:10px!important;
+  font-size:10px!important;
+  padding:1px 6px!important;
+}
+
+/* top bar and headings */
+.topbar{
+  min-height:56px!important;
+  margin:0 0 20px!important;
+  padding:0!important;
+  align-items:center!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.topbar h1{
+  margin:0!important;
+  color:var(--a4-text)!important;
+  font-size:25px!important;
+  line-height:1.2!important;
+  font-weight:720!important;
+  letter-spacing:-.02em!important;
+}
+.topbar p{
+  margin:4px 0 0!important;
+  color:var(--a4-muted)!important;
+  font-size:13px!important;
+}
+
+/* surfaces */
+.panel,.card,.manager-panel,.app-card,.dash-card,.dash-app-launcher,
+.reports-card,.reports-kpi,.order-create-dialog,
+.stats article,.quick a,.chat-card,.status-box,.topnote,
+.dashboard-search-results{
+  background:var(--a4-surface)!important;
+  border:1px solid var(--a4-border)!important;
+  border-radius:var(--a4-radius)!important;
+  box-shadow:var(--a4-shadow)!important;
+  backdrop-filter:none!important;
+}
+.panel,.card,.manager-panel,.app-card,.reports-card{padding:16px!important}
+.stats article{min-height:92px!important;padding:14px 15px!important}
+.stats span{color:var(--a4-muted)!important;font-size:12px!important;font-weight:600!important}
+.stats strong{margin-top:12px!important;font-size:27px!important;font-weight:720!important;letter-spacing:-.025em!important}
+
+/* controls */
+button,.btn,.app-btn,.dashboard-quick a,
+.actions button,.actions a,.orders-new-btn,.orders-clear{
+  border-radius:7px!important;
+  box-shadow:none!important;
+  font-weight:650!important;
+  transition:background .12s ease,border-color .12s ease,color .12s ease!important;
+  transform:none!important;
+}
+button:hover,.btn:hover,.app-btn:hover,.dashboard-quick a:hover,
+.actions button:hover,.actions a:hover{transform:none!important;box-shadow:none!important}
+input,select,textarea,.searchbox,
+.dashboard-search-box input,
+.toolbar input,.toolbar select{
+  border:1px solid var(--a4-border-strong)!important;
+  border-radius:7px!important;
+  background:#fff!important;
+  color:var(--a4-text)!important;
+  box-shadow:none!important;
+  font-size:13px!important;
+}
+input:focus,select:focus,textarea:focus,.searchbox:focus,
+.dashboard-search-box input:focus{
+  outline:none!important;
+  border-color:#6c8fd7!important;
+  box-shadow:0 0 0 3px rgba(36,87,197,.10)!important;
+}
+::placeholder{color:#99a2ad!important}
+
+/* dashboard */
+body.dashboard-home .main{padding:22px 28px 40px!important}
+.dashboard-shell{gap:12px!important}
+.dashboard-search-box input{height:40px!important;min-height:40px!important}
+.dashboard-quick a{min-height:36px!important;padding:0 11px!important;font-size:12px!important}
+.dashboard-quick a.primary{
+  background:var(--a4-accent)!important;
+  border-color:var(--a4-accent)!important;
+  color:#fff!important;
+}
+.dash-app-launcher{padding:10px!important}
+.dash-app-buttons{gap:6px!important}
+.dash-app-btn{
+  min-height:54px!important;
+  padding:8px 9px!important;
+  border-radius:8px!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.dash-app-btn:hover{background:#f8fafc!important;border-color:var(--a4-border-strong)!important}
+.dash-app-icon,.dash-kpi-icon,.app-icon{
+  border-radius:7px!important;
+  box-shadow:none!important;
+}
+.dash-kpis{gap:8px!important}
+.dash-kpi{
+  min-height:76px!important;
+  padding:12px 13px!important;
+  border-radius:9px!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.dash-kpi:hover{transform:none!important;box-shadow:none!important;background:#fbfcfd!important}
+.dash-kpi-value{font-size:22px!important;font-weight:720!important}
+.dash-grid{gap:10px!important}
+.dash-card{border-radius:9px!important;box-shadow:none!important}
+.dash-card-head{padding:13px 15px!important}
+.dash-card-head h2{font-size:15px!important;font-weight:700!important}
+.dash-order-header{background:#f7f8fa!important;color:#7e8895!important}
+.dash-order-row:hover{background:#f8fafc!important}
+.dash-attention-item{border-radius:7px!important}
+
+/* manager */
+.quick{gap:7px!important}
+.quick a{padding:10px 12px!important;border-radius:8px!important}
+.manager-panel{border-radius:9px!important}
+.manager-status,.billing-badge,.status,.chip,.reports-badge{
+  border-radius:10px!important;
+}
+.calc-total,.client-create,.message,.info,.secret-note{
+  border-radius:8px!important;
+}
+
+/* tables/lists should feel like work software, not cards */
+.orders-list-head,.dash-order-header{letter-spacing:.035em!important}
+.order-row,.customer-mini,.order-mini,.dash-order-row{
+  box-shadow:none!important;
+  transform:none!important;
+}
+.order-row{border-radius:7px!important}
+.orders-panel{overflow:hidden!important}
+
+/* dialogs */
+dialog{border:1px solid var(--a4-border)!important;border-radius:10px!important;box-shadow:0 18px 50px rgba(31,41,51,.18)!important}
+dialog::backdrop{background:rgba(31,41,51,.36)!important}
+
+/* mobile */
+@media(max-width:900px){
+  .sidebar{width:68px!important}
+  .main{margin-left:68px!important;padding:18px 18px 32px!important}
+  .sidebar a{padding:8px 7px!important}
+}
+@media(max-width:620px){
+  .main{padding:16px 12px 28px!important}
+  .topbar h1{font-size:22px!important}
+  .stats{gap:8px!important}
+}
+
+/* Remove ornamental motion and excessive visual effects */
+*{scrollbar-color:#c9d0d8 transparent}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+}
