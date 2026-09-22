@@ -161,23 +161,25 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   const mobileContext=isAdmin&&(params.get('mobile')==='1'||params.get('app')==='1'||(standalone&&isMobile));
   if(isAdmin&&!document.querySelector('link[rel="icon"]')){const icon=document.createElement('link');icon.rel='icon';icon.type='image/svg+xml';icon.href=new URL('assets/logo_bd_transparent.svg?v=20260908-favicon1',base).href;document.head.appendChild(icon)}
   if(isAdmin&&!document.querySelector('link[rel="manifest"]')){const manifest=document.createElement('link');manifest.rel='manifest';manifest.href=new URL('manifest.webmanifest?v=20260908-2',base).href;document.head.appendChild(manifest)}
-  if(isAdmin)loadCss('button-system.css','20260908-1');
-  if(isAdmin&&!document.querySelector('link[href*="human-light-ui.css"]'))loadCss('human-light-ui.css','20260922-3');
-  if(isPartners)loadCss('partners-modern.css','20260913-partners4');
-  if(isAdmin&&!mobileContext){loadCss('sidebar-light.css','20260908-2');loadCss('logo-clean.css','20260908-2')}
   if(isAdmin){
-    const logoStyle=document.createElement('style');logoStyle.id='a4-logo-transparent-fix';logoStyle.textContent=`html body .sidebar .hub-logo-wrap,html body .sidebar .brand{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;min-height:0!important;height:auto!important;margin:4px 8px 20px!important}html body .sidebar .hub-logo,html body .sidebar .brand img{display:block!important;opacity:1!important;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;width:100%!important;max-width:190px!important;height:auto!important;max-height:126px!important;object-fit:contain!important;filter:none!important;border-radius:0!important}html body.a4-sidebar-collapsed .sidebar .hub-logo-wrap,html body.a4-sidebar-collapsed .sidebar .brand{margin:4px 0 14px!important}html body.a4-sidebar-collapsed .sidebar .hub-logo,html body.a4-sidebar-collapsed .sidebar .brand img{width:54px!important;max-width:54px!important;height:auto!important;max-height:54px!important}`;document.head.appendChild(logoStyle);
+    loadCss('ui/tokens.css','20260922-foundation1');
+    loadCss('ui/layout.css','20260922-foundation1');
+    loadCss('ui/components.css','20260922-foundation1');
+    load('ui/runtime.js','20260922-foundation1');
+  }
+  if(isPartners)loadCss('partners-modern.css','20260913-partners4');
+  if(isAdmin){
     const useConfiguredLogo=()=>{let saved='';try{saved=localStorage.getItem('a4print_hub_logo')||''}catch{}const src=saved||new URL('assets/logo_bd_transparent.svg?v=20260913-branding1',base).href;const logo=document.getElementById('hubLogo');if(logo)logo.src=src;document.querySelectorAll('.brand img').forEach(img=>{img.src=src})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',useConfiguredLogo,{once:true});else useConfiguredLogo();
   }
   if(mobileContext)load('mobile-shell.js','20260905-4');
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
-  load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js','20260922-runtime2');load('ui-fixes.js');if(!isAdmin)return;
+  load('theme.js','20260922-light1');load('ui-icons.js');load('dialog-fixes.js','20260922-runtime2');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-equipment-widget.js','20260922-attention1')}
   if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1');load('manager-clean.js','20260913-manager2')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');if(window.A4PRINT_FEATURES?.jarvis===true)load('jarvis-settings.js','20260913-1')}
-  load('navigation.js','20260922-nav2');load('support-access.js','20260922-runtime2');load('onboarding.js','20260922-runtime1');load('workspace-clean.js','20260922-runtime1');load('topbar-modern.js','20260922-runtime1');load('nav-accordion.js','20260922-nav2');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260922-count1');
+  load('navigation.js','20260922-nav2');load('support-access.js','20260922-runtime2');load('onboarding.js','20260922-runtime1');load('workspace-clean.js','20260922-runtime1');load('topbar-modern.js','20260922-runtime1');load('nav-accordion.js','20260922-health1');loadModule('equipment-maintenance-badge.js','20260922-count1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){
     load('partner-invites.js','20260913-partners4');
