@@ -17,6 +17,7 @@ const timestampFields={SENT:'partner_sent_at',CONFIRMED:'partner_confirmed_at',I
 let roles=[],order=null,channel=null;
 
 const canManage=()=>roles.includes('ADMIN')||roles.includes('MANAGER');
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 const fmt=v=>{if(!v)return'—';const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit'}):'—'};
 
 function ensureCard(){
@@ -85,7 +86,7 @@ async function save(nextStatus,button){
   if(!canManage()||!orderId)return;
   const actualRaw=document.getElementById('partnerActualCost')?.value.trim()||'';
   const actual=actualRaw===''?null:Number(actualRaw);
-  if(actual!=null&&(!Number.isFinite(actual)||actual<0)){alert('Укажите корректную фактическую себестоимость.');return}
+  if(actual!=null&&(!Number.isFinite(actual)||actual<0)){notify('warning','Проверьте себестоимость','Укажите корректную фактическую себестоимость.');return}
   const externalRef=document.getElementById('partnerExternalRef')?.value.trim()||null;
   const tracking=document.getElementById('partnerTracking')?.value.trim()||null;
   if(button){button.disabled=true;button.classList.add('saving')}
@@ -100,7 +101,7 @@ async function save(nextStatus,button){
     if(error)throw error;
     await load();
   }catch(error){
-    alert('Не удалось сохранить данные партнёра: '+(error.message||error));
+    notify('error','Не удалось сохранить данные партнёра',error.message||String(error));
   }finally{
     if(button){button.disabled=false;button.classList.remove('saving')}
   }
