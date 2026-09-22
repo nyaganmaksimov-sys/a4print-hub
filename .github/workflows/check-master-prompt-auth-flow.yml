@@ -1,0 +1,70 @@
+name: Check MASTER PROMPT Auth Flow
+
+on:
+  pull_request:
+    paths:
+      - 'admin/login.html'
+      - 'admin/login.js'
+      - 'admin/register.html'
+      - 'admin/register.js'
+      - 'admin/reset-password.html'
+      - 'admin/reset-password.js'
+      - 'admin/auth-ui.js'
+      - 'admin/mobile-auth-route.js'
+      - 'supabase/migrations/*public_auth_ui_search_path_hardening.sql'
+      - '.github/workflows/check-master-prompt-auth-flow.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/login.html'
+      - 'admin/login.js'
+      - 'admin/register.html'
+      - 'admin/register.js'
+      - 'admin/reset-password.html'
+      - 'admin/reset-password.js'
+      - 'admin/auth-ui.js'
+      - 'admin/mobile-auth-route.js'
+      - 'supabase/migrations/*public_auth_ui_search_path_hardening.sql'
+
+jobs:
+  auth-flow-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/login.js
+          node --input-type=module --check < admin/register.js
+          node --input-type=module --check < admin/reset-password.js
+          node --check admin/auth-ui.js
+          node --check admin/mobile-auth-route.js
+      - name: Shared auth flow contract
+        shell: bash
+        run: |
+          grep -q "import {supabase} from './guard.js" admin/login.js
+          grep -q "import {supabase} from './guard.js" admin/register.js
+          grep -q "import {supabase} from './guard.js" admin/reset-password.js
+          grep -q 'auth-ui.js?v=20260922-authflow1' admin/login.html
+          grep -q 'auth-ui.js?v=20260922-authflow1' admin/register.html
+          grep -q 'type="module" src="./login.js?v=20260922-authflow1"' admin/login.html
+          grep -q 'type="module" src="./register.js?v=20260922-authflow1"' admin/register.html
+          grep -q 'type="module" src="./reset-password.js?v=20260922-authflow1"' admin/reset-password.html
+          grep -q "A4AuthUI.isEnabled('login',provider)" admin/login.js
+          grep -q "providerConnected(await loadProviderSettings(),provider)" admin/login.js
+          grep -q "A4AuthUI.isEnabled('login',startProvider)" admin/mobile-auth-route.js
+          grep -q "search_path = ''" supabase/migrations/20260922204810_public_auth_ui_search_path_hardening.sql
+          for f in admin/login.js admin/register.js admin/reset-password.js admin/auth-ui.js admin/mobile-auth-route.js
+          do
+            ! grep -q 'createClient' "$f"
+            ! grep -q 'window.alert' "$f"
+            ! grep -q 'qgakliolffnwkymoqvzn' "$f"
+            ! grep -q 'sb_publishable_' "$f"
+          done
+          ! grep -q './vendor/supabase.js' admin/login.html
+          ! grep -q './vendor/supabase.js' admin/register.html
+          ! grep -q './vendor/supabase.js' admin/reset-password.html
+          ! grep -q '<script type="module">' admin/reset-password.html
