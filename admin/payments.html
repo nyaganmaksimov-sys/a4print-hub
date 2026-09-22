@@ -7,7 +7,8 @@
   <link rel="icon" href="./assets/logo_bd_transparent.svg?v=20260908-favicon1" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20260908-payments3">
   <link rel="stylesheet" href="./crm-finance.css?v=20260908-1">
-  <script src="./config.js?v=20260908-payments3"></script>
+  <script src="./config.js?v=20260922-finance1"></script>
+  <link rel="stylesheet" href="./human-light-ui.css?v=20260922-3">
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
@@ -34,7 +35,12 @@
           <button id="clearFilters" type="button">Сбросить</button>
         </div>
         <div class="cf-meta"><span><b id="visibleCount">0 из 0</b></span><span>Валюта новых платежей: RUB</span></div>
-        <div id="list" class="cf-list"><div class="cf-empty">Загрузка оплат…</div></div>
+        <div id="list" class="cf-list"><div class="finance-loading-list"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
+        <div id="paymentsPager" class="finance-pager" hidden>
+          <button id="paymentsPrevPage" type="button">← Назад</button>
+          <span id="paymentsPageLabel">Страница 1 из 1</span>
+          <button id="paymentsNextPage" type="button">Вперёд →</button>
+        </div>
       </section>
     </div>
   </main>
@@ -59,7 +65,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./payments-modern.js?v=20260908-2"></script>
-  <script type="module" src="./payments-order-prefill.js?v=20260908-1"></script>
+  <script type="module" src="./payments-modern.js?v=20260922-phase5-1"></script>
 </body>
 </html>

@@ -1,0 +1,74 @@
+name: Check MASTER PROMPT Finance
+
+on:
+  pull_request:
+    paths:
+      - 'admin/payments.html'
+      - 'admin/payments-modern.js'
+      - 'admin/documents.html'
+      - 'admin/documents-modern.js'
+      - 'admin/invoice.html'
+      - 'admin/crm-finance.css'
+      - 'supabase/migrations/*finance_workspace_paged_rpc.sql'
+      - '.github/workflows/check-master-prompt-finance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/payments.html'
+      - 'admin/payments-modern.js'
+      - 'admin/documents.html'
+      - 'admin/documents-modern.js'
+      - 'admin/invoice.html'
+      - 'admin/crm-finance.css'
+      - 'supabase/migrations/*finance_workspace_paged_rpc.sql'
+
+jobs:
+  finance-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/payments-modern.js
+          node --input-type=module --check < admin/documents-modern.js
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess, tempfile
+          html=Path('admin/invoice.html').read_text()
+          m=re.search(r'<script type="module">([\s\S]*?)</script>',html)
+          assert m, 'invoice module missing'
+          src=re.sub(r'^\s*import[^\n]*\n','',m.group(1),count=1)
+          wrapped='(async()=>{\n'+src+'\n})();\n'
+          p=Path('/tmp/invoice-inline.js');p.write_text(wrapped)
+          subprocess.run(['node','--check',str(p)],check=True)
+          PY
+      - name: Finance architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_payments_workspace_page' admin/payments-modern.js
+          grep -q 'get_payments_workspace_metrics' admin/payments-modern.js
+          grep -q 'get_documents_workspace_page' admin/documents-modern.js
+          grep -q 'get_documents_workspace_metrics' admin/documents-modern.js
+          grep -q 'paymentsPager' admin/payments.html
+          grep -q 'documentsPager' admin/documents.html
+          grep -q 'human-light-ui.css' admin/payments.html
+          grep -q 'human-light-ui.css' admin/documents.html
+          grep -q 'paymentUnavailable' admin/invoice.html
+          grep -q 'security invoker' supabase/migrations/20260922191459_finance_workspace_paged_rpc.sql
+          grep -q 'payments_organization_created_at_idx' supabase/migrations/20260922191459_finance_workspace_paged_rpc.sql
+          ! grep -q "select('\*')" admin/payments-modern.js
+          ! grep -q "select('\*')" admin/documents-modern.js
+          ! grep -q "select('\*')" admin/invoice.html
+          ! grep -q 'limit(5000)' admin/payments-modern.js
+          ! grep -q 'limit(3000)' admin/payments-modern.js
+          ! grep -q 'limit(5000)' admin/documents-modern.js
+          ! grep -q 'limit(3000)' admin/documents-modern.js
+          ! grep -q 'window.alert' admin/payments-modern.js
+          ! grep -q 'MutationObserver' admin/payments-modern.js
+          ! grep -q 'MutationObserver' admin/documents-modern.js
+          ! grep -q 'payments-order-prefill.js' admin/payments.html
+          ! grep -q "eq('code','A4PRINT')" admin/payments-modern.js
