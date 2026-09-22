@@ -41,7 +41,12 @@
         </div>
         <div class="cf-meta customers-meta"><span><b id="visibleCount">0 из 0</b></span><span>HUB-заказы и продажи KASSA считаются отдельно</span></div>
         <div class="cf-list-head" aria-hidden="true"><span>Клиент и контакты</span><span>Заказы HUB</span><span>Оплаты и KASSA</span><span>Действия</span></div>
-        <div id="list" class="cf-list"><div class="cf-empty">Загрузка клиентов…</div></div>
+        <div id="list" class="cf-list"><div class="customers-loading-list" aria-label="Загрузка клиентов"><div class="a4-skeleton"></div><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
+        <div id="customersPager" class="customers-pager" hidden>
+          <button id="customersPrevPage" type="button">← Назад</button>
+          <span id="customersPageLabel">Страница 1 из 1</span>
+          <button id="customersNextPage" type="button">Вперёд →</button>
+        </div>
       </section>
     </div>
   </main>
@@ -67,6 +72,6 @@
     </form>
   </dialog>
 
-  <script type="module" src="./customers-modern.js?v=20260922-metrics1"></script>
+  <script type="module" src="./customers-modern.js?v=20260922-phase5-1"></script>
 </body>
 </html>
