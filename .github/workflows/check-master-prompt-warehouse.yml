@@ -1,0 +1,47 @@
+name: Check MASTER PROMPT Warehouse
+
+on:
+  pull_request:
+    paths:
+      - 'admin/warehouse.html'
+      - 'admin/warehouse-modern.js'
+      - 'admin/warehouse-modern.css'
+      - 'supabase/migrations/*warehouse_workspace_paged_rpc.sql'
+      - '.github/workflows/check-master-prompt-warehouse.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/warehouse.html'
+      - 'admin/warehouse-modern.js'
+      - 'admin/warehouse-modern.css'
+      - 'supabase/migrations/*warehouse_workspace_paged_rpc.sql'
+
+jobs:
+  warehouse-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/warehouse-modern.js
+      - name: Warehouse architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_warehouse_catalog_page' admin/warehouse-modern.js
+          grep -q 'get_warehouse_catalog_metrics' admin/warehouse-modern.js
+          grep -q 'get_warehouse_moysklad_stock_index' admin/warehouse-modern.js
+          grep -q "current_user_organization_id" admin/warehouse-modern.js
+          grep -q 'warehousePager' admin/warehouse.html
+          grep -q 'human-light-ui.css' admin/warehouse.html
+          grep -q 'security invoker' supabase/migrations/20260922194420_warehouse_workspace_paged_rpc.sql
+
+          ! grep -q "select('\*')" admin/warehouse-modern.js
+          ! grep -q "eq('code','A4PRINT')" admin/warehouse-modern.js
+          ! grep -q 'window.alert' admin/warehouse-modern.js
+          ! grep -q 'MutationObserver' admin/warehouse-modern.js
+          ! grep -q "from('catalog_items').select('\*')" admin/warehouse-modern.js
+          ! grep -q "from('inventory_balances').select('catalog_item_id,quantity')" admin/warehouse-modern.js
