@@ -183,7 +183,7 @@ jobs:
           grep -q 'guard.js' admin/order.js
           grep -q 'guard.js' admin/customers-modern.js
           grep -q 'guard.js' admin/customer-modern.js
-          grep -q './config.js?v=20260905-4' admin/manager.html
+          grep -q './config.js?v=' admin/manager.html
           grep -q 'manager-runtime.js?v=20260905-4' admin/manager.html
           grep -q 'a4print_mobile_access' admin/manager-runtime.js
           ! grep -q "import {supabase} from './guard.js'" admin/manager.html

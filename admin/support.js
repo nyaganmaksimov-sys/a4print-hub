@@ -13,6 +13,8 @@ let currentTicket=null;
 let operatorTickets=[];
 let operatorTicket=null;
 let pollTimer=null;
+let realtimeChannel=null;
+let realtimeTimer=null;
 let canOperate=false;
 let isAdmin=false;
 let aiBusy=false;
@@ -54,18 +56,17 @@ function ensureAiStyles(){
 async function loadIdentity(){
   const {data:{session}}=await supabase.auth.getSession();
   if(!session){location.replace('./login.html');return false}
-  const [pRes,rRes,aRes,sRes]=await Promise.all([
+  const cachedRoles=Array.isArray(window.__A4_CURRENT_ROLES__)?window.__A4_CURRENT_ROLES__:null;
+  const [pRes,rRes]=await Promise.all([
     supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id',session.user.id).maybeSingle(),
-    supabase.rpc('get_my_roles'),
-    supabase.rpc('has_role',{required_role:'ADMIN'}),
-    supabase.rpc('has_role',{required_role:'SUPPORT'})
+    cachedRoles?Promise.resolve({data:cachedRoles,error:null}):supabase.rpc('get_my_roles')
   ]);
   if(pRes.error)throw pRes.error;
   if(!pRes.data||pRes.data.is_active===false)throw new Error('Профиль сотрудника не найден или отключён.');
   profile=pRes.data;
   roles=Array.isArray(rRes.data)?rRes.data:[];
-  isAdmin=aRes.data===true||roles.includes('ADMIN');
-  canOperate=isAdmin||sRes.data===true||roles.includes('SUPPORT');
+  isAdmin=roles.includes('ADMIN');
+  canOperate=isAdmin||roles.includes('SUPPORT');
   window.__A4_CURRENT_ROLES__=roles;
   return true;
 }
@@ -211,6 +212,23 @@ async function saveOperatorStatus(){
   const {error}=await supabase.from('support_tickets').update(patch).eq('id',operatorTicket.id);if(error)return alert(error.message);operatorTicket={...operatorTicket,...patch};await loadOperatorTickets(true);
 }
 
+function scheduleRealtimeReload(){
+  clearTimeout(realtimeTimer);
+  realtimeTimer=setTimeout(()=>{
+    if(document.hidden)return;
+    if(canOperate)loadOperatorTickets(true).catch(console.warn);
+    else if(currentTicket)findOwnTicket().catch(console.warn);
+  },250);
+}
+
+function initRealtime(){
+  if(typeof supabase.channel!=='function'||!profile)return;
+  realtimeChannel=supabase.channel('support-live-'+profile.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'support_tickets'},scheduleRealtimeReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'support_messages'},scheduleRealtimeReload)
+    .subscribe();
+}
+
 async function init(){
   if(jarvisEnabled){ensureAiStyles();if($('askBot'))$('askBot').textContent='Спросить Джарвиса';}
   if(!await loadIdentity())return;
@@ -218,11 +236,12 @@ async function init(){
   await loadFaq();
   if(canOperate){
     $('userSupport')?.classList.add('hidden');$('operatorSupport')?.classList.remove('hidden');ensureOperatorAiControls();await loadOperatorTickets(false);
-    pollTimer=setInterval(()=>{if(!document.hidden)loadOperatorTickets(true).catch(console.warn)},6000);
+    pollTimer=setInterval(()=>{if(!document.hidden)loadOperatorTickets(true).catch(console.warn)},60000);
   }else{
     $('operatorSupport')?.classList.add('hidden');$('userSupport')?.classList.remove('hidden');await findOwnTicket();
-    pollTimer=setInterval(()=>{if(!document.hidden&&currentTicket)findOwnTicket().catch(console.warn)},6000);
+    pollTimer=setInterval(()=>{if(!document.hidden&&currentTicket)findOwnTicket().catch(console.warn)},60000);
   }
+  initRealtime();
 }
 
 $('faqSearch')?.addEventListener('input',renderFaq);
@@ -235,5 +254,9 @@ $('ticketFilter')?.addEventListener('change',renderOperatorTickets);
 $('reloadTickets')?.addEventListener('click',()=>loadOperatorTickets(true).catch(e=>alert(e.message)));
 $('operatorComposer')?.addEventListener('submit',sendOperator);
 $('saveTicketStatus')?.addEventListener('click',saveOperatorStatus);
-window.addEventListener('beforeunload',()=>pollTimer&&clearInterval(pollTimer));
+window.addEventListener('beforeunload',()=>{
+  if(pollTimer)clearInterval(pollTimer);
+  if(realtimeTimer)clearTimeout(realtimeTimer);
+  if(realtimeChannel)supabase.removeChannel(realtimeChannel).catch(()=>{});
+});
 init().catch(e=>{console.error(e);alert('Не удалось открыть поддержку: '+(e.message||e))});

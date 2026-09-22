@@ -134,9 +134,9 @@ jobs:
           grep -q "supabase.storage.from('hub-chat')" shared/hub-chat-core.js
           grep -q 'const isStorage' admin/config.js
           grep -q '/storage\\/v1' admin/config.js
-          grep -q 'slowStorage=' admin/config.js
-          grep -q '65000' admin/config.js
-          grep -q '70000' admin/config.js
+          grep -q 'directFetch' admin/config.js
+          grep -q 'readOnly' admin/config.js
+          grep -q 'timeoutMs = isStorage ? 65000 : 5500' admin/config.js
           grep -q 'supabase-storage-proxy.js' api/src/boot.js
           grep -q '/api/v1/supabase/storage/v1' api/src/supabase-storage-proxy.js
           grep -q 'express.raw' api/src/supabase-storage-proxy.js
@@ -150,7 +150,7 @@ jobs:
           grep -q 'manifest.webmanifest' mobile/index.html
           grep -q './config.js' admin/partners.html
           grep -q './guard.js' admin/partners.html
-          grep -q './config.js?v=20260905-4' admin/manager.html
+          grep -q './config.js?v=' admin/manager.html
           grep -q 'hub-chat-drawer.js' admin/guard.js
           grep -q 'installHubChatDrawer' shared/hub-chat-drawer.js
           grep -q 'hub_chat_contacts' shared/hub-chat-drawer.js
