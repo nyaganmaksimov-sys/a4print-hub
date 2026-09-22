@@ -1,7 +1,5 @@
-const createClient=window.supabase?.createClient;
-if(!createClient)throw new Error('Локальный модуль авторизации не загрузился. Обновите страницу.');
+import {supabase} from './guard.js?v=20260922-authflow1';
 const cfg=window.A4PRINT_CONFIG||{};
-const supabase=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id),error=$('error'),success=$('success'),submit=$('submit');
 let authSettings=null;
 function showError(m){error.textContent=m;error.style.display='block';success.style.display='none'}
