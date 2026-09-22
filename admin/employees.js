@@ -1,9 +1,8 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import {supabase} from './guard.js?v=20260922-employees1';
 
 const cfg = window.A4PRINT_CONFIG || {};
-const supabase = createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
 const $ = id => document.getElementById(id);
-const edgeUrl = `${cfg.supabaseUrl}/functions/v1/staff-admin`;
+const edgeUrl = `${String(cfg.supabaseUrl||'').replace(/\/$/,'')}/functions/v1/staff-admin`;
 
 let session = null;
 let roles = [];
@@ -17,6 +16,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt
 const initials = n => (String(n || '?').trim().split(/\s+/).slice(0,2).map(x => x[0]).join('').toUpperCase() || '?');
 const providerLabel = p => { p = String(p || 'email').toLowerCase(); if (p.includes('google')) return 'Google'; if (p.includes('yandex')) return 'Яндекс'; if (p.includes('mail')) return 'Mail.ru'; return 'Email'; };
 const fmt = v => v ? new Date(v).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 async function call(action, payload = {}, timeout = 7000) {
   if (!session) throw new Error('AUTH_REQUIRED');
@@ -127,7 +127,7 @@ function openApprove(id) {
 }
 async function rejectRequest(id) {
   const reason = prompt('Причина отклонения заявки (необязательно):'); if (reason === null) return;
-  try { await call('reject',{payload:{request_id:id,reason}}); await load(); } catch(e) { alert(e.message); }
+  try { await call('reject',{payload:{request_id:id,reason}}); await load(); notify('success','Заявка отклонена','Статус заявки обновлён.'); } catch(e) { notify('error','Не удалось отклонить заявку',e.message||String(e)); }
 }
 
 $('employeeForm').onsubmit = async e => {
@@ -149,4 +149,4 @@ $('search').oninput=renderEmployees; $('newEmployee').onclick=openNew; $('refres
 [$('employeeModal'),$('approveModal')].forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('open')});
 function showLoadError(e){$('employeeList').className='empty errorbox';$('employeeList').innerHTML=`<b>Не удалось загрузить сотрудников</b><small>${esc(e.message||'Ошибка')}</small><button class="btn secondary" id="retryLoad">Повторить</button>`;$('retryLoad')?.addEventListener('click',()=>load().catch(showLoadError));}
 
-(async()=>{const s=await supabase.auth.getSession();session=s.data.session;if(!session)return location.replace('./login.html');$('adminEmail').textContent=session.user.email||'';try{await load()}catch(e){if(e.status===401)return location.replace('./login.html');if(e.status===403){alert('Раздел доступен только администратору.');return location.replace('./index.html')}showLoadError(e)}})();
+(async()=>{const s=await supabase.auth.getSession();session=s.data.session;if(!session)return location.replace('./login.html');$('adminEmail').textContent=session.user.email||'';try{await load()}catch(e){if(e.status===401)return location.replace('./login.html');if(e.status===403){notify('warning','Нет доступа','Раздел сотрудников доступен только администратору.');$('newEmployee').hidden=true;$('newInvite').hidden=true;showLoadError(new Error('Раздел доступен только администратору.'));return}showLoadError(e)}})();
