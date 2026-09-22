@@ -2,7 +2,8 @@
   const mobile=window.matchMedia?.('(max-width:900px)').matches||/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent||'');
   if(!mobile)return;
 
-  const SUPABASE_URL='https://qgakliolffnwkymoqvzn.supabase.co';
+  const cfg=window.A4PRINT_CONFIG||{};
+  const SUPABASE_URL=String(cfg.supabaseUrl||'').replace(/\/$/,'');
   const RETURN_KEY='a4print_auth_return_to';
   const OAUTH_TARGET_KEY='a4print_oauth_return_target';
 
@@ -36,7 +37,7 @@
     // с startProvider. Перехватываем такой маршрут и сразу запускаем OAuth
     // с возвратом в основной мобильный HUB.
     const startProvider=String(u.searchParams.get('startProvider')||'').trim();
-    if(startProvider){
+    if(startProvider&&SUPABASE_URL){
       const callback=new URL('/mobile/',location.origin).href;
       const auth=new URL('/auth/v1/authorize',SUPABASE_URL);
       auth.searchParams.set('provider',startProvider);
