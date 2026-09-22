@@ -6,41 +6,37 @@
   <title>A4PRINT HUB — Центр управления</title>
   <link rel="stylesheet" href="./styles.css?v=20260904-23">
   <link rel="stylesheet" href="./dashboard.css?v=20260907-unified1">
-  <link rel="stylesheet" href="./dashboard-sidebar-sync.css?v=20260908-1">
-  <script src="./config.js?v=20260922-direct1"></script>
-  <link rel="stylesheet" href="./logo-clean.css?v=20260908-1">
-  <link rel="stylesheet" href="./dashboard-home.css?v=20260913-4">
   <link rel="stylesheet" href="./human-light-ui.css?v=20260922-3">
+  <script src="./config.js?v=20260922-runtime-clean1"></script>
+  <link rel="stylesheet" href="./dashboard-command-center.css?v=20260922-1">
 </head>
 <body class="dashboard-home">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Навигация A4PRINT HUB">
     <div class="hub-logo-wrap">
-      <img id="hubLogo" class="hub-logo" src="./assets/a4print-hub-logo-white.svg?v=20260908-1" alt="A4PRINT HUB" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-      <div class="hub-logo-fallback" style="display:none;color:#0f172a;text-align:center;font-weight:900;font-size:20px">A4PRINT <span style="color:#2563eb">HUB</span></div>
+      <img id="hubLogo" class="hub-logo" src="./assets/logo_bd_transparent.svg?v=20260913-branding1" alt="A4PRINT HUB">
     </div>
     <nav>
       <a class="active" href="./index.html">Главная</a>
       <a href="./manager.html">Менеджер</a>
       <a href="./orders.html">Заказы <b id="orderCount">0</b></a>
-      <a href="../kassa/">Касса</a>
-      <a href="./customers.html">Клиенты</a>
-      <a href="./warehouse.html">Склад</a>
-      <a href="./production.html">Производство</a>
-      <a href="./reports.html">Отчёты</a>
-      <a href="#hub-chat" data-hub-chat-open>Сообщения</a>
-      <a href="./settings.html">Настройки</a>
     </nav>
   </aside>
 
   <main class="main">
     <header class="topbar">
-      <div>
+      <div class="dashboard-top-title">
         <h1>Центр управления</h1>
         <p id="todayLabel">А4-Принт · 3D-ARTPRINT · KASSA</p>
       </div>
+      <div class="dashboard-top-meta">
+        <div class="dashboard-clock" aria-label="Текущее время в Москве">
+          <span id="hubDigitalDate">—</span>
+          <strong id="hubDigitalClock">--:--</strong>
+        </div>
+      </div>
       <div class="user">
         <span id="userEmail">Загрузка...</span>
-        <button id="logout">Выйти</button>
+        <button id="logout" type="button">Выйти</button>
       </div>
     </header>
 
@@ -62,62 +58,122 @@
         </div>
       </section>
 
-      <section class="dash-app-launcher" aria-label="Приложения A4PRINT HUB">
-        <div class="dash-app-launcher-title">
-          <span>Рабочие модули</span>
-          <a href="./apps.html">Все приложения →</a>
-        </div>
-        <div class="dash-app-buttons">
-          <a class="dash-app-btn pos" href="../kassa/"><span class="dash-app-icon">POS</span><span><b>KASSA 2.1</b><small>Продажи, возвраты и смена</small></span></a>
-          <a class="dash-app-btn chat" href="#hub-chat" data-hub-chat-open><span class="dash-app-icon">MSG</span><span><b>Сообщения</b><small>Персонал и партнёры</small></span></a>
-          <a class="dash-app-btn partner" href="../partner/index.html"><span class="dash-app-icon">CRM</span><span><b>Partner CRM</b><small>Кабинет партнёра</small></span></a>
-          <a class="dash-app-btn mobile" href="../mobile/"><span class="dash-app-icon">MOB</span><span><b>Мобильный HUB</b><small>Телефон и планшет</small></span></a>
-          <a class="dash-app-btn telegram" href="./telegram.html"><span class="dash-app-icon" style="background:#e0f2fe;color:#0284c7">TG</span><span><b>Telegram</b><small>Сообщения и заказы</small></span></a>
-          <a class="dash-app-btn install" href="./apps.html"><span class="dash-app-icon">APP</span><span><b>Установка</b><small>Приложения и PWA</small></span></a>
-        </div>
+      <div class="dashboard-section-label">Сегодня</div>
+      <section class="dash-today-strip" aria-label="Оперативная сводка за сегодня">
+        <a class="dash-today-item" data-tone="new" href="./orders.html?status=NEW">
+          <span class="dash-today-label"><span class="dash-today-dot"></span>Новые</span>
+          <strong class="dash-today-value" id="newOrders">0</strong>
+        </a>
+        <a class="dash-today-item" data-tone="work" href="./orders.html?status=WORK">
+          <span class="dash-today-label"><span class="dash-today-dot"></span>В работе</span>
+          <strong class="dash-today-value" id="activeOrders">0</strong>
+        </a>
+        <a class="dash-today-item" data-tone="ready" href="./orders.html?status=READY">
+          <span class="dash-today-label"><span class="dash-today-dot"></span>Готовы</span>
+          <strong class="dash-today-value" id="readyOrders">0</strong>
+        </a>
+        <a class="dash-today-item" data-tone="cash" href="../kassa/">
+          <span class="dash-today-label"><span class="dash-today-dot"></span>Касса</span>
+          <strong class="dash-today-value" id="revenueToday">0 ₽</strong>
+        </a>
       </section>
 
-      <section class="dash-kpis" aria-label="Оперативная сводка">
-        <a class="dash-kpi" href="./orders.html?status=NEW"><span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6"></path></svg></span><span class="dash-kpi-copy"><span class="dash-kpi-label">Новые заказы</span><strong class="dash-kpi-value" id="newOrders">0</strong></span></a>
-        <a class="dash-kpi" data-tone="work" href="./orders.html?status=WORK"><span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9h10v9M9 11V7h6v4"></path><path d="M10 15h4"></path></svg></span><span class="dash-kpi-copy"><span class="dash-kpi-label">В работе</span><strong class="dash-kpi-value" id="activeOrders">0</strong></span></a>
-        <a class="dash-kpi" data-tone="ready" href="./orders.html?status=READY"><span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span><span class="dash-kpi-copy"><span class="dash-kpi-label">Готовы к выдаче</span><strong class="dash-kpi-value" id="readyOrders">0</strong></span></a>
-        <a class="dash-kpi" data-tone="stock" href="./warehouse.html"><span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5v11H3z"></path><path d="M8 20v-7h8v7"></path></svg></span><span class="dash-kpi-copy"><span class="dash-kpi-label">Низкий остаток</span><strong class="dash-kpi-value" id="lowStock">0</strong></span></a>
-        <a class="dash-kpi" data-tone="money" href="../kassa/"><span class="dash-kpi-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"></path><path d="M8 12h8M12 9v6"></path></svg></span><span class="dash-kpi-copy"><span class="dash-kpi-label">Касса сегодня</span><strong class="dash-kpi-value" id="revenueToday">0 ₽</strong></span></a>
-        <div class="dash-kpi" aria-label="Текущее время в Москве" style="cursor:default"><span class="dash-kpi-icon" style="background:#eef2ff;color:#4f46e5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg></span><span class="dash-kpi-copy"><span class="dash-kpi-label">Москва · МСК</span><strong class="dash-kpi-value" id="hubDigitalClock" style="font-variant-numeric:tabular-nums;letter-spacing:.045em">--:--:--</strong><small id="hubDigitalDate" style="display:block;margin-top:5px;color:#94a3b8;font-size:10px;font-weight:700;white-space:nowrap">—</small></span></div>
+      <section class="dash-work-grid" aria-label="Оперативная работа">
+        <article class="dash-card">
+          <div class="dash-card-head">
+            <div>
+              <h2>Последние заказы</h2>
+              <p>Свежие заказы А4-Принт и 3D-ARTPRINT</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="dash-updated" id="lastUpdated">обновление...</span>
+              <a href="./orders.html">Все заказы →</a>
+            </div>
+          </div>
+          <div class="dash-orders">
+            <div class="dash-order-header">
+              <span>№</span><span>Клиент</span><span>Услуга</span><span>Направление</span>
+              <span>Ответственный</span><span>Сумма</span><span>Срок</span><span>Статус</span>
+            </div>
+            <div id="recentOrders"><div class="dash-empty">Загрузка заказов...</div></div>
+          </div>
+        </article>
+
+        <aside class="dash-card">
+          <div class="dash-card-head">
+            <div>
+              <h2>Требует внимания</h2>
+              <p>Только реальные проблемы и риски</p>
+            </div>
+          </div>
+          <div id="attention" class="dash-attention-list">
+            <div class="dash-empty">Проверяем состояние...</div>
+          </div>
+        </aside>
       </section>
 
-      <section class="dash-grid">
-        <article class="dash-card"><div class="dash-card-head"><div><h2>Последние заказы</h2><p>Свежие заказы А4-Принт и 3D-ARTPRINT</p></div><div style="display:flex;align-items:center;gap:12px"><span class="dash-updated" id="lastUpdated">обновление...</span><a href="./orders.html">Все заказы →</a></div></div><div class="dash-orders"><div class="dash-order-header"><span>Заказ</span><span>Клиент</span><span>Услуга</span><span>Направление</span><span>Сумма</span><span>Статус</span></div><div id="recentOrders"><div class="dash-empty">Загрузка заказов...</div></div></div></article>
-        <aside class="dash-card"><div class="dash-card-head"><div><h2>Требует внимания</h2><p>Что важно проверить сейчас</p></div></div><div id="attention" class="dash-attention-list"><div class="dash-empty">Загрузка...</div></div></aside>
+      <div class="dashboard-section-label">Операции</div>
+      <section class="dash-secondary-grid" aria-label="Касса и производство">
+        <article class="dash-card">
+          <div class="dash-card-head">
+            <div>
+              <h2>Касса и синхронизация</h2>
+              <p>KASSA · HUB · МойСклад</p>
+            </div>
+            <div class="dashboard-quick">
+              <a href="../kassa/">Открыть KASSA</a>
+              <a href="#" id="posShiftAction">Проверка смены...</a>
+              <a href="#" id="syncMoySklad">Обновить каталог</a>
+            </div>
+          </div>
+          <div id="posControlSummary" class="dash-attention-list">
+            <div class="dash-empty">Проверка кассы выполняется в фоне...</div>
+          </div>
+        </article>
+
+        <aside class="dash-card">
+          <div class="dash-card-head">
+            <div>
+              <h2>Производство</h2>
+              <p>Очередь и текущая загрузка</p>
+            </div>
+            <a href="./production.html">Открыть →</a>
+          </div>
+          <div id="productionSummary" class="dash-attention-list">
+            <div class="dash-empty">Загрузка...</div>
+          </div>
+        </aside>
       </section>
 
-      <section class="dash-grid" aria-label="Управление кассой и производством">
-        <article class="dash-card"><div class="dash-card-head"><div><h2>Касса и синхронизация</h2><p>Единое состояние KASSA · HUB · МойСклад</p></div><div class="dashboard-quick"><a href="../kassa/">Открыть KASSA</a><a href="#" id="posShiftAction">Проверка смены...</a><a href="#" id="syncMoySklad">Обновить каталог</a></div></div><div id="posControlSummary" class="dash-attention-list"><div class="dash-empty">Проверка кассы...</div></div></article>
-        <aside class="dash-card"><div class="dash-card-head"><div><h2>Производство</h2><p>Текущая загрузка заданий</p></div><a href="./production.html">Открыть →</a></div><div id="productionSummary" class="dash-attention-list"><div class="dash-empty">Загрузка...</div></div></aside>
-      </section>
-
+      <div class="dashboard-section-label">Направления бизнеса</div>
       <section class="dash-units" aria-label="Направления бизнеса">
-        <a class="dash-unit-card" href="./orders.html?unit=A4_PRINT" data-unit="a4"><span class="dash-unit-mark">A4</span><span class="dash-unit-card-copy"><b>А4-Принт</b><span>Печать, услуги и заказы направления</span></span><span class="dash-unit-metrics"><span><strong id="a4Active">0</strong><small>активных</small></span><span><strong id="a4Ready">0</strong><small>готово</small></span></span></a>
-        <a class="dash-unit-card" href="./orders.html?unit=3D_ARTPRINT" data-unit="3d"><span class="dash-unit-mark">3D</span><span class="dash-unit-card-copy"><b>3D-ARTPRINT</b><span>3D-печать, модели и производство</span></span><span class="dash-unit-metrics"><span><strong id="d3Active">0</strong><small>активных</small></span><span><strong id="d3Ready">0</strong><small>готово</small></span></span></a>
+        <a class="dash-unit-card" href="./orders.html?unit=A4_PRINT" data-unit="a4">
+          <span class="dash-unit-mark">A4</span>
+          <span class="dash-unit-card-copy"><b>А4-Принт</b><span>Печать, услуги и заказы направления</span></span>
+          <span class="dash-unit-metrics"><span><strong id="a4Active">0</strong><small>активных</small></span><span><strong id="a4Ready">0</strong><small>готово</small></span></span>
+        </a>
+        <a class="dash-unit-card" href="./orders.html?unit=3D_ARTPRINT" data-unit="3d">
+          <span class="dash-unit-mark">3D</span>
+          <span class="dash-unit-card-copy"><b>3D-ARTPRINT</b><span>3D-печать, модели и производство</span></span>
+          <span class="dash-unit-metrics"><span><strong id="d3Active">0</strong><small>активных</small></span><span><strong id="d3Ready">0</strong><small>готово</small></span></span>
+        </a>
       </section>
     </div>
   </main>
-  <script src="./cbr-rates-widget.js?v=20260913-dashboard3"></script>
-  <script src="./dashboard-panels.js?v=20260912-4"></script>
-  <script src="./dashboard-home.js?v=20260913-6"></script>
-  <script type="module" src="./app.js?v=20260908-control4"></script>
+
+  <script type="module" src="./app.js?v=20260922-runtime-clean1"></script>
   <script>
-    (()=>{
+    (() => {
       const timeEl=document.getElementById('hubDigitalClock');
       const dateEl=document.getElementById('hubDigitalDate');
       if(!timeEl||!dateEl)return;
       const render=()=>{
         const now=new Date();
-        timeEl.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);
-        dateEl.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',weekday:'short',day:'2-digit',month:'long'}).format(now).replace(/^./,s=>s.toUpperCase());
+        timeEl.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hour12:false}).format(now);
+        dateEl.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',weekday:'short',day:'2-digit',month:'short'}).format(now).replace(/^./,s=>s.toUpperCase());
       };
       render();
-      setInterval(render,1000);
+      setInterval(render,30000);
     })();
   </script>
 </body>
