@@ -145,14 +145,20 @@ jobs:
 
       - name: Verify manager workspace assets
         run: |
-          grep -q 'manager-layout.js?v=' admin/manager.html
-          grep -q 'manager-clean.js?v=' admin/manager.html
-          grep -q 'manager-widgets.js?v=' admin/manager.html
-          grep -q 'manager-side-stack' admin/manager-layout.js
-          grep -q 'manager-clean-v4-style' admin/manager-clean.js
-          grep -q 'managerDigitalClock' admin/manager-widgets.js
-          grep -q 'pointerdown' admin/manager-widgets.js
-          grep -q 'pointermove' admin/manager-widgets.js
+          grep -q 'manager-page.css?v=20260922-manager1' admin/manager.html
+          grep -q 'manager-runtime.js?v=20260922-manager1' admin/manager.html
+          grep -q 'manager-workspace.js?v=20260922-manager1' admin/manager.html
+          grep -q 'manager-compact-calendar.js?v=20260922-manager1' admin/manager.html
+          grep -q 'manager-side-stack' admin/manager.html
+          grep -q 'managerOperationsGrid' admin/manager.html
+          grep -q 'a4:manager-calendar-rendered' admin/manager-workspace.js
+          grep -q 'a4:manager-calendar-rendered' admin/manager-compact-calendar.js
+          ! grep -q 'manager-layout.js' admin/manager.html
+          ! grep -q 'manager-clean.js' admin/manager.html
+          ! grep -q 'manager-widgets.js' admin/manager.html
+          ! grep -q 'MutationObserver' admin/manager-runtime.js
+          ! grep -q 'MutationObserver' admin/manager-workspace.js
+          ! grep -q 'MutationObserver' admin/manager-compact-calendar.js
 
       - name: Verify Google auth provider
         shell: bash
