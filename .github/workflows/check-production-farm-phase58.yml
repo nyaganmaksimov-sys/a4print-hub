@@ -55,7 +55,7 @@ jobs:
           grep -q "qrcodejs/1.0.0/qrcode.min.js" "$html"
           grep -q "integrity=\"sha512-CNgIRec" "$html"
           grep -q "window.QRCode" "$js"
-          grep -q "equipment-qr.js?v=20260920-phase58-1" "$html"
+          grep -Eq 'equipment-qr\.js\?v=[^"]+' "$html"
 
           if grep -Eqi 'api\.qrserver|quickchart|chart\.google|api\.qrcode' "$js" "$html"; then
             echo 'Phase 58 must not send equipment deep links to an external QR generation API'

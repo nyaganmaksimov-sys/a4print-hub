@@ -1,0 +1,64 @@
+name: Check MASTER PROMPT Equipment
+
+on:
+  pull_request:
+    paths:
+      - 'admin/equipment.html'
+      - 'admin/equipment.js'
+      - 'admin/equipment-consumables.js'
+      - 'admin/equipment-calendar.js'
+      - 'admin/equipment-economics.js'
+      - 'admin/equipment-risk-assets.js'
+      - 'admin/equipment-qr.js'
+      - '.github/workflows/check-master-prompt-equipment.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/equipment.html'
+      - 'admin/equipment.js'
+      - 'admin/equipment-consumables.js'
+      - 'admin/equipment-calendar.js'
+      - 'admin/equipment-economics.js'
+      - 'admin/equipment-risk-assets.js'
+      - 'admin/equipment-qr.js'
+
+jobs:
+  equipment-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          for f in             admin/equipment.js             admin/equipment-consumables.js             admin/equipment-calendar.js             admin/equipment-economics.js             admin/equipment-risk-assets.js             admin/equipment-qr.js
+          do
+            node --input-type=module --check < "$f"
+          done
+      - name: Equipment architecture contract
+        shell: bash
+        run: |
+          grep -q "current_user_organization_id" admin/equipment.js
+          grep -q 'a4:equipment-consumables-rendered' admin/equipment.js
+          grep -q 'a4:equipment-consumables-rendered' admin/equipment-consumables.js
+          grep -q 'a4:equipment-grid-rendered' admin/equipment.js
+          grep -q 'a4:equipment-grid-rendered' admin/equipment-qr.js
+          grep -q 'a4:equipment-detail-rendered' admin/equipment.js
+          grep -q 'a4:equipment-detail-rendered' admin/equipment-qr.js
+          grep -q 'IntersectionObserver' admin/equipment-economics.js
+          grep -q 'IntersectionObserver' admin/equipment-risk-assets.js
+          grep -q 'human-light-ui.css' admin/equipment.html
+
+          for f in             admin/equipment.js             admin/equipment-consumables.js             admin/equipment-calendar.js             admin/equipment-economics.js             admin/equipment-risk-assets.js             admin/equipment-qr.js
+          do
+            ! grep -q "select('\*')" "$f"
+            ! grep -q 'MutationObserver' "$f"
+            ! grep -q 'window.alert' "$f"
+            ! grep -q 'limit(1000)' "$f"
+            ! grep -q 'limit(2000)' "$f"
+          done
+
+          ! grep -q "eq('code','A4PRINT')" admin/equipment.js
+          ! grep -q "state.organizations.find(o=>o.code==='A4PRINT')" admin/equipment.js

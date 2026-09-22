@@ -74,7 +74,7 @@ function ensureMovementExtras(){
 async function refreshData(){
   const [{data:c,error:ce},{data:b,error:be}]=await Promise.all([
     supabase.from('equipment_consumables').select('id,organization_id,name,category,sku,unit,min_stock,storage_location,supplier,is_active,notes').order('name'),
-    supabase.from('equipment_consumable_balances').select('*')
+    supabase.from('equipment_consumable_balances').select('consumable_id,organization_id,name,category,sku,unit,min_stock,storage_location,is_active,current_stock,low_stock')
   ]);
   if(ce)throw ce;if(be)throw be;
   state.consumables=new Map((c||[]).map(x=>[x.id,x]));
@@ -191,19 +191,15 @@ function enhanceRows(){
   });
 }
 
-function watch(){
-  const list=$('consumablesList');if(list)new MutationObserver(()=>{refreshData().then(enhanceRows).catch(()=>{})}).observe(list,{childList:true,subtree:false});
-  const cdlg=$('consumableDlg');if(cdlg)new MutationObserver(()=>{if(cdlg.open)onConsumableOpen()}).observe(cdlg,{attributes:true,attributeFilter:['open']});
-  const mdlg=$('movementDlg');if(mdlg)new MutationObserver(()=>{if(mdlg.open)onMovementOpen()}).observe(mdlg,{attributes:true,attributeFilter:['open']});
-}
-
 async function init(){
   installStyles();installDatalists();ensureConsumableExtras();ensureMovementExtras();
-  await loadContext();await refreshData();enhanceRows();watch();
+  await loadContext();
+  document.addEventListener('a4:equipment-consumables-rendered',()=>{refreshData().then(enhanceRows).catch(console.warn)});
+  document.addEventListener('a4:equipment-consumable-dialog-opened',()=>{onConsumableOpen().catch(console.warn)});
+  document.addEventListener('a4:equipment-movement-dialog-opened',()=>{onMovementOpen().catch(console.warn)});
   $('conUnit')?.addEventListener('input',updateUnitFields);$('conUnit')?.addEventListener('change',updateUnitFields);
   $('moveConsumable')?.addEventListener('change',movementPreview);$('moveType')?.addEventListener('change',movementPreview);$('moveQty')?.addEventListener('input',movementPreview);
   $('consumableForm')?.addEventListener('submit',saveConsumableV2,true);$('movementForm')?.addEventListener('submit',saveMovementV2,true);
-  $('refresh')?.addEventListener('click',()=>setTimeout(()=>refreshData().then(enhanceRows).catch(()=>{}),350));
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>init().catch(console.error),0),{once:true});else setTimeout(()=>init().catch(console.error),0);

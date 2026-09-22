@@ -7,7 +7,7 @@ if(!window.__A4_EQUIPMENT_RISK_ASSETS__){
   const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽';
   const date=v=>v?new Date(v+'T00:00:00').toLocaleDateString('ru-RU'):'—';
   const today=()=>new Date().toISOString().slice(0,10);
-  let permissions=[],assets=[],overview=[],policies=[],improvements=[],channel=null,reloadTimer=null;
+  let permissions=[],assets=[],overview=[],policies=[],improvements=[],channel=null,reloadTimer=null,realtimeStarted=false,loaded=false;
   const canManage=()=>permissions.includes('equipment.manage');
   const assetName=id=>{const a=assets.find(x=>x.id===id);return a?`${a.inventory_number||'—'} · ${a.name}`:'Оборудование'};
 
@@ -65,12 +65,12 @@ if(!window.__A4_EQUIPMENT_RISK_ASSETS__){
       const [permR,assetR,overviewR,policyR,improvementR]=await Promise.all([
         supabase.rpc('get_my_permissions'),
         supabase.from('equipment_assets').select('id,inventory_number,name,status').neq('status','WRITTEN_OFF').order('inventory_number'),
-        supabase.from('equipment_risk_overview').select('*').neq('equipment_status','WRITTEN_OFF').order('inventory_number'),
-        supabase.from('equipment_insurance_policies').select('*').order('valid_until',{ascending:false}),
-        supabase.from('equipment_improvements').select('*').order('completed_on',{ascending:false})
+        supabase.from('equipment_risk_overview').select('equipment_id,inventory_number,equipment_name,equipment_status,operational_status,ownership_type,current_owner_partner_id,market_value,analogue_purchase_price,active_policy_count,insured_until,active_coverage_amount,active_premium_amount,policies_expiring_30d,overdue_active_policies,improvement_count,improvement_cost_total,estimated_value_increase_total,life_extension_months_total,last_improvement_on,insurance_state').neq('equipment_status','WRITTEN_OFF').order('inventory_number'),
+        supabase.from('equipment_insurance_policies').select('id,equipment_id,insurer,policy_number,coverage_amount,premium_amount,valid_from,valid_until,status,document_id,notes,created_by,created_at,updated_at').order('valid_until',{ascending:false}),
+        supabase.from('equipment_improvements').select('id,equipment_id,improvement_type,title,description,cost,estimated_value_increase,life_extension_months,completed_on,responsible_user_id,document_id,notes,created_by,created_at,updated_at').order('completed_on',{ascending:false})
       ]);
       for(const r of [permR,assetR,overviewR,policyR,improvementR])if(r.error)throw r.error;
-      permissions=Array.isArray(permR.data)?permR.data:[];assets=assetR.data||[];overview=overviewR.data||[];policies=policyR.data||[];improvements=improvementR.data||[];fillAssetSelects();render();
+      permissions=Array.isArray(permR.data)?permR.data:[];assets=assetR.data||[];overview=overviewR.data||[];policies=policyR.data||[];improvements=improvementR.data||[];loaded=true;fillAssetSelects();render();
     }catch(error){console.warn('equipment risk assets unavailable',error);ensureUi();$('#riskPolicies').innerHTML=`<div class="risk-empty">${esc(error?.message||'Ошибка загрузки')}</div>`}
   }
 
@@ -89,6 +89,6 @@ if(!window.__A4_EQUIPMENT_RISK_ASSETS__){
     e.preventDefault();const id=document.getElementById('riskImprovementId').value;const payload={equipment_id:document.getElementById('riskImprovementEquipment').value,improvement_type:document.getElementById('riskImprovementType').value,title:document.getElementById('riskImprovementTitle').value.trim(),description:document.getElementById('riskImprovementDescription').value.trim()||null,cost:Number(document.getElementById('riskImprovementCost').value||0),estimated_value_increase:Number(document.getElementById('riskImprovementValue').value||0),life_extension_months:Number(document.getElementById('riskImprovementLife').value||0),completed_on:document.getElementById('riskImprovementDate').value,notes:document.getElementById('riskImprovementNotes').value.trim()||null};
     const r=id?await supabase.from('equipment_improvements').update(payload).eq('id',id):await supabase.from('equipment_improvements').insert(payload);if(r.error){document.getElementById('riskImprovementError').textContent=r.error.message;return}document.getElementById('riskImprovementDlg').close();await load();
   }
-  function realtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,500)};let ch=supabase.channel('equipment-risk-assets-v1');for(const table of ['equipment_insurance_policies','equipment_improvements','equipment_assets'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(channel)supabase.removeChannel(channel)},{once:true})}
-  const boot=()=>{ensureUi();load();realtime()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  function realtime(){if(realtimeStarted||typeof supabase.channel!=='function')return;realtimeStarted=true;const reload=()=>{if(!loaded)return;clearTimeout(reloadTimer);reloadTimer=setTimeout(load,500)};let ch=supabase.channel('equipment-risk-assets-v1');for(const table of ['equipment_insurance_policies','equipment_improvements','equipment_assets'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(channel)supabase.removeChannel(channel)},{once:true})}
+  const boot=()=>{const root=ensureUi();if(!root)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){observer.disconnect();realtime();load()}},{rootMargin:'180px'});observer.observe(root)};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 }
