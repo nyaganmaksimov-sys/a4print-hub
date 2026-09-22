@@ -1,0 +1,61 @@
+name: Check MASTER PROMPT Order Detail
+
+on:
+  pull_request:
+    paths:
+      - 'admin/order.html'
+      - 'admin/order.js'
+      - 'admin/order-edit.js'
+      - 'admin/order-partner-fulfillment.js'
+      - 'admin/order-catalog-quick.js'
+      - 'admin/order-modern.css'
+      - 'supabase/migrations/*order_workspace_payments_rpc.sql'
+      - '.github/workflows/check-master-prompt-order-detail.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/order.html'
+      - 'admin/order.js'
+      - 'admin/order-edit.js'
+      - 'admin/order-partner-fulfillment.js'
+      - 'admin/order-catalog-quick.js'
+      - 'admin/order-modern.css'
+      - 'supabase/migrations/*order_workspace_payments_rpc.sql'
+
+jobs:
+  order-detail-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/order.js
+          node --input-type=module --check < admin/order-edit.js
+          node --input-type=module --check < admin/order-partner-fulfillment.js
+          node --input-type=module --check < admin/order-catalog-quick.js
+      - name: Order detail architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_order_workspace_payments' admin/order.js
+          grep -q 'a4:order-detail-loaded' admin/order.js
+          grep -q 'a4:order-detail-loaded' admin/order-partner-fulfillment.js
+          grep -q 'a4:order-edit-items-rendered' admin/order-edit.js
+          grep -q 'a4:order-edit-items-rendered' admin/order-catalog-quick.js
+          grep -q 'security invoker' supabase/migrations/20260922215900_order_workspace_payments_rpc.sql
+          ! grep -q 'storage-network-fix.js' admin/order.html
+          ! grep -q "select('\*')" admin/order.js
+          ! grep -q 'customers(\*)' admin/order.js
+          ! grep -q 'order_items(\*)' admin/order.js
+          ! grep -q 'order_status_history(\*)' admin/order.js
+          ! grep -q 'window.alert' admin/order.js
+          ! grep -q 'window.alert' admin/order-edit.js
+          ! grep -q 'window.alert' admin/order-partner-fulfillment.js
+          ! grep -q 'MutationObserver' admin/order.js
+          ! grep -q 'MutationObserver' admin/order-edit.js
+          ! grep -q 'MutationObserver' admin/order-partner-fulfillment.js
+          ! grep -q 'MutationObserver' admin/order-catalog-quick.js
+          ! grep -q 'supabase.channel' admin/order-partner-fulfillment.js

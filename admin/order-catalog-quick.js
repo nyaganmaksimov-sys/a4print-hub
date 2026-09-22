@@ -151,7 +151,7 @@ function bind(){
     if(row){openQuickDialog({nameInput:row.querySelector('[data-edit-name]'),priceInput:row.querySelector('[data-edit-price]'),refresh:()=>refreshQuickButton(row)});return}
     if(button.id==='newOrderCatalogQuickBtn')openQuickDialog({nameInput:document.getElementById('newOrderItem'),priceInput:document.getElementById('newOrderPrice'),refresh:refreshCreateQuickButton});
   });
-  const observer=new MutationObserver(()=>{enhanceRows();enhanceCreateField()});observer.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('a4:order-edit-items-rendered',()=>{enhanceRows();enhanceCreateField()});
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();

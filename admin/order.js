@@ -8,8 +8,9 @@ const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'�
 const prodLabels={NEW:'Новая',QUEUED:'В очереди',IN_PROGRESS:'В работе',PAUSED:'Пауза',DONE:'Готово',CANCELLED:'Отменена'};
 const paidStatuses=new Set(['PAID','COMPLETED','SUCCESS','SUCCESSFUL','CONFIRMED','CAPTURED']);
 const MAX_FILE_SIZE=50*1024*1024;
-const state={order:null,roles:[],staffId:null,docs:[],payments:[],jobs:[],files:[],loading:false,channel:null};
+const state={order:null,roles:[],staffId:null,docs:[],payments:[],jobs:[],files:[],messages:[],loading:false,reloadQueued:false,channel:null,financeError:null,jobsError:null,filesError:null,messagesError:null};
 let reloadTimer=null;
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
 const canProduction=()=>['ADMIN','MANAGER','PRODUCTION'].some(x=>state.roles.includes(x));
@@ -29,29 +30,59 @@ async function context(){
   state.staffId=profile.data?.id||null;
 }
 
-async function load(){
-  if(!id){$('orderInfo').innerHTML='<div class="order-empty">Не указан ID заказа</div>';return}
-  if(state.loading)return;
+async function load(force=false){
+  if(!id){$('orderInfo').innerHTML='<div class="a4-error">Не указан ID заказа</div>';return}
+  if(state.loading){if(force)state.reloadQueued=true;return}
   state.loading=true;$('refresh').disabled=true;$('refresh').textContent='Обновление…';
   try{
-    const orderSelect='*,customers(*),requester:partners!orders_partner_id_fkey(*),executor:partners!orders_fulfillment_partner_id_fkey(*),partner_users(*),order_items(*),order_status_history(*),partner_order_messages(*)';
-    const [order,docs,jobs,files]=await Promise.all([
-      supabase.from('orders').select(orderSelect).eq('id',id).single(),
-      supabase.from('customer_documents').select('id,customer_id,order_id,document_number,document_type,status,title,amount,currency,issue_date,due_date,description,created_at').eq('order_id',id).order('created_at',{ascending:false}),
-      supabase.from('production_jobs').select('id,order_id,assigned_to,status,title,priority,planned_start,planned_end,started_at,completed_at,notes,created_at,updated_at,assignee:users!production_jobs_assigned_to_fkey(full_name,email)').eq('order_id',id).order('created_at',{ascending:false}),
-      supabase.from('order_files').select('id,order_id,file_name,file_url,mime_type,created_at').eq('order_id',id).order('created_at',{ascending:false})
-    ]);
-    if(order.error)throw order.error;if(docs.error)throw docs.error;if(jobs.error)throw jobs.error;if(files.error)throw files.error;
-    state.order=order.data;state.docs=docs.data||[];state.jobs=jobs.data||[];state.files=files.data||[];
+    const baseSelect='id,order_number,business_unit,customer_id,assigned_to,status,total,customer_comment,internal_comment,source,model_id,model_name,model_url,created_at,updated_at,partner_id,partner_user_id,fulfillment_partner_id,partner_direction,due_at,partner_workflow,partner_fulfillment_status,partner_planned_cost,partner_actual_cost,partner_external_ref,partner_tracking,partner_fulfillment_updated_at,partner_sent_at,partner_confirmed_at,partner_production_at,partner_shipped_at,partner_received_at,customers(id,full_name,company_name,phone,email),order_items(id,name,quantity,unit_price,total_price,parameters),order_status_history(id,old_status,new_status,changed_by,comment,created_at)';
+    const managerRelations=canManage()?',requester:partners!orders_partner_id_fkey(id,name,contact_name,email,phone,discount_percent,payment_terms_days),executor:partners!orders_fulfillment_partner_id_fkey(id,name,contact_name,email,phone,discount_percent,payment_terms_days),partner_users(id,full_name,email,phone)':'';
+    const orderQuery=supabase.from('orders').select(baseSelect+managerRelations).eq('id',id).single();
+    const jobsQuery=supabase.from('production_jobs').select('id,order_id,assigned_to,status,title,priority,planned_start,planned_end,started_at,completed_at,notes,created_at,updated_at,assignee:users!production_jobs_assigned_to_fkey(full_name,email)').eq('order_id',id).order('created_at',{ascending:false});
+    const filesQuery=supabase.from('order_files').select('id,order_id,file_name,file_url,mime_type,created_at').eq('order_id',id).order('created_at',{ascending:false});
+    const docsQuery=canManage()?supabase.from('customer_documents').select('id,customer_id,order_id,document_number,document_type,status,title,amount,currency,issue_date,due_date,description,created_at').eq('order_id',id).order('created_at',{ascending:false}):Promise.resolve({data:[],error:null});
+    const messagesQuery=canManage()?supabase.from('partner_order_messages').select('id,order_id,sender_type,body,created_at').eq('order_id',id).order('created_at',{ascending:true}):Promise.resolve({data:[],error:null});
 
-    const paymentQueries=[supabase.from('payments').select('*').eq('order_id',id).order('created_at',{ascending:false})];
-    const docIds=state.docs.map(x=>x.id);
-    if(docIds.length)paymentQueries.push(supabase.from('payments').select('*').in('customer_document_id',docIds).order('created_at',{ascending:false}));
-    const results=await Promise.all(paymentQueries);for(const r of results)if(r.error)throw r.error;
-    state.payments=[...new Map(results.flatMap(r=>r.data||[]).map(x=>[x.id,x])).values()].sort((a,b)=>new Date(b.paid_at||b.created_at)-new Date(a.paid_at||a.created_at));
-    render();$('updatedAt').textContent=`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
-  }catch(error){console.error('Order load failed',error);$('orderInfo').innerHTML=`<div class="order-empty" style="color:#b91c1c">Ошибка: ${esc(error.message||error)}</div>`}
-  finally{state.loading=false;$('refresh').disabled=false;$('refresh').textContent='↻ Обновить'}
+    const [orderR,jobsR,filesR,docsR,messagesR]=await Promise.all([orderQuery,jobsQuery,filesQuery,docsQuery,messagesQuery]);
+    if(orderR.error)throw orderR.error;
+    state.order=orderR.data;
+
+    state.jobsError=jobsR.error||null;
+    state.jobs=jobsR.error?[]:(jobsR.data||[]);
+    if(jobsR.error)console.warn('Order production block unavailable',jobsR.error);
+
+    state.filesError=filesR.error||null;
+    state.files=filesR.error?[]:(filesR.data||[]);
+    if(filesR.error)console.warn('Order files block unavailable',filesR.error);
+
+    state.docs=docsR.error?[]:(docsR.data||[]);
+    state.financeError=docsR.error||null;
+    if(docsR.error)console.warn('Order documents block unavailable',docsR.error);
+
+    state.messagesError=messagesR.error||null;
+    state.messages=messagesR.error?[]:(messagesR.data||[]);
+    if(messagesR.error)console.warn('Order partner messages unavailable',messagesR.error);
+
+    state.payments=[];
+    if(canManage()){
+      const paymentsR=await supabase.rpc('get_order_workspace_payments',{p_order_id:id});
+      if(paymentsR.error){
+        state.financeError=state.financeError||paymentsR.error;
+        console.warn('Order payments block unavailable',paymentsR.error);
+      }else state.payments=paymentsR.data||[];
+    }
+
+    render();
+    $('updatedAt').textContent=`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
+  }catch(error){
+    console.error('Order load failed',error);
+    $('orderInfo').innerHTML=`<div class="a4-error"><b>Не удалось загрузить заказ</b><div style="margin-top:4px">${esc(error.message||error)}</div><button id="orderRetry" type="button" class="a4-btn" style="margin-top:10px">Повторить</button></div>`;
+    $('orderRetry')?.addEventListener('click',()=>load(true));
+    $('updatedAt').textContent='ошибка загрузки';
+  }finally{
+    state.loading=false;$('refresh').disabled=false;$('refresh').textContent='↻ Обновить';
+    if(state.reloadQueued){state.reloadQueued=false;setTimeout(()=>load(),0)}
+  }
 }
 
 function partnerContext(o){
@@ -68,10 +99,12 @@ function render(){
   $('orderDirection').textContent=pc?.direction||(o.customer_id?'КЛИЕНТ → A4PRINT':'HUB');
   document.querySelectorAll('[data-status]').forEach(b=>{b.hidden=!canManage();b.classList.toggle('active',b.dataset.status===o.status)});
   renderOrder(o,pc,c);renderFiles();renderFinance(o,pc);renderProduction();renderHistory(o);renderMessages(o);
+  window.__A4_ORDER_DETAIL__={order:o,roles:[...state.roles]};
+  document.dispatchEvent(new CustomEvent('a4:order-detail-loaded',{detail:window.__A4_ORDER_DETAIL__}));
 }
 
 function renderOrder(o,pc,c){
-  if(pc){const p=pc.partner;$('partnerBlock').innerHTML=`<div class="order-partner"><b>${esc(pc.role)} · <a class="order-link" href="./partner.html?id=${encodeURIComponent(pc.id)}">${esc(p.name||'Партнёр')}</a></b><small>${esc(o.partner_users?.full_name||p.contact_name||'')}${p.phone?' · '+esc(p.phone):''}${p.email?' · '+esc(p.email):''}<br>Скидка ${Number(p.discount_percent||0)}% · отсрочка ${Number(p.payment_terms_days||0)} дн.</small></div>`}else $('partnerBlock').innerHTML='';
+  if(pc&&canManage()){const p=pc.partner;$('partnerBlock').innerHTML=`<div class="order-partner"><b>${esc(pc.role)} · <a class="order-link" href="./partner.html?id=${encodeURIComponent(pc.id)}">${esc(p.name||'Партнёр')}</a></b><small>${esc(o.partner_users?.full_name||p.contact_name||'')}${p.phone?' · '+esc(p.phone):''}${p.email?' · '+esc(p.email):''}<br>Скидка ${Number(p.discount_percent||0)}% · отсрочка ${Number(p.payment_terms_days||0)} дн.</small></div>`}else if(pc){$('partnerBlock').innerHTML=`<div class="order-partner"><b>${esc(pc.direction)}</b><small>Детали партнёра доступны менеджеру или администратору.</small></div>`}else $('partnerBlock').innerHTML='';
   const outbound=String(o.partner_direction||'').toUpperCase()==='OUTBOUND'&&o.fulfillment_partner_id;
   const customerName=c.company_name||c.full_name||'Не указан';
   const customerContact=[c.full_name&&c.company_name?c.full_name:'',c.phone,c.email].filter(Boolean).join(' · ')||'—';
@@ -98,6 +131,7 @@ function renderFiles(){
   if(count)count.textContent=String(state.files.length);
   if(actions)actions.hidden=!canManage();
   if(!list)return;
+  if(state.filesError){list.innerHTML='<div class="a4-error">Файлы временно недоступны. Остальная карточка продолжает работать.</div>';return}
   list.innerHTML=state.files.length?state.files.map(file=>`<div class="order-file-row"><div class="order-file-icon">${esc(fileIcon(file.mime_type,file.file_name))}</div><div class="order-file-meta"><b title="${esc(file.file_name)}">${esc(file.file_name)}</b><small>${esc(file.mime_type||'файл')} · ${esc(fmtDate(file.created_at,true))}</small></div><button class="order-file-open" type="button" data-order-file="${esc(file.id)}">Открыть</button></div>`).join(''):'<div class="order-empty">Файлы не прикреплены</div>';
 }
 
@@ -112,7 +146,7 @@ async function openOrderFile(fileId,button){
     }
     if(!url)throw new Error('Не удалось получить ссылку на файл.');
     window.open(url,'_blank','noopener,noreferrer');
-  }catch(error){alert(`Не удалось открыть файл: ${error.message||error}`)}
+  }catch(error){notify('error','Не удалось открыть файл',error.message||String(error))}
   finally{button.disabled=false;button.textContent=old}
 }
 
@@ -126,7 +160,7 @@ async function addOrderFiles(fileList){
   if(!canManage())return;
   const files=[...(fileList||[])];if(!files.length)return;
   const tooLarge=files.filter(f=>f.size>MAX_FILE_SIZE);
-  if(tooLarge.length){alert(`Файл больше 50 МБ: ${tooLarge.map(f=>f.name).join(', ')}`);return}
+  if(tooLarge.length){notify('warning','Файл слишком большой',`Максимум 50 МБ: ${tooLarge.map(f=>f.name).join(', ')}`);return}
   const button=$('addOrderFiles'),status=$('orderFileStatus');button.disabled=true;
   const failures=[];
   try{
@@ -141,7 +175,7 @@ async function addOrderFiles(fileList){
         if(meta.error){await supabase.storage.from('order-files').remove([path]).catch(()=>{});throw meta.error}
       }catch(error){console.error('Order file upload failed',file.name,error);failures.push(file.name)}
     }
-    if(failures.length)alert(`Не удалось прикрепить: ${failures.join(', ')}`);
+    if(failures.length)notify('warning','Не все файлы прикреплены',failures.join(', '),{duration:9000});
     await load();
   }finally{
     button.disabled=false;button.textContent='📎 Прикрепить файлы';if(status)status.textContent='до 50 МБ на файл';const input=$('orderFileInput');if(input)input.value='';
@@ -149,14 +183,29 @@ async function addOrderFiles(fileList){
 }
 
 function renderMessages(o){
-  $('partnerMessagesSection').hidden=!o.partner_id;if(!o.partner_id)return;
-  const rows=(o.partner_order_messages||[]).slice().sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  $('partnerMessagesSection').hidden=!o.partner_id||!canManage();if(!o.partner_id||!canManage())return;
+  if(state.messagesError){$('partnerMessages').innerHTML='<div class="a4-error">Переписка временно недоступна.</div>';return}
+  const rows=state.messages;
   $('partnerMessages').innerHTML=rows.map(m=>`<div class="order-message-bubble ${m.sender_type==='STAFF'?'staff':''}"><b>${m.sender_type==='PARTNER'?'Партнёр':'A4PRINT'}</b><div>${esc(m.body)}</div><small>${esc(fmtDate(m.created_at,true))}</small></div>`).join('')||'<div class="order-empty">Сообщений пока нет</div>';
   $('partnerReply').disabled=!canManage();$('sendPartnerReply').hidden=!canManage();
 }
 
 function renderFinance(o,pc){
   $('orderTotal').textContent=money(o.total);
+  if(!canManage()){
+    $('invoicedTotal').textContent='—';$('paidTotal').textContent='—';$('debtTotal').textContent='—';
+    $('invoicedNote').textContent='ограничено ролью';$('debtNote').textContent='ограничено ролью';
+    $('financeTitle').textContent='Финансы заказа';$('financeSubtitle').textContent='Доступно менеджеру или администратору';
+    $('financeBadge').className='order-badge gray';$('financeBadge').textContent='—';
+    $('financeMessage').innerHTML='<div class="order-alert blue">Финансовые данные скрыты для текущей роли. Заказ, файлы и производство доступны независимо.</div>';
+    $('invoiceList').innerHTML='';$('paymentList').innerHTML='';$('financeActions').hidden=true;return;
+  }
+  $('financeActions').hidden=false;
+  if(state.financeError){
+    $('invoicedTotal').textContent='—';$('paidTotal').textContent='—';$('debtTotal').textContent='—';
+    $('financeMessage').innerHTML='<div class="a4-error">Финансовый блок временно недоступен. Остальная карточка загружена.</div>';
+    $('invoiceList').innerHTML='';$('paymentList').innerHTML='';return;
+  }
   if(pc&&String(o.partner_direction||'').toUpperCase()==='INBOUND'){
     $('invoicedTotal').textContent='—';$('paidTotal').textContent='—';$('debtTotal').textContent='—';$('debtLabel').textContent='Расчёты';$('invoicedNote').textContent='партнёрский контур';$('debtNote').textContent='отдельно от клиентских оплат';
     $('financeTitle').textContent='Расчёты с партнёром';$('financeSubtitle').textContent='Партнёрские взаиморасчёты не смешиваются с клиентскими счетами';$('financeBadge').className='order-badge orange';$('financeBadge').textContent='PARTNER';
@@ -182,16 +231,17 @@ function renderFinance(o,pc){
 
 function renderProduction(){
   $('productionCount').textContent=state.jobs.length;
+  if(state.jobsError){$('productionJobs').innerHTML='<div class="a4-error">Производственный блок временно недоступен.</div>';$('productionBtn').hidden=true;return}
   $('productionJobs').innerHTML=state.jobs.length?state.jobs.map(j=>`<div class="order-production-job"><b>${esc(j.title||'Производственное задание')} · <span class="order-badge ${tone(j.status)}">${esc(prodLabels[j.status]||j.status)}</span></b><small>${j.assignee?.full_name||j.assignee?.email?`Исполнитель: ${esc(j.assignee?.full_name||j.assignee?.email)} · `:''}приоритет ${Number(j.priority||0)}${j.planned_end?' · срок '+esc(fmtDate(j.planned_end,true)):''}</small></div>`).join(''):'<div class="order-empty">Производственных заданий пока нет</div>';
   $('productionBtn').hidden=!canProduction()||state.jobs.length>0;
 }
 
 function renderHistory(o){const rows=(o.order_status_history||[]).slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));$('history').innerHTML=rows.length?rows.map(h=>`<div class="order-history-row"><b>${esc(labels[h.new_status]||h.new_status)}</b><small>${esc(fmtDate(h.created_at,true))}${h.comment?' · '+esc(h.comment):''}</small></div>`).join(''):'<div class="order-empty">История пока пуста</div>'}
 
-async function saveComment(){if(!canManage())return;const b=$('saveComment');b.disabled=true;try{const {error}=await supabase.from('orders').update({internal_comment:$('internalComment').value,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error;await load()}catch(e){alert(e.message||e)}finally{b.disabled=false}}
-async function sendMessage(){if(!canManage())return;const body=$('partnerReply').value.trim();if(!body)return;const b=$('sendPartnerReply');b.disabled=true;try{const {error}=await supabase.from('partner_order_messages').insert({order_id:id,staff_user_id:state.staffId,sender_type:'STAFF',body});if(error)throw error;$('partnerReply').value='';await load()}catch(e){alert(e.message||e)}finally{b.disabled=false}}
-async function changeStatus(next){if(!canManage()||!state.order||state.order.status===next)return;const old=state.order.status;const {error}=await supabase.from('orders').update({status:next,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await supabase.from('order_status_history').insert({order_id:id,old_status:old,new_status:next,comment:'Изменено из карточки заказа'});await load()}
-async function sendProduction(){if(!canProduction()||state.jobs.length)return;const o=state.order,b=$('productionBtn');b.disabled=true;try{const {error}=await supabase.from('production_jobs').insert({order_id:id,title:`Заказ №${o.order_number}${o.model_name?' — '+o.model_name:''}`,status:'NEW',priority:50});if(error)throw error;if(canManage()&&o.status==='NEW')await changeStatus('CONFIRMED');else await load()}catch(e){alert(e.message||e)}finally{b.disabled=false}}
+async function saveComment(){if(!canManage())return;const b=$('saveComment');b.disabled=true;try{const {error}=await supabase.from('orders').update({internal_comment:$('internalComment').value,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error;await load(true)}catch(e){notify('error','Комментарий не сохранён',e.message||String(e))}finally{b.disabled=false}}
+async function sendMessage(){if(!canManage())return;const body=$('partnerReply').value.trim();if(!body)return;const b=$('sendPartnerReply');b.disabled=true;try{const {error}=await supabase.from('partner_order_messages').insert({order_id:id,staff_user_id:state.staffId,sender_type:'STAFF',body});if(error)throw error;$('partnerReply').value='';await load(true)}catch(e){notify('error','Сообщение не отправлено',e.message||String(e))}finally{b.disabled=false}}
+async function changeStatus(next){if(!canManage()||!state.order||state.order.status===next)return;const old=state.order.status;const {error}=await supabase.from('orders').update({status:next,updated_at:new Date().toISOString()}).eq('id',id);if(error){notify('error','Статус не изменён',error.message||String(error));return}const history=await supabase.from('order_status_history').insert({order_id:id,old_status:old,new_status:next,comment:'Изменено из карточки заказа'});if(history.error)notify('warning','Статус изменён, но история не записалась',history.error.message||String(history.error));await load(true)}
+async function sendProduction(){if(!canProduction()||state.jobs.length)return;const o=state.order,b=$('productionBtn');b.disabled=true;try{const {error}=await supabase.from('production_jobs').insert({order_id:id,title:`Заказ №${o.order_number}${o.model_name?' — '+o.model_name:''}`,status:'NEW',priority:50});if(error)throw error;if(canManage()&&o.status==='NEW')await changeStatus('CONFIRMED');else await load(true)}catch(e){notify('error','Не удалось передать в производство',e.message||String(e))}finally{b.disabled=false}}
 
 function openInvoice(){
   const o=state.order;if(!o?.customer_id||!canManage())return;const docs=state.docs.filter(docActive),invoiced=docs.reduce((s,d)=>s+Number(d.amount||0),0),paid=state.payments.filter(paymentOk).reduce((s,p)=>s+Number(p.amount||0),0),debt=Math.max(0,Number(o.total||0)-paid),uninvoiced=Math.max(0,Number(o.total||0)-invoiced);
@@ -202,8 +252,8 @@ async function createInvoice(e){
   try{const {data,error}=await supabase.rpc('create_customer_invoice',{p_customer_id:state.order.customer_id,p_amount:amount,p_description:$('invoiceDescription').value.trim(),p_due_date:$('invoiceDue').value||null,p_order_id:id});if(error)throw error;$('invoiceDlg').close();await load();$('financeMessage').innerHTML=`<div class="order-alert green">Счёт создан и связан с заказом. <a class="order-link" href="./invoice.html?id=${encodeURIComponent(data)}">Открыть счёт</a></div>`}catch(err){$('invoiceError').textContent=err.message||String(err)}finally{b.disabled=false}
 }
 
-$('refresh').addEventListener('click',load);$('saveComment').addEventListener('click',saveComment);$('sendPartnerReply').addEventListener('click',sendMessage);$('productionBtn').addEventListener('click',sendProduction);$('createInvoice').addEventListener('click',openInvoice);$('closeInvoiceDlg').addEventListener('click',()=>$('invoiceDlg').close());$('invoiceForm').addEventListener('submit',createInvoice);document.querySelectorAll('[data-status]').forEach(b=>b.addEventListener('click',()=>changeStatus(b.dataset.status)));
+$('refresh').addEventListener('click',()=>load(true));$('saveComment').addEventListener('click',saveComment);$('sendPartnerReply').addEventListener('click',sendMessage);$('productionBtn').addEventListener('click',sendProduction);$('createInvoice').addEventListener('click',openInvoice);$('closeInvoiceDlg').addEventListener('click',()=>$('invoiceDlg').close());$('invoiceForm').addEventListener('submit',createInvoice);document.querySelectorAll('[data-status]').forEach(b=>b.addEventListener('click',()=>changeStatus(b.dataset.status)));
 $('addOrderFiles')?.addEventListener('click',()=>$('orderFileInput')?.click());$('orderFileInput')?.addEventListener('change',event=>addOrderFiles(event.target.files));$('orderFiles')?.addEventListener('click',event=>{const button=event.target.closest('[data-order-file]');if(button)openOrderFile(button.dataset.orderFile,button)});
-function realtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,650)};let ch=supabase.channel(`order-card-${id}`);for(const table of ['orders','order_status_history','partner_order_messages','production_jobs','customer_documents','payments','order_files'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
+function realtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(()=>load(true),650)};let ch=supabase.channel(`order-card-${id}`);for(const table of ['orders','order_status_history','partner_order_messages','production_jobs','customer_documents','payments','order_files'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
 
 await context();await load();realtime();
