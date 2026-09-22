@@ -9,7 +9,6 @@ const originalListen=express.application.listen;
 
 const clean=(v,max=1000)=>String(v??'').trim().slice(0,max);
 const num=(v,min=0,max=1e9,fallback=0)=>{const n=Number(v);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback};
-const sum=(rows,key)=>Number((rows||[]).reduce((a,x)=>a+Number(x?.[key]||0),0).toFixed(2));
 
 async function staffContext(req){
   if(!service)return{error:'DATABASE_NOT_CONFIGURED',status:503};
@@ -44,27 +43,43 @@ async function getPartner(id){
 async function loadDetails(id){
   const partner=await getPartner(id);
   if(!partner)return null;
-  const [usersRes,ordersRes,crmOrdersRes,servicesRes,servicesCountRes,activeServicesCountRes,customersRes]=await Promise.all([
+  const [usersRes,ordersRes,crmOrdersRes,servicesRes,metricsRes]=await Promise.all([
     service.from('partner_users').select('id,partner_id,auth_user_id,full_name,email,phone,is_admin,is_active,created_at,updated_at').eq('partner_id',id).order('created_at',{ascending:true}),
-    service.from('orders').select('id,order_number,status,total,source,created_at,updated_at,partner_id,partner_user_id,fulfillment_partner_id,partner_direction,customer_comment').or(`partner_id.eq.${id},fulfillment_partner_id.eq.${id}`).order('created_at',{ascending:false}).limit(500),
-    service.from('partner_crm_orders').select('id,order_number,title,status,sale_total,production_cost,prepaid,due_date,a4print_order_id,created_at,updated_at').eq('partner_id',id).order('created_at',{ascending:false}).limit(500),
-    service.from('partner_supplier_services').select('id,category,name,description,unit,price,is_active,created_at,updated_at').eq('partner_id',id).order('category').order('name').limit(80),
-    service.from('partner_supplier_services').select('id',{count:'exact',head:true}).eq('partner_id',id),
-    service.from('partner_supplier_services').select('id',{count:'exact',head:true}).eq('partner_id',id).eq('is_active',true),
-    service.from('partner_crm_customers').select('id',{count:'exact',head:true}).eq('partner_id',id)
+    service.from('orders')
+      .select('id,order_number,status,total,source,created_at,updated_at,partner_id,partner_user_id,fulfillment_partner_id,partner_direction,customer_comment')
+      .or(`partner_id.eq.${id},fulfillment_partner_id.eq.${id}`)
+      .order('created_at',{ascending:false})
+      .limit(100),
+    service.from('partner_crm_orders')
+      .select('id,order_number,title,status,sale_total,production_cost,prepaid,due_date,a4print_order_id,created_at,updated_at')
+      .eq('partner_id',id)
+      .order('created_at',{ascending:false})
+      .limit(100),
+    service.from('partner_supplier_services')
+      .select('id,category,name,description,unit,price,is_active,created_at,updated_at')
+      .eq('partner_id',id)
+      .order('category')
+      .order('name')
+      .limit(80),
+    service.rpc('get_partner_profile_metrics',{p_partner_id:id})
   ]);
-  for(const r of [usersRes,ordersRes,crmOrdersRes,servicesRes,servicesCountRes,activeServicesCountRes])if(r.error)throw r.error;
-  if(customersRes.error)throw customersRes.error;
+  for(const r of [usersRes,ordersRes,crmOrdersRes,servicesRes,metricsRes])if(r.error)throw r.error;
   const users=usersRes.data||[],orders=ordersRes.data||[],crmOrders=crmOrdersRes.data||[],supplierServices=servicesRes.data||[];
-  const fromPartner=orders.filter(x=>x.partner_id===id),toPartner=orders.filter(x=>x.fulfillment_partner_id===id);
-  const crmSales=sum(crmOrders,'sale_total'),crmPrepaid=sum(crmOrders,'prepaid');
-  const crmReceivable=Number(crmOrders.reduce((a,x)=>a+Math.max(0,Number(x.sale_total||0)-Number(x.prepaid||0)),0).toFixed(2));
+  const metrics=Array.isArray(metricsRes.data)?(metricsRes.data[0]||{}):(metricsRes.data||{});
   return{partner,users,orders,crm_orders:crmOrders,supplier_services:supplierServices,stats:{
-    users_count:users.length,active_users:users.filter(x=>x.is_active).length,
-    orders_from_partner:fromPartner.length,orders_to_partner:toPartner.length,
-    turnover_from_partner:sum(fromPartner,'total'),turnover_to_partner:sum(toPartner,'total'),
-    crm_orders_count:crmOrders.length,crm_sales:crmSales,crm_prepaid:crmPrepaid,crm_receivable:crmReceivable,
-    crm_customers_count:Number(customersRes.count||0),supplier_services_count:Number(servicesCountRes.count||0),active_supplier_services:Number(activeServicesCountRes.count||0)
+    users_count:users.length,
+    active_users:users.filter(x=>x.is_active).length,
+    orders_from_partner:Number(metrics.orders_from_partner||0),
+    orders_to_partner:Number(metrics.orders_to_partner||0),
+    turnover_from_partner:Number(metrics.turnover_from_partner||0),
+    turnover_to_partner:Number(metrics.turnover_to_partner||0),
+    crm_orders_count:Number(metrics.crm_orders_count||0),
+    crm_sales:Number(metrics.crm_sales||0),
+    crm_prepaid:Number(metrics.crm_prepaid||0),
+    crm_receivable:Number(metrics.crm_receivable||0),
+    crm_customers_count:Number(metrics.crm_customers_count||0),
+    supplier_services_count:Number(metrics.supplier_services_count||0),
+    active_supplier_services:Number(metrics.active_supplier_services||0)
   }};
 }
 
