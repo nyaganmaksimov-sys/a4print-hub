@@ -213,7 +213,7 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-  const obs=new MutationObserver(()=>{removeClutter();groupNavigation();const top=document.querySelector('.topbar');if(top)wireProfileTrigger(top);placeNotification()});
-  const startObs=()=>document.body&&obs.observe(document.body,{childList:true,subtree:true});
-  if(document.body)startObs();else document.addEventListener('DOMContentLoaded',startObs,{once:true});
+  // Runtime layout is now bootstrapped once instead of observing the entire DOM forever.
+  // A short post-load refresh catches late notification/profile mounts without creating a repaint loop.
+  window.addEventListener('load',()=>setTimeout(()=>{removeClutter();groupNavigation();const top=document.querySelector('.topbar');if(top)wireProfileTrigger(top);placeNotification();mobileMenu()},250),{once:true});
 })();
