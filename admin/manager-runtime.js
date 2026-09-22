@@ -31,6 +31,7 @@
     let selectedPriceGroup=null;
     let refreshPromise=null;
     let bootPromise=null;
+    let pricePromise=null;
 
     function setStatus(text,state=''){
       const el=$('managerStatus');
@@ -67,7 +68,7 @@
       }catch{}
     }
 
-    async function fetchJson(url,{method='GET',headers={},body,timeout=22000}={}){
+    async function fetchJson(url,{method='GET',headers={},body,timeout=7000}={}){
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),timeout);
       try{
@@ -91,7 +92,7 @@
           method:'POST',
           headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Accept:'application/json'},
           body:JSON.stringify({refresh_token:current.refresh_token}),
-          timeout:18000
+          timeout:9000
         });
         if(!r.ok||!data?.access_token)return null;
         saveSession(data);
@@ -108,7 +109,7 @@
       return s?.access_token||storedSession()?.access_token||'';
     }
 
-    async function request(path,{method='GET',body,prefer,retry=true,timeout=22000}={}){
+    async function request(path,{method='GET',body,prefer,retry=true,timeout=7000}={}){
       const access=await token();
       if(!access){const e=new Error('Требуется повторный вход в A4PRINT HUB.');e.status=401;throw e}
       const headers={apikey:key,Authorization:`Bearer ${access}`,Accept:'application/json'};
@@ -280,7 +281,24 @@
       return priceGroups.length;
     }
 
-    $('direction').onchange=renderCategories;
+    async function ensurePriceCatalog(){
+      if(priceGroups.length)return priceGroups.length;
+      if(pricePromise)return pricePromise;
+      pricePromise=loadPriceCatalog().catch(error=>{
+        $('serviceHint').textContent='Не удалось загрузить прайс: '+error.message;
+        console.warn('Manager price catalog',error);
+        return 0;
+      }).finally(()=>{pricePromise=null});
+      return pricePromise;
+    }
+
+    function schedulePriceCatalog(){
+      const run=()=>{void ensurePriceCatalog()};
+      if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:1800});
+      else setTimeout(run,500);
+    }
+
+    $('direction').onchange=async()=>{if($('direction').value==='A4_PRINT')await ensurePriceCatalog();renderCategories()};
     $('category').onchange=renderServices;
     $('service').onchange=applySelectedPrice;
     $('qty').oninput=()=>{if(selectedPriceGroup)applySelectedPrice();else calc()};
@@ -311,7 +329,7 @@
     }
 
     async function loadOrders(){
-      const data=await request('/rest/v1/orders?select=id,order_number,status,total,created_at,customers(full_name,company_name)&order=created_at.desc&limit=8');
+      const data=await request('/rest/v1/orders?select=id,order_number,status,total,created_at,customers(full_name,company_name)&source=neq.KASSA&partner_direction=eq.NONE&partner_id=is.null&fulfillment_partner_id=is.null&order=created_at.desc&limit=8');
       const rows=Array.isArray(data)?data:[];
       $('orders').innerHTML=rows.map(o=>`<a class="order-mini" href="./order.html?id=${encodeURIComponent(o.id)}" style="text-decoration:none;color:inherit"><b>Заказ №${esc(o.order_number||'—')} · ${money(o.total)}</b><small>${esc(o.customers?.full_name||o.customers?.company_name||'Клиент не указан')} · ${esc(o.status||'')}</small></a>`).join('')||'<div class="empty-mini">Заказов пока нет</div>';
       return rows.length;
@@ -379,16 +397,13 @@
         if(s?.user?.email)$('userEmail').textContent=s.user.email;
         await verifyAccess();
         setStatus('Загружаем данные…');
-        const results=await Promise.allSettled([loadPriceCatalog(),loadCustomers(),loadOrders()]);
-        const [priceResult,customersResult,ordersResult]=results;
-        if(priceResult.status==='rejected'){
-          $('serviceHint').textContent='Не удалось загрузить прайс: '+priceResult.reason.message;
-          console.error(priceResult.reason);
-        }
+        const results=await Promise.allSettled([loadCustomers(),loadOrders()]);
+        const [customersResult,ordersResult]=results;
         if(customersResult.status==='rejected')$('customers').innerHTML=`<div class="empty-mini">Не удалось загрузить клиентов: ${esc(customersResult.reason.message)}</div>`;
         if(ordersResult.status==='rejected')$('orders').innerHTML=`<div class="empty-mini">Не удалось загрузить заказы: ${esc(ordersResult.reason.message)}</div>`;
         const failed=results.filter(x=>x.status==='rejected').length;
         setStatus(failed?`Работает частично · ошибок: ${failed}`:'Система готова',failed?'warn':'ok');
+        schedulePriceCatalog();
         return results;
       })().catch(ex=>{handleFatal(ex);throw ex}).finally(()=>{bootPromise=null});
       return bootPromise;

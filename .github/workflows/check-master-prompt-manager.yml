@@ -1,0 +1,59 @@
+name: Check MASTER PROMPT Manager
+
+on:
+  pull_request:
+    paths:
+      - 'admin/manager.html'
+      - 'admin/manager-page.css'
+      - 'admin/manager-runtime.js'
+      - 'admin/manager-workspace.js'
+      - 'admin/manager-compact-calendar.js'
+      - 'admin/config.js'
+      - '.github/workflows/check-master-prompt-manager.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/manager.html'
+      - 'admin/manager-page.css'
+      - 'admin/manager-runtime.js'
+      - 'admin/manager-workspace.js'
+      - 'admin/manager-compact-calendar.js'
+      - 'admin/config.js'
+
+jobs:
+  manager-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --check admin/config.js
+          node --check admin/manager-runtime.js
+          node --check admin/manager-compact-calendar.js
+          node --input-type=module --check < admin/manager-workspace.js
+      - name: Manager architecture contract
+        shell: bash
+        run: |
+          test -s admin/manager-page.css
+          grep -q 'managerOperationsGrid' admin/manager.html
+          grep -q 'managerCalendarWrap' admin/manager.html
+          grep -q 'managerBriefingCards' admin/manager.html
+          grep -q 'schedulePriceCatalog' admin/manager-runtime.js
+          grep -q 'source=neq.KASSA&partner_direction=eq.NONE' admin/manager-runtime.js
+          grep -q 'a4:manager-calendar-rendered' admin/manager-workspace.js
+          grep -q 'a4:manager-calendar-rendered' admin/manager-compact-calendar.js
+          test "$(grep -c 'manager-runtime.js' admin/manager.html)" -eq 1
+          ! grep -q 'manager-clean.js' admin/manager.html
+          ! grep -q 'manager-layout.js' admin/manager.html
+          ! grep -q 'manager-widgets.js' admin/manager.html
+          ! grep -q 'MutationObserver' admin/manager-runtime.js
+          ! grep -q 'MutationObserver' admin/manager-workspace.js
+          ! grep -q 'MutationObserver' admin/manager-compact-calendar.js
+          ! grep -q 'window.alert' admin/manager-runtime.js
+          ! grep -q 'window.alert' admin/manager-workspace.js
+          ! grep -q 'manager-runtime.js' admin/config.js
+          ! grep -q 'manager-clean.js' admin/config.js

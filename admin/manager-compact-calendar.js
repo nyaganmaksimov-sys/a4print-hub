@@ -96,11 +96,11 @@
       html.a4-manager-compact .manager-calendar-card .calendar-grid{min-width:560px!important}
     }
   `;
+  if(document.querySelector('link[href*="manager-page.css"]'))style.disabled=true;
   document.head.appendChild(style);
 
   let hideTimer=0;
   let hover=null;
-  const ownMutationClass=new Set(['calendar-markers','calendar-marker','calendar-count']);
   function hoverBox(){
     if(hover)return hover;
     hover=document.createElement('div');
@@ -181,17 +181,9 @@
 
   let queued=false;
   function schedule(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;decorateCalendar()})}
-  function isOwnNode(node){return node instanceof HTMLElement&&[...ownMutationClass].some(cls=>node.classList.contains(cls))}
   function init(){
     schedule();
-    const observer=new MutationObserver(muts=>{
-      const relevant=muts.some(m=>{
-        if(m.type!=='childList'||!m.target.closest?.('#managerCalendarGrid'))return false;
-        return [...m.addedNodes,...m.removedNodes].some(n=>n.nodeType===1&&!isOwnNode(n));
-      });
-      if(relevant)schedule();
-    });
-    observer.observe(document.body,{childList:true,subtree:true});
+    document.addEventListener('a4:manager-calendar-rendered',schedule);
     window.addEventListener('scroll',()=>hoverBox().classList.remove('show'),{passive:true});
     window.addEventListener('resize',()=>hoverBox().classList.remove('show'));
   }

@@ -4,79 +4,185 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Рабочий стол менеджера — A4PRINT HUB</title>
-<script>
-(()=>{
-  const root=document.documentElement;root.classList.add('manager-ui-boot');let observer=null;
-  const reveal=()=>{if(!root.classList.contains('manager-ui-boot'))return;requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.remove('manager-ui-boot')));observer?.disconnect()};
-  const watch=()=>{if(document.querySelector('#managerCalendarWrap.manager-workspace-v3')){reveal();return}observer=new MutationObserver(()=>{if(document.querySelector('#managerCalendarWrap.manager-workspace-v3'))reveal()});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']})};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watch,{once:true});else watch();setTimeout(reveal,7000);
-})();
-</script>
 <link rel="stylesheet" href="./styles.css?v=20260905-4">
-<script src="./config.js?v=20260922-direct1"></script>
-<style>
-html.manager-ui-boot body{overflow:hidden;background:#f6f8fb!important}html.manager-ui-boot .main{visibility:hidden!important;opacity:0!important}html.manager-ui-boot body:before{content:'';position:fixed;z-index:99998;inset:0 0 0 335px;background:#f6f8fb}html.manager-ui-boot body:after{content:'Загружаем рабочий стол…';position:fixed;z-index:99999;left:calc(335px + (100vw - 335px)/2);top:50%;transform:translate(-50%,-50%);padding:16px 22px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 10px 35px rgba(15,23,42,.08);color:#334155;font:800 13px system-ui;white-space:nowrap}html.manager-ui-boot .sidebar{visibility:visible!important}html:not(.manager-ui-boot) .main{animation:managerReadyFade .14s ease-out both}@keyframes managerReadyFade{from{opacity:.35}to{opacity:1}}
-body{background:#f6f8fb}.main{min-width:0}.manager-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}.quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:12px}.quick a{display:block;min-width:0;padding:12px 14px;border:1px solid #e6ebf2;border-radius:14px;background:#fff;text-decoration:none;color:#0f172a;font-weight:800}.quick a span{display:block;color:#64748b;font-size:10.5px;font-weight:600;margin-top:4px}.manager-panel{background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:14px;min-width:0}.manager-panel h2{margin:0}.panel-head2{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.panel-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.panel-head2 a{font-size:11px;color:#5b21b6;text-decoration:none}.searchbox,.calc-grid input,.calc-grid select,.client-form input,.client-form select,.client-form textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dbe1ea;border-radius:9px;font:inherit;background:#fff;color:#0f172a;min-width:0}.calc-grid input[readonly]{background:#f8fafc;font-weight:800}.customer-mini,.order-mini{display:grid;gap:2px;padding:9px 2px;border-bottom:1px solid #eef2f7}.customer-mini:last-child,.order-mini:last-child{border-bottom:0}.customer-mini b,.order-mini b{font-size:12px}.customer-mini small,.order-mini small{color:#64748b;font-size:10px}.calc-grid,.client-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.calc-grid label,.client-form label{display:grid;gap:4px;font-size:11px;color:#475569;min-width:0}.calc-grid .full,.client-form .full{grid-column:1/-1}.calc-total{margin-top:10px;padding:11px 12px;border-radius:11px;background:#f8fafc;border:1px solid #e6ebf2;display:flex;justify-content:space-between;align-items:center}.calc-total strong{font-size:22px}.calc-note{font-size:10px;color:#64748b;margin-top:7px;line-height:1.4}.chat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chat-card{display:block;padding:10px;border-radius:11px;background:#f8fafc;border:1px solid #e6ebf2;text-decoration:none;color:#0f172a;font-weight:750}.chat-card small{display:block;color:#64748b;font-weight:500;margin-top:3px;font-size:9.5px}.empty-mini{padding:14px;color:#94a3b8;text-align:center}.section-gap{margin-top:12px}.client-create{display:none;margin:0 0 10px;padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px}.client-create.open{display:block}.client-create h3{margin:0 0 10px}.client-form textarea{min-height:64px;resize:vertical}.business-fields{display:contents}.business-fields.hidden{display:none}.client-form-actions{grid-column:1/-1;display:flex;gap:7px;align-items:center;flex-wrap:wrap}.client-form-msg{font-size:11px;color:#64748b}.client-form-msg.ok{color:#166534}.client-form-msg.err{color:#b91c1c}.billing-badge{display:inline-flex;padding:2px 6px;border-radius:999px;background:#ecfdf5;color:#166534;font-size:9px;font-weight:800;margin-left:5px}.manager-user{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}.manager-status{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:10px;font-weight:800}.manager-status.ok{background:#ecfdf5;color:#166534}.manager-status.warn{background:#fff7ed;color:#9a3412}.manager-status.err{background:#fff1f2;color:#be123c}.manager-status:before{content:'●';font-size:7px}.user-email{font-size:10px;color:#64748b}.manager-actions{display:flex;gap:6px;align-items:center}.manager-user button,.panel-actions button,#resetCalc,.client-form-actions button{appearance:none;border:1px solid #dbe4f0;background:#fff;color:#334155;border-radius:9px;padding:6px 9px;min-height:30px;font:700 10.5px system-ui;cursor:pointer}#toggleClientForm{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}#saveClient{background:#2563eb;border-color:#2563eb;color:#fff}#cancelClient,#resetCalc{background:#fff;color:#64748b}
-@media(max-width:1000px){.manager-grid{grid-template-columns:1fr}.quick{grid-template-columns:1fr 1fr}}@media(max-width:620px){html.manager-ui-boot body:before{inset:0}html.manager-ui-boot body:after{left:50%}.quick,.chat-cards,.calc-grid,.client-form{grid-template-columns:1fr}.calc-grid .full,.client-form .full,.client-form-actions{grid-column:auto}.sidebar{display:none}.main{margin-left:0!important}.topbar{align-items:flex-start}.manager-user{justify-content:flex-start}}
-</style>
-  <link rel="stylesheet" href="./human-light-ui.css?v=20260922-3">
+<script src="./config.js?v=20260922-manager1"></script>
+<link rel="stylesheet" href="./manager-page.css?v=20260922-manager1">
 </head>
-<body>
+<body class="manager-page">
 <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
+
 <main class="main">
-<header class="topbar">
-  <div><h1>🧑‍💼 Рабочий стол менеджера</h1><p>Клиенты, заказы, календарь, задачи и расчёты в одном месте</p></div>
-  <div class="manager-user"><span id="managerStatus" class="manager-status">Подключение…</span><div class="manager-actions"><button id="refreshManager" type="button">↻ Обновить</button></div><span id="userEmail" class="user-email"></span></div>
-</header>
-<section class="quick">
-  <a href="./customers.html">👥 База клиентов<span>Поиск и контакты</span></a>
-  <a href="./orders.html">🛒 Заказы<span>Открыть все заказы</span></a>
-  <a href="#calculator">🧮 Калькулятор<span>Быстрый расчёт по прайсу</span></a>
-  <a href="#hub-chat" data-hub-chat-open>💬 Сообщения<span>Персонал и партнёры</span></a>
-</section>
-<section class="manager-grid"><div>
-<article class="manager-panel"><div class="panel-head2"><h2>Клиенты</h2><div class="panel-actions"><button id="toggleClientForm" type="button">＋ Быстро добавить</button><a href="./customers.html">Вся база →</a></div></div>
-<div id="clientCreate" class="client-create"><h3>Новый клиент</h3><form id="clientForm" class="client-form">
-<label>Тип клиента<select id="clientType"><option value="PERSON">Физическое лицо</option><option value="IP">ИП</option><option value="LEGAL">Юридическое лицо</option></select></label>
-<label>Контактное лицо / ФИО<input id="clientFullName" autocomplete="name" required placeholder="Иванов Иван Иванович"></label>
-<label>Телефон<input id="clientPhone" autocomplete="tel" inputmode="tel" placeholder="+7 ..."></label><label>Email<input id="clientEmail" type="email" autocomplete="email" placeholder="mail@example.ru"></label>
-<div id="businessFields" class="business-fields hidden">
-<label class="full">Краткое название компании<input id="clientCompany" placeholder="ООО «Компания»"></label>
-<label class="full">Полное юридическое наименование<input id="clientLegalName" placeholder="Общество с ограниченной ответственностью «Компания»"></label>
-<label>ИНН<input id="clientInn" inputmode="numeric"></label><label>КПП<input id="clientKpp" inputmode="numeric"></label>
-<label>ОГРН / ОГРНИП<input id="clientOgrn" inputmode="numeric"></label><label>Должность подписанта<input id="clientSignatoryTitle" placeholder="Директор"></label>
-<label class="full">Юридический адрес<input id="clientLegalAddress"></label><label class="full">Фактический адрес<input id="clientActualAddress"></label>
-<label class="full">ФИО подписанта<input id="clientSignatoryName"></label><label class="full">Действует на основании<input id="clientSignatoryBasis" placeholder="Устава / доверенности / свидетельства ИП"></label>
-<label class="full">Банк<input id="clientBankName"></label><label>БИК<input id="clientBik" inputmode="numeric"></label><label>Расчётный счёт<input id="clientSettlement" inputmode="numeric"></label><label class="full">Корреспондентский счёт<input id="clientCorrespondent" inputmode="numeric"></label>
-</div>
-<label class="full">Комментарий менеджера<textarea id="clientNotes" placeholder="Условия, предпочтения, источник клиента и т.п."></textarea></label>
-<div class="client-form-actions"><button id="saveClient" type="submit">Сохранить клиента</button><button id="cancelClient" type="button">Отмена</button><span id="clientFormMsg" class="client-form-msg"></span></div>
-</form></div>
-<input id="customerSearch" class="searchbox" placeholder="Имя, компания, телефон, email, ИНН…"><div id="customers"><div class="empty-mini">Загрузка…</div></div></article>
-<article class="manager-panel section-gap"><div class="panel-head2"><h2>Последние заказы</h2><a href="./orders.html">Все заказы →</a></div><div id="orders"><div class="empty-mini">Загрузка…</div></div></article>
-</div><div>
-<article class="manager-panel" id="calculator"><div class="panel-head2"><h2>Калькулятор заказа</h2><button id="resetCalc" type="button">Сбросить</button></div>
-<div class="calc-grid">
-<label>Направление<select id="direction"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option></select></label>
-<label>Категория<select id="category"><option>Загрузка прайса…</option></select></label>
-<label class="full">Услуга<select id="service"><option value="">Загрузка прайса…</option></select></label>
-<label>Количество<input id="qty" type="number" min="1" step="1" value="1"></label>
-<label>Цена по прайсу, ₽<input id="unitPrice" type="number" min="0" step="0.01" value="0" readonly></label>
-<label>Доп. работы, ₽<input id="extras" type="number" min="0" step="0.01" value="0"></label>
-<label>Скидка, %<input id="discount" type="number" min="0" max="100" step="1" value="0"></label>
-<label>Срочность, %<input id="urgency" type="number" min="0" step="1" value="0"></label>
-<label>Наценка, %<input id="markup" type="number" min="0" step="1" value="0"></label>
-</div>
-<div class="calc-total"><span>Итого</span><strong id="calcTotal">0 ₽</strong></div><div id="serviceHint" class="calc-note">Загружаем действующий прайс A4PRINT HUB…</div>
-</article>
-<article class="manager-panel section-gap"><div class="panel-head2"><h2>Сообщения</h2><a href="#hub-chat" data-hub-chat-open>Открыть →</a></div><div class="chat-cards"><a class="chat-card" href="#hub-chat" data-hub-chat-open>💬 Общий канал<small>Общая рабочая переписка</small></a><a class="chat-card" href="#hub-chat" data-hub-chat-open>👥 Персонал<small>Личные диалоги сотрудников</small></a><a class="chat-card" href="#hub-chat" data-hub-chat-open>🤝 Партнёры<small>Связь с партнёрами</small></a><a class="chat-card" href="#hub-chat" data-hub-chat-open>🔔 Непрочитанные<small>Открыть список диалогов</small></a></div></article>
-</div></section>
+  <header class="topbar">
+    <div>
+      <h1>Рабочий стол менеджера</h1>
+      <p>Заказы, клиенты, сроки и рабочий календарь</p>
+    </div>
+    <div class="manager-user">
+      <span id="managerStatus" class="manager-status">Подключение…</span>
+      <div class="manager-actions"><button id="refreshManager" type="button">↻ Обновить</button></div>
+      <span id="userEmail" class="user-email"></span>
+    </div>
+  </header>
+
+  <nav class="manager-quick" aria-label="Быстрые действия менеджера">
+    <a class="primary" href="./orders.html?new=1">+ Новый заказ <span>создать</span></a>
+    <a href="./customers.html">Клиенты <span>база</span></a>
+    <a href="./orders.html">Все заказы <span>список</span></a>
+    <a href="#calculator">Калькулятор <span>расчёт</span></a>
+    <a href="#hub-chat" data-hub-chat-open>Сообщения <span>чат</span></a>
+  </nav>
+
+  <section id="managerBriefingCards" class="manager-kpis" aria-label="Сводка менеджера">
+    <div class="manager-kpi-loading"><div class="a4-skeleton" style="height:34px"></div></div>
+  </section>
+
+  <section id="managerCalendarWrap" class="manager-calendar-wrap manager-workspace-v3 manager-workspace-v4">
+    <article class="mgr-card manager-event-card">
+      <div class="mgr-head"><h3 id="eventFormTitle">Новая запись / задача</h3></div>
+      <form id="managerEventForm" class="event-form">
+        <input id="eventId" type="hidden">
+        <label class="field-title">Название
+          <input id="eventTitle" maxlength="300" required placeholder="Позвонить клиенту / встреча / задача">
+        </label>
+        <div class="form-row field-time">
+          <label>Начало<input id="eventStart" type="datetime-local" required></label>
+          <label>Окончание<input id="eventEnd" type="datetime-local"></label>
+        </div>
+        <label class="field-order">Связать с заказом
+          <select id="eventOrder"><option value="">Без заказа</option></select>
+        </label>
+        <label class="field-reminder">Напомнить
+          <select id="eventReminder">
+            <option value="">Без напоминания</option>
+            <option value="10">за 10 минут</option>
+            <option value="30">за 30 минут</option>
+            <option value="60">за 1 час</option>
+            <option value="180">за 3 часа</option>
+            <option value="1440">за 1 день</option>
+            <option value="2880">за 2 дня</option>
+          </select>
+        </label>
+        <label class="field-desc">Комментарий
+          <textarea id="eventDescription" maxlength="6000"></textarea>
+        </label>
+        <div class="mgr-actions field-actions">
+          <button class="mgr-btn primary" type="submit">Сохранить</button>
+          <button id="eventDone" class="mgr-btn" type="button" style="display:none">✓ Выполнено</button>
+          <button id="eventDelete" class="mgr-btn danger" type="button" style="display:none">Удалить</button>
+        </div>
+        <div id="eventFormMsg" class="mgr-note field-msg"></div>
+      </form>
+    </article>
+
+    <div class="manager-workspace-columns">
+      <div class="manager-left-flow">
+        <article class="mgr-card manager-calendar-card">
+          <div class="mgr-head">
+            <div><h2>Календарь</h2><div id="managerMonthLabel" class="mgr-note">—</div></div>
+            <div class="mgr-actions">
+              <button id="monthPrev" class="mgr-btn" type="button" aria-label="Предыдущий месяц">←</button>
+              <button id="monthToday" class="mgr-btn" type="button">Сегодня</button>
+              <button id="monthNext" class="mgr-btn" type="button" aria-label="Следующий месяц">→</button>
+              <button id="newCalendarEvent" class="mgr-btn primary" type="button">+ Запись</button>
+            </div>
+          </div>
+          <div class="calendar-week"><div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div></div>
+          <div id="managerCalendarGrid" class="calendar-grid"><div class="workspace-empty" style="grid-column:1/-1">Загрузка календаря…</div></div>
+        </article>
+      </div>
+
+      <div class="manager-right-flow">
+        <div class="manager-side-stack">
+          <article class="mgr-card">
+            <div class="mgr-head"><h3>Уведомления</h3><button id="browserNotify" class="mgr-btn" type="button">Включить в Windows</button></div>
+            <div id="managerNotifications" class="mgr-notifications"><div class="workspace-empty">Загрузка…</div></div>
+          </article>
+          <article class="mgr-card">
+            <div class="mgr-head"><h3>Ближайшие заказы</h3></div>
+            <div id="managerNearestOrders" class="nearest-orders"><div class="workspace-empty">Загрузка…</div></div>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <section id="managerOperationsGrid" class="manager-operations-grid" aria-label="Операции менеджера">
+      <article class="manager-panel">
+        <div class="panel-head2">
+          <h2>Клиенты</h2>
+          <div class="panel-actions"><button id="toggleClientForm" type="button">+ Добавить</button><a href="./customers.html">Вся база →</a></div>
+        </div>
+
+        <div id="clientCreate" class="client-create">
+          <h3>Новый клиент</h3>
+          <form id="clientForm" class="client-form">
+            <label>Тип клиента
+              <select id="clientType"><option value="PERSON">Физическое лицо</option><option value="IP">ИП</option><option value="LEGAL">Юридическое лицо</option></select>
+            </label>
+            <label>Контактное лицо / ФИО<input id="clientFullName" autocomplete="name" required placeholder="Иванов Иван Иванович"></label>
+            <label>Телефон<input id="clientPhone" autocomplete="tel" inputmode="tel" placeholder="+7 ..."></label>
+            <label>Email<input id="clientEmail" type="email" autocomplete="email" placeholder="mail@example.ru"></label>
+            <div id="businessFields" class="business-fields hidden">
+              <label class="full">Краткое название компании<input id="clientCompany" placeholder="ООО «Компания»"></label>
+              <label class="full">Полное юридическое наименование<input id="clientLegalName" placeholder="Общество с ограниченной ответственностью «Компания»"></label>
+              <label>ИНН<input id="clientInn" inputmode="numeric"></label><label>КПП<input id="clientKpp" inputmode="numeric"></label>
+              <label>ОГРН / ОГРНИП<input id="clientOgrn" inputmode="numeric"></label><label>Должность подписанта<input id="clientSignatoryTitle" placeholder="Директор"></label>
+              <label class="full">Юридический адрес<input id="clientLegalAddress"></label><label class="full">Фактический адрес<input id="clientActualAddress"></label>
+              <label class="full">ФИО подписанта<input id="clientSignatoryName"></label><label class="full">Действует на основании<input id="clientSignatoryBasis" placeholder="Устава / доверенности / свидетельства ИП"></label>
+              <label class="full">Банк<input id="clientBankName"></label><label>БИК<input id="clientBik" inputmode="numeric"></label>
+              <label>Расчётный счёт<input id="clientSettlement" inputmode="numeric"></label><label class="full">Корреспондентский счёт<input id="clientCorrespondent" inputmode="numeric"></label>
+            </div>
+            <label class="full">Комментарий менеджера<textarea id="clientNotes" placeholder="Условия, предпочтения, источник клиента"></textarea></label>
+            <div class="client-form-actions">
+              <button id="saveClient" type="submit">Сохранить клиента</button>
+              <button id="cancelClient" type="button">Отмена</button>
+              <span id="clientFormMsg" class="client-form-msg"></span>
+            </div>
+          </form>
+        </div>
+
+        <input id="customerSearch" class="searchbox" type="search" autocomplete="off" placeholder="Имя, компания, телефон, email, ИНН">
+        <div id="customers"><div class="manager-loading-list"><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
+      </article>
+
+      <article class="manager-panel">
+        <div class="panel-head2"><h2>Последние заказы</h2><a href="./orders.html">Все заказы →</a></div>
+        <div id="orders"><div class="manager-loading-list"><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
+      </article>
+
+      <article class="manager-panel" id="calculator">
+        <div class="panel-head2"><h2>Калькулятор заказа</h2><button id="resetCalc" type="button">Сбросить</button></div>
+        <div class="calc-grid">
+          <label>Направление<select id="direction"><option value="A4_PRINT">А4-Принт</option><option value="3D_ARTPRINT">3D-ARTPRINT</option></select></label>
+          <label>Категория<select id="category"><option>Загрузка прайса…</option></select></label>
+          <label>Услуга<select id="service"><option value="">Загрузка прайса…</option></select></label>
+          <label>Количество<input id="qty" type="number" min="1" step="1" value="1"></label>
+          <label>Цена по прайсу, ₽<input id="unitPrice" type="number" min="0" step="0.01" value="0" readonly></label>
+          <label>Доп. работы, ₽<input id="extras" type="number" min="0" step="0.01" value="0"></label>
+          <label>Скидка, %<input id="discount" type="number" min="0" max="100" step="1" value="0"></label>
+          <label>Срочность, %<input id="urgency" type="number" min="0" step="1" value="0"></label>
+          <label>Наценка, %<input id="markup" type="number" min="0" step="1" value="0"></label>
+        </div>
+        <div class="calc-total"><span>Итого</span><strong id="calcTotal">0 ₽</strong></div>
+        <div id="serviceHint" class="calc-note">Загружаем действующий прайс A4PRINT HUB…</div>
+      </article>
+    </section>
+
+    <section id="managerChatStrip" class="manager-chat-strip">
+      <article class="manager-panel">
+        <div class="panel-head2"><h2>Сообщения</h2><a href="#hub-chat" data-hub-chat-open>Открыть →</a></div>
+        <div class="chat-cards">
+          <a class="chat-card" href="#hub-chat" data-hub-chat-open>Общий канал<small>Рабочая переписка</small></a>
+          <a class="chat-card" href="#hub-chat" data-hub-chat-open>Персонал<small>Сотрудники</small></a>
+          <a class="chat-card" href="#hub-chat" data-hub-chat-open>Партнёры<small>A4 Network</small></a>
+          <a class="chat-card" href="#hub-chat" data-hub-chat-open>Непрочитанные<small>Требуют ответа</small></a>
+        </div>
+      </article>
+    </section>
+  </section>
 </main>
-<script src="./manager-runtime.js?v=20260905-4"></script>
-<script type="module" src="./navigation.js?v=20260913-jarvis1"></script>
-<script type="module" src="./manager-workspace.js?v=20260922-briefing1"></script>
-<script src="./manager-layout.js?v=20260913-manager8"></script>
-<script src="./manager-widgets.js?v=20260913-manager4"></script>
-<script src="./manager-clean.js?v=20260913-manager2"></script>
+
+<script src="./manager-runtime.js?v=20260922-manager1"></script>
+<script type="module" src="./manager-workspace.js?v=20260922-manager1"></script>
+<script src="./manager-compact-calendar.js?v=20260922-manager1"></script>
 </body>
 </html>

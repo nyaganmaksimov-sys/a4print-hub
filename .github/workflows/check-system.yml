@@ -123,9 +123,17 @@ jobs:
           ! grep -q 'equipment-consumables-v2.js' admin/equipment.html
           ! grep -q 'equipment-consumables-units-fix.js' admin/equipment.html
           grep -q "input.min=type==='ADJUSTMENT'?'0':stepFor(unit)" admin/equipment-consumables.js
-          grep -q "manager-runtime.js" admin/config.js
-          grep -q 'manager-runtime.js?v=20260905-4' admin/manager.html
+          ! grep -q "manager-runtime.js" admin/config.js
+          grep -q 'manager-runtime.js?v=20260922-manager1' admin/manager.html
+          grep -q 'manager-page.css?v=20260922-manager1' admin/manager.html
           grep -q 'managerStatus' admin/manager.html
+          grep -q 'managerOperationsGrid' admin/manager.html
+          ! grep -q 'manager-clean.js' admin/manager.html
+          ! grep -q 'manager-layout.js' admin/manager.html
+          ! grep -q 'manager-widgets.js' admin/manager.html
+          ! grep -q 'MutationObserver' admin/manager-runtime.js
+          ! grep -q 'MutationObserver' admin/manager-workspace.js
+          ! grep -q 'MutationObserver' admin/manager-compact-calendar.js
           grep -q 'a4print_mobile_access' admin/manager-runtime.js
           grep -q 'rpc/has_role' admin/manager-runtime.js
           grep -q 'grant_type=refresh_token' admin/manager-runtime.js
