@@ -7,3 +7,10 @@
 @media(max-width:1250px){.warehouse-toolbar{grid-template-columns:minmax(190px,1.4fr) repeat(3,minmax(95px,.7fr))}.warehouse-list-head,.warehouse-row{grid-template-columns:minmax(190px,1.55fr) 82px 82px 105px minmax(145px,.85fr)}}
 @media(max-width:1050px){.warehouse-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.warehouse-toolbar{grid-template-columns:1fr 1fr}.warehouse-toolbar input{grid-column:1/-1}.warehouse-list-head{display:none}.warehouse-row{grid-template-columns:minmax(0,1fr) 105px 150px}.warehouse-row>.warehouse-source-wrap{display:none}.warehouse-row>.warehouse-price{display:none}.warehouse-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.warehouse-status{grid-column:1/-1}}
 @media(max-width:720px){.warehouse-stats{grid-template-columns:1fr 1fr;gap:6px}.warehouse-stat{padding:10px}.warehouse-stat strong{font-size:20px}.warehouse-toolbar{grid-template-columns:1fr}.warehouse-toolbar input{grid-column:auto}.warehouse-row{grid-template-columns:1fr 100px;padding:10px}.warehouse-actions{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:2px}.warehouse-subnav{overflow-x:auto;justify-content:flex-start}.warehouse-subnav a{flex:0 0 auto}.warehouse-form{grid-template-columns:1fr}.warehouse-field.wide,.warehouse-form-note{grid-column:auto}.warehouse-top-actions{width:100%;justify-content:flex-start}.warehouse-top-actions button,.warehouse-top-actions a{flex:1 1 auto}.warehouse-sync-note{width:100%}}
+
+.warehouse-loading-list{display:grid;gap:7px;padding:12px}
+.warehouse-loading-list .a4-skeleton{height:56px}
+.warehouse-pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border-top:1px solid #edf2f7;color:var(--hub-text-secondary);font-size:11px}
+.warehouse-pager button{min-height:32px;padding:5px 10px;border:1px solid var(--hub-border-strong);border-radius:var(--hub-radius-sm);background:#fff;color:var(--hub-text);font:700 10px var(--hub-font);cursor:pointer}
+.warehouse-pager button:hover:not(:disabled){background:var(--hub-surface-secondary)}
+.warehouse-pager button:disabled{opacity:.45;cursor:not-allowed}
