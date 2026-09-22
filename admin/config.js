@@ -174,7 +174,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
   if(mobileContext)load('mobile-shell.js','20260905-4');
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
-  load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js','20260922-runtime2');load('ui-fixes.js');if(!isAdmin)return;
+  load('theme.js','20260905-1');load('feedback.js','20260922-phase4-1');load('ui-icons.js');load('dialog-fixes.js','20260922-runtime2');load('ui-fixes.js');if(!isAdmin)return;
   if(isDashboard){loadModule('dashboard-equipment-widget.js','20260922-attention1')}
   if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1');load('manager-clean.js','20260913-manager2')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
