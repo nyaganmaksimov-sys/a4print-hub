@@ -7,7 +7,7 @@ on:
     paths:
       - 'admin/equipment-condition-comparisons.html'
       - 'admin/equipment-condition-comparisons.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'partner/equipment.html'
       - 'partner/equipment-owner-condition-comparisons.js'
       - 'database/migrations/20260915_production_farm_condition_comparisons.sql'
@@ -43,7 +43,7 @@ jobs:
           grep -q 'equipment-condition-comparisons.js?v=20260915-phase24-1' admin/equipment-condition-comparisons.html
           grep -q 'list_equipment_condition_comparisons' admin/equipment-condition-comparisons.js
           grep -q 'resolve_equipment_condition_comparison' admin/equipment-condition-comparisons.js
-          grep -q 'equipment-condition-comparisons.html.*Сверка состояния' admin/navigation.js
+          grep -q 'equipment-condition-comparisons.html.*Сверка состояния' admin/equipment.html
           grep -q 'equipment-owner-condition-comparisons.js?v=20260915-phase24-1' partner/equipment.html
           grep -q 'get_my_equipment_condition_comparisons' partner/equipment-owner-condition-comparisons.js
           grep -q 'submit_equipment_condition_comparison_response' partner/equipment-owner-condition-comparisons.js
