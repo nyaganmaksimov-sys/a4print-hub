@@ -7,7 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>`${Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})} ₽`;
 const statusLabels={NEW:'Новые',CONFIRMED:'Подтверждённые',IN_PROGRESS:'В работе',READY:'Готовы',COMPLETED:'Завершённые',DONE:'Завершённые',ON_HOLD:'Приостановленные',CANCELLED:'Отменённые'};
 const successPaymentStatuses=new Set(['PAID','COMPLETED','SUCCESS','SUCCESSFUL','CONFIRMED','CAPTURED']);
-const state={period:'MONTH',orders:[],payments:[],sales:[],returns:[],cash:null,loading:false,channel:null,warnings:[],paymentsAvailable:true};
+const state={period:'MONTH',orders:[],payments:[],sales:[],returns:[],cash:null,loading:false,reloadQueued:false,channel:null,warnings:[],paymentsAvailable:true};
 let realtimeTimer=null;
 
 function periodStart(){
@@ -18,6 +18,7 @@ function periodStart(){
   d.setDate(d.getDate()-6);d.setHours(0,0,0,0);return d;
 }
 function inPeriod(value){const start=periodStart();if(!start)return true;const d=new Date(value);return Number.isFinite(d.getTime())&&d>=start}
+function periodQuery(query,column,startIso){return startIso?query.gte(column,startIso):query}
 function ordinaryOrder(row){
   if(String(row?.source||'').toUpperCase()==='KASSA')return false;
   if(String(row?.partner_direction||'').toUpperCase()==='OUTBOUND')return false;
@@ -74,16 +75,17 @@ async function safe(label,promise,fallback){
 }
 
 async function load(){
-  if(state.loading)return;
+  if(state.loading){state.reloadQueued=true;return}
   state.loading=true;state.warnings=[];
   const refresh=$('refresh');if(refresh){refresh.disabled=true;refresh.textContent='Обновление…'}
   $('syncText').textContent='Обновление данных…';
   try{
+    const startIso=periodStart()?.toISOString()||null;
     const [orders,payments,sales,returns,cash]=await Promise.all([
-      safe('orders',supabase.from('orders').select('id,status,total,source,partner_direction,partner_id,fulfillment_partner_id,created_at').order('created_at',{ascending:false}).limit(5000),{data:[]}),
-      safe('payments',supabase.from('payments').select('id,order_id,status,amount,payment_method,created_at').order('created_at',{ascending:false}).limit(5000),{data:[]}),
-      safe('sales',supabase.from('pos_sales').select('id,moysklad_sale_name,total,payment_method,sold_at,created_at,sync_status').order('sold_at',{ascending:false}).limit(3000),{data:[]}),
-      safe('returns',supabase.from('pos_returns').select('id,moysklad_return_name,amount,payment_method,returned_at,created_at,sync_status').order('returned_at',{ascending:false}).limit(3000),{data:[]}),
+      safe('orders',periodQuery(supabase.from('orders').select('id,status,total,source,partner_direction,partner_id,fulfillment_partner_id,created_at'),'created_at',startIso).order('created_at',{ascending:false}).limit(5000),{data:[]}),
+      safe('payments',periodQuery(supabase.from('payments').select('id,order_id,status,amount,payment_method,created_at'),'created_at',startIso).order('created_at',{ascending:false}).limit(5000),{data:[]}),
+      safe('sales',periodQuery(supabase.from('pos_sales').select('id,moysklad_sale_name,total,payment_method,sold_at,created_at,sync_status'),'sold_at',startIso).order('sold_at',{ascending:false}).limit(3000),{data:[]}),
+      safe('returns',periodQuery(supabase.from('pos_returns').select('id,moysklad_return_name,amount,payment_method,returned_at,created_at,sync_status'),'returned_at',startIso).order('returned_at',{ascending:false}).limit(3000),{data:[]}),
       cashBalance()
     ]);
     state.orders=(orders.data||[]).filter(ordinaryOrder);
@@ -100,6 +102,7 @@ async function load(){
     $('syncText').textContent='Ошибка обновления';
   }finally{
     state.loading=false;if(refresh){refresh.disabled=false;refresh.textContent='↻ Обновить'}
+    if(state.reloadQueued){state.reloadQueued=false;setTimeout(load,0)}
   }
 }
 
@@ -162,9 +165,10 @@ function render(){const data=filtered();renderKpis(data);renderStatuses(data);re
 
 function initPeriod(){
   document.querySelectorAll('[data-period]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(state.period===btn.dataset.period)return;
     state.period=btn.dataset.period;
     document.querySelectorAll('[data-period]').forEach(x=>x.classList.toggle('active',x===btn));
-    render();
+    load();
   }));
 }
 function initRealtime(){
