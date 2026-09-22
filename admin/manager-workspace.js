@@ -31,7 +31,7 @@ async function saveEvent(ev){ev.preventDefault();const id=$('eventId').value,pay
 async function markDone(){if(!state.selected)return;await api(`/api/v1/manager/calendar/${encodeURIComponent(state.selected.id)}`,{method:'PATCH',body:{...state.selected,status:'DONE'}});await loadCalendar();newEvent()}
 async function deleteEvent(){if(!state.selected||!confirm('Удалить эту запись из календаря?'))return;await api(`/api/v1/manager/calendar/${encodeURIComponent(state.selected.id)}`,{method:'DELETE'});await loadCalendar();newEvent()}
 function notificationTarget(n){if(n.entity_type==='order'&&n.entity_id)return`./order.html?id=${encodeURIComponent(n.entity_id)}`;return''}
-async function loadNotifications(showBrowser=false){try{const data=await api('/api/v1/manager/notifications');state.notifications=data.items||[];$('managerNotifications').innerHTML=state.notifications.slice(0,15).map(n=>`<button type="button" class="notify-item ${n.is_read?'':'unread'}" data-notify="${esc(n.id)}"><b>${esc(n.title)}</b><small>${esc(n.body||'')} · ${esc(human(n.created_at))}</small></button>`).join('')||'<div class="workspace-empty">Уведомлений пока нет.</div>';document.querySelectorAll('[data-notify]').forEach(b=>b.onclick=()=>openNotification(b.dataset.notify));if(showBrowser&&window.Notification?.permission==='granted'){for(const n of state.notifications.filter(x=>!x.is_read)){if(state.seenNotifications.has(n.id))continue;state.seenNotifications.add(n.id);new Notification(n.title,{body:n.body||'',tag:`a4-${n.id}`})}}}catch(error){console.warn('Manager notifications',error)}}
+async function loadNotifications(showBrowser=false){try{const data=await api('/api/v1/manager/notifications');state.notifications=data.items||[];$('managerNotifications').innerHTML=state.notifications.slice(0,15).map(n=>`<button type="button" class="notify-item ${n.is_read?'':'unread'}" data-notify="${esc(n.id)}"><b>${esc(n.title)}</b><small>${esc(n.body||'')} · ${esc(human(n.created_at))}</small></button>`).join('')||'<div class="workspace-empty">Уведомлений пока нет.</div>';document.querySelectorAll('[data-notify]').forEach(b=>b.onclick=()=>openNotification(b.dataset.notify));if(showBrowser&&window.Notification?.permission==='granted'){for(const n of state.notifications.filter(x=>!x.is_read)){if(state.seenNotifications.has(n.id))continue;state.seenNotifications.add(n.id);new Notification(n.title,{body:n.body||'',tag:`a4-${n.id}`})}}}catch(error){console.warn('Manager notifications',error);$('managerNotifications').innerHTML='<div class="a4-error">Не удалось обновить уведомления. <button type="button" class="a4-btn" id="managerNotificationsRetry">Повторить</button></div>';$('managerNotificationsRetry')?.addEventListener('click',()=>loadNotifications(false))}}
 async function openNotification(id){const n=state.notifications.find(x=>x.id===id);try{await api(`/api/v1/manager/notifications/${encodeURIComponent(id)}/read`,{method:'POST',body:{}})}catch{}const target=n&&notificationTarget(n);if(target)location.href=target;else loadNotifications(false)}
 async function enableBrowser(){if(!('Notification'in window)){window.A4Feedback?.warning?.('Уведомления недоступны','Этот браузер не поддерживает системные уведомления.');return}const p=await Notification.requestPermission();$('browserNotify').textContent=p==='granted'?'✓ Браузер уведомляет':'Уведомления браузера';if(p==='granted')loadNotifications(false)}
 function bind(){$('monthPrev').onclick=()=>{state.cursor=addMonths(state.cursor,-1);loadCalendar()};$('monthNext').onclick=()=>{state.cursor=addMonths(state.cursor,1);loadCalendar()};$('monthToday').onclick=()=>{const p=moscowParts(new Date());state.cursor=new Date(Date.UTC(Number(p.year),Number(p.month)-1,1));loadCalendar()};$('newCalendarEvent').onclick=()=>newEvent();$('managerEventForm').addEventListener('submit',saveEvent);$('eventDone').onclick=markDone;$('eventDelete').onclick=deleteEvent;$('browserNotify').onclick=enableBrowser}
@@ -51,7 +51,19 @@ async function init(){
   const p=moscowParts(new Date());
   state.cursor=new Date(Date.UTC(Number(p.year),Number(p.month)-1,1));
   newEvent();
-  await Promise.allSettled([loadBriefing(),loadCalendar(),loadOrderOptions(),loadNotifications(false)]);
+  const [briefingResult,calendarResult]=await Promise.allSettled([loadBriefing(),loadCalendar()]);
+  void loadOrderOptions();
+  void loadNotifications(false);
+  if(briefingResult.status==='rejected'){
+    console.warn('Manager briefing',briefingResult.reason);
+    $('managerBriefingCards').innerHTML='<div class="a4-error" style="grid-column:1/-1">Сводка менеджера временно недоступна. <button type="button" class="a4-btn" id="managerBriefingRetry">Повторить</button></div>';
+    $('managerBriefingRetry')?.addEventListener('click',()=>loadBriefing().catch(error=>console.warn('Manager briefing retry',error)));
+  }
+  if(calendarResult.status==='rejected'){
+    console.warn('Manager calendar',calendarResult.reason);
+    $('managerCalendarGrid').innerHTML='<div class="a4-error" style="grid-column:1/-1">Календарь временно недоступен. <button type="button" class="a4-btn" id="managerCalendarRetry">Повторить</button></div>';
+    $('managerCalendarRetry')?.addEventListener('click',()=>loadCalendar().catch(error=>console.warn('Manager calendar retry',error)));
+  }
   initNotificationRealtime();
   state.poll=setInterval(()=>{if(!document.hidden)loadNotifications(true)},300000);
 }
