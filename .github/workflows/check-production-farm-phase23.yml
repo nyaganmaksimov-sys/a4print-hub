@@ -7,7 +7,7 @@ on:
     paths:
       - 'admin/equipment-condition-inspections.html'
       - 'admin/equipment-condition-inspections.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'partner/equipment.html'
       - 'partner/equipment-owner-condition-inspections.js'
       - 'database/migrations/20260915_production_farm_equipment_condition_inspections.sql'
@@ -44,7 +44,7 @@ jobs:
           grep -q "list_equipment_condition_inspections" admin/equipment-condition-inspections.js
           grep -q "save_equipment_condition_inspection" admin/equipment-condition-inspections.js
           grep -q "complete_equipment_condition_inspection" admin/equipment-condition-inspections.js
-          grep -q "equipment-condition-inspections.html.*Осмотры состояния" admin/navigation.js
+          grep -q 'equipment-condition-inspections.html.*Осмотры состояния' admin/equipment.html
           grep -q 'equipment-owner-condition-inspections.js?v=20260915-phase23-1' partner/equipment.html
           grep -q "get_my_equipment_condition_inspections" partner/equipment-owner-condition-inspections.js
           grep -q "createSignedUrl" partner/equipment-owner-condition-inspections.js
