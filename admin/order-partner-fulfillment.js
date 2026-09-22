@@ -14,7 +14,7 @@ const stages=[
 const workflowLabels={MEMORIAL:'Памятники / фотокерамика',SOUVENIR:'Сувениры и знаки',TYPOGRAPHY:'Типография'};
 const workflowUrls={MEMORIAL:'https://sferazakaz.ru/katalog/fotokeramika',SOUVENIR:'https://sferazakaz.ru/',TYPOGRAPHY:'https://gmprint.ru/'};
 const timestampFields={SENT:'partner_sent_at',CONFIRMED:'partner_confirmed_at',IN_PRODUCTION:'partner_production_at',SHIPPED:'partner_shipped_at',RECEIVED:'partner_received_at'};
-let roles=[],order=null,channel=null;
+let roles=[],order=null;
 
 const canManage=()=>roles.includes('ADMIN')||roles.includes('MANAGER');
 const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
@@ -99,7 +99,8 @@ async function save(nextStatus,button){
       p_tracking:tracking
     });
     if(error)throw error;
-    await load();
+    notify('success','Данные партнёра сохранены','Карточка заказа обновляется.');
+    document.getElementById('refresh')?.click();
   }catch(error){
     notify('error','Не удалось сохранить данные партнёра',error.message||String(error));
   }finally{
@@ -107,28 +108,32 @@ async function save(nextStatus,button){
   }
 }
 
-async function load(){
+function applySnapshot(snapshot){
+  const nextOrder=snapshot?.order||null;
+  const nextRoles=Array.isArray(snapshot?.roles)?snapshot.roles:[];
+  if(nextRoles.length)roles=nextRoles.map(String);
+  if(nextOrder){order=nextOrder;render()}
+}
+
+async function loadFallback(){
   if(!orderId)return;
-  const {data,error}=await supabase.from('orders')
-    .select('id,order_number,total,partner_direction,fulfillment_partner_id,partner_workflow,partner_fulfillment_status,partner_planned_cost,partner_actual_cost,partner_external_ref,partner_tracking,partner_fulfillment_updated_at,partner_sent_at,partner_confirmed_at,partner_production_at,partner_shipped_at,partner_received_at,executor:partners!orders_fulfillment_partner_id_fkey(id,name)')
-    .eq('id',orderId)
-    .single();
+  const [{data:roleData},{data,error}]=await Promise.all([
+    supabase.rpc('get_my_roles'),
+    supabase.from('orders')
+      .select('id,order_number,total,partner_direction,fulfillment_partner_id,partner_workflow,partner_fulfillment_status,partner_planned_cost,partner_actual_cost,partner_external_ref,partner_tracking,partner_fulfillment_updated_at,partner_sent_at,partner_confirmed_at,partner_production_at,partner_shipped_at,partner_received_at,executor:partners!orders_fulfillment_partner_id_fkey(id,name)')
+      .eq('id',orderId)
+      .single()
+  ]);
+  roles=Array.isArray(roleData)?roleData.map(String):roles;
   if(error){console.warn('Partner fulfillment unavailable',error);return}
   order=data;render();
 }
 
 async function init(){
   ensureCard();
-  const {data}=await supabase.rpc('get_my_roles');
-  roles=Array.isArray(data)?data:[];
-  await load();
-  document.getElementById('refresh')?.addEventListener('click',()=>setTimeout(load,50));
-  if(typeof supabase.channel==='function'){
-    channel=supabase.channel('partner-fulfillment-'+orderId)
-      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'orders',filter:'id=eq.'+orderId},()=>setTimeout(load,120))
-      .subscribe();
-    window.addEventListener('beforeunload',()=>{if(channel)supabase.removeChannel(channel)},{once:true});
-  }
+  document.addEventListener('a4:order-detail-loaded',event=>applySnapshot(event.detail));
+  if(window.__A4_ORDER_DETAIL__)applySnapshot(window.__A4_ORDER_DETAIL__);
+  else await loadFallback();
 }
 
 init().catch(console.warn);
