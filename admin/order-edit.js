@@ -6,6 +6,7 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt
 const money=value=>Number(value||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';
 const state={roles:[],order:null,customers:[],catalog:[],items:[],saving:false};
 const canManage=()=>state.roles.includes('ADMIN')||state.roles.includes('MANAGER');
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 function toLocalDateTime(value){
   if(!value)return'';
@@ -154,6 +155,7 @@ function renderItems(){
     </div>`;
   }).join('');
   recalcTotal();
+  document.dispatchEvent(new CustomEvent('a4:order-edit-items-rendered'));
 }
 
 function recalcTotal(){
@@ -228,7 +230,7 @@ async function openEditor(){
     $('editOrderDlg').showModal();
   }catch(error){
     console.error('Order editor load failed',error);
-    alert(`Не удалось открыть редактирование заказа: ${error.message||error}`);
+    notify('error','Не удалось открыть редактирование заказа',error.message||String(error));
   }finally{button.disabled=false;button.textContent=old}
 }
 
