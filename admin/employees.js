@@ -98,6 +98,7 @@ function renderEmployees() {
   $('employeeList').className='table-wrap';
   $('employeeList').innerHTML = `<table class="table"><thead><tr><th>Сотрудник</th><th>Отдел / должность</th><th>Роли</th><th>Статус</th><th></th></tr></thead><tbody>${list.map(u => `<tr><td><div class="person"><div class="avatar">${esc(initials(u.full_name))}</div><div><b>${esc(u.full_name)}</b><small>${esc(u.email||'')}</small><small>${esc(u.phone||'')}</small></div></div></td><td><b>${esc(positionName(u.position_id,u.position)||'Не назначена')}</b><small>${esc(departmentName(u.organization_unit_id)||'Отдел не назначен')}</small></td><td><div class="roles">${(u.roles||[]).map(r=>`<span class="role">${esc(r.name)}</span>`).join('')||'<span class="muted">Нет ролей</span>'}</div></td><td><span class="status ${u.is_active?'on':'off'}">${u.is_active?'Активен':'Отключён'}</span></td><td><button class="btn secondary" data-edit="${u.id}">Настроить</button></td></tr>`).join('')}</tbody></table>`;
   document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEdit(b.dataset.edit));
+  document.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => deleteEmployee(b.dataset.delete,b));
 }
 function renderRequests() {
   const list = requests.filter(x => x.status === 'PENDING');
@@ -125,6 +126,20 @@ function openApprove(id) {
   $('approveForm').reset(); $('approveError').textContent=''; $('requestId').value=id; $('approvePerson').innerHTML=`<b>${esc(r.full_name)}</b><small>${esc(r.email||'')} · ${providerLabel(r.provider)}</small>`;
   $('approveDepartment').innerHTML=departmentOptions(); wirePosition('approveDepartment','approvePosition'); drawRoles($('approveRoles')); $('approveModal').classList.add('open');
 }
+async function deleteEmployee(id,button) {
+  const employee=employees.find(x=>x.id===id);if(!employee)return;
+  if(!confirm(`Удалить сотрудника «${employee.full_name||employee.email||'без имени'}»? Учётная запись входа будет удалена, рабочая история останется в системе.`))return;
+  const old=button.textContent;button.disabled=true;button.textContent='Удаляем…';
+  try{
+    await call('delete',{user_id:id},12000);
+    await load();
+    notify('success','Сотрудник удалён','Учётная запись и доступ удалены.');
+  }catch(error){
+    notify('error','Не удалось удалить сотрудника',error.message||String(error));
+    button.disabled=false;button.textContent=old;
+  }
+}
+
 async function rejectRequest(id) {
   const reason = prompt('Причина отклонения заявки (необязательно):'); if (reason === null) return;
   try { await call('reject',{payload:{request_id:id,reason}}); await load(); notify('success','Заявка отклонена','Статус заявки обновлён.'); } catch(e) { notify('error','Не удалось отклонить заявку',e.message||String(e)); }
