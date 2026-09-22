@@ -49,7 +49,7 @@ async function load(){
     const [summaryR,cashR]=await Promise.allSettled([loadSummary(),cashBalance()]);
     if(summaryR.status==='rejected')throw summaryR.reason;
     state.summary=summaryR.value||{};
-    if(cashR.status==='fulfilled')state.cash=cashR.value;
+    if(cashR.status==='fulfilled'){state.cash=cashR.value;if(state.cash?.error)state.warnings.push('cash')}
     else{state.cash={error:String(cashR.reason?.message||cashR.reason)};state.warnings.push('cash')}
     render();
     $('updatedAt').textContent=`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
