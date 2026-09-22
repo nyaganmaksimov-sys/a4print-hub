@@ -1,4 +1,4 @@
-(()=>{
+(async()=>{
   const mobile=window.matchMedia?.('(max-width:900px)').matches||/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent||'');
   if(!mobile)return;
 
@@ -38,6 +38,9 @@
     // с возвратом в основной мобильный HUB.
     const startProvider=String(u.searchParams.get('startProvider')||'').trim();
     if(startProvider&&SUPABASE_URL){
+      if(window.A4AuthUI&&!(await window.A4AuthUI.isEnabled('login',startProvider))){
+        location.replace('/mobile/?login=1&reason=provider_disabled');return;
+      }
       const callback=new URL('/mobile/',location.origin).href;
       const auth=new URL('/auth/v1/authorize',SUPABASE_URL);
       auth.searchParams.set('provider',startProvider);
@@ -61,4 +64,4 @@
       location.replace(next.href);
     }
   }catch{}
-})();
+})().catch(()=>{});
