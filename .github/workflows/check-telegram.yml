@@ -7,7 +7,6 @@ on:
     paths:
       - 'admin/settings.html'
       - 'admin/telegram.html'
-      - 'admin/navigation.js'
       - 'admin/index.html'
       - 'admin/config.js'
       - 'api/src/telegram.js'
@@ -33,7 +32,7 @@ jobs:
           node --check api/src/mobile-proxy.js
           grep -q '/api/v1/integrations/telegram/status' admin/settings.html
           grep -q '/api/v1/integrations/telegram/messages' admin/telegram.html
-          grep -q 'telegram.html' admin/navigation.js
+          grep -q 'href="./telegram.html"' admin/settings.html
           grep -q 'registerTelegramRoutes' api/src/mobile-proxy.js
           grep -q 'create_order_from_telegram' api/src/telegram.js
           grep -q 'telegram_integrations' database/migrations/107_telegram_integration.sql
