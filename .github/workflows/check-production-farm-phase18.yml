@@ -9,7 +9,7 @@ on:
       - 'partner/equipment-owner-deadlines.js'
       - 'admin/equipment-payment-control.html'
       - 'admin/equipment-payment-control.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'database/migrations/20260915_production_farm_payment_deadlines.sql'
       - 'docs/PRODUCTION_FARM_PHASE18.md'
       - '.github/workflows/check-production-farm-phase18.yml'
@@ -49,7 +49,7 @@ jobs:
           grep -q 'equipment-payment-control.js?v=' admin/equipment-payment-control.html
           grep -q 'list_equipment_payment_obligations' admin/equipment-payment-control.js
           grep -q 'set_equipment_payment_due_date' admin/equipment-payment-control.js
-          grep -q "equipment-payment-control.html','payments','Контроль выплат" admin/navigation.js
+          grep -q 'equipment-payment-control.html.*Контроль выплат' admin/equipment.html
 
       - name: Verify database deadline safety
         shell: bash

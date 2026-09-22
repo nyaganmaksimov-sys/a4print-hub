@@ -8,7 +8,7 @@ on:
       - 'admin/equipment-claim-integrity-incidents.html'
       - 'admin/equipment-claim-integrity-incidents.js'
       - 'admin/equipment-condition-claim-integrity.html'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'database/migrations/20260915_production_farm_claim_integrity_incident_resolution.sql'
       - 'database/migrations/20260918_production_farm_claim_integrity_incident_tenant_scope.sql'
       - 'docs/PRODUCTION_FARM_PHASE31.md'
@@ -45,7 +45,7 @@ jobs:
           grep -q 'INTEGRITY_ISSUE_STILL_ACTIVE' admin/equipment-claim-integrity-incidents.js
           grep -q 'Расследования' admin/equipment-condition-claim-integrity.html
           grep -q 'equipment-claim-integrity-incidents.html' admin/equipment-condition-claim-integrity.html
-          grep -q "equipment-claim-integrity-incidents.html.*Фин. нарушения" admin/navigation.js
+          grep -q 'equipment-claim-integrity-incidents.html.*Фин. нарушения' admin/equipment.html
           grep -q 'Закрытие не скрывает событие' admin/equipment-claim-integrity-incidents.html
 
       - name: Verify database safety markers

@@ -171,13 +171,13 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   }
   if(mobileContext)load('mobile-shell.js','20260905-4');
   if(isAuthPage){load('auth-ui.js','20260910-api-routing2');return}
-  load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js');load('ui-fixes.js');if(!isAdmin)return;
-  if(isDashboard){loadModule('dashboard-payment-split.js','20260908-2');loadModule('dashboard-equipment-widget.js','20260909-1')}
+  load('theme.js','20260905-1');load('ui-icons.js');load('dialog-fixes.js','20260922-runtime2');load('ui-fixes.js');if(!isAdmin)return;
+  if(isDashboard){loadModule('dashboard-equipment-widget.js','20260922-attention1')}
   if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1');load('manager-clean.js','20260913-manager2')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');if(window.A4PRINT_FEATURES?.jarvis===true)load('jarvis-settings.js','20260913-1')}
-  load('navigation.js','20260913-branding1');load('support-access.js','20260913-clean1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260913-actions1');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260912-orders1');
+  load('navigation.js','20260922-nav2');load('support-access.js','20260922-runtime2');load('onboarding.js','20260922-runtime1');load('workspace-clean.js','20260922-runtime1');load('topbar-modern.js','20260922-runtime1');load('nav-accordion.js','20260922-nav2');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260922-count1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){
     load('partner-invites.js','20260913-partners4');
@@ -185,5 +185,5 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
     load('partners-search.js','20260913-partners4');
     load('partners-workspace.js','20260913-partners5');
   }
-  background(()=>{load('support-notifications.js','20260905-1');load('push-client.js','20260904-4')});
+  background(()=>{load('support-notifications.js','20260905-1');load('push-client.js','20260922-runtime1')});
 })();

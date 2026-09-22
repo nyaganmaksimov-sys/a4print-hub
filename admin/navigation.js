@@ -37,10 +37,90 @@ async function initA4Navigation(){
   const rawPath=location.pathname.split('/').pop()||'index.html';
   const parentPage={'order.html':'orders.html','customer.html':'customers.html','invoice.html':'documents.html'};
   const path=parentPage[rawPath]||rawPath;
-  const items=[['index.html','home','Главная'],['manager.html','manager','Менеджер'],['orders.html','orders','Заказы'],['../kassa/','kassa','Касса'],['customers.html','customers','Клиенты'],['cuim-delivery.html','delivery','ЦУИМ Доставка'],['partners.html','partners','Партнёры'],['requests.html','applications','Заявки'],['warehouse.html','warehouse','Склад и номенклатура'],['equipment.html','equipment','Оборудование'],['equipment-condition-inspections.html','equipment','Осмотры состояния'],['equipment-condition-comparisons.html','equipment','Сверка состояния'],['equipment-condition-claims.html','equipment','Требования по состоянию'],['equipment-claim-integrity-incidents.html','equipment','Фин. нарушения'],['equipment-payment-control.html','payments','Контроль выплат'],['equipment-payment-reconciliation.html','payments','Сверка выплат'],['equipment-contract-deadlines.html','documents','Сроки договоров'],['equipment-contract-amendments.html','documents','Допсоглашения'],['equipment-partner-responses.html','equipment','Ответы владельцев'],['production-farm-risk.html','equipment','Риски Production Farm'],['production.html','production','Производство'],['#hub-chat','messages','Сообщения'],['telegram.html','telegram','Telegram'],['employees.html','employees','Сотрудники'],['staff-structure.html','structure','Отделы и должности'],['documents.html','documents','Документы'],['payments.html','payments','Оплаты'],['reports.html','reports','Отчёты'],['support.html','help','Поддержка'],['apps.html','systems','Приложения'],['settings.html','settings','Настройки'],['help.html','help','Инструкция'],['../index.html','systems','Выбор системы']];
+  const groups=[
+    {key:'work',title:'Работа',items:[
+      ['index.html','home','Главная'],
+      ['manager.html','manager','Менеджер'],
+      ['orders.html','orders','Заказы'],
+      ['customers.html','customers','Клиенты'],
+      ['requests.html','applications','Заявки']
+    ]},
+    {key:'business',title:'Бизнес',items:[
+      ['orders.html?unit=A4_PRINT','orders','А4-Принт'],
+      ['orders.html?unit=3D_ARTPRINT','production','3D-ARTPRINT'],
+      ['../kassa/','kassa','Касса'],
+      ['production.html','production','Производство'],
+      ['warehouse.html','warehouse','Склад']
+    ]},
+    {key:'partners',title:'Партнёры',items:[
+      ['partners.html','partners','Партнёры'],
+      ['partners.html?view=network','partners','A4 Network'],
+      ['equipment.html','equipment','Оборудование'],
+      ['cuim-delivery.html','delivery','ЦУИМ']
+    ]},
+    {key:'team',title:'Команда',items:[
+      ['employees.html','employees','Сотрудники'],
+      ['staff-structure.html','structure','Отделы и должности'],
+      ['#hub-chat','messages','Сообщения']
+    ]},
+    {key:'finance',title:'Финансы',items:[
+      ['payments.html','payments','Оплаты'],
+      ['reports.html','reports','Отчёты'],
+      ['documents.html','documents','Документы']
+    ]},
+    {key:'system',title:'Система',items:[
+      ['apps.html','systems','Приложения'],
+      ['settings.html?section=integrations','settings','Интеграции'],
+      ['support.html','help','Поддержка'],
+      ['settings.html','settings','Настройки']
+    ]}
+  ];
 
-  const navHref=href=>href.startsWith('#')?href:(href==='reports.html'?'./reports.html?v=20260913-4':(href.startsWith('..')?href:'./'+href));
-  nav.innerHTML=items.map(([href,icon,label])=>`<a href="${navHref(href)}" class="${path===href?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${href==='orders.html'?'<b id="orderCount">0</b>':''}${href==='requests.html'?'<b id="requestCount" style="display:none">0</b>':''}${href==='#hub-chat'?'<b id="messageCount" style="display:none;background:#ef4444;color:#fff;min-width:20px;height:20px;border-radius:999px;padding:0 6px;align-items:center;justify-content:center;font-size:11px;margin-left:auto">0</b>':''}${href==='equipment.html'?'<b id="equipmentNavCount" aria-label="Работы по обслуживанию">0</b>':''}</a>`).join('');
+  const currentParams=new URLSearchParams(location.search);
+  const pageOf=href=>href.split('?')[0].split('/').pop()||'';
+  const navHref=href=>href.startsWith('#')?href:(href.startsWith('..')?href:'./'+href);
+  const isActive=href=>{
+    if(href.startsWith('#'))return false;
+    if(href.startsWith('../kassa'))return /\/kassa\//.test(location.pathname);
+    const [rawPage,rawQuery='']=href.split('?');
+    const page=pageOf(rawPage);
+    if(path!==page)return false;
+    if(rawQuery){
+      const expected=new URLSearchParams(rawQuery);
+      for(const [key,value] of expected.entries())if(currentParams.get(key)!==value)return false;
+      return true;
+    }
+    if(page==='orders.html'&&currentParams.has('unit'))return false;
+    if(page==='partners.html'&&currentParams.has('view'))return false;
+    if(page==='settings.html'&&currentParams.has('section'))return false;
+    return true;
+  };
+  const countBadge=href=>{
+    const page=pageOf(href);
+    if(page==='orders.html'&&!href.includes('unit='))return'<b id="orderCount">0</b>';
+    if(page==='requests.html')return'<b id="requestCount" style="display:none">0</b>';
+    if(href==='#hub-chat')return'<b id="messageCount" style="display:none;background:#ef4444;color:#fff;min-width:20px;height:20px;border-radius:999px;padding:0 6px;align-items:center;justify-content:center;font-size:11px;margin-left:auto">0</b>';
+    if(page==='equipment.html')return'<b id="equipmentNavCount" aria-label="Работы по обслуживанию">0</b>';
+    return'';
+  };
+  let savedGroup='';
+  try{savedGroup=localStorage.getItem('a4print_nav_group_v2')||''}catch{}
+  const activeGroup=groups.find(group=>group.items.some(([href])=>isActive(href)))?.key||'';
+  const openGroup=activeGroup||savedGroup||'work';
+  nav.innerHTML='<div class="a4-nav-accordion">'+groups.map(group=>{
+    const open=group.key===openGroup;
+    const links=group.items.map(([href,icon,label])=>`<a href="${navHref(href)}" class="${isActive(href)?'active':''}" title="${label}"><span class="a4-nav-icon">${icons[icon]}</span><span class="a4-nav-label">${label}</span>${countBadge(href)}</a>`).join('');
+    return `<section class="a4-nav-group ${open?'open':''} ${group.key===activeGroup?'has-active':''}" data-group="${group.key}"><button type="button" class="a4-nav-group-head" aria-expanded="${open?'true':'false'}"><span>${group.title}</span><span class="chev">›</span></button><div class="a4-nav-group-body">${links}</div></section>`;
+  }).join('')+'</div>';
+  nav.dataset.a4Accordion='1';
+  nav.querySelectorAll('.a4-nav-group-head').forEach(head=>head.addEventListener('click',()=>{
+    const group=head.closest('.a4-nav-group');
+    const opening=!group.classList.contains('open');
+    nav.querySelectorAll('.a4-nav-group.open').forEach(x=>{if(x!==group){x.classList.remove('open');x.querySelector('.a4-nav-group-head')?.setAttribute('aria-expanded','false')}});
+    group.classList.toggle('open',opening);
+    head.setAttribute('aria-expanded',String(opening));
+    if(opening)try{localStorage.setItem('a4print_nav_group_v2',group.dataset.group||'')}catch{}
+  }));
 }
 
 const A4_JARVIS_KEY='a4print_jarvis_enabled_v1';

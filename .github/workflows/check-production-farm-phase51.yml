@@ -8,7 +8,7 @@ on:
       - 'database/migrations/20260919_production_farm_risk_cockpit.sql'
       - 'admin/production-farm-risk.html'
       - 'admin/production-farm-risk.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'docs/PRODUCTION_FARM_PHASE51.md'
       - '.github/workflows/check-production-farm-phase51.yml'
 
@@ -58,7 +58,7 @@ jobs:
           grep -q 'get_production_farm_risk_cockpit' admin/production-farm-risk.js
           grep -q 'PARTNER_DISPUTE' admin/production-farm-risk.js
           grep -q 'PARTNER_DISPUTE' admin/production-farm-risk.html
-          grep -q 'production-farm-risk.html' admin/navigation.js
+          grep -q 'production-farm-risk.html.*Риски Production Farm' admin/equipment.html
 
       - name: Verify documentation
         shell: bash

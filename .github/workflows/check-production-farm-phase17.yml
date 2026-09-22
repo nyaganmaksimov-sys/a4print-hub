@@ -9,7 +9,7 @@ on:
       - 'partner/equipment-owner-responses.js'
       - 'admin/equipment-partner-responses.html'
       - 'admin/equipment-partner-responses.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'database/migrations/20260915_production_farm_partner_responses.sql'
       - 'database/migrations/20260915_production_farm_partner_responses_ordering.sql'
       - 'docs/PRODUCTION_FARM_PHASE17.md'
@@ -51,7 +51,7 @@ jobs:
           grep -q 'equipment-partner-responses.js?v=' admin/equipment-partner-responses.html
           grep -q 'list_equipment_partner_disputes' admin/equipment-partner-responses.js
           grep -q 'resolve_equipment_partner_dispute' admin/equipment-partner-responses.js
-          grep -q "equipment-partner-responses.html','equipment','Ответы владельцев" admin/navigation.js
+          grep -q 'equipment-partner-responses.html.*Ответы владельцев' admin/equipment.html
 
       - name: Verify database safety markers
         shell: bash

@@ -71,9 +71,11 @@
 
   function watchUi(){
     if(installButton())return;
-    const obs=new MutationObserver(()=>{if(installButton())obs.disconnect()});
-    obs.observe(document.documentElement,{childList:true,subtree:true});
-    setTimeout(()=>obs.disconnect(),10000);
+    // Notification UI appears shortly after boot. A few bounded retries are cheaper
+    // than observing every DOM mutation for up to ten seconds.
+    setTimeout(installButton,300);
+    setTimeout(installButton,1000);
+    setTimeout(installButton,2500);
   }
 
   async function quietRestore(){

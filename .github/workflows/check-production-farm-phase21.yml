@@ -7,7 +7,7 @@ on:
     paths:
       - 'admin/equipment-contract-amendments.html'
       - 'admin/equipment-contract-amendments.js'
-      - 'admin/navigation.js'
+      - 'admin/equipment.html'
       - 'partner/equipment.html'
       - 'partner/equipment-owner-contract-amendments.js'
       - 'database/migrations/20260915_production_farm_contract_amendments.sql'
@@ -49,7 +49,7 @@ jobs:
           grep -q "create_equipment_contract_amendment" admin/equipment-contract-amendments.js
           grep -q "mark_equipment_contract_amendment_signed" admin/equipment-contract-amendments.js
           grep -q "apply_equipment_contract_amendment" admin/equipment-contract-amendments.js
-          grep -q "equipment-contract-amendments.html.*Допсоглашения" admin/navigation.js
+          grep -q 'equipment-contract-amendments.html.*Допсоглашения' admin/equipment.html
           grep -q 'equipment-owner-contract-amendments.js?v=' partner/equipment.html
           grep -q "get_my_equipment_contract_amendments" partner/equipment-owner-contract-amendments.js
           grep -q "get_equipment_contract_amendment_document" partner/equipment-owner-contract-amendments.js

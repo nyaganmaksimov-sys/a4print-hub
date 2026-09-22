@@ -116,6 +116,7 @@ if (!publicPages.has(page)) {
         const supportOnly = roleData.includes('SUPPORT') && !roleData.includes('ADMIN');
         window.__A4_SUPPORT_ONLY__ = supportOnly;
         window.__A4_CURRENT_ROLES__ = roleData;
+        window.dispatchEvent(new CustomEvent('a4:roles-ready', { detail: { roles: roleData } }));
         if (supportOnly && !supportAllowedPages.has(page)) {
           location.replace(`/admin/support.html${mobileContext?'?mobile=1':''}`);
         }

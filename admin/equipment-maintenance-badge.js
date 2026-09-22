@@ -53,22 +53,21 @@ if(!window.__A4_EQUIPMENT_MAINTENANCE_BADGE__){
         const warn=new Date(today);warn.setDate(warn.getDate()+remind);
         if(due<=warn)soon++;
       }
-      let tries=0;
-      const paint=()=>{if(applyBadge(urgent,soon)||++tries>40)return;setTimeout(paint,100)};
-      paint();
+      if(!applyBadge(urgent,soon))setTimeout(()=>applyBadge(urgent,soon),300);
     }catch(error){console.warn('Equipment maintenance badge unavailable',error)}
     finally{busy=false}
   }
 
   function openCalendarFromHash(){
     if(!/\/admin\/equipment\.html$/.test(location.pathname)||location.hash!=='#calendar')return;
-    let tries=0;
     const open=()=>{
       const button=document.getElementById('calendarTabButton');
-      if(button){button.click();button.scrollIntoView({block:'nearest'});return}
-      if(++tries<60)setTimeout(open,100);
+      if(!button)return false;
+      button.click();
+      button.scrollIntoView({block:'nearest'});
+      return true;
     };
-    open();
+    if(!open()){setTimeout(open,300);setTimeout(open,900)}
   }
 
   if(typeof supabase.channel==='function'){
@@ -125,27 +124,18 @@ if(!window.__A4_SIDEBAR_MONTH_ORDER_COUNT__&&!/\/admin\/(?:index\.html)?$/.test(
     orderBusy=true;
     try{
       const {from,to}=moscowMonthBounds();
-      const {data,error}=await supabase
+      const {count,error}=await supabase
         .from('orders')
-        .select('id,source,partner_direction,partner_id,fulfillment_partner_id,created_at')
+        .select('id',{count:'exact',head:true})
         .gte('created_at',from)
         .lt('created_at',to)
-        .limit(10000);
+        .is('partner_id',null)
+        .is('fulfillment_partner_id',null)
+        .or('source.is.null,source.neq.KASSA')
+        .or('partner_direction.is.null,partner_direction.eq.NONE');
       if(error)throw error;
-      const count=(data||[]).filter(order=>{
-        const source=String(order.source||'').trim().toUpperCase();
-        const direction=String(order.partner_direction||'NONE').trim().toUpperCase();
-        return source!=='KASSA'
-          && (direction===''||direction==='NONE')
-          && !order.partner_id
-          && !order.fulfillment_partner_id;
-      }).length;
-      let tries=0;
-      const paint=()=>{
-        if(applyOrderCount(count)||++tries>50)return;
-        setTimeout(paint,100);
-      };
-      paint();
+      const value=Math.max(0,Number(count)||0);
+      if(!applyOrderCount(value))setTimeout(()=>applyOrderCount(value),300);
     }catch(error){
       console.warn('Sidebar monthly order count unavailable',error);
     }finally{
