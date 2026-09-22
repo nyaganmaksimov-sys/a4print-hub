@@ -5,7 +5,8 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const money=value=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB'}).format(Number(value||0));
 const layoutKey='a4print-partners-layout-v1';
-const state={partners:[],supplierServices:[],partnerServices:[],roles:[],loading:false};
+const state={partners:[],outboundPartners:[],supplierServices:[],partnerServices:[],roles:[],loading:false,page:1,pageSize:50,total:0};
+let searchTimer=null;
 
 function notify(tone,title,message,options={}){
   if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});
@@ -76,22 +77,37 @@ async function access(){
   if(!canManage())throw new Error('Доступ только для администратора или менеджера');
 }
 
+function renderPartnerPager(){
+  const pager=$('partnersPager');if(!pager)return;
+  const pages=Math.max(1,Math.ceil(state.total/state.pageSize));
+  pager.hidden=state.total<=state.pageSize;
+  $('partnersPageLabel').textContent=`Страница ${state.page} из ${pages}`;
+  $('partnersPrevPage').disabled=state.page<=1;
+  $('partnersNextPage').disabled=state.page>=pages;
+}
 function renderPartners(){
-  const q=$('search').value.trim().toLowerCase();
-  const rows=state.partners.filter(p=>`${p.name} ${p.contact_name||''} ${p.email||''} ${p.phone||''}`.toLowerCase().includes(q));
-  $('count').textContent=`${rows.length} партнёров`;
+  const rows=state.partners;
+  $('count').textContent=`${rows.length} на странице · всего ${state.total}`;
   $('partners').innerHTML=rows.map(p=>`<div class="partner" data-partner-id="${esc(p.id)}"><div class="row"><div><b>${esc(p.name)}</b><div class="meta">${esc(p.contact_name||'Контакт не указан')} ${p.phone?'· '+esc(p.phone):''} ${p.email?'· '+esc(p.email):''}</div><div class="meta">Заказов: ${Number(p.orders_count||0)} · скидка ${Number(p.discount_percent||0)}% · отсрочка ${Number(p.payment_terms_days||0)} дн.</div></div><div><span class="badge ${p.is_active?'':'off'}">${p.is_active?'Активен':'Отключён'}</span><br><button data-order-partner="${esc(p.id)}" style="margin-top:7px">Заказать у него</button><br><button data-toggle="${esc(p.id)}" style="margin-top:7px">${p.is_active?'Отключить':'Включить'}</button></div></div></div>`).join('')||'<div class="empty">Партнёры не найдены</div>';
-  document.dispatchEvent(new CustomEvent('a4:partners-rendered',{detail:{partners:state.partners,visible:rows}}));
+  renderPartnerPager();
+  document.dispatchEvent(new CustomEvent('a4:partners-rendered',{detail:{partners:rows,total:state.total,page:state.page}}));
 }
 function populatePartnerSelect(){
   const current=$('outPartner').value;
-  $('outPartner').innerHTML='<option value="">Выберите партнёра</option>'+state.partners.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('outPartner').innerHTML='<option value="">Выберите партнёра</option>'+state.outboundPartners.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
   if(current&&[...$('outPartner').options].some(o=>o.value===current))$('outPartner').value=current;
 }
+async function loadOutboundPartners(){
+  const {data,error}=await supabase.from('partners').select('id,name').eq('is_active',true).order('name',{ascending:true}).limit(500);
+  if(error)throw error;state.outboundPartners=data||[];populatePartnerSelect();
+}
 async function loadPartners(){
-  const j=await api('/api/v1/partners');
+  const q=$('search')?.value.trim()||'';
+  const j=await api(`/api/v1/partners?page=${state.page}&page_size=${state.pageSize}&q=${encodeURIComponent(q)}`);
   state.partners=Array.isArray(j.partners)?j.partners:[];
-  renderPartners();populatePartnerSelect();
+  state.total=Number(j.total||0);
+  if(!state.partners.length&&state.page>1){state.page=Math.max(1,state.page-1);return loadPartners()}
+  renderPartners();
 }
 
 function renderServices(){
@@ -188,9 +204,11 @@ async function saveService(id,button){
   else setTimeout(()=>{button.textContent=old},900);
 }
 function bind(){
-  $('search').addEventListener('input',renderPartners);
-  $('refresh').addEventListener('click',async()=>{if(state.loading)return;state.loading=true;$('refresh').disabled=true;try{await Promise.all([loadPartners(),loadServices()])}catch(error){notify('error','Не удалось обновить партнёров',error.message||String(error))}finally{state.loading=false;$('refresh').disabled=false}});
+  $('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.page=1;loadPartners().catch(error=>notify('error','Поиск партнёров не выполнен',error.message||String(error)))},280)});
+  $('refresh').addEventListener('click',async()=>{if(state.loading)return;state.loading=true;$('refresh').disabled=true;try{await Promise.all([loadPartners(),loadServices(),loadOutboundPartners()])}catch(error){notify('error','Не удалось обновить партнёров',error.message||String(error))}finally{state.loading=false;$('refresh').disabled=false}});
   $('resetLayout').addEventListener('click',()=>{localStorage.removeItem(layoutKey);location.reload()});
+  $('partnersPrevPage')?.addEventListener('click',()=>{if(state.page>1){state.page--;loadPartners().catch(error=>notify('error','Не удалось загрузить страницу',error.message||String(error)))}});
+  $('partnersNextPage')?.addEventListener('click',()=>{const pages=Math.max(1,Math.ceil(state.total/state.pageSize));if(state.page<pages){state.page++;loadPartners().catch(error=>notify('error','Не удалось загрузить страницу',error.message||String(error)))}});
   $('outPartner').addEventListener('change',loadSupplierServices);$('outService').addEventListener('change',calcOut);$('outQty').addEventListener('input',calcOut);
   $('outboundForm').addEventListener('submit',submitOutbound);$('partnerForm').addEventListener('submit',submitPartner);
   $('partners').addEventListener('click',event=>{
@@ -201,7 +219,7 @@ function bind(){
 }
 async function init(){
   initLayout();bind();
-  try{await access();await Promise.all([loadPartners(),loadServices()]);document.dispatchEvent(new CustomEvent('a4:partners-ready'))}
+  try{await access();await Promise.all([loadPartners(),loadServices(),loadOutboundPartners()]);document.dispatchEvent(new CustomEvent('a4:partners-ready'))}
   catch(error){document.querySelector('.main').innerHTML=`<div class="empty">${esc(error.message||error)}</div>`}
 }
 await init();
