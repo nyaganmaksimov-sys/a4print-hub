@@ -18,13 +18,14 @@ async function recoverySession(){
   if(first.data.session)return first.data.session;
 
   return await new Promise((resolve,reject)=>{
-    let settled=false;
+    let settled=false,subscription=null,timer=null;
     const finish=(value,error=null)=>{
-      if(settled)return;settled=true;clearTimeout(timer);subscription?.unsubscribe();
+      if(settled)return;settled=true;if(timer)clearTimeout(timer);subscription?.unsubscribe();
       if(error)reject(error);else resolve(value);
     };
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{if(session)finish(session)});
-    const timer=setTimeout(()=>finish(null),4500);
+    const result=supabase.auth.onAuthStateChange((_event,session)=>{if(session)finish(session)});
+    subscription=result.data.subscription;
+    timer=setTimeout(()=>finish(null),4500);
   });
 }
 async function init(){
