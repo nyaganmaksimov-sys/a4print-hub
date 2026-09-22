@@ -177,7 +177,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
   if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');if(window.A4PRINT_FEATURES?.jarvis===true)load('jarvis-settings.js','20260913-1')}
-  load('navigation.js','20260922-nav2');load('support-access.js','20260913-clean1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260922-runtime1');load('topbar-modern.js','20260922-runtime1');load('nav-accordion.js','20260922-nav2');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260912-orders1');
+  load('navigation.js','20260922-nav2');load('support-access.js','20260922-runtime2');load('onboarding.js','20260922-runtime1');load('workspace-clean.js','20260922-runtime1');load('topbar-modern.js','20260922-runtime1');load('nav-accordion.js','20260922-nav2');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260922-count1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){
     load('partner-invites.js','20260913-partners4');
