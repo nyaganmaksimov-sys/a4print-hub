@@ -1,0 +1,69 @@
+name: Check MASTER PROMPT Employees Tenancy
+
+on:
+  pull_request:
+    paths:
+      - 'admin/employees.html'
+      - 'admin/employees.js'
+      - 'admin/employee-invites.js'
+      - 'admin/register.html'
+      - 'admin/register.js'
+      - 'supabase/functions/staff-admin/**'
+      - 'supabase/functions/staff-invite-admin/**'
+      - 'supabase/migrations/*staff_tenant_isolation.sql'
+      - '.github/workflows/check-master-prompt-employees.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/employees.html'
+      - 'admin/employees.js'
+      - 'admin/employee-invites.js'
+      - 'admin/register.html'
+      - 'admin/register.js'
+      - 'supabase/functions/staff-admin/**'
+      - 'supabase/functions/staff-invite-admin/**'
+      - 'supabase/migrations/*staff_tenant_isolation.sql'
+
+jobs:
+  employees-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/employees.js
+          node --input-type=module --check < admin/employee-invites.js
+          node --input-type=module --check < admin/register.js
+      - name: Employees tenant contract
+        shell: bash
+        run: |
+          grep -q "import {supabase} from './guard.js" admin/employees.js
+          grep -q "import {supabase} from './guard.js" admin/employee-invites.js
+          grep -q "submit_staff_registration_v2" admin/register.js
+          grep -q "get_public_staff_registration_organizations" admin/register.js
+          grep -q 'id="organization"' admin/register.html
+          grep -q 'human-light-ui.css' admin/employees.html
+          grep -q 'employees.js?v=20260922-employees1' admin/employees.html
+          grep -q 'employee-invites.js?v=20260922-employees1' admin/employees.html
+          grep -q "organization_id=public.current_user_organization_id()" supabase/migrations/20260922205657_staff_tenant_isolation.sql
+          grep -q "submit_staff_registration_v2" supabase/migrations/20260922205657_staff_tenant_isolation.sql
+          grep -q "TENANT_MISMATCH" supabase/migrations/20260922205657_staff_tenant_isolation.sql
+          grep -q "organizationId" supabase/functions/staff-admin/index.ts
+          grep -q "eq('organization_id',organizationId)" supabase/functions/staff-admin/index.ts
+          grep -q "organizationId" supabase/functions/staff-invite-admin/index.ts
+          grep -q "eq('organization_id',organizationId)" supabase/functions/staff-invite-admin/index.ts
+          grep -q "@supabase/supabase-js@2.95.0" supabase/functions/staff-admin/index.ts
+          grep -q "@supabase/supabase-js@2.95.0" supabase/functions/staff-invite-admin/index.ts
+          for f in admin/employees.js admin/employee-invites.js admin/register.js
+          do
+            ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' "$f"
+            ! grep -q 'createClient' "$f"
+            ! grep -q 'MutationObserver' "$f"
+            ! grep -q 'window.alert' "$f"
+          done
+          test ! -e admin/employees-delete.js
+          test ! -e admin/employees-structure.js

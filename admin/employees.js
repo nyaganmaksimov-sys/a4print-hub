@@ -1,9 +1,8 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import {supabase} from './guard.js?v=20260922-employees1';
 
 const cfg = window.A4PRINT_CONFIG || {};
-const supabase = createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
 const $ = id => document.getElementById(id);
-const edgeUrl = `${cfg.supabaseUrl}/functions/v1/staff-admin`;
+const edgeUrl = `${String(cfg.supabaseUrl||'').replace(/\/$/,'')}/functions/v1/staff-admin`;
 
 let session = null;
 let roles = [];
@@ -17,6 +16,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt
 const initials = n => (String(n || '?').trim().split(/\s+/).slice(0,2).map(x => x[0]).join('').toUpperCase() || '?');
 const providerLabel = p => { p = String(p || 'email').toLowerCase(); if (p.includes('google')) return 'Google'; if (p.includes('yandex')) return 'Яндекс'; if (p.includes('mail')) return 'Mail.ru'; return 'Email'; };
 const fmt = v => v ? new Date(v).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 async function call(action, payload = {}, timeout = 7000) {
   if (!session) throw new Error('AUTH_REQUIRED');
@@ -98,6 +98,7 @@ function renderEmployees() {
   $('employeeList').className='table-wrap';
   $('employeeList').innerHTML = `<table class="table"><thead><tr><th>Сотрудник</th><th>Отдел / должность</th><th>Роли</th><th>Статус</th><th></th></tr></thead><tbody>${list.map(u => `<tr><td><div class="person"><div class="avatar">${esc(initials(u.full_name))}</div><div><b>${esc(u.full_name)}</b><small>${esc(u.email||'')}</small><small>${esc(u.phone||'')}</small></div></div></td><td><b>${esc(positionName(u.position_id,u.position)||'Не назначена')}</b><small>${esc(departmentName(u.organization_unit_id)||'Отдел не назначен')}</small></td><td><div class="roles">${(u.roles||[]).map(r=>`<span class="role">${esc(r.name)}</span>`).join('')||'<span class="muted">Нет ролей</span>'}</div></td><td><span class="status ${u.is_active?'on':'off'}">${u.is_active?'Активен':'Отключён'}</span></td><td><button class="btn secondary" data-edit="${u.id}">Настроить</button></td></tr>`).join('')}</tbody></table>`;
   document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEdit(b.dataset.edit));
+  document.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => deleteEmployee(b.dataset.delete,b));
 }
 function renderRequests() {
   const list = requests.filter(x => x.status === 'PENDING');
@@ -125,9 +126,23 @@ function openApprove(id) {
   $('approveForm').reset(); $('approveError').textContent=''; $('requestId').value=id; $('approvePerson').innerHTML=`<b>${esc(r.full_name)}</b><small>${esc(r.email||'')} · ${providerLabel(r.provider)}</small>`;
   $('approveDepartment').innerHTML=departmentOptions(); wirePosition('approveDepartment','approvePosition'); drawRoles($('approveRoles')); $('approveModal').classList.add('open');
 }
+async function deleteEmployee(id,button) {
+  const employee=employees.find(x=>x.id===id);if(!employee)return;
+  if(!confirm(`Удалить сотрудника «${employee.full_name||employee.email||'без имени'}»? Учётная запись входа будет удалена, рабочая история останется в системе.`))return;
+  const old=button.textContent;button.disabled=true;button.textContent='Удаляем…';
+  try{
+    await call('delete',{user_id:id},12000);
+    await load();
+    notify('success','Сотрудник удалён','Учётная запись и доступ удалены.');
+  }catch(error){
+    notify('error','Не удалось удалить сотрудника',error.message||String(error));
+    button.disabled=false;button.textContent=old;
+  }
+}
+
 async function rejectRequest(id) {
   const reason = prompt('Причина отклонения заявки (необязательно):'); if (reason === null) return;
-  try { await call('reject',{payload:{request_id:id,reason}}); await load(); } catch(e) { alert(e.message); }
+  try { await call('reject',{payload:{request_id:id,reason}}); await load(); notify('success','Заявка отклонена','Статус заявки обновлён.'); } catch(e) { notify('error','Не удалось отклонить заявку',e.message||String(e)); }
 }
 
 $('employeeForm').onsubmit = async e => {
@@ -149,4 +164,4 @@ $('search').oninput=renderEmployees; $('newEmployee').onclick=openNew; $('refres
 [$('employeeModal'),$('approveModal')].forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('open')});
 function showLoadError(e){$('employeeList').className='empty errorbox';$('employeeList').innerHTML=`<b>Не удалось загрузить сотрудников</b><small>${esc(e.message||'Ошибка')}</small><button class="btn secondary" id="retryLoad">Повторить</button>`;$('retryLoad')?.addEventListener('click',()=>load().catch(showLoadError));}
 
-(async()=>{const s=await supabase.auth.getSession();session=s.data.session;if(!session)return location.replace('./login.html');$('adminEmail').textContent=session.user.email||'';try{await load()}catch(e){if(e.status===401)return location.replace('./login.html');if(e.status===403){alert('Раздел доступен только администратору.');return location.replace('./index.html')}showLoadError(e)}})();
+(async()=>{const s=await supabase.auth.getSession();session=s.data.session;if(!session)return location.replace('./login.html');$('adminEmail').textContent=session.user.email||'';try{await load()}catch(e){if(e.status===401)return location.replace('./login.html');if(e.status===403){notify('warning','Нет доступа','Раздел сотрудников доступен только администратору.');$('newEmployee').hidden=true;$('newInvite').hidden=true;showLoadError(new Error('Раздел доступен только администратору.'));return}showLoadError(e)}})();

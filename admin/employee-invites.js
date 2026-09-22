@@ -1,11 +1,11 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import {supabase} from './guard.js?v=20260922-employees1';
 
 const cfg=window.A4PRINT_CONFIG||{};
-const sb=createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
-const edge=`${cfg.supabaseUrl}/functions/v1/staff-invite-admin`;
+const edge=`${String(cfg.supabaseUrl||'').replace(/\/$/,'')}/functions/v1/staff-invite-admin`;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 let session=null,meta={roles:[],organizations:[],organization_units:[],staff_positions:[]},invites=[];
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 async function call(action,payload={}){
   const r=await fetch(edge,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.supabasePublishableKey,'Authorization':`Bearer ${session.access_token}`},body:JSON.stringify({action,...payload})});
@@ -32,7 +32,7 @@ function render(){
   if(!invites.length){root.className='empty';root.textContent='Приглашений пока нет';return}
   root.className='table-wrap';
   root.innerHTML=`<table class="table"><thead><tr><th>Назначение</th><th>Роли</th><th>Срок</th><th>Статус</th><th></th></tr></thead><tbody>${invites.map(i=>{const st=status(i);return `<tr><td><b>${esc(i.position?.name||'Должность')}</b><small>${esc([i.organization?.name,i.department?.name].filter(Boolean).join(' · '))}</small>${i.used_user?`<small>Зарегистрирован: ${esc(i.used_user.full_name||i.used_user.email||'')}</small>`:''}</td><td><div class="roles">${(i.roles||[]).map(r=>`<span class="role">${esc(r.name)}</span>`).join('')}</div></td><td><b>${fmt(i.expires_at)}</b><small>Создано: ${fmt(i.created_at)}</small></td><td><span class="status ${st[1]}">${st[0]}</span></td><td>${active(i)?`<button class="btn danger" data-revoke-invite="${i.id}">Отменить</button>`:''}</td></tr>`}).join('')}</tbody></table>`;
-  root.querySelectorAll('[data-revoke-invite]').forEach(b=>b.onclick=async()=>{if(!confirm('Отменить это приглашение? Ссылка перестанет работать.'))return;try{await call('revoke',{invite_id:b.dataset.revokeInvite});await loadInvites()}catch(e){alert(e.message)}});
+  root.querySelectorAll('[data-revoke-invite]').forEach(b=>b.onclick=async()=>{if(!confirm('Отменить это приглашение? Ссылка перестанет работать.'))return;try{await call('revoke',{invite_id:b.dataset.revokeInvite});await loadInvites();notify('success','Приглашение отменено','Ссылка больше не действует.')}catch(e){notify('error','Не удалось отменить приглашение',e.message||String(e))}});
 }
 function openModal(){
   $('inviteForm').reset();$('inviteError').textContent='';$('inviteResult').style.display='none';$('inviteCreate').style.display='inline-flex';
@@ -58,4 +58,4 @@ function wire(){
   $('copyInvite').onclick=async()=>{try{await navigator.clipboard.writeText($('inviteLink').value);$('copyInvite').textContent='Скопировано ✓';setTimeout(()=>$('copyInvite').textContent='Копировать',1500)}catch{$('inviteLink').select();document.execCommand('copy')}};
 }
 
-(async()=>{const s=await sb.auth.getSession();session=s.data.session;if(!session)return;wire();try{await loadInvites()}catch(e){console.warn('Staff invites init failed',e)}})();
+(async()=>{const s=await supabase.auth.getSession();session=s.data.session;if(!session)return;wire();try{await loadInvites()}catch(e){console.warn('Staff invites init failed',e)}})();
