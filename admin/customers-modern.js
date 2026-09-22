@@ -3,15 +3,12 @@ import {supabase} from './guard.js?v=20260905-netfix1';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽';
-const successStatuses=new Set(['PAID','COMPLETED','SUCCESS','SUCCESSFUL','CONFIRMED','CAPTURED']);
-const state={customers:[],orders:[],payments:[],sales:[],roles:[],loading:false,channel:null,index:{orders:new Map(),payments:new Map(),sales:new Map()}};
-let reloadTimer=null;
+const initialRoles=Array.isArray(window.__A4_CURRENT_ROLES__)?[...window.__A4_CURRENT_ROLES__]:[];
+const state={customers:[],metrics:new Map(),roles:initialRoles,loading:false,channel:null};
+let reloadTimer=null,metricsReloadTimer=null;
 
 function roleName(role){return String(role?.name||role||'').toUpperCase()}
 function canManage(){return state.roles.some(r=>['ADMIN','MANAGER'].includes(roleName(r)))}
-function paymentOk(x){return successStatuses.has(String(x.status||'').toUpperCase())}
-function saleOk(x){return !['FAILED','ERROR','CANCELLED'].includes(String(x.sync_status||'').toUpperCase())}
-function isHubOrder(x){return String(x?.source||'').trim().toUpperCase()!=='KASSA'}
 function typeLabel(v){return v==='LEGAL'?'Организация':v==='IP'?'ИП':'Физлицо'}
 function fmtDate(v){const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'}
 function timestamp(v){const n=new Date(v||0).getTime();return Number.isFinite(n)?n:0}
@@ -26,41 +23,38 @@ function activityClass(value){
   if(age<=120*86400000)return'stale';
   return'';
 }
-function pushIndex(map,key,item){if(!key)return;if(!map.has(key))map.set(key,[]);map.get(key).push(item)}
-function rebuildIndexes(){
-  state.index.orders=new Map();state.index.payments=new Map();state.index.sales=new Map();
-  state.orders.forEach(x=>pushIndex(state.index.orders,x.customer_id,x));
-  state.payments.forEach(x=>{if(paymentOk(x))pushIndex(state.index.payments,x.customer_id,x)});
-  state.sales.forEach(x=>{if(saleOk(x))pushIndex(state.index.sales,x.customer_id,x)});
-}
 function metrics(c){
-  const orders=state.index.orders.get(c.id)||[];
-  const payments=state.index.payments.get(c.id)||[];
-  const sales=state.index.sales.get(c.id)||[];
-  const orderSum=orders.filter(x=>!['CANCELLED','CANCELED'].includes(String(x.status||'').toUpperCase())).reduce((s,x)=>s+Number(x.total||0),0);
-  const paid=payments.reduce((s,x)=>s+Number(x.amount||0),0);
-  const pos=sales.reduce((s,x)=>s+Number(x.total||0),0);
-  const dates=[c.updated_at,c.created_at,...orders.map(x=>x.created_at),...payments.map(x=>x.paid_at||x.created_at),...sales.map(x=>x.sold_at||x.created_at)].filter(Boolean).map(timestamp).filter(Boolean);
-  return{orders,orderSum,paid,pos,last:dates.length?new Date(Math.max(...dates)).toISOString():c.updated_at||c.created_at};
+  const row=state.metrics.get(c.id)||{};
+  const dates=[c.updated_at,c.created_at,row.last_activity].filter(Boolean).map(timestamp).filter(Boolean);
+  return{
+    ordersCount:Number(row.orders_count||0),
+    orderSum:Number(row.order_sum||0),
+    paid:Number(row.paid_total||0),
+    pos:Number(row.pos_total||0),
+    last:dates.length?new Date(Math.max(...dates)).toISOString():c.updated_at||c.created_at
+  };
+}
+
+async function loadMetrics(){
+  const result=await supabase.rpc('get_customer_workspace_metrics');
+  if(result.error)throw result.error;
+  state.metrics=new Map((result.data||[]).map(x=>[x.customer_id,x]));
 }
 
 async function load(){
   if(state.loading)return;state.loading=true;$('refresh').disabled=true;$('refresh').textContent='Обновление…';
   try{
-    const [customers,orders,payments,sales,roles]=await Promise.all([
+    const rolesPromise=state.roles.length?Promise.resolve({data:state.roles,error:null}):supabase.rpc('get_my_roles');
+    const [customers,summary,roles]=await Promise.all([
       supabase.from('customers').select('*').order('updated_at',{ascending:false}),
-      supabase.from('orders').select('id,customer_id,order_number,status,total,source,partner_direction,created_at,updated_at').order('created_at',{ascending:false}).limit(5000),
-      supabase.from('payments').select('id,customer_id,status,amount,paid_at,created_at').order('created_at',{ascending:false}).limit(5000),
-      supabase.from('pos_sales').select('id,customer_id,total,sync_status,sold_at,created_at').order('sold_at',{ascending:false}).limit(5000),
-      supabase.rpc('get_my_roles')
+      supabase.rpc('get_customer_workspace_metrics'),
+      rolesPromise
     ]);
-    for(const r of [customers,orders,payments,sales])if(r.error)throw r.error;
+    if(customers.error)throw customers.error;
+    if(summary.error)throw summary.error;
     state.customers=customers.data||[];
-    state.orders=(orders.data||[]).filter(isHubOrder);
-    state.payments=payments.data||[];
-    state.sales=sales.data||[];
-    state.roles=Array.isArray(roles.data)?roles.data:[];
-    rebuildIndexes();
+    state.metrics=new Map((summary.data||[]).map(x=>[x.customer_id,x]));
+    if(!roles.error&&Array.isArray(roles.data))state.roles=roles.data;
     const allowed=canManage();$('addCustomer').hidden=!allowed;if($('addCustomerInline'))$('addCustomerInline').hidden=!allowed;
     render();
     $('updatedAt').textContent=`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
@@ -71,8 +65,8 @@ async function load(){
 function renderStats(){
   $('customersCount').textContent=state.customers.length;
   $('companiesCount').textContent=state.customers.filter(x=>x.customer_type==='LEGAL'||x.customer_type==='IP'||x.company_name).length;
-  $('withOrdersCount').textContent=new Set(state.orders.map(x=>x.customer_id).filter(Boolean)).size;
-  $('paidTotal').textContent=money(state.payments.filter(paymentOk).reduce((s,x)=>s+Number(x.amount||0),0));
+  $('withOrdersCount').textContent=state.customers.filter(c=>metrics(c).ordersCount>0).length;
+  $('paidTotal').textContent=money([...state.metrics.values()].reduce((s,x)=>s+Number(x.paid_total||0),0));
 }
 function filtered(){
   const q=$('search').value.trim().toLowerCase(),type=$('type').value,activity=$('activity').value,sort=$('sort')?.value||'activity';
@@ -80,15 +74,15 @@ function filtered(){
     const m=metrics(c);const text=[c.full_name,c.company_name,c.legal_name,c.phone,c.email,c.inn,c.telegram,c.whatsapp,c.vk].filter(Boolean).join(' ').toLowerCase();
     if(q&&!text.includes(q))return false;
     if(type&&c.customer_type!==type)return false;
-    if(activity==='orders'&&!m.orders.length)return false;
+    if(activity==='orders'&&!m.ordersCount)return false;
     if(activity==='pos'&&!(m.pos>0))return false;
-    if(activity==='none'&&(m.orders.length||m.pos>0||m.paid>0))return false;
+    if(activity==='none'&&(m.ordersCount||m.pos>0||m.paid>0))return false;
     return true;
   });
   rows.sort((a,b)=>{
     const ma=metrics(a),mb=metrics(b);
     if(sort==='name')return String(a.full_name||a.company_name||'').localeCompare(String(b.full_name||b.company_name||''),'ru');
-    if(sort==='orders')return mb.orders.length-ma.orders.length||timestamp(mb.last)-timestamp(ma.last);
+    if(sort==='orders')return mb.ordersCount-ma.ordersCount||timestamp(mb.last)-timestamp(ma.last);
     if(sort==='value')return mb.orderSum-ma.orderSum||timestamp(mb.last)-timestamp(ma.last);
     return timestamp(mb.last)-timestamp(ma.last);
   });
@@ -104,7 +98,7 @@ function row(c){
       <span class="cf-customer-avatar" aria-hidden="true">${esc(initials(c))}</span>
       <div class="cf-customer-copy"><div class="cf-customer-name">${esc(c.full_name||company||'Клиент')}</div><div class="cf-customer-company">${esc(company)}</div><div class="cf-contact-line">${contacts}</div></div>
     </div>
-    <div class="cf-cell"><span>Заказы HUB</span><b>${m.orders.length} · ${money(m.orderSum)}</b><small class="cf-note"><i class="cf-activity-dot ${activityClass(m.last)}"></i>активность ${esc(fmtDate(m.last))}</small></div>
+    <div class="cf-cell"><span>Заказы HUB</span><b>${m.ordersCount} · ${money(m.orderSum)}</b><small class="cf-note"><i class="cf-activity-dot ${activityClass(m.last)}"></i>активность ${esc(fmtDate(m.last))}</small></div>
     <div class="cf-cell cf-money-split"><span>Деньги отдельно</span><b>${money(m.paid)} <em>HUB</em></b><b>${money(m.pos)} <em>KASSA</em></b></div>
     <div class="cf-row-actions customer-actions">${!hasContacts?'<span class="cf-badge warn">Нет контактов</span>':''}<span class="cf-badge ${c.inn?'green':'blue'}">${esc(typeLabel(c.customer_type))}</span><a class="primary" href="./customer.html?id=${encodeURIComponent(c.id)}">Карточка →</a></div>
   </article>`;
@@ -123,5 +117,21 @@ $('customerForm').addEventListener('submit',async e=>{
   try{const {data,error}=await supabase.from('customers').insert(payload).select('id').single();if(error)throw error;$('customerDlg').close();await load();if(data?.id)location.href=`./customer.html?id=${encodeURIComponent(data.id)}`}
   catch(error){$('customerError').textContent=error.message||String(error)}finally{b.disabled=false}
 });
-function initRealtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,600)};let ch=supabase.channel('customers-workspace-v3');for(const table of ['customers','orders','payments','pos_sales'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);state.channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
+function initRealtime(){
+  if(typeof supabase.channel!=='function')return;
+  const reloadAll=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,600)};
+  const reloadMetrics=()=>{
+    clearTimeout(metricsReloadTimer);
+    metricsReloadTimer=setTimeout(()=>loadMetrics().then(render).catch(console.warn),350);
+  };
+  let ch=supabase.channel('customers-workspace-v4')
+    .on('postgres_changes',{event:'*',schema:'public',table:'customers'},reloadAll);
+  for(const table of ['orders','payments','pos_sales'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reloadMetrics);
+  state.channel=ch.subscribe();
+  window.addEventListener('beforeunload',()=>{
+    if(reloadTimer)clearTimeout(reloadTimer);
+    if(metricsReloadTimer)clearTimeout(metricsReloadTimer);
+    if(state.channel)supabase.removeChannel(state.channel);
+  },{once:true});
+}
 await load();initRealtime();
