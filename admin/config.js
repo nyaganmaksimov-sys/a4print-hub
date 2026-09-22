@@ -162,7 +162,10 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isAdmin&&!document.querySelector('link[rel="icon"]')){const icon=document.createElement('link');icon.rel='icon';icon.type='image/svg+xml';icon.href=new URL('assets/logo_bd_transparent.svg?v=20260908-favicon1',base).href;document.head.appendChild(icon)}
   if(isAdmin&&!document.querySelector('link[rel="manifest"]')){const manifest=document.createElement('link');manifest.rel='manifest';manifest.href=new URL('manifest.webmanifest?v=20260908-2',base).href;document.head.appendChild(manifest)}
   if(isAdmin)loadCss('button-system.css','20260908-1');
-  if(isAdmin&&!document.querySelector('link[href*="human-light-ui.css"]'))loadCss('human-light-ui.css','20260922-3');
+  if(isAdmin&&!document.querySelector('link[href*="tokens.css"]'))loadCss('tokens.css','20260922-phase3-1');
+  if(isAdmin&&!document.querySelector('link[href*="layout.css"]'))loadCss('layout.css','20260922-phase3-1');
+  if(isAdmin&&!document.querySelector('link[href*="components.css"]'))loadCss('components.css','20260922-phase3-1');
+  if(isAdmin&&!document.querySelector('link[href*="human-light-ui.css"]'))loadCss('human-light-ui.css','20260922-phase3-1');
   if(isPartners)loadCss('partners-modern.css','20260913-partners4');
   if(isAdmin&&!mobileContext){loadCss('sidebar-light.css','20260908-2');loadCss('logo-clean.css','20260908-2')}
   if(isAdmin){
