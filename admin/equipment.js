@@ -215,6 +215,7 @@ async function switchTab(name){
   state.activeTab=name;
   for(const b of document.querySelectorAll('[data-tab]'))b.classList.toggle('active',b.dataset.tab===name);
   for(const [n,id] of [['equipment','equipmentTab'],['consumables','consumablesTab'],['movements','movementsTab']])$(id).classList.toggle('eq-hidden',n!==name);
+  $('calendarTab')?.classList.add('eq-hidden');
   try{
     if(name==='consumables'){if(!state.consumablesLoaded)$('consumablesList').innerHTML='<div class="eq-empty">Загрузка расходников…</div>';await loadConsumables()}
     if(name==='movements'){if(!state.movementsLoaded)$('movementsList').innerHTML='<div class="eq-empty">Загрузка движений…</div>';await loadMovements()}
