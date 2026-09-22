@@ -206,8 +206,12 @@ function focusLastItem(){
 
 async function openEditor(){
   if(!canManage()||!orderId||state.saving)return;
-  const button=$('editOrderBtn');button.disabled=true;const old=button.textContent;button.textContent='Загрузка…';
-  $('editOrderError').textContent='';$('editOrderError').classList.remove('ok');
+  const button=$('editOrderBtn'),dialog=$('editOrderDlg'),save=$('saveEditOrder');
+  button.disabled=true;const old=button.textContent;button.textContent='Загрузка…';
+  $('editOrderError').textContent='Загружаем заказ и справочники…';$('editOrderError').classList.remove('ok');
+  $('editOrderSubtitle').textContent='Подготовка данных заказа';
+  save.disabled=true;
+  if(!dialog.open)dialog.showModal();
   try{
     const financial=await loadEditorData();
     const order=state.order;
@@ -222,14 +226,16 @@ async function openEditor(){
     $('editOrderCustomerComment').value=order.customer_comment||'';
     $('editOrderInternalComment').value=order.internal_comment||'';
     $('editOrderSubtitle').textContent=`Заказ №${order.order_number??'—'} · ${order.status||'—'}`;
+    $('editOrderError').textContent='';
     const warning=$('editOrderFinanceWarning');
     if(financial.docs||financial.payments){
       warning.classList.add('show');
       warning.textContent=`У заказа уже есть финансовые операции: счетов — ${financial.docs}, оплат — ${financial.payments}. Изменение стоимости заказа не меняет уже созданные счета и платежи.`;
     }else{warning.classList.remove('show');warning.textContent=''}
-    $('editOrderDlg').showModal();
+    save.disabled=false;
   }catch(error){
     console.error('Order editor load failed',error);
+    $('editOrderError').textContent='Не удалось загрузить данные редактирования.';
     notify('error','Не удалось открыть редактирование заказа',error.message||String(error));
   }finally{button.disabled=false;button.textContent=old}
 }
