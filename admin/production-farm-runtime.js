@@ -64,21 +64,14 @@ async function loadData(force=false){
   state.loading=true;
   try{
     const dayStart=new Date();dayStart.setHours(0,0,0,0);
-    const hasBoardSnapshot=Array.isArray(window.__A4_PRODUCTION_BOARD__?.jobs);
-    const jobsFallback=hasBoardSnapshot?Promise.resolve({data:[],error:null}):supabase.from('production_jobs')
-      .select('id,order_id,order_item_id,equipment_id,status,title,quantity,operation_type,planned_machine_minutes,actual_machine_minutes,operation_amount,primary_material_id,production_cost,priority,created_at,updated_at')
-      .in('status',['NEW','QUEUED','IN_PROGRESS','PAUSED'])
-      .order('priority',{ascending:false})
-      .order('created_at',{ascending:false});
-    const [jobs,equipment,todayRuns,openRuns]=await Promise.all([
-      jobsFallback,
+    const [equipment,todayRuns,openRuns]=await Promise.all([
       supabase.from('equipment_assets').select('id,inventory_number,name,brand,model,status,operational_status,ownership_type,location').order('name'),
       supabase.from('production_job_runs').select('id,production_job_id,equipment_id,operator_user_id,started_at,ended_at,elapsed_seconds,end_reason').gte('started_at',dayStart.toISOString()).order('started_at',{ascending:false}),
       supabase.from('production_job_runs').select('id,production_job_id,equipment_id,operator_user_id,started_at,ended_at,elapsed_seconds,end_reason').is('ended_at',null).order('started_at',{ascending:false})
     ]);
-    for(const result of [jobs,equipment,todayRuns,openRuns])if(result.error)throw result.error;
-    state.jobs=hasBoardSnapshot?new Map():new Map((jobs.data||[]).map(j=>[j.id,j]));
-    mergeBoardSnapshot(window.__A4_PRODUCTION_BOARD__);
+    for(const result of [equipment,todayRuns,openRuns])if(result.error)throw result.error;
+    state.jobs=new Map();
+    mergeBoardSnapshot(window.__A4_PRODUCTION_WORKSPACE__);
     state.equipment=new Map((equipment.data||[]).map(e=>[e.id,e]));
     const runs=new Map();for(const row of [...(todayRuns.data||[]),...(openRuns.data||[])])runs.set(row.id,row);state.runs=[...runs.values()];
     enhanceCards();renderMachines();
@@ -189,8 +182,8 @@ async function init(){
   try{
     await loadPermissions();if(!can('production.view'))return;
     injectStyle();ensureDialogs();installTopButton();bindDelegatedActions();
-    document.addEventListener('a4:production-board-rendered',event=>{mergeBoardSnapshot(event.detail);enhanceCards();renderMachines()});
-    mergeBoardSnapshot(window.__A4_PRODUCTION_BOARD__);
+    document.addEventListener('a4:production-rendered',event=>{state.jobs=new Map();mergeBoardSnapshot(event.detail);enhanceCards();renderMachines()});
+    mergeBoardSnapshot(window.__A4_PRODUCTION_WORKSPACE__);
     await loadData();
     timer=setInterval(updateTimers,1000);initRealtime();
     $('refresh')?.addEventListener('click',()=>setTimeout(()=>loadData(true),250));
