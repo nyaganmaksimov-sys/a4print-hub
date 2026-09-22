@@ -28,12 +28,14 @@ function syncUrl(){
 
 async function initContext(){
   const {data:{session}}=await supabase.auth.getSession();
-  const [roles,profile]=await Promise.all([
+  const [roles,profile,organization]=await Promise.all([
     state.roles.length?Promise.resolve({data:state.roles,error:null}):supabase.rpc('get_my_roles'),
-    session?.user?.id?supabase.from('users').select('id,organization_id').eq('auth_user_id',session.user.id).maybeSingle():Promise.resolve({data:null,error:null})
+    session?.user?.id?supabase.from('users').select('id').eq('auth_user_id',session.user.id).maybeSingle():Promise.resolve({data:null,error:null}),
+    supabase.rpc('current_user_organization_id')
   ]);
   if(!roles.error&&Array.isArray(roles.data))state.roles=roles.data.map(String);
-  state.organizationId=profile.data?.organization_id||null;
+  if(organization.error)console.warn('Current organization unavailable',organization.error);
+  state.organizationId=organization.data||null;
   state.profileId=profile.data?.id||null;
 }
 
