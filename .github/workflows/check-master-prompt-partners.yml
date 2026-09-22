@@ -1,0 +1,47 @@
+name: Check MASTER PROMPT Partners
+
+on:
+  pull_request:
+    paths:
+      - 'admin/partners.html'
+      - 'admin/partners-core.js'
+      - 'api/src/partners-compat-api.js'
+      - 'supabase/migrations/*partner_order_counts_rpc.sql'
+      - '.github/workflows/check-master-prompt-partners.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/partners.html'
+      - 'admin/partners-core.js'
+      - 'api/src/partners-compat-api.js'
+      - 'supabase/migrations/*partner_order_counts_rpc.sql'
+
+jobs:
+  partners-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/partners-core.js
+          node --input-type=module --check < api/src/partners-compat-api.js
+      - name: A4 Network architecture contract
+        shell: bash
+        run: |
+          grep -q 'partners-core.js' admin/partners.html
+          grep -q 'partnersPager' admin/partners.html
+          grep -q 'human-light-ui.css' admin/partners.html
+          grep -q 'page_size' api/src/partners-compat-api.js
+          grep -q '.range(from,to)' api/src/partners-compat-api.js
+          grep -q 'get_partner_order_counts' api/src/partners-compat-api.js
+          grep -q 'security invoker' supabase/migrations/20260922200842_partner_order_counts_rpc.sql
+          ! grep -q '<script type="module">' admin/partners.html
+          ! grep -q "select('\*')" admin/partners-core.js
+          ! grep -q 'MutationObserver' admin/partners-core.js
+          ! grep -q 'window.alert' admin/partners-core.js
+          ! grep -q "select('partner_id,fulfillment_partner_id')" api/src/partners-compat-api.js
+          ! grep -q "supabase.rpc('has_role'" admin/partners-core.js
