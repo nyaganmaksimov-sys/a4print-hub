@@ -78,14 +78,14 @@ async function currentSession() {
     if (error) console.warn('Auth session read failed', error);
     if (!session) return null;
 
-    let userResult = await supabase.auth.getUser();
-    if (userResult.error && /expired|jwt|token/i.test(String(userResult.error.message || ''))) {
+    let claimsResult = await supabase.auth.getClaims(session.access_token);
+    if (claimsResult.error && /expired|jwt|token/i.test(String(claimsResult.error.message || ''))) {
       const refreshed = await supabase.auth.refreshSession();
       if (refreshed.error || !refreshed.data.session) return null;
       session = refreshed.data.session;
-      userResult = await supabase.auth.getUser();
+      claimsResult = await supabase.auth.getClaims(session.access_token);
     }
-    if (userResult.error || !userResult.data.user) return null;
+    if (claimsResult.error || !claimsResult.data?.claims?.sub) return null;
     return session;
   } catch (e) {
     console.warn('Auth validation failed', e);
@@ -98,17 +98,20 @@ if (!publicPages.has(page)) {
   if (!session) {
     login('session');
   } else {
-    if (page !== 'profile.html') {
-      const { data, error } = await supabase.rpc('get_my_staff_profile');
-      if (error || data?.status !== 'ACTIVE') {
-        if (mobileContext) mobileLogin(data?.status || 'access');
-        else if (data?.status === 'UNREGISTERED') location.replace('./register.html');
+    try {
+      const [profileResult, roleResult] = await Promise.all([
+        page === 'profile.html' ? Promise.resolve({ data: { status: 'ACTIVE' }, error: null }) : supabase.rpc('get_my_staff_profile'),
+        supabase.rpc('get_my_roles')
+      ]);
+
+      const { data: profileData, error: profileError } = profileResult;
+      if (profileError || profileData?.status !== 'ACTIVE') {
+        if (mobileContext) mobileLogin(profileData?.status || 'access');
+        else if (profileData?.status === 'UNREGISTERED') location.replace('./register.html');
         else location.replace('./pending.html');
       }
-    }
 
-    try {
-      const { data: roleData, error: roleError } = await supabase.rpc('get_my_roles');
+      const { data: roleData, error: roleError } = roleResult;
       if (!roleError && Array.isArray(roleData)) {
         const supportOnly = roleData.includes('SUPPORT') && !roleData.includes('ADMIN');
         window.__A4_SUPPORT_ONLY__ = supportOnly;
@@ -118,7 +121,7 @@ if (!publicPages.has(page)) {
         }
       }
     } catch (e) {
-      console.warn('Support role check failed', e);
+      console.warn('Staff access check failed', e);
     }
   }
 }
