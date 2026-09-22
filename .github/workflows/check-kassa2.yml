@@ -133,8 +133,12 @@ jobs:
           grep -q 'OUTDOOR' kassa/order-entry-menu.js
           grep -q 'A4KassaStampOrders' kassa/stamp-orders.js
           grep -q 'A4KassaPartnerOrders' kassa/partner-orders.js
-          grep -q 'create_kassa_production_order' kassa/partner-orders.js
+          grep -q 'create_kassa_partner_order_v2' kassa/partner-orders.js
+          grep -q 'create_kassa_production_order_v2' kassa/partner-orders.js
+          grep -q 'p_client_operation_id:submitOperationId' kassa/partner-orders.js
+          grep -q 'submitBusy' kassa/partner-orders.js
           test -f supabase/migrations/20260921054737_kassa_production_order_workflows.sql
+          test -f supabase/migrations/20260922222500_kassa_partner_production_order_idempotency.sql
           ! grep -q 'navStampOrder' kassa/stamp-orders.js
           ! grep -q 'navPartnerOrder' kassa/partner-orders.js
           grep -q '127.0.0.1' desktop-kassa/main.js

@@ -22,7 +22,7 @@
     THREE_D:{title:'3D-печать',department:'3D-ARTPRINT',url:null,presets:['FDM-печать','Фотополимерная печать','Прототип','Деталь / запчасть','Макет / модель','Сувенир / фигурка','Серийная печать','Другое'],labels:['Технология / материал','Размер / габариты','Цвет / смола','Качество / постобработка'],textLabel:'Заполнение / поддержка / требования',costLabel:'Плановая себестоимость за ед., ₽'},
     OUTDOOR:{title:'Наружная реклама',department:'3D-ARTPRINT',url:null,presets:['Вывеска','Световой короб','Объёмные буквы','Табличка','Навигация / указатель','Оформление витрины','Брендирование фасада','Стенд','Другое'],labels:['Материал','Размер / габариты','Подсветка / цвет','Крепление / монтаж'],textLabel:'Адрес монтажа / дополнительные требования',costLabel:'Плановая себестоимость за ед., ₽'}
   };
-  let overlay=null,flow='MEMORIAL',selectedCustomerId=null,files=[],searchTimer=null;
+  let overlay=null,flow='MEMORIAL',selectedCustomerId=null,files=[],searchTimer=null,submitBusy=false,submitOperationId=null;
 
   function uid(){return crypto.randomUUID?crypto.randomUUID():`po-${Date.now()}-${Math.random().toString(36).slice(2)}`}
   function cleanFileName(name){return String(name||'file').normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').replace(/\s+/g,' ').trim().slice(-150)||'file'}
@@ -94,7 +94,7 @@
   function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('partner-order-open')}
 
   function reset(){
-    selectedCustomerId=null;files=[];
+    selectedCustomerId=null;files=[];submitBusy=false;submitOperationId=uid();
     $('partnerOrderForm')?.reset();$('partnerQty').value='1';$('partnerPrice').value='0';$('partnerCost').value='0';
     $('partnerCustomerResults').innerHTML='';$('partnerOrderError').textContent='';renderFiles();recalc();setFlow(flow);
   }
@@ -147,9 +147,14 @@
   }
 
   async function submit(e){
-    e.preventDefault();const err=$('partnerOrderError'),save=$('partnerOrderSave');err.textContent='';
+    e.preventDefault();
+    // One form lifecycle keeps one operation id so retries can never create a second order.
+    if(submitBusy)return;
+    submitBusy=true;
+    const err=$('partnerOrderError'),save=$('partnerOrderSave');err.textContent='';
     const fullName=$('partnerFullName').value.trim(),company=$('partnerCompanyName').value.trim(),item=$('partnerItemName').value.trim(),qty=Number($('partnerQty').value||0),price=Number($('partnerPrice').value||0),cost=Number($('partnerCost').value||0);
-    if(!fullName&&!company){err.textContent='Укажите клиента.';return}if(!item){err.textContent='Укажите изделие или услугу.';return}if(!(qty>0)){err.textContent='Количество должно быть больше нуля.';return}if(price<0||cost<0){err.textContent='Цена не может быть отрицательной.';return}
+    if(!fullName&&!company){submitBusy=false;err.textContent='Укажите клиента.';return}if(!item){submitBusy=false;err.textContent='Укажите изделие или услугу.';return}if(!(qty>0)){submitBusy=false;err.textContent='Количество должно быть больше нуля.';return}if(price<0||cost<0){submitBusy=false;err.textContent='Цена не может быть отрицательной.';return}
+    if(!submitOperationId)submitOperationId=uid();
     save.disabled=true;save.textContent='Создаём заказ…';
     try{
       const customer={id:selectedCustomerId,customer_type:$('partnerCustomerType').value,full_name:fullName,company_name:company,phone:$('partnerPhone').value.trim(),email:$('partnerEmail').value.trim(),inn:$('partnerInn').value.trim()};
@@ -158,15 +163,23 @@
       const order={workflow:flow,item_name:item,material:$('partnerMaterial').value.trim(),format:$('partnerFormat').value.trim(),color:$('partnerColor').value.trim(),finishing:$('partnerFinishing').value.trim(),reference:$('partnerReference').value.trim(),text:$('partnerText').value.trim(),quantity:qty,unit_price:price};
       if(isPartner)order.partner_unit_cost=cost;else order.planned_unit_cost=cost;
       const raw=$('partnerDueAt').value,due=raw?new Date(raw).toISOString():null;
-      const rpc=isPartner?'create_kassa_partner_order':'create_kassa_production_order';
-      const {data,error}=await supabase.rpc(rpc,{p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
+      const rpc=isPartner?'create_kassa_partner_order_v2':'create_kassa_production_order_v2';
+      const {data,error}=await supabase.rpc(rpc,{p_client_operation_id:submitOperationId,p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
       const result=Array.isArray(data)?data[0]:data;if(!result?.id)throw new Error('HUB не вернул ID заказа.');
       const failures=files.length?await uploadFiles(result.id,save):[];
       const planned=result.partner_planned_cost??result.planned_total_cost??0;
-      overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан</h3><p>'+esc(current.partner||current.department||'A4PRINT')+' · '+esc(current.title)+'. Плановая себестоимость '+money(planned)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
-      $('partnerOrderSave').hidden=true;$('partnerOrderAnother').onclick=()=>{close();location.reload()};
-    }catch(error){err.textContent='Не удалось создать заказ: '+String(error.message||error)}
-    finally{save.disabled=false;save.textContent='Создать заказ в HUB'}
+      const destination=result.business_unit==='3D_ARTPRINT'?'3D-ARTPRINT':'А4-Принт';
+      overlay.querySelector('.partner-order-scroll').innerHTML='<div class="partner-order-success"><div>✓</div><h3>Заказ №'+esc(result.order_number||'')+' создан в HUB</h3><p>Заказ сохранён в разделе «Заказы» · направление '+esc(destination)+' · '+esc(current.partner||current.department||'A4PRINT')+' · '+esc(current.title)+'. Плановая себестоимость '+money(planned)+'.'+(failures.length?' Не загрузились: '+esc(failures.join(', '))+'.':'')+'</p><div><button id="partnerOrderPay" type="button">Открыть в кассе / оплатить</button><a href="../admin/order.html?id='+encodeURIComponent(result.id)+'">Открыть заказ HUB</a><button id="partnerOrderAnother" type="button">Ещё заказ</button></div></div>';
+      $('partnerOrderSave').hidden=true;
+      $('partnerOrderPay').onclick=()=>{close();window.A4KassaHubOrders?.openOrder?.(result.id)};
+      $('partnerOrderAnother').onclick=()=>{close();location.reload()};
+      window.dispatchEvent(new CustomEvent('a4:kassa-partner-order-created',{detail:result}));
+    }catch(error){
+      submitBusy=false;
+      err.textContent='Не удалось создать заказ: '+String(error.message||error);
+    }finally{
+      if(!submitBusy){save.disabled=false;save.textContent='Создать заказ в HUB'}
+    }
   }
 
   function bind(){
