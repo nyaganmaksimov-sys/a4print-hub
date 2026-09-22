@@ -6,7 +6,7 @@ const apiBase=String(cfg.apiBaseUrl||'https://a4print-hub-api.onrender.com').rep
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
 const typeLabel={PRODUCT:'Товар',MATERIAL:'Материал',SERVICE:'Услуга',FINISHED_PRODUCT:'Готовая продукция',MODEL_3D:'3D-модель'};
-const state={items:[],transactions:[],localBalances:new Map(),msStock:{},msStockAvailable:false,msStockStale:false,roles:[],profileId:null,organizationId:null,loading:false,channel:null};
+const state={items:[],localBalances:new Map(),msStock:{},msStockAvailable:false,msStockStale:false,roles:[],profileId:null,organizationId:null,loading:false,channel:null};
 let reloadTimer=null;
 
 async function sessionToken(){const {data:{session}}=await supabase.auth.getSession();return session?.access_token||''}
@@ -39,13 +39,14 @@ async function initContext(){
 
 function calculateLocalBalances(rows){
   const map=new Map();
-  for(const x of rows||[]){
-    let qty=Number(x.quantity||0);
-    if(['ISSUE','TRANSFER_OUT','PRODUCTION_OUT'].includes(x.transaction_type))qty=-Math.abs(qty);
-    else if(['RECEIPT','TRANSFER_IN','PRODUCTION_IN'].includes(x.transaction_type))qty=Math.abs(qty);
-    map.set(x.catalog_item_id,(map.get(x.catalog_item_id)||0)+qty);
-  }
+  for(const x of rows||[]) map.set(x.catalog_item_id,(map.get(x.catalog_item_id)||0)+Number(x.quantity||0));
   return map;
+}
+
+async function loadLocalBalances(){
+  const result=await supabase.from('inventory_balances').select('catalog_item_id,quantity');
+  if(result.error)throw result.error;
+  state.localBalances=calculateLocalBalances(result.data||[]);
 }
 function isMoySklad(item){return item.external_source==='MOYSKLAD'&&Boolean(item.external_id)}
 function stockOf(item){
@@ -86,12 +87,12 @@ async function load(){
   $('refresh').textContent='Обновление…';
   $('list').innerHTML='<div class="warehouse-empty">Загрузка склада…</div>';
   try{
-    const [catalog,tx]=await Promise.all([
+    const [catalog,balanceResult]=await Promise.all([
       supabase.from('catalog_items').select('*').order('name'),
-      supabase.from('inventory_transactions').select('catalog_item_id,transaction_type,quantity,created_at').order('created_at',{ascending:false}).limit(10000)
+      supabase.from('inventory_balances').select('catalog_item_id,quantity')
     ]);
-    if(catalog.error)throw catalog.error;if(tx.error)throw tx.error;
-    state.items=catalog.data||[];state.transactions=tx.data||[];state.localBalances=calculateLocalBalances(state.transactions);
+    if(catalog.error)throw catalog.error;if(balanceResult.error)throw balanceResult.error;
+    state.items=catalog.data||[];state.localBalances=calculateLocalBalances(balanceResult.data||[]);
     await loadStock();
     render();
     $('updatedAt').textContent=`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
@@ -208,12 +209,16 @@ $('syncCatalog').addEventListener('click',async()=>{
 
 function initRealtime(){
   if(typeof supabase.channel!=='function')return;
-  const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,650)};
-  state.channel=supabase.channel('warehouse-live-v2').on('postgres_changes',{event:'*',schema:'public',table:'catalog_items'},reload).on('postgres_changes',{event:'*',schema:'public',table:'inventory_transactions'},reload).subscribe();
+  const reloadCatalog=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,650)};
+  const reloadBalance=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(()=>loadLocalBalances().then(render).catch(console.warn),350)};
+  state.channel=supabase.channel('warehouse-live-v3')
+    .on('postgres_changes',{event:'*',schema:'public',table:'catalog_items'},reloadCatalog)
+    .on('postgres_changes',{event:'*',schema:'public',table:'inventory_transactions'},reloadBalance)
+    .subscribe();
   window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true});
 }
 
 await initContext();
 await load();
 initRealtime();
-setInterval(()=>{if(!document.hidden)loadStock().then(render).catch(()=>{})},60000);
+setInterval(()=>{if(!document.hidden)loadStock().then(render).catch(()=>{})},300000);
