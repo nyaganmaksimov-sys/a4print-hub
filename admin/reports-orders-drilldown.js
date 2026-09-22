@@ -62,12 +62,12 @@ function ensureDialog(){
   return dlg;
 }
 
-async function fetchPage(){
+async function fetchPage(page){
   const period=activePeriod(),start=periodStart(period);
   const {data,error}=await supabase.rpc('get_reports_order_drilldown',{
     p_start:start?start.toISOString():null,
     p_status:state.status,
-    p_page:state.page,
+    p_page:page,
     p_page_size:state.pageSize
   });
   if(error)throw error;
@@ -97,8 +97,10 @@ async function loadPage(append=false){
   const dlg=ensureDialog(),list=dlg.querySelector('#reportOrdersDialogList'),more=dlg.querySelector('#reportOrdersLoadMore');
   if(append){more.disabled=true;more.textContent='Загрузка…'}
   else list.innerHTML='<div class="report-orders-loading">Загрузка заказов…</div>';
+  const targetPage=append?state.page+1:1;
   try{
-    const result=await fetchPage();
+    const result=await fetchPage(targetPage);
+    state.page=targetPage;
     state.total=result.total;
     state.rows=append?[...state.rows,...result.rows]:result.rows;
     renderRows(result.period);
