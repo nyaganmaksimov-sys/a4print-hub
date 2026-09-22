@@ -148,6 +148,7 @@
 
   async function submit(e){
     e.preventDefault();
+    // One form lifecycle keeps one operation id so retries can never create a second order.
     if(submitBusy)return;
     submitBusy=true;
     const err=$('partnerOrderError'),save=$('partnerOrderSave');err.textContent='';
