@@ -1,0 +1,36 @@
+name: Check MASTER PROMPT Profile Auth
+
+on:
+  pull_request:
+    paths:
+      - 'admin/profile.html'
+      - 'admin/profile.js'
+      - '.github/workflows/check-master-prompt-profile-auth.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/profile.html'
+      - 'admin/profile.js'
+
+jobs:
+  profile-auth-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Profile syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/profile.js
+      - name: Shared auth client contract
+        shell: bash
+        run: |
+          grep -q "import {supabase} from './guard.js" admin/profile.js
+          grep -q 'type="module" src="./profile.js?v=20260922-phase5-1"' admin/profile.html
+          ! grep -q 'loadLocalSupabase' admin/profile.js
+          ! grep -q 'getSharedClient' admin/profile.js
+          ! grep -q 'createClient' admin/profile.js
+          ! grep -q 'sb_publishable_' admin/profile.js
+          ! grep -q 'window.alert' admin/profile.js
