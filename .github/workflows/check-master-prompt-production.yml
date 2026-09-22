@@ -1,0 +1,76 @@
+name: Check MASTER PROMPT Production
+
+on:
+  pull_request:
+    paths:
+      - 'admin/production.html'
+      - 'admin/production-modern.js'
+      - 'admin/production-farm-runtime.js'
+      - 'admin/production-farm-operator.js'
+      - 'admin/production-farm-capacity.js'
+      - 'admin/production-farm-dispatcher.js'
+      - 'admin/production-farm-analytics.js'
+      - 'admin/production-farm-monitoring.js'
+      - 'admin/production-farm-materials.js'
+      - 'admin/production-farm-settlements.js'
+      - 'admin/equipment-incidents.js'
+      - 'supabase/migrations/*production_workspace_rpc.sql'
+      - '.github/workflows/check-master-prompt-production.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/production.html'
+      - 'admin/production-modern.js'
+      - 'admin/production-farm-runtime.js'
+      - 'admin/production-farm-operator.js'
+      - 'admin/production-farm-capacity.js'
+      - 'admin/production-farm-dispatcher.js'
+      - 'admin/production-farm-analytics.js'
+      - 'admin/production-farm-monitoring.js'
+      - 'admin/production-farm-materials.js'
+      - 'admin/production-farm-settlements.js'
+      - 'admin/equipment-incidents.js'
+      - 'supabase/migrations/*production_workspace_rpc.sql'
+
+jobs:
+  production-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          for f in             admin/production-modern.js             admin/production-farm-runtime.js             admin/production-farm-operator.js             admin/production-farm-capacity.js             admin/production-farm-dispatcher.js             admin/production-farm-analytics.js             admin/production-farm-monitoring.js             admin/production-farm-materials.js             admin/production-farm-settlements.js             admin/equipment-incidents.js
+          do
+            node --input-type=module --check < "$f"
+          done
+      - name: Production architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_production_workspace_jobs' admin/production-modern.js
+          grep -q 'get_production_workspace_metrics' admin/production-modern.js
+          grep -q 'a4:production-board-rendered' admin/production-modern.js
+          grep -q 'a4:production-board-rendered' admin/production-farm-runtime.js
+          grep -q 'a4:production-board-rendered' admin/production-farm-operator.js
+          grep -q 'security invoker' supabase/migrations/20260922192416_production_workspace_rpc.sql
+          grep -q 'production_jobs_org_status_priority_idx' supabase/migrations/20260922192416_production_workspace_rpc.sql
+          grep -q 'human-light-ui.css' admin/production.html
+          grep -q "const boot=()=>{installButton()}" admin/production-farm-capacity.js
+          grep -q "const boot=()=>{installButton()}" admin/production-farm-dispatcher.js
+          grep -q "function boot(){ensureUi()}" admin/production-farm-analytics.js
+          grep -q "function boot(){ensureUi()}" admin/production-farm-monitoring.js
+          grep -q "from('inventory_balances')" admin/production-farm-materials.js
+
+          for f in             admin/production-modern.js             admin/production-farm-runtime.js             admin/production-farm-operator.js             admin/production-farm-capacity.js             admin/production-farm-dispatcher.js             admin/production-farm-analytics.js             admin/production-farm-monitoring.js             admin/production-farm-materials.js             admin/production-farm-settlements.js             admin/equipment-incidents.js
+          do
+            ! grep -q "select('\*')" "$f"
+            ! grep -q 'MutationObserver' "$f"
+            ! grep -q 'window.alert' "$f"
+            ! grep -q 'limit(1000)' "$f"
+            ! grep -q 'limit(2000)' "$f"
+            ! grep -q 'limit(5000)' "$f"
+            ! grep -q 'limit(10000)' "$f"
+          done

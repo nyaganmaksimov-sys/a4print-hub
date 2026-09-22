@@ -6,7 +6,7 @@ if(!window.__A4_PRODUCTION_CAPACITY__){
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const weekdays=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const unavailable=new Set(['MAINTENANCE','REPAIR','FAULT','WAITING_PARTS','OFFLINE','RETIRED']);
-  const state={permissions:[],equipment:[],jobs:[],rules:[],capacity:[],days:14,channel:null,busy:false};
+  const state={permissions:[],equipment:[],jobs:[],rules:[],capacity:[],days:14,channel:null,busy:false,realtimeStarted:false};
   let reloadTimer=null;
 
   const canManage=()=>state.permissions.includes('production.manage');
@@ -24,7 +24,7 @@ if(!window.__A4_PRODUCTION_CAPACITY__){
     if($('farmCapacityBtn'))return;
     const actions=document.querySelector('.production-top-actions');if(!actions)return;
     const b=document.createElement('button');b.id='farmCapacityBtn';b.type='button';b.className='farm-capacity-top-btn';b.textContent='📅 План загрузки';
-    b.addEventListener('click',async()=>{ensureUi();$('farmCapacityDlg').showModal();await load()});
+    b.addEventListener('click',async()=>{ensureUi();$('farmCapacityDlg').showModal();await load();realtime()});
     actions.insertBefore(b,$('refresh')||null);
   }
 
@@ -111,10 +111,10 @@ if(!window.__A4_PRODUCTION_CAPACITY__){
   function humanError(error){const m=String(error?.message||error||'Ошибка');if(m.includes('EQUIPMENT_PLAN_OVERLAP'))return'На этом станке уже есть задание в выбранное время. Выберите другое окно.';if(m.includes('EQUIPMENT_UNAVAILABLE'))return'Выбранный станок сейчас недоступен.';if(m.includes('JOB_CANNOT_BE_SCHEDULED'))return'Это задание уже выполняется или закрыто и не может быть перепланировано.';if(m.includes('PERMISSION_DENIED'))return'Недостаточно прав для изменения производственного плана.';return m}
 
   function realtime(){
-    if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,500)};
+    if(state.realtimeStarted||typeof supabase.channel!=='function')return;state.realtimeStarted=true;const reload=()=>{if(!$('farmCapacityDlg')?.open)return;clearTimeout(reloadTimer);reloadTimer=setTimeout(load,500)};
     state.channel=supabase.channel('production-capacity-v1').on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'equipment_capacity_rules'},reload).on('postgres_changes',{event:'*',schema:'public',table:'equipment_assets'},reload).subscribe();
     window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true});
   }
-  const boot=async()=>{installButton();ensureUi();await load();realtime()};
+  const boot=()=>{installButton()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 }

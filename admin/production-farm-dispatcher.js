@@ -8,11 +8,12 @@ if(!window.__A4_PRODUCTION_DISPATCHER__){
   const activeStatuses=new Set(['NEW','QUEUED','IN_PROGRESS','PAUSED']);
   const movableStatuses=new Set(['NEW','QUEUED','PAUSED']);
   const state={
-    permissions:[],equipment:[],jobs:[],orders:[],capabilities:[],days:14,channel:null,busy:false,
+    permissions:[],equipment:[],jobs:[],orders:[],capabilities:[],days:14,channel:null,busy:false,realtimeStarted:false,
     settings:{timezone:'Asia/Yekaterinburg',workday_start:'09:00:00',planning_horizon_days:30,setup_gap_minutes:10}
   };
   let reloadTimer=null;
   let draggedJobId='';
+  const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
   const canManage=()=>state.permissions.includes('production.manage');
   const orderOf=id=>state.orders.find(x=>x.id===id)||null;
@@ -43,7 +44,7 @@ if(!window.__A4_PRODUCTION_DISPATCHER__){
     if($('farmDispatcherBtn'))return;
     const actions=document.querySelector('.production-top-actions');if(!actions)return;
     const b=document.createElement('button');b.id='farmDispatcherBtn';b.type='button';b.className='farm-dispatcher-top-btn';b.textContent='🧠 Диспетчер';
-    b.addEventListener('click',async()=>{ensureUi();$('farmDispatcherDlg').showModal();await load()});
+    b.addEventListener('click',async()=>{ensureUi();$('farmDispatcherDlg').showModal();await load();realtime()});
     actions.insertBefore(b,$('farmCapacityBtn')||$('refresh')||null);
   }
 
@@ -100,18 +101,22 @@ if(!window.__A4_PRODUCTION_DISPATCHER__){
     const refresh=$('farmDispatcherRefresh');if(refresh)refresh.disabled=true;
     try{
       const permissionPromise=state.permissions.length?Promise.resolve({data:state.permissions,error:null}):supabase.rpc('get_my_permissions');
-      const [permissions,settings,equipment,jobs,orders,capabilities]=await Promise.all([
+      const [permissions,settings,equipment,jobs,capabilities]=await Promise.all([
         permissionPromise,
         supabase.from('production_dispatch_settings').select('timezone,workday_start,planning_horizon_days,setup_gap_minutes').eq('id',1).maybeSingle(),
         supabase.from('equipment_assets').select('id,inventory_number,name,status,operational_status,category').neq('status','WRITTEN_OFF').order('inventory_number'),
         supabase.from('production_jobs').select('id,title,status,priority,order_id,equipment_id,planned_start,planned_end,planned_machine_minutes,deadline_at,dispatch_locked,dispatch_source,dispatch_note,operation_type,created_at').in('status',['NEW','QUEUED','IN_PROGRESS','PAUSED']).order('priority',{ascending:false}).order('created_at'),
-        supabase.from('orders').select('id,order_number,due_at').limit(1000),
         supabase.from('production_equipment_capabilities').select('equipment_id,operation_type,is_active').eq('is_active',true).order('operation_type')
       ]);
-      for(const r of [permissions,settings,equipment,jobs,orders,capabilities])if(r.error)throw r.error;
+      for(const r of [permissions,settings,equipment,jobs,capabilities])if(r.error)throw r.error;
       state.permissions=Array.isArray(permissions.data)?permissions.data:state.permissions;
       if(settings.data)state.settings={...state.settings,...settings.data};
-      state.equipment=equipment.data||[];state.jobs=jobs.data||[];state.orders=orders.data||[];state.capabilities=capabilities.data||[];
+      state.equipment=equipment.data||[];state.jobs=jobs.data||[];state.capabilities=capabilities.data||[];
+      const orderIds=[...new Set(state.jobs.map(j=>j.order_id).filter(Boolean))];
+      if(orderIds.length){
+        const orders=await supabase.from('orders').select('id,order_number,due_at').in('id',orderIds);
+        if(orders.error)throw orders.error;state.orders=orders.data||[];
+      }else state.orders=[];
       $('farmDispatcherAuto').hidden=!canManage();$('farmDispatcherSettings').hidden=!canManage();
       render();
     }catch(error){console.warn('Production dispatcher unavailable',error);$('farmDispatcherBoard').innerHTML=`<div class="farm-dispatcher-empty danger-text">${esc(humanError(error))}</div>`}
@@ -183,19 +188,19 @@ if(!window.__A4_PRODUCTION_DISPATCHER__){
 
   async function autoJob(id,force=false){
     if(!canManage())return;
-    try{const r=await supabase.rpc('auto_dispatch_production_job',{p_job_id:id,p_force:force});if(r.error)throw r.error;await load()}catch(error){window.alert(humanError(error))}
+    try{const r=await supabase.rpc('auto_dispatch_production_job',{p_job_id:id,p_force:force});if(r.error)throw r.error;await load()}catch(error){notify('error','Автоплан задания не выполнен',humanError(error))}
   }
   async function autoQueue(){
     if(!canManage())return;const b=$('farmDispatcherAuto');b.disabled=true;b.textContent='Планирую…';
-    try{const r=await supabase.rpc('auto_dispatch_production_queue',{p_limit:100});if(r.error)throw r.error;const x=Array.isArray(r.data)?r.data[0]:r.data;await load();window.alert(`Автоплан готов. Распределено: ${Number(x?.scheduled_count||0)}, требуют внимания: ${Number(x?.failed_count||0)}.`)}catch(error){window.alert(humanError(error))}finally{b.disabled=false;b.textContent='⚡ Автоплан очереди'}
+    try{const r=await supabase.rpc('auto_dispatch_production_queue',{p_limit:100});if(r.error)throw r.error;const x=Array.isArray(r.data)?r.data[0]:r.data;await load();notify('success','Автоплан готов',`Распределено: ${Number(x?.scheduled_count||0)}, требуют внимания: ${Number(x?.failed_count||0)}.`)}catch(error){notify('error','Автоплан не выполнен',humanError(error))}finally{b.disabled=false;b.textContent='⚡ Автоплан очереди'}
   }
   async function scheduleIntoDay(id,equipmentId,date){
     if(!canManage())return;
-    try{const r=await supabase.rpc('schedule_production_job_into_day',{p_job_id:id,p_equipment_id:equipmentId,p_work_date:date});if(r.error)throw r.error;await load()}catch(error){window.alert(humanError(error))}
+    try{const r=await supabase.rpc('schedule_production_job_into_day',{p_job_id:id,p_equipment_id:equipmentId,p_work_date:date});if(r.error)throw r.error;await load()}catch(error){notify('error','Не удалось запланировать задание',humanError(error))}
   }
   async function setLock(id,locked){
     if(!canManage())return;
-    try{const r=await supabase.rpc('set_production_dispatch_lock',{p_job_id:id,p_locked:locked});if(r.error)throw r.error;await load()}catch(error){window.alert(humanError(error))}
+    try{const r=await supabase.rpc('set_production_dispatch_lock',{p_job_id:id,p_locked:locked});if(r.error)throw r.error;await load()}catch(error){notify('error','Не удалось изменить фиксацию задания',humanError(error))}
   }
 
   function openSettings(){
@@ -229,7 +234,7 @@ if(!window.__A4_PRODUCTION_DISPATCHER__){
   }
 
   function realtime(){
-    if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(reloadTimer);reloadTimer=setTimeout(load,500)};
+    if(state.realtimeStarted||typeof supabase.channel!=='function')return;state.realtimeStarted=true;const reload=()=>{if(!$('farmDispatcherDlg')?.open)return;clearTimeout(reloadTimer);reloadTimer=setTimeout(load,500)};
     state.channel=supabase.channel('production-dispatcher-v1')
       .on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload)
       .on('postgres_changes',{event:'*',schema:'public',table:'equipment_assets'},reload)
@@ -239,6 +244,6 @@ if(!window.__A4_PRODUCTION_DISPATCHER__){
     window.addEventListener('beforeunload',()=>{if(state.channel)supabase.removeChannel(state.channel)},{once:true});
   }
 
-  const boot=async()=>{installButton();ensureUi();await load();realtime()};
+  const boot=()=>{installButton()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 }

@@ -9,14 +9,9 @@ const state={permissions:[],jobs:[],materials:[],warehouses:[],assignments:[],tr
 function can(code){return state.permissions.includes(code)}
 function stockKey(itemId,warehouseId){return `${itemId}|${warehouseId||''}`}
 function stockBalance(itemId,warehouseId){
-  let total=0;
-  for(const t of state.transactions){
-    if(t.catalog_item_id!==itemId||(warehouseId&&t.warehouse_id!==warehouseId))continue;
-    const q=Number(t.quantity||0);
-    if(['RECEIPT','TRANSFER_IN','PRODUCTION_IN','ADJUSTMENT'].includes(t.transaction_type))total+=q;
-    else if(['SALE','WRITE_OFF','TRANSFER_OUT','PRODUCTION_OUT'].includes(t.transaction_type))total-=q;
-  }
-  return total;
+  return state.transactions
+    .filter(t=>t.catalog_item_id===itemId&&(!warehouseId||t.warehouse_id===warehouseId))
+    .reduce((sum,t)=>sum+Number(t.quantity||0),0);
 }
 function translate(error){
   const t=String(error?.message||error||'Ошибка');
@@ -68,18 +63,26 @@ async function loadPermissions(){const {data,error}=await supabase.rpc('get_my_p
 async function loadData(){
   if(state.loading)return;state.loading=true;$('farmMaterialsError')&&($('farmMaterialsError').textContent='');
   try{
-    const [jobs,materials,warehouses,assignments,transactions,costs]=await Promise.all([
-      supabase.from('production_jobs').select('id,title,status,order_id,production_cost').order('updated_at',{ascending:false}).limit(500),
+    const [jobs,materials,warehouses,balances]=await Promise.all([
+      supabase.from('production_jobs').select('id,title,status,order_id,production_cost,updated_at').in('status',['NEW','QUEUED','IN_PROGRESS','PAUSED','DONE']).order('updated_at',{ascending:false}).limit(200),
       supabase.from('catalog_items').select('id,sku,name,unit,cost_price,is_active').eq('item_type','MATERIAL').eq('is_active',true).order('name'),
       supabase.from('warehouses').select('id,name,business_unit,is_active').eq('is_active',true).order('name'),
-      supabase.from('production_job_materials').select('*').order('created_at'),
-      supabase.from('inventory_transactions').select('catalog_item_id,warehouse_id,transaction_type,quantity,reference_type,reference_id,created_at').order('created_at',{ascending:false}).limit(10000),
-      supabase.from('production_job_cost_breakdown').select('*')
+      supabase.from('inventory_balances').select('catalog_item_id,warehouse_id,quantity')
     ]);
-    for(const r of [jobs,materials,warehouses,assignments,transactions,costs])if(r.error)throw r.error;
-    state.jobs=jobs.data||[];state.materials=materials.data||[];state.warehouses=warehouses.data||[];state.assignments=assignments.data||[];state.transactions=transactions.data||[];state.costs=new Map((costs.data||[]).map(x=>[x.production_job_id,x]));
+    for(const r of [jobs,materials,warehouses,balances])if(r.error)throw r.error;
+    state.jobs=jobs.data||[];state.materials=materials.data||[];state.warehouses=warehouses.data||[];state.transactions=balances.data||[];
+    const jobIds=state.jobs.map(j=>j.id);
+    if(jobIds.length){
+      const [assignments,costs]=await Promise.all([
+        supabase.from('production_job_materials').select('id,production_job_id,catalog_item_id,warehouse_id,planned_quantity,issued_quantity,returned_quantity,waste_quantity,unit_cost_snapshot,notes,created_at,updated_at').in('production_job_id',jobIds).order('created_at'),
+        supabase.from('production_job_cost_breakdown').select('production_job_id,equipment_id,actual_machine_minutes,machine_cost,electricity_cost,material_cost,total_production_cost,waste_quantity').in('production_job_id',jobIds)
+      ]);
+      if(assignments.error)throw assignments.error;if(costs.error)throw costs.error;
+      state.assignments=assignments.data||[];state.costs=new Map((costs.data||[]).map(x=>[x.production_job_id,x]));
+    }else{state.assignments=[];state.costs=new Map()}
     fillSelectors();render();
-  }catch(error){if($('farmMaterialsError'))$('farmMaterialsError').textContent=translate(error);console.warn('Production materials load failed',error)}finally{state.loading=false}
+  }catch(error){if($('farmMaterialsError'))$('farmMaterialsError').textContent=translate(error);console.warn('Production materials load failed',error)}
+  finally{state.loading=false}
 }
 function fillSelectors(){
   const jobSel=$('farmMaterialsJob');if(!jobSel)return;

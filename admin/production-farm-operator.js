@@ -6,7 +6,8 @@ const statusLabels={NEW:'Новая',QUEUED:'В очереди',IN_PROGRESS:'В 
 const operationLabels={PRINT_2D:'2D-печать',PRINT_3D_FDM:'3D FDM',PRINT_3D_RESIN:'3D фотополимер',LASER_CUT:'Лазерная резка',LASER_ENGRAVE:'Лазерная гравировка',CNC:'ЧПУ',LAMINATION:'Ламинация',POSTPRESS:'Постпечатная обработка',ASSEMBLY:'Сборка',OTHER:'Другое'};
 const pauseReasons={EQUIPMENT:'Поломка / станок',MATERIAL:'Нет материала',QUALITY:'Проблема качества',OPERATOR:'Оператор',MAINTENANCE:'ТО / обслуживание',WAITING_APPROVAL:'Ждём согласование',BREAK:'Перерыв',POWER:'Электричество',SOFTWARE:'ПО / файл',OTHER:'Другое'};
 const eventLabels={START:'Старт',RESUME:'Продолжено',PAUSE:'Пауза',COMPLETE:'Завершено',CANCEL:'Отменено',EQUIPMENT_CHANGED:'Смена оборудования',STATUS_CHANGED:'Статус изменён',OUTPUT:'Выпуск',SCRAP:'Брак',REWORK:'Переделка',NOTE:'Заметка'};
-const state={permissions:[],jobs:[],events:[],loading:false,channel:null,timer:null,reloadTimer:null,activeJobId:null,activeMode:null};
+const state={permissions:[],jobs:[],events:[],loading:false,channel:null,timer:null,reloadTimer:null,realtimeStarted:false,activeJobId:null,activeMode:null};
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 function can(code){return state.permissions.includes(code)}
 function fmtDate(value){if(!value)return'—';const d=new Date(value);if(!Number.isFinite(d.getTime()))return'—';return d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
@@ -106,13 +107,13 @@ async function load(){
   if(state.loading)return;state.loading=true;
   try{
     const [jobs,events]=await Promise.all([
-      supabase.from('production_operator_overview').select('*').in('status',['NEW','QUEUED','IN_PROGRESS','PAUSED']).order('priority',{ascending:false}),
-      supabase.from('production_job_events').select('id,production_job_id,equipment_id,operator_user_id,event_type,reason_code,note,good_quantity,scrap_quantity,rework_quantity,duration_seconds,created_at').order('created_at',{ascending:false}).limit(500)
+      supabase.from('production_operator_overview').select('id,order_id,assigned_to,status,title,priority,equipment_id,operation_type,quantity,planned_machine_minutes,actual_machine_minutes,good_quantity,scrap_quantity,rework_quantity,downtime_minutes,deadline_at,planned_start,planned_end,started_at,completed_at,inventory_number,equipment_name,operational_status,yield_percent,active_run_id,active_run_started_at,open_pause_event_id,paused_at,pause_reason,pause_note').in('status',['NEW','QUEUED','IN_PROGRESS','PAUSED']).order('priority',{ascending:false}),
+      supabase.from('production_job_events').select('id,production_job_id,equipment_id,operator_user_id,event_type,reason_code,note,good_quantity,scrap_quantity,rework_quantity,duration_seconds,created_at').gte('created_at',new Date(todayStart()).toISOString()).order('created_at',{ascending:false}).limit(300)
     ]);
     if(jobs.error)throw jobs.error;if(events.error)throw events.error;state.jobs=jobs.data||[];state.events=events.data||[];render();
   }catch(error){console.warn('Production operator load failed',error);if($('prodOpActive'))$('prodOpActive').innerHTML=`<div class="prod-op-empty error">${esc(error.message||error)}</div>`}finally{state.loading=false}
 }
-async function openStation(){ensureUi();$('productionOperatorDlg').showModal();await load()}
+async function openStation(){ensureUi();$('productionOperatorDlg').showModal();if(!state.realtimeStarted)initRealtime();if(!state.timer)state.timer=setInterval(updateLive,1000);await load()}
 
 function setVisible(id,visible){const el=$(id);if(el)el.hidden=!visible}
 function openActionDialog(jobId,mode){
@@ -132,7 +133,7 @@ async function operatorAction(jobId,action,payload={}){
   const params={p_job_id:jobId,p_action:action,p_reason_code:payload.reason||null,p_note:payload.note||null,p_good_quantity:Number(payload.good||0),p_scrap_quantity:Number(payload.scrap||0),p_rework_quantity:Number(payload.rework||0)};
   const {error}=await supabase.rpc('production_operator_action',params);if(error)throw error;await load();setTimeout(()=>window.dispatchEvent(new Event('production-operator-changed')),0);
 }
-async function directAction(jobId,action,button){button?.classList.add('busy');button&&(button.disabled=true);try{await operatorAction(jobId,action)}catch(error){window.alert(translateError(error))}finally{button?.classList.remove('busy');button&&(button.disabled=false)}}
+async function directAction(jobId,action,button){button?.classList.add('busy');button&&(button.disabled=true);try{await operatorAction(jobId,action)}catch(error){notify('error','Операция производства не выполнена',translateError(error))}finally{button?.classList.remove('busy');button&&(button.disabled=false)}}
 async function submitAction(event){
   event.preventDefault();const button=$('prodOpSubmit');button.disabled=true;$('prodOpError').textContent='';
   try{await operatorAction(state.activeJobId,state.activeMode,{reason:$('prodOpReason').value,note:$('prodOpNote').value.trim(),good:$('prodOpGood').value,scrap:$('prodOpScrapQty').value,rework:$('prodOpReworkQty').value});$('productionOperatorActionDlg').close()}
@@ -155,9 +156,23 @@ function bindActions(){
 function updateLive(){
   renderKpis();for(const job of state.jobs){const live=document.querySelector(`[data-op-live-minutes="${job.id}"]`);if(live)live.textContent=`${actualMinutes(job).toFixed(1)} мин`;const down=document.querySelector(`[data-op-downtime="${job.id}"]`);if(down)down.textContent=`${downtimeMinutes(job).toFixed(1)} мин`}
 }
-function initRealtime(){if(typeof supabase.channel!=='function')return;const reload=()=>{clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(load,350)};state.channel=supabase.channel('production-operator-v1').on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'production_job_runs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'production_job_events'},reload).subscribe()}
+function initRealtime(){if(state.realtimeStarted||typeof supabase.channel!=='function')return;state.realtimeStarted=true;const reload=()=>{if(!$('productionOperatorDlg')?.open)return;clearTimeout(state.reloadTimer);state.reloadTimer=setTimeout(load,350)};state.channel=supabase.channel('production-operator-v2').on('postgres_changes',{event:'*',schema:'public',table:'production_jobs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'production_job_runs'},reload).on('postgres_changes',{event:'*',schema:'public',table:'production_job_events'},reload).subscribe()}
 async function init(){
-  try{await loadPermissions();if(!can('production.view'))return;injectStyle();ensureUi();bindActions();await load();state.timer=setInterval(updateLive,1000);initRealtime();window.addEventListener('production-operator-changed',()=>setTimeout(load,150));window.addEventListener('beforeunload',()=>{if(state.timer)clearInterval(state.timer);if(state.channel)supabase.removeChannel(state.channel)},{once:true})}
-  catch(error){console.warn('Production operator station unavailable',error)}
+  try{
+    await loadPermissions();if(!can('production.view'))return;
+    injectStyle();ensureUi();bindActions();
+    const applyBoard=detail=>{
+      const rows=Array.isArray(detail?.jobs)?detail.jobs:[];
+      for(const row of rows){
+        const current=state.jobs.find(x=>x.id===row.id);
+        const minimal={id:row.id,title:row.title,status:row.status,quantity:row.quantity,equipment_id:row.equipment_id,planned_machine_minutes:row.planned_machine_minutes,actual_machine_minutes:row.actual_machine_minutes,priority:row.priority};
+        if(current)Object.assign(current,minimal);else state.jobs.push(minimal);
+      }
+    };
+    document.addEventListener('a4:production-board-rendered',event=>applyBoard(event.detail));
+    applyBoard(window.__A4_PRODUCTION_BOARD__);
+    window.addEventListener('production-operator-changed',()=>{if($('productionOperatorDlg')?.open)setTimeout(load,150)});
+    window.addEventListener('beforeunload',()=>{if(state.timer)clearInterval(state.timer);if(state.channel)supabase.removeChannel(state.channel)},{once:true});
+  }catch(error){console.warn('Production operator station unavailable',error)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
