@@ -1,0 +1,110 @@
+/* A4PRINT HUB UI foundation — design tokens
+   MASTER PROMPT 2026: light, compact desktop business application. */
+:root{
+  color-scheme:light;
+
+  --a4-bg:#F5F6F8;
+  --a4-surface:#FFFFFF;
+  --a4-surface-2:#F9FAFB;
+  --a4-surface-3:#F2F4F7;
+
+  --a4-border:#E2E5E9;
+  --a4-border-strong:#CDD3DB;
+  --a4-divider:#ECEFF2;
+
+  --a4-text:#20252D;
+  --a4-text-2:#424B57;
+  --a4-muted:#687382;
+  --a4-subtle:#8C96A3;
+
+  --a4-accent:#2563EB;
+  --a4-accent-hover:#1D4ED8;
+  --a4-accent-soft:#EFF4FF;
+  --a4-accent-border:#C8D8FB;
+
+  --a4-success:#15803D;
+  --a4-success-soft:#F0FDF4;
+  --a4-success-border:#BBF7D0;
+
+  --a4-warning:#A16207;
+  --a4-warning-soft:#FFFBEB;
+  --a4-warning-border:#FDE68A;
+
+  --a4-danger:#B42318;
+  --a4-danger-soft:#FEF3F2;
+  --a4-danger-border:#FECDCA;
+
+  --a4-info:#1D4ED8;
+  --a4-info-soft:#EFF6FF;
+  --a4-info-border:#BFDBFE;
+
+  --a4-radius-xs:5px;
+  --a4-radius-sm:6px;
+  --a4-radius:8px;
+  --a4-radius-lg:10px;
+  --a4-radius-dialog:12px;
+
+  --a4-control-h:36px;
+  --a4-control-h-lg:40px;
+  --a4-sidebar-w:232px;
+  --a4-sidebar-collapsed-w:60px;
+  --a4-content-max:1720px;
+
+  --a4-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  --a4-font-mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+
+  --a4-shadow-popover:0 12px 32px rgba(32,37,45,.14);
+  --a4-shadow-dialog:0 18px 50px rgba(32,37,45,.18);
+
+  --a4-z-sidebar:1200;
+  --a4-z-topbar:1100;
+  --a4-z-popover:5000;
+  --a4-z-toast:12000;
+  --a4-z-dialog:10000;
+}
+
+html{
+  background:var(--a4-bg);
+  color:var(--a4-text);
+  font-family:var(--a4-font);
+  -webkit-text-size-adjust:100%;
+}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:var(--a4-bg);
+  color:var(--a4-text);
+  font-family:var(--a4-font);
+  font-size:14px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+button,input,select,textarea{font:inherit}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+
+::selection{background:#DDE8FF;color:#172033}
+::placeholder{color:#9AA3AE}
+
+:focus-visible{
+  outline:2px solid rgba(37,99,235,.36);
+  outline-offset:2px;
+}
+
+*{scrollbar-color:#C9D0D8 transparent}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:#C9D0D8;border:3px solid transparent;background-clip:padding-box;border-radius:999px}
+*::-webkit-scrollbar-track{background:transparent}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    scroll-behavior:auto!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
