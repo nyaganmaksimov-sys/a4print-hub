@@ -52,9 +52,12 @@ jobs:
         run: |
           grep -q 'get_production_workspace_jobs' admin/production-modern.js
           grep -q 'get_production_workspace_metrics' admin/production-modern.js
-          grep -q 'a4:production-board-rendered' admin/production-modern.js
-          grep -q 'a4:production-board-rendered' admin/production-farm-runtime.js
-          grep -q 'a4:production-board-rendered' admin/production-farm-operator.js
+          grep -q 'a4:production-rendered' admin/production-modern.js
+          grep -q 'a4:production-rendered' admin/production-farm-runtime.js
+          grep -q '__A4_PRODUCTION_WORKSPACE__' admin/production-modern.js
+          grep -q '__A4_PRODUCTION_WORKSPACE__' admin/production-farm-runtime.js
+          grep -q 'a4:production-rendered' admin/production-farm-operator.js
+          grep -q '__A4_PRODUCTION_WORKSPACE__' admin/production-farm-operator.js
           grep -q 'security invoker' supabase/migrations/20260922192416_production_workspace_rpc.sql
           grep -q 'production_jobs_org_status_priority_idx' supabase/migrations/20260922192416_production_workspace_rpc.sql
           grep -q 'human-light-ui.css' admin/production.html
