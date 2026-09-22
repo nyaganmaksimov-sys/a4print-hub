@@ -35,7 +35,7 @@ window.A4StorageProxyUrl = function a4StorageProxyUrl(rawUrl) {
   const getPref=()=>{try{const v=localStorage.getItem(key);return origins.includes(v)?v:null}catch{return null}};
   const setPref=v=>{try{if(v)localStorage.setItem(key,v)}catch{}};
   const parse=(input,init={})=>{try{const req=new Request(input,init),url=new URL(req.url);const apiOrigin=origins.find(x=>url.origin===x);return{req,url,apiOrigin,method:req.method.toUpperCase()}}catch{return null}};
-  const one=async(req,url,origin,ms)=>{const target=new URL(url.href);target.origin=origin;const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await nativeFetch(new Request(target.href,req),{signal:c.signal});if(r.ok||r.status<500){setPref(origin);return r}throw new Error(`HTTP ${r.status}`)}finally{clearTimeout(t)}};
+  const one=async(req,url,origin,ms)=>{const target=new URL(url.href);target.origin=origin;const c=new AbortController(),upstream=req.signal;const abort=()=>c.abort(upstream?.reason);if(upstream){if(upstream.aborted)abort();else upstream.addEventListener('abort',abort,{once:true})}const t=setTimeout(()=>c.abort(new DOMException('Request timeout','TimeoutError')),ms);try{const r=await nativeFetch(new Request(target.href,req),{signal:c.signal});if(r.ok||r.status<500){setPref(origin);return r}throw new Error(`HTTP ${r.status}`)}finally{clearTimeout(t);upstream?.removeEventListener?.('abort',abort)}};
   const any=promises=>typeof Promise.any==='function'?Promise.any(promises):new Promise((resolve,reject)=>{let left=promises.length,last;promises.forEach(p=>Promise.resolve(p).then(resolve,e=>{last=e;if(--left===0)reject(last)}))});
   window.fetch=async function a4RoutedFetch(input,init={}){
     const x=parse(input,init);
@@ -52,7 +52,7 @@ window.A4StorageProxyUrl = function a4StorageProxyUrl(rawUrl) {
     if(safe){
       if(slowPosRead){
         const origin=getPref()||x.apiOrigin;
-        try{return await one(x.req.clone(),x.url,origin,30000)}catch(e){const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,30000)}
+        try{return await one(x.req.clone(),x.url,origin,12000)}catch(e){const alt=ordered.find(v=>v!==origin);if(!alt)throw e;return one(x.req.clone(),x.url,alt,12000)}
       }
       return any(ordered.map(origin=>one(x.req.clone(),x.url,origin,5500)));
     }
