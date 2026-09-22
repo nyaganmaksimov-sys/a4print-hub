@@ -1,0 +1,386 @@
+/* A4PRINT HUB UI foundation — application layout */
+.sidebar{
+  position:fixed;
+  inset:0 auto 0 0;
+  z-index:var(--a4-z-sidebar);
+  width:var(--a4-sidebar-w);
+  padding:10px 9px 16px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  background:#FFFFFF;
+  color:var(--a4-text);
+  border-right:1px solid var(--a4-border);
+  box-shadow:none;
+  transition:width .16s ease;
+}
+
+.main{
+  min-width:0;
+  min-height:100vh;
+  margin-left:var(--a4-sidebar-w);
+  padding:20px 24px 36px;
+  background:var(--a4-bg);
+  transition:margin-left .16s ease;
+}
+
+.main>*{max-width:var(--a4-content-max);margin-left:auto;margin-right:auto}
+
+body.a4-sidebar-collapsed .sidebar{
+  width:var(--a4-sidebar-collapsed-w);
+  padding-left:6px;
+  padding-right:6px;
+}
+
+body.a4-sidebar-collapsed .main{margin-left:var(--a4-sidebar-collapsed-w)}
+
+.sidebar .hub-logo-wrap,
+.sidebar .brand{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  min-height:52px!important;
+  height:auto!important;
+  margin:0 4px 8px!important;
+  padding:5px 4px!important;
+  background:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+
+.sidebar .hub-logo,
+.sidebar .brand img{
+  display:block!important;
+  width:auto!important;
+  max-width:176px!important;
+  height:46px!important;
+  max-height:46px!important;
+  object-fit:contain!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+
+body.a4-sidebar-collapsed .sidebar .hub-logo-wrap,
+body.a4-sidebar-collapsed .sidebar .brand{
+  justify-content:center!important;
+  margin:0 0 8px!important;
+  padding:3px 0!important;
+}
+
+body.a4-sidebar-collapsed .sidebar .hub-logo,
+body.a4-sidebar-collapsed .sidebar .brand img{
+  width:46px!important;
+  max-width:46px!important;
+  height:42px!important;
+  max-height:42px!important;
+}
+
+.a4-sidebar-head{
+  display:flex;
+  justify-content:flex-end;
+  margin:0 0 7px;
+  padding:0 2px;
+}
+
+.a4-sidebar-toggle{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:32px;
+  padding:5px 8px;
+  border:1px solid transparent;
+  border-radius:var(--a4-radius-sm);
+  background:transparent;
+  color:var(--a4-muted);
+  box-shadow:none;
+  cursor:pointer;
+}
+
+.a4-sidebar-toggle:hover{
+  background:var(--a4-surface-3);
+  color:var(--a4-text);
+}
+
+.a4-sidebar-toggle svg{width:17px;height:17px}
+body.a4-sidebar-collapsed .a4-sidebar-head{justify-content:center}
+body.a4-sidebar-collapsed .a4-sidebar-toggle{width:36px;height:32px;padding:0}
+body.a4-sidebar-collapsed .a4-sidebar-toggle small{display:none}
+
+/* Navigation is rendered in its final groups by navigation.js. */
+.sidebar nav{
+  display:block;
+  padding:0 0 12px;
+}
+
+.a4-nav-accordion{
+  display:grid;
+  gap:4px;
+  width:100%;
+}
+
+.a4-nav-group{
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+
+.a4-nav-group-head{
+  width:100%;
+  min-height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:2px 0 0;
+  padding:7px 9px 5px;
+  border:0;
+  border-radius:var(--a4-radius-sm);
+  background:transparent;
+  color:#7B8490;
+  font:700 10px/1.2 var(--a4-font);
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  text-align:left;
+  cursor:pointer;
+}
+
+.a4-nav-group-head:hover{
+  background:var(--a4-surface-2);
+  color:var(--a4-text-2);
+}
+
+.a4-nav-group-head .chev{
+  margin-left:auto;
+  color:#9AA3AE;
+  font-size:14px;
+  line-height:1;
+  transition:transform .14s ease;
+}
+
+.a4-nav-group.open>.a4-nav-group-head .chev{transform:rotate(90deg)}
+.a4-nav-group-body{display:none;gap:2px;min-width:0}
+.a4-nav-group.open>.a4-nav-group-body{display:grid}
+.a4-nav-group.has-active>.a4-nav-group-head{color:#4C5664}
+
+.sidebar nav a{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:36px;
+  padding:7px 9px;
+  color:#4F5966;
+  text-decoration:none;
+  border-radius:var(--a4-radius-sm);
+  font-size:13px;
+  font-weight:600;
+  line-height:1.2;
+  transition:background .1s ease,color .1s ease;
+}
+
+.sidebar nav a:hover{
+  background:#F2F4F7;
+  color:var(--a4-text);
+}
+
+.sidebar nav a.active{
+  background:var(--a4-accent-soft);
+  color:#1749A5;
+  box-shadow:none;
+}
+
+.sidebar nav a.active::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:7px;
+  bottom:7px;
+  width:3px;
+  border-radius:0 2px 2px 0;
+  background:var(--a4-accent);
+}
+
+.a4-nav-icon{
+  display:grid;
+  place-items:center;
+  width:20px;
+  height:20px;
+  flex:0 0 20px;
+  color:currentColor;
+}
+
+.a4-nav-icon svg{
+  display:block;
+  width:17px;
+  height:17px;
+  stroke:currentColor;
+  stroke-width:1.7;
+}
+
+.a4-nav-label{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.sidebar nav a>b{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:18px;
+  min-height:18px;
+  margin-left:auto;
+  padding:1px 5px;
+  border-radius:9px;
+  background:#E9EDF2;
+  color:#55606D;
+  font-size:10px;
+  font-weight:700;
+}
+
+body.a4-sidebar-collapsed .a4-nav-group-head{
+  height:7px;
+  min-height:7px;
+  margin:4px 0;
+  padding:0;
+  background:#D7DCE2;
+  border-radius:999px;
+  font-size:0;
+}
+
+body.a4-sidebar-collapsed .a4-nav-group-head .chev{display:none}
+body.a4-sidebar-collapsed .a4-nav-group-body{display:grid}
+body.a4-sidebar-collapsed .sidebar nav a{
+  justify-content:center;
+  min-height:38px;
+  padding:7px 4px;
+}
+body.a4-sidebar-collapsed .a4-nav-label,
+body.a4-sidebar-collapsed .sidebar nav a>b{display:none}
+body.a4-sidebar-collapsed .a4-nav-icon{width:22px;height:22px;flex-basis:22px}
+body.a4-sidebar-collapsed .a4-nav-icon svg{width:18px;height:18px}
+
+/* System health indicator */
+.sidebar .a4-system-health-dot{
+  position:absolute!important;
+  right:8px!important;
+  bottom:5px!important;
+  z-index:8!important;
+  width:8px!important;
+  height:8px!important;
+  border-radius:50%!important;
+  background:#D97706!important;
+  box-shadow:0 0 0 3px rgba(217,119,6,.11)!important;
+  cursor:help;
+}
+.sidebar .a4-system-health-dot.ok{
+  background:#16A34A!important;
+  box-shadow:0 0 0 3px rgba(22,163,74,.10)!important;
+}
+.sidebar .a4-system-health-dot.error{
+  background:#DC2626!important;
+  box-shadow:0 0 0 3px rgba(220,38,38,.10)!important;
+}
+
+/* Page heading */
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-height:50px;
+  margin:0 auto 16px;
+  padding:0;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+}
+
+.topbar>div:first-child{min-width:0}
+.topbar h1{
+  margin:0;
+  color:var(--a4-text);
+  font-size:24px;
+  line-height:1.2;
+  font-weight:720;
+  letter-spacing:-.018em;
+}
+.topbar p{
+  margin:3px 0 0;
+  color:var(--a4-muted);
+  font-size:12px;
+}
+
+.user{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  color:var(--a4-text-2);
+  font-size:12px;
+  font-weight:600;
+}
+.user>span{
+  max-width:260px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* On small screens the existing mobile shell controls visibility.
+   This fallback keeps the content usable if the shell is unavailable. */
+@media(max-width:900px){
+  .sidebar{
+    width:68px;
+    padding-left:6px;
+    padding-right:6px;
+  }
+  .main,
+  body.a4-sidebar-collapsed .main{
+    margin-left:68px;
+    padding:16px 14px 28px;
+  }
+  .sidebar .hub-logo-wrap,
+  .sidebar .brand{
+    justify-content:center!important;
+    margin:0 0 8px!important;
+    padding:3px 0!important;
+  }
+  .sidebar .hub-logo,
+  .sidebar .brand img{
+    width:50px!important;
+    max-width:50px!important;
+    height:46px!important;
+    max-height:46px!important;
+  }
+  .a4-sidebar-head{display:none}
+  .a4-nav-group-head{
+    height:7px;
+    min-height:7px;
+    margin:4px 0;
+    padding:0;
+    background:#D7DCE2;
+    font-size:0;
+  }
+  .a4-nav-group-head .chev{display:none}
+  .a4-nav-group-body{display:grid}
+  .sidebar nav a{justify-content:center;padding:7px 4px}
+  .sidebar .a4-nav-label,
+  .sidebar nav a>b{display:none}
+  .topbar{align-items:flex-start;gap:10px}
+  .topbar h1{font-size:21px}
+  .user>span{display:none}
+}
+
+@media(max-width:620px){
+  .main,
+  body.a4-sidebar-collapsed .main{
+    padding:14px 10px 24px;
+  }
+}
