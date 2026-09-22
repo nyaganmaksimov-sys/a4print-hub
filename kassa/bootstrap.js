@@ -13,7 +13,7 @@
   const ASSET_TIMEOUT=7000;
   const JARVIS_KEY='a4print_jarvis_enabled_v1';
   const DESKTOP=new URLSearchParams(location.search).get('desktop')==='1';
-  const jarvisEnabled=()=>{if(DESKTOP)return false;try{return localStorage.getItem(JARVIS_KEY)!=='0'}catch{return true}};
+  const jarvisEnabled=()=>window.A4PRINT_FEATURES?.jarvis===true&&!DESKTOP;
 
   window.__A4_JARVIS_DISABLED__=!jarvisEnabled();
   window.addEventListener('storage',event=>{
@@ -117,8 +117,8 @@
 
   async function boot(){
     await loadScript('./config.js');
-    await soft(()=>loadScript('../admin/jarvis-master-guard.js?v=20260913-2',5000),'jarvis-master-guard');
     window.__A4_JARVIS_DISABLED__=!jarvisEnabled();
+    if(jarvisEnabled())await soft(()=>loadScript('../admin/jarvis-master-guard.js?v=20260913-2',5000),'jarvis-master-guard');
     if(!window.supabase?.createClient)await loadScript('../admin/vendor/supabase.js');
     await ensureLocalDb();
     if(!window.supabase?.createClient)throw new Error('модуль авторизации Supabase недоступен');
