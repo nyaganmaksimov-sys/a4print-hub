@@ -5,8 +5,12 @@ on:
     paths:
       - 'admin/partners.html'
       - 'admin/partners-core.js'
+      - 'admin/partner.html'
+      - 'admin/partner-card.js'
       - 'api/src/partners-compat-api.js'
+      - 'api/src/partner-admin.js'
       - 'supabase/migrations/*partner_order_counts_rpc.sql'
+      - 'supabase/migrations/*partner_profile_metrics_rpc.sql'
       - '.github/workflows/check-master-prompt-partners.yml'
   push:
     branches: [main]
@@ -28,7 +32,9 @@ jobs:
         shell: bash
         run: |
           node --input-type=module --check < admin/partners-core.js
+          node --input-type=module --check < admin/partner-card.js
           node --input-type=module --check < api/src/partners-compat-api.js
+          node --input-type=module --check < api/src/partner-admin.js
       - name: A4 Network architecture contract
         shell: bash
         run: |
@@ -38,10 +44,16 @@ jobs:
           grep -q 'page_size' api/src/partners-compat-api.js
           grep -q '.range(from,to)' api/src/partners-compat-api.js
           grep -q 'get_partner_order_counts' api/src/partners-compat-api.js
+          grep -q 'get_partner_profile_metrics' api/src/partner-admin.js
+          grep -q 'partner-card.js?v=' admin/partner.html
+          grep -q 'human-light-ui.css' admin/partner.html
           grep -q 'security invoker' supabase/migrations/20260922200842_partner_order_counts_rpc.sql
+          grep -q 'security invoker' supabase/migrations/20260922201355_partner_profile_metrics_rpc.sql
           ! grep -q '<script type="module">' admin/partners.html
           ! grep -q "select('\*')" admin/partners-core.js
           ! grep -q 'MutationObserver' admin/partners-core.js
           ! grep -q 'window.alert' admin/partners-core.js
+          ! grep -q 'window.alert' admin/partner-card.js
+          ! grep -q 'limit(500)' api/src/partner-admin.js
           ! grep -q "select('partner_id,fulfillment_partner_id')" api/src/partners-compat-api.js
           ! grep -q "supabase.rpc('has_role'" admin/partners-core.js
