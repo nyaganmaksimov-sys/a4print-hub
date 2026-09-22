@@ -5,7 +5,7 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (m) => ({'&':'&am
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
 const state = { orders: [], lowItems: [], production: [], pos: { shift:null, cash:null, health:null, sales:[], returns:[], operations:[], syncIssues:0 } };
 let dashboardLoading=false, dashboardReloadQueued=false, shiftActionBusy=false, syncBusy=false, realtimeChannel=null, realtimeTimer=null, posRefreshInFlight=null;
-let latestDashboardMetrics={newCount:0,workCount:0,readyCount:0,lowCount:0};
+let latestDashboardMetrics={newCount:0,workCount:0,readyCount:0,lowCount:0,overdueCount:0,unassignedCount:0,productionIssues:0};
 
 const statusNames={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён'};
 
@@ -16,7 +16,9 @@ function unitClass(unit){return unit==='3D_ARTPRINT'?'unit-3d':unit==='A4_PRINT'
 function customerName(o){const c=o.customers||{};return c.full_name||c.company_name||o.customer_name||o.client_name||'Клиент не указан'}
 function customerMeta(o){const c=o.customers||{};return c.phone||c.email||c.company_name||''}
 function orderTitle(o){return o.model_name||o.source||(o.business_unit==='3D_ARTPRINT'?'3D-заказ':'Печать / услуга')}
+function responsibleName(o){const u=o.assignee||{};return u.full_name||u.email||'Не назначен'}
 function orderDate(value){if(!value)return'';const d=new Date(value);if(Number.isNaN(d.getTime()))return'';return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' · '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}
+function deadlineText(value){if(!value)return'—';const d=new Date(value);if(Number.isNaN(d.getTime()))return'—';return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}
 function dayStartIso(){const d=new Date();d.setHours(0,0,0,0);return d.toISOString()}
 function setOrderBadge(value){const apply=()=>{const badge=$('orderCount');if(badge)badge.textContent=value};apply();setTimeout(apply,400);setTimeout(apply,1200)}
 
@@ -44,21 +46,23 @@ async function initUser(){
 }
 
 function attentionIcon(type){const icons={orders:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"></path><path d="M9 8h6M9 12h6"></path></svg>',ready:'<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>',stock:'<svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5v11H3z"></path><path d="M8 20v-7h8v7"></path></svg>',work:'<svg viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9h10v9M9 11V7h6v4"></path></svg>',cash:'<svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"></path><path d="M8 12h8M12 9v6"></path></svg>',sync:'<svg viewBox="0 0 24 24"><path d="M20 7h-5V2"></path><path d="M20 7a8 8 0 0 0-14-2"></path><path d="M4 17h5v5"></path><path d="M4 17a8 8 0 0 0 14 2"></path></svg>'};return icons[type]||icons.orders}
-function attentionRow({href='#',tone='info',icon='orders',title,text,count}){return`<a class="dash-attention-item ${tone}" href="${href}"><span class="dash-attention-icon">${attentionIcon(icon)}</span><span class="dash-attention-copy"><b>${esc(title)}</b><span>${esc(text)}</span></span><span class="dash-attention-count">${esc(count)}</span></a>`}
+function attentionRow({href='#',tone='info',icon='orders',title,text,count=''}){return`<a class="dash-attention-item ${tone}" href="${href}"><span class="dash-attention-icon">${attentionIcon(icon)}</span><span class="dash-attention-copy"><b>${esc(title)}</b><span>${esc(text)}</span></span><span class="dash-attention-count">${esc(count)}</span></a>`}
 
 function renderRecentOrders(){
   const root=$('recentOrders');if(!root)return;const rows=state.orders.slice(0,10);
-  root.innerHTML=rows.map(o=>`<a class="dash-order-row" href="./order.html?id=${encodeURIComponent(o.id)}"><span class="dash-order-number">№${esc((o.order_number??String(o.id||'').slice(0,8))||'—')}</span><span class="dash-order-customer"><b>${esc(customerName(o))}</b><small>${esc(customerMeta(o)||orderDate(o.created_at))}</small></span><span class="dash-order-service"><b>${esc(orderTitle(o))}</b><small>${esc(orderDate(o.created_at))}</small></span><span class="dash-unit ${unitClass(o.business_unit)}">${esc(unitLabel(o.business_unit))}</span><span class="dash-order-total">${money(o.total||o.total_amount)} ₽</span><span class="dash-status ${statusClass(o.status)}">${esc(statusNames[o.status]||o.status||'—')}</span></a>`).join('')||'<div class="dash-empty">Заказов пока нет</div>';
+  root.innerHTML=rows.map(o=>`<a class="dash-order-row" href="./order.html?id=${encodeURIComponent(o.id)}"><span class="dash-order-number">№${esc((o.order_number??String(o.id||'').slice(0,8))||'—')}</span><span class="dash-order-customer"><b>${esc(customerName(o))}</b><small>${esc(customerMeta(o)||orderDate(o.created_at))}</small></span><span class="dash-order-service"><b>${esc(orderTitle(o))}</b><small>${esc(orderDate(o.created_at))}</small></span><span class="dash-unit ${unitClass(o.business_unit)}">${esc(unitLabel(o.business_unit))}</span><span class="dash-order-owner">${esc(responsibleName(o))}</span><span class="dash-order-total">${money(o.total)} ₽</span><span class="dash-order-deadline">${esc(deadlineText(o.due_at))}</span><span class="dash-status ${statusClass(o.status)}">${esc(statusNames[o.status]||o.status||'—')}</span></a>`).join('')||'<div class="dash-empty">Заказов пока нет</div>';
 }
 function renderAttention(metrics){
-  const root=$('attention');if(!root)return;const lowNames=state.lowItems.slice(0,3).map(x=>x.name).filter(Boolean);
-  root.innerHTML=[
-    {href:'./orders.html?status=NEW',tone:metrics.newCount?'info':'good',icon:'orders',title:metrics.newCount?'Новые заказы':'Новых заказов нет',text:metrics.newCount?'Ждут обработки менеджером':'Входящие заказы обработаны',count:metrics.newCount},
-    {href:'./orders.html?status=READY',tone:metrics.readyCount?'good':'info',icon:'ready',title:'Готово к выдаче',text:metrics.readyCount?'Можно связаться с клиентами':'Сейчас готовых заказов нет',count:metrics.readyCount},
-    {href:'./warehouse.html',tone:metrics.lowCount?'danger':'good',icon:'stock',title:metrics.lowCount?'Заканчиваются материалы':'Остатки в норме',text:metrics.lowCount?(lowNames.join(', ')||'Нужно проверить склад'):'Критических остатков не найдено',count:metrics.lowCount},
-    {href:'./orders.html?status=WORK',tone:metrics.workCount?'warn':'good',icon:'work',title:'Заказы в работе',text:metrics.workCount?'Проверьте текущий прогресс':'Активных работ сейчас нет',count:metrics.workCount},
-    {href:'../kassa/',tone:metrics.syncIssues?'danger':'good',icon:'sync',title:metrics.syncIssues?'Есть ошибки синхронизации кассы':'Касса синхронизирована',text:metrics.syncIssues?'Проверьте проблемные продажи или возвраты':'Продажи и возвраты без предупреждений',count:metrics.syncIssues}
-  ].map(attentionRow).join('');
+  const root=$('attention');if(!root)return;
+  const lowNames=state.lowItems.slice(0,3).map(x=>x.name).filter(Boolean);
+  const issues=[];
+  if(metrics.overdueCount)issues.push({href:'./orders.html',tone:'danger',icon:'orders',title:'Просроченные заказы',text:'Срок уже прошёл — нужно проверить исполнение',count:metrics.overdueCount});
+  if(metrics.unassignedCount)issues.push({href:'./orders.html',tone:'warn',icon:'work',title:'Заказы без ответственного',text:'Активные заказы ещё никому не назначены',count:metrics.unassignedCount});
+  if(metrics.newCount)issues.push({href:'./orders.html?status=NEW',tone:'info',icon:'orders',title:'Новые необработанные заказы',text:'Ждут реакции менеджера',count:metrics.newCount});
+  if(metrics.lowCount)issues.push({href:'./warehouse.html',tone:'danger',icon:'stock',title:'Заканчиваются материалы',text:lowNames.join(', ')||'Нужно проверить склад',count:metrics.lowCount});
+  if(metrics.syncIssues)issues.push({href:'../kassa/',tone:'danger',icon:'sync',title:'Ошибка синхронизации кассы',text:'Есть продажи или возвраты, которые требуют проверки',count:metrics.syncIssues});
+  if(metrics.productionIssues)issues.push({href:'./production.html',tone:'danger',icon:'work',title:'Проблема производства',text:'Есть задания со статусом ошибки или блокировки',count:metrics.productionIssues});
+  root.innerHTML=issues.length?issues.map(attentionRow).join(''):'<div class="dash-attention-calm"><b>Сейчас всё спокойно.</b><span>Критических задач нет.</span></div>';
 }
 function renderProduction(){const root=$('productionSummary');if(!root)return;const rows=state.production,queued=rows.filter(x=>['NEW','QUEUED'].includes(x.status)).length,work=rows.filter(x=>['IN_PROGRESS','PAUSED'].includes(x.status)).length,done=rows.filter(x=>x.status==='DONE').length,latest=rows[0];root.innerHTML=[attentionRow({href:'./production.html',tone:queued?'info':'good',icon:'orders',title:'Новые задания',text:queued?'Ожидают запуска в производство':'Очередь свободна',count:queued}),attentionRow({href:'./production.html',tone:work?'warn':'good',icon:'work',title:'В производстве',text:work?'Активные или приостановленные задания':'Активных заданий нет',count:work}),attentionRow({href:'./production.html',tone:'good',icon:'ready',title:'Выполнено',text:latest?`Последнее: ${latest.title||'производственное задание'}`:'Производственных заданий пока нет',count:done}),attentionRow({href:'./production.html',tone:'info',icon:'sync',title:'Всего заданий',text:'Общая производственная очередь HUB',count:rows.length})].join('')}
 
@@ -95,7 +99,7 @@ function initControlActions(){
   $('syncMoySklad')?.addEventListener('click',async e=>{e.preventDefault();if(syncBusy)return;syncBusy=true;const btn=$('syncMoySklad');btn.textContent='Обновляю каталог...';try{const result=await apiRequest('/api/v1/integrations/moysklad/sync',{method:'POST',body:'{}'});btn.textContent=result.updated||result.created?`Готово: ${Number(result.updated||0)+Number(result.created||0)}`:'Каталог обновлён';await loadDashboard(true)}catch(error){btn.textContent='Ошибка';window.alert(`Каталог МойСклад не обновлён: ${error.message}`)}finally{syncBusy=false;setTimeout(()=>{btn.textContent='Обновить каталог'},2500)}});
 }
 
-async function loadOrders(){let result=await supabase.from('orders').select('*,customers(full_name,company_name,phone,email)').order('created_at',{ascending:false}).limit(200);if(result.error){console.warn('Orders relation query failed, using fallback',result.error);result=await supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(200)}if(result.error)throw result.error;return result.data||[]}
+async function loadOrders(){const fields='id,order_number,business_unit,customer_id,assigned_to,status,total,source,model_name,created_at,due_at,customers(full_name,company_name,phone,email),assignee:users!orders_assigned_to_fkey(full_name,email)';let result=await supabase.from('orders').select(fields).order('created_at',{ascending:false}).limit(120);if(result.error){console.warn('Orders relation query failed, using explicit fallback',result.error);result=await supabase.from('orders').select('id,order_number,business_unit,customer_id,assigned_to,status,total,source,model_name,created_at,due_at,customers(full_name,company_name,phone,email)').order('created_at',{ascending:false}).limit(120)}if(result.error)throw result.error;return result.data||[]}
 async function refreshPosState(){
   if(posRefreshInFlight)return posRefreshInFlight;
   posRefreshInFlight=(async()=>{
@@ -135,7 +139,8 @@ async function loadDashboard(force=false){
     const sCount=salesIssuesR.status==='fulfilled'&&!salesIssuesR.value.error?Number(salesIssuesR.value.count||0):0,rCount=returnIssuesR.status==='fulfilled'&&!returnIssuesR.value.error?Number(returnIssuesR.value.count||0):0;state.pos.syncIssues=sCount+rCount;
     const newCount=state.orders.filter(x=>x.status==='NEW').length,workCount=state.orders.filter(x=>['CONFIRMED','IN_PROGRESS'].includes(x.status)).length,readyCount=state.orders.filter(x=>x.status==='READY').length,lowCount=state.lowItems.length;setText('newOrders',newCount);setText('activeOrders',workCount);setText('readyOrders',readyCount);setText('lowStock',lowCount);
     const activeStatuses=['NEW','CONFIRMED','IN_PROGRESS'],a4=state.orders.filter(x=>x.business_unit==='A4_PRINT'),d3=state.orders.filter(x=>x.business_unit==='3D_ARTPRINT');setText('a4Active',a4.filter(x=>activeStatuses.includes(x.status)).length);setText('a4Ready',a4.filter(x=>x.status==='READY').length);setText('d3Active',d3.filter(x=>activeStatuses.includes(x.status)).length);setText('d3Ready',d3.filter(x=>x.status==='READY').length);
-    latestDashboardMetrics={newCount,workCount,readyCount,lowCount};
+    const now=Date.now(),overdueCount=state.orders.filter(x=>x.due_at&&!['COMPLETED','CANCELLED'].includes(x.status)&&new Date(x.due_at).getTime()<now).length,unassignedCount=state.orders.filter(x=>activeStatuses.includes(x.status)&&!x.assigned_to).length,productionIssues=state.production.filter(x=>['ERROR','FAILED','BLOCKED'].includes(String(x.status||'').toUpperCase())).length;
+    latestDashboardMetrics={newCount,workCount,readyCount,lowCount,overdueCount,unassignedCount,productionIssues};
     renderRecentOrders();renderAttention({...latestDashboardMetrics,syncIssues:state.pos.syncIssues});renderProduction();
     setText('lastUpdated',`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})} · касса в фоне`);
     const search=$('dashboardSearch');if(search?.value.trim())renderSearch(search.value);
