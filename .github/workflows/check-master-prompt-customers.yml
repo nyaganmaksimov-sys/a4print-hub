@@ -1,0 +1,55 @@
+name: Check MASTER PROMPT Customers
+
+on:
+  pull_request:
+    paths:
+      - 'admin/customers.html'
+      - 'admin/customers-modern.js'
+      - 'admin/customer.html'
+      - 'admin/customer-modern.js'
+      - 'admin/customers-page.css'
+      - 'supabase/migrations/*customers_workspace_paged_rpc.sql'
+      - 'supabase/migrations/*customer_profile_metrics_rpc.sql'
+      - '.github/workflows/check-master-prompt-customers.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/customers.html'
+      - 'admin/customers-modern.js'
+      - 'admin/customer.html'
+      - 'admin/customer-modern.js'
+      - 'admin/customers-page.css'
+      - 'supabase/migrations/*customers_workspace_paged_rpc.sql'
+      - 'supabase/migrations/*customer_profile_metrics_rpc.sql'
+
+jobs:
+  customers-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/customers-modern.js
+          node --input-type=module --check < admin/customer-modern.js
+      - name: Customers architecture contract
+        shell: bash
+        run: |
+          grep -q 'get_customers_workspace_page' admin/customers-modern.js
+          grep -q 'get_customers_workspace_summary' admin/customers-modern.js
+          grep -q 'get_customer_profile_metrics' admin/customer-modern.js
+          grep -q 'customersPager' admin/customers.html
+          grep -q 'human-light-ui.css' admin/customer.html
+          grep -q 'security invoker' supabase/migrations/20260922190611_customers_workspace_paged_rpc.sql
+          grep -q 'security invoker' supabase/migrations/20260922190917_customer_profile_metrics_rpc.sql
+          ! grep -q "select('\*')" admin/customers-modern.js
+          ! grep -q "select('\*')" admin/customer-modern.js
+          ! grep -q 'MutationObserver' admin/customers-modern.js
+          ! grep -q 'MutationObserver' admin/customer-modern.js
+          ! grep -q 'window.alert' admin/customers-modern.js
+          ! grep -q 'window.alert' admin/customer-modern.js
+          grep -q "source.is.null,source.neq.KASSA" admin/customer-modern.js
+          grep -q "limit(100)" admin/customer-modern.js
