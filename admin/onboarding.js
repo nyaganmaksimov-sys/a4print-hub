@@ -49,7 +49,7 @@
     const hero=document.querySelector('.hero');if(!hero||hero.querySelector('[data-a4-tour-launcher]'))return;
     css();const b=document.createElement('button');b.type='button';b.className='a4-tour-launcher';b.dataset.a4TourLauncher='1';b.textContent='▶ Повторить обучение по системе';b.onclick=()=>{index=0;open()};hero.appendChild(b);
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{injectHelpLauncher();setTimeout(maybe,700)},{once:true});else{injectHelpLauncher();setTimeout(maybe,700)}
-  let checks=0;const wait=setInterval(()=>{checks++;if(maybe()||checks>25)clearInterval(wait)},1000);
+  const start=()=>{injectHelpLauncher();setTimeout(maybe,700)};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   window.A4Onboarding={open:()=>{index=0;open()},reset:()=>{try{localStorage.removeItem(key())}catch{}}};
 })();
