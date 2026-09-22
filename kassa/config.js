@@ -4,6 +4,11 @@ window.A4PRINT_CONFIG={
   apiBaseUrl:'https://api.a4print-hub.ru'
 };
 
+// Jarvis voice/assistant modules stay off until A4-owned infrastructure is ready.
+window.A4PRINT_FEATURES={...(window.A4PRINT_FEATURES||{}),jarvis:false};
+window.__A4_JARVIS_DISABLED__=true;
+try{localStorage.setItem('a4print_jarvis_enabled_v1','0')}catch{}
+
 // KASSA: use our API proxy first. Every network branch is time-bounded so a
 // blocked Supabase/Render hostname can never freeze the whole POS UI.
 window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){

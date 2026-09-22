@@ -7,6 +7,11 @@ window.A4PRINT_CONFIG = {
   apiBaseUrl: 'https://api.a4print-hub.ru'
 };
 
+// Jarvis is intentionally disabled until HUB runs on A4-owned servers.
+window.A4PRINT_FEATURES = {...(window.A4PRINT_FEATURES || {}), jarvis: false};
+window.__A4_JARVIS_DISABLED__ = true;
+try { localStorage.setItem('a4print_jarvis_enabled_v1', '0'); } catch {}
+
 window.A4StorageProxyUrl = function a4StorageProxyUrl(rawUrl) {
   const value=String(rawUrl||'').trim();
   if(!value)return value;
@@ -150,7 +155,7 @@ window.A4SupabaseFetch = async function a4SupabaseFetch(input, init) {
   if(isManager){load('manager-runtime.js','20260912-manager8');load('manager-compact-calendar.js','20260912-1');load('manager-clean.js','20260913-manager2')}
   if(isManager||isOrders)loadModule('order-delete-request.js','20260912-moderation2');
   if(isRequests)loadModule('order-delete-moderation.js','20260912-moderation2');
-  if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');load('jarvis-settings.js','20260913-1')}
+  if(isSettings){load('auth-settings.js','20260905-2');load('settings-collapsible.js','20260905-1');if(window.A4PRINT_FEATURES?.jarvis===true)load('jarvis-settings.js','20260913-1')}
   load('navigation.js','20260913-branding1');load('support-access.js','20260913-clean1');load('onboarding.js','20260905-1');load('workspace-clean.js','20260908-profile1');load('topbar-modern.js','20260913-actions1');load('nav-accordion.js','20260909-equipment1');load('modern-ui.js','20260904-1');loadModule('equipment-maintenance-badge.js','20260912-orders1');
   if(isEmployees){load('employees-delete.js','20260904-2');load('support-employee-helper.js','20260905-1')}
   if(isPartners){

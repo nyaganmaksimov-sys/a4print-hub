@@ -44,8 +44,12 @@ async function initA4Navigation(){
 }
 
 const A4_JARVIS_KEY='a4print_jarvis_enabled_v1';
-function isJarvisEnabled(){try{return localStorage.getItem(A4_JARVIS_KEY)!=='0'}catch{return true}}
-function setJarvisEnabled(enabled){try{localStorage.setItem(A4_JARVIS_KEY,enabled?'1':'0')}catch{}return !!enabled}
+function isJarvisEnabled(){return window.A4PRINT_FEATURES?.jarvis===true}
+function setJarvisEnabled(enabled){
+  const allowed=window.A4PRINT_FEATURES?.jarvis===true&&!!enabled;
+  try{localStorage.setItem(A4_JARVIS_KEY,allowed?'1':'0')}catch{}
+  return allowed;
+}
 window.A4JarvisControl={key:A4_JARVIS_KEY,isEnabled:isJarvisEnabled,setEnabled:setJarvisEnabled};
 window.__A4_JARVIS_DISABLED__=!isJarvisEnabled();
 

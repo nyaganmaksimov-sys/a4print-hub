@@ -16,6 +16,7 @@ let pollTimer=null;
 let canOperate=false;
 let isAdmin=false;
 let aiBusy=false;
+const jarvisEnabled=window.A4PRINT_FEATURES?.jarvis===true;
 
 function apiBase(){return String(cfg.apiBaseUrl||'').replace(/\/$/,'')}
 async function hubApi(path,options={}){
@@ -87,6 +88,7 @@ function localBotFallback(q){
   return '<b>Точного ответа в базе знаний не нашёл.</b><div>Можно передать вопрос оператору поддержки.</div>';
 }
 async function askBot(){
+  if(!jarvisEnabled)return;
   const input=$('botQuestion'),button=$('askBot');if(!input)return;const q=input.value.trim();if(!q||aiBusy)return;
   aiBusy=true;if(button){button.disabled=true;button.textContent='Джарвис думает…'};showBotAnswer('<b>Джарвис анализирует вопрос…</b><div>Проверяю базу знаний и, если это техническая проблема, могу использовать внешний поиск.</div>');
   try{
@@ -109,7 +111,7 @@ async function findOwnTicket(){
 function renderOwnTicketHead(){
   if(!currentTicket){
     if($('ticketTitle'))$('ticketTitle').textContent='Оператор не вызван';
-    if($('ticketStatus'))$('ticketStatus').textContent='Сначала задайте вопрос Джарвису или нажмите «Позвать оператора»';
+    if($('ticketStatus'))$('ticketStatus').textContent='Нажмите «Позвать оператора», чтобы открыть обращение';
     if($('ticketText'))$('ticketText').disabled=true;if($('ticketSend'))$('ticketSend').disabled=true;return;
   }
   $('ticketTitle').textContent=currentTicket.subject||'Обращение в поддержку';
@@ -163,11 +165,13 @@ function renderOperatorTickets(){
   host.querySelectorAll('[data-ticket]').forEach(b=>b.onclick=()=>openOperatorTicket(b.dataset.ticket));
 }
 function aiPanel(){
+  if(!jarvisEnabled)return null;
   let panel=$('operatorJarvisAi');if(panel)return panel;
   panel=document.createElement('div');panel.id='operatorJarvisAi';panel.className='jarvis-support-ai';panel.hidden=true;
   const box=$('operatorMessages')?.closest('.ticket-box');if(box)box.before(panel);return panel;
 }
 function ensureOperatorAiControls(){
+  if(!jarvisEnabled)return;
   ensureAiStyles();const toolbar=document.querySelector('#operatorSupport .operator-toolbar');if(!toolbar||$('jarvisDraft'))return;
   const draft=document.createElement('button');draft.id='jarvisDraft';draft.type='button';draft.className='btn';draft.textContent='✨ Ответ Джарвиса';draft.onclick=()=>generateOperatorAi('draft');
   const research=document.createElement('button');research.id='jarvisResearch';research.type='button';research.className='btn secondary';research.textContent='🌐 Разобрать с интернетом';research.onclick=()=>generateOperatorAi('research');
@@ -175,7 +179,7 @@ function ensureOperatorAiControls(){
 }
 function setAiButtons(disabled){for(const id of ['jarvisDraft','jarvisResearch'])if($(id))$(id).disabled=disabled}
 async function generateOperatorAi(mode='draft'){
-  if(!operatorTicket||aiBusy)return;if(!['draft','research'].includes(mode))mode='draft';
+  if(!jarvisEnabled||!operatorTicket||aiBusy)return;if(!['draft','research'].includes(mode))mode='draft';
   aiBusy=true;setAiButtons(true);const panel=aiPanel();panel.hidden=false;panel.dataset.kind=mode;panel.innerHTML='<b>Джарвис анализирует обращение…</b>';
   try{
     const data=await hubApi('/api/v1/jarvis/support/draft',{method:'POST',body:JSON.stringify({ticket_id:operatorTicket.id,mode})});
@@ -208,8 +212,7 @@ async function saveOperatorStatus(){
 }
 
 async function init(){
-  ensureAiStyles();if($('askBot'))$('askBot').textContent='Спросить Джарвиса';
-  const botTitle=document.querySelector('.bot-head b');if(botTitle)botTitle.textContent='Джарвис · поддержка';
+  if(jarvisEnabled){ensureAiStyles();if($('askBot'))$('askBot').textContent='Спросить Джарвиса';}
   if(!await loadIdentity())return;
   if($('supportRole'))$('supportRole').textContent=canOperate?(isAdmin?'Администратор · общая очередь поддержки':'Поддержка · общая очередь'):(profile.full_name||profile.email||'Сотрудник');
   await loadFaq();
