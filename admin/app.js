@@ -4,7 +4,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const money = (value) => Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
 const state = { orders: [], lowItems: [], production: [], pos: { shift:null, cash:null, health:null, sales:[], returns:[], operations:[], syncIssues:0 } };
-let dashboardLoading=false, dashboardReloadQueued=false, shiftActionBusy=false, syncBusy=false, realtimeChannel=null, realtimeTimer=null;
+let dashboardLoading=false, dashboardReloadQueued=false, shiftActionBusy=false, syncBusy=false, realtimeChannel=null, realtimeTimer=null, posRefreshInFlight=null;
+let latestDashboardMetrics={newCount:0,workCount:0,readyCount:0,lowCount:0};
 
 const statusNames={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён'};
 
@@ -95,6 +96,32 @@ function initControlActions(){
 }
 
 async function loadOrders(){let result=await supabase.from('orders').select('*,customers(full_name,company_name,phone,email)').order('created_at',{ascending:false}).limit(200);if(result.error){console.warn('Orders relation query failed, using fallback',result.error);result=await supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(200)}if(result.error)throw result.error;return result.data||[]}
+async function refreshPosState(){
+  if(posRefreshInFlight)return posRefreshInFlight;
+  posRefreshInFlight=(async()=>{
+    try{
+      const [shiftR,cashR,healthR,opsR]=await Promise.allSettled([
+        apiRequest('/api/v1/pos/shift'),
+        apiRequest('/api/v1/pos/cash-balance'),
+        apiHealth(),
+        apiRequest('/api/v1/pos/cash-operations?limit=20')
+      ]);
+      state.pos.shift=shiftR.status==='fulfilled'?shiftR.value:null;
+      state.pos.cash=cashR.status==='fulfilled'?cashR.value:(cashR.reason?.payload||null);
+      state.pos.health=healthR.status==='fulfilled'?healthR.value:null;
+      state.pos.operations=opsR.status==='fulfilled'?(opsR.value.operations||[]):[];
+      renderPos();
+      renderAttention({...latestDashboardMetrics,syncIssues:state.pos.syncIssues});
+      setText('lastUpdated',`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`);
+    }catch(error){
+      console.warn('POS dashboard background refresh failed',error);
+      renderPos();
+    }finally{
+      posRefreshInFlight=null;
+    }
+  })();
+  return posRefreshInFlight;
+}
 async function loadDashboard(force=false){
   if(dashboardLoading){if(force)dashboardReloadQueued=true;return}dashboardLoading=true;setText('lastUpdated','обновление...');
   try{
@@ -108,8 +135,11 @@ async function loadDashboard(force=false){
     const sCount=salesIssuesR.status==='fulfilled'&&!salesIssuesR.value.error?Number(salesIssuesR.value.count||0):0,rCount=returnIssuesR.status==='fulfilled'&&!returnIssuesR.value.error?Number(returnIssuesR.value.count||0):0;state.pos.syncIssues=sCount+rCount;
     const newCount=state.orders.filter(x=>x.status==='NEW').length,workCount=state.orders.filter(x=>['CONFIRMED','IN_PROGRESS'].includes(x.status)).length,readyCount=state.orders.filter(x=>x.status==='READY').length,lowCount=state.lowItems.length;setText('newOrders',newCount);setText('activeOrders',workCount);setText('readyOrders',readyCount);setText('lowStock',lowCount);
     const activeStatuses=['NEW','CONFIRMED','IN_PROGRESS'],a4=state.orders.filter(x=>x.business_unit==='A4_PRINT'),d3=state.orders.filter(x=>x.business_unit==='3D_ARTPRINT');setText('a4Active',a4.filter(x=>activeStatuses.includes(x.status)).length);setText('a4Ready',a4.filter(x=>x.status==='READY').length);setText('d3Active',d3.filter(x=>activeStatuses.includes(x.status)).length);setText('d3Ready',d3.filter(x=>x.status==='READY').length);
-    const [shiftR,cashR,healthR,opsR]=await Promise.allSettled([apiRequest('/api/v1/pos/shift'),apiRequest('/api/v1/pos/cash-balance'),apiHealth(),apiRequest('/api/v1/pos/cash-operations?limit=20')]);state.pos.shift=shiftR.status==='fulfilled'?shiftR.value:null;state.pos.cash=cashR.status==='fulfilled'?cashR.value:(cashR.reason?.payload||null);state.pos.health=healthR.status==='fulfilled'?healthR.value:null;state.pos.operations=opsR.status==='fulfilled'?(opsR.value.operations||[]):[];
-    renderRecentOrders();renderAttention({newCount,workCount,readyCount,lowCount,syncIssues:state.pos.syncIssues});renderPos();renderProduction();setText('lastUpdated',`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`);const search=$('dashboardSearch');if(search?.value.trim())renderSearch(search.value);
+    latestDashboardMetrics={newCount,workCount,readyCount,lowCount};
+    renderRecentOrders();renderAttention({...latestDashboardMetrics,syncIssues:state.pos.syncIssues});renderProduction();
+    setText('lastUpdated',`обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})} · касса в фоне`);
+    const search=$('dashboardSearch');if(search?.value.trim())renderSearch(search.value);
+    void refreshPosState();
   }catch(error){console.error('Dashboard load failed',error);const recent=$('recentOrders');if(recent)recent.innerHTML=`<div class="dash-empty">Не удалось загрузить данные: ${esc(error.message||error)}</div>`;const attention=$('attention');if(attention)attention.innerHTML='<div class="dash-empty">Сводка временно недоступна</div>';setText('lastUpdated','ошибка обновления')}
   finally{dashboardLoading=false;if(dashboardReloadQueued){dashboardReloadQueued=false;setTimeout(()=>loadDashboard(),0)}}
 }
