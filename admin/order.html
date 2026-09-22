@@ -13,7 +13,6 @@
   <link rel="stylesheet" href="./order-edit.css?v=20260909-1">
   <link rel="stylesheet" href="./order-partner-fulfillment.css?v=20260920-1">
   <script src="./config.js?v=20260913-order-native1"></script>
-  <script src="./storage-network-fix.js?v=20260910-1"></script>
 </head>
 <body>
   <aside class="sidebar"><div class="brand"></div><nav></nav></aside>
@@ -50,7 +49,7 @@
             <div class="order-card-head"><div><h2>Заказ</h2><p>Заказчик, работа, позиции и комментарии</p></div><span id="orderDirection" class="order-badge">HUB</span></div>
             <div class="order-card-body">
               <div id="partnerBlock"></div>
-              <div class="order-info-grid" id="orderInfo"><div class="order-empty">Загрузка…</div></div>
+              <div class="order-info-grid" id="orderInfo"><div class="order-loading-list" style="grid-column:1/-1"><div class="a4-skeleton"></div><div class="a4-skeleton"></div></div></div>
               <div class="order-section"><div class="order-section-title">Позиции</div><div id="itemsList"><div class="order-empty">Загрузка…</div></div></div>
               <div class="order-section">
                 <div class="order-section-title order-files-title"><span>Файлы заказа</span><span id="orderFilesCount" class="order-badge gray">0</span></div>
@@ -109,7 +108,7 @@
     </form>
   </dialog>
 
-  <script type="module" src="./order.js?v=20260920-partnerfinance1"></script>
+  <script type="module" src="./order.js?v=20260922-phase5-1"></script>
   <script type="module" src="./order-partner-fulfillment.js?v=20260920-1"></script>
   <script type="module" src="./order-edit.js?v=20260909-1"></script>
   <script type="module" src="./order-catalog-quick.js?v=20260909-1"></script>
