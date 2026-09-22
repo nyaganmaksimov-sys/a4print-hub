@@ -5,7 +5,7 @@ if(!window.__A4_EQUIPMENT_ECONOMICS__){
   const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽';
   const num=(v,d=0)=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:d});
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  let busy=false,channel=null,timer=null;
+  let busy=false,channel=null,timer=null,realtimeStarted=false,loaded=false;
 
   function startFor(days){
     if(!days)return null;
@@ -47,7 +47,7 @@ if(!window.__A4_EQUIPMENT_ECONOMICS__){
     return {text:'Эксплуатировать',cls:'ok',detail:`Сервис 12 мес. ${money(service)} из порога ${money(threshold)}`};
   }
   async function getEconomics(from){
-    let q=supabase.from('equipment_economics_daily').select('*').order('metric_date',{ascending:false});
+    let q=supabase.from('equipment_economics_daily').select('metric_date,equipment_id,inventory_number,equipment_name,equipment_status,ownership_type,current_owner_partner_id,market_value,analogue_purchase_price,buy_replacement_warning_percent,completed_jobs,machine_minutes,operation_revenue,machine_cost,electricity_cost,material_cost,production_cost,production_margin,waste_quantity,service_events,repair_events,service_cost,net_margin_after_service').order('metric_date',{ascending:false});
     if(from)q=q.gte('metric_date',from);
     const {data,error}=await q;if(error)throw error;return data||[];
   }
@@ -60,7 +60,7 @@ if(!window.__A4_EQUIPMENT_ECONOMICS__){
       const [periodRows,yearRows,allRows,assetsR,obligationsR,capacityR]=await Promise.all([
         getEconomics(from),getEconomics(yearFrom),getEconomics(null),
         supabase.from('equipment_assets').select('id,inventory_number,name,status,ownership_type,market_value,analogue_purchase_price,buy_replacement_warning_percent').neq('status','WRITTEN_OFF').order('inventory_number'),
-        supabase.from('equipment_owner_obligations').select('*'),
+        supabase.from('equipment_owner_obligations').select('equipment_id,inventory_number,equipment_name,ownership_type,current_owner_partner_id,owner_accrued_amount,owner_paid_amount,owner_outstanding_amount,approved_lease_due,paid_lease_amount,total_outstanding_amount'),
         capacityRequest
       ]);
       if(assetsR.error)throw assetsR.error;if(obligationsR.error)throw obligationsR.error;if(capacityR.error)throw capacityR.error;
@@ -77,16 +77,17 @@ if(!window.__A4_EQUIPMENT_ECONOMICS__){
         const rep=replacement(a,y);
         return `<tr><td><b>${esc(a.inventory_number||'—')} · ${esc(a.name||'Без названия')}</b><small>${esc(a.ownership_type||'—')} · ${esc(a.status||'—')}</small></td><td>${money(revenue)}<small>${Number(p.completed_jobs||0)} заданий</small></td><td>${money(prod)}<small>сервис ${money(p.service_cost||0)}</small></td><td class="${net<0?'neg':'pos'}">${money(net)}<small>${revenue?num(net/revenue*100,1)+'%':'—'}</small></td><td>${num(minutes/60,1)} ч<small>${util==null?'за всё время':`загрузка ${num(util,1)}% · доступно ${num(available/60,1)} ч`}</small></td><td>${coverage==null?'—':num(coverage,1)+'%'}<small>${investment?`база ${money(investment)}`:'нет базы стоимости'}</small></td><td><span class="econ-state ${rep.cls}">${esc(rep.text)}</span><small>${esc(rep.detail)}</small></td><td>${money(o.total_outstanding_amount||0)}<small>доля ${money(o.owner_outstanding_amount||0)} · аренда ${money(o.approved_lease_due||0)}</small></td></tr>`;
       });
+      loaded=true;
       if(table)table.innerHTML=`<table class="econ-table"><thead><tr><th>Оборудование</th><th>Выручка</th><th>Затраты</th><th>Маржа</th><th>Загрузка</th><th>Окупаемость*</th><th>Ремонт / замена</th><th>Обязательства</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="8">Нет оборудования</td></tr>'}</tbody></table><div class="econ-foot">* Простая окупаемость: накопленная маржа после сервиса / текущая рыночная стоимость (или цена аналога, если рыночная не задана). Не является бухгалтерской амортизацией.</div>`;
     }catch(error){console.warn('Equipment economics unavailable',error);if(summary)summary.innerHTML='<div class="eq-empty">Не удалось загрузить экономику фермы</div>';if(table)table.innerHTML=`<div class="eq-empty">${esc(error?.message||'Ошибка загрузки')}</div>`}finally{busy=false}
   }
   function realtime(){
-    if(typeof supabase.channel!=='function')return;
-    const reload=()=>{clearTimeout(timer);timer=setTimeout(load,500)};
+    if(realtimeStarted||typeof supabase.channel!=='function')return;realtimeStarted=true;
+    const reload=()=>{if(!loaded)return;clearTimeout(timer);timer=setTimeout(load,500)};
     let ch=supabase.channel('equipment-economics-v2');
     for(const table of ['production_jobs','equipment_service_log','equipment_assets','equipment_owner_settlements','equipment_lease_charges','equipment_capacity_rules'])ch=ch.on('postgres_changes',{event:'*',schema:'public',table},reload);
     channel=ch.subscribe();window.addEventListener('beforeunload',()=>{if(channel)supabase.removeChannel(channel)},{once:true});
   }
-  const boot=()=>{ensure();load();realtime()};
+  const boot=()=>{const root=ensure();if(!root)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){observer.disconnect();realtime();load()}},{rootMargin:'180px'});observer.observe(root)};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 }
