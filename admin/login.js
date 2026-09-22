@@ -152,6 +152,8 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
   try{window.A4AuthUI?.apply?.('login').catch(()=>{})}catch{}
   const q=new URLSearchParams(location.search);
   const rt=validReturn(q.get('returnTo'));if(rt)rememberReturn(rt);
+  const registerLink=document.querySelector('a[href*="register.html"]');
+  if(registerLink&&rt)registerLink.href='./register.html?returnTo='+encodeURIComponent(rt);
   const autoProvider=q.get('startProvider');if(autoProvider){startOAuth(autoProvider);return}
 
   const {data:{session},error:sessionError}=await supabase.auth.getSession();
