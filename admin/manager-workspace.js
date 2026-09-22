@@ -1,7 +1,7 @@
 import { supabase } from './guard.js?v=20260905-netfix1';
 
 const cfg=window.A4PRINT_CONFIG||{};
-const state={cursor:new Date(),events:[],orders:[],briefing:null,selected:null,notifications:[],poll:null,seenNotifications:new Set()};
+const state={cursor:new Date(),events:[],orders:[],briefing:null,selected:null,notifications:[],poll:null,notificationChannel:null,notificationTimer:null,seenNotifications:new Set()};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const apiBase=()=>String(cfg.apiBaseUrl||'').replace(/\/$/,'');
@@ -35,5 +35,29 @@ async function loadNotifications(showBrowser=false){try{const data=await api('/a
 async function openNotification(id){const n=state.notifications.find(x=>x.id===id);try{await api(`/api/v1/manager/notifications/${encodeURIComponent(id)}/read`,{method:'POST',body:{}})}catch{}const target=n&&notificationTarget(n);if(target)location.href=target;else loadNotifications(false)}
 async function enableBrowser(){if(!('Notification'in window))return alert('Браузер не поддерживает системные уведомления.');const p=await Notification.requestPermission();$('browserNotify').textContent=p==='granted'?'✓ Браузер уведомляет':'Уведомления браузера';if(p==='granted')loadNotifications(false)}
 function bind(){$('monthPrev').onclick=()=>{state.cursor=addMonths(state.cursor,-1);loadCalendar()};$('monthNext').onclick=()=>{state.cursor=addMonths(state.cursor,1);loadCalendar()};$('monthToday').onclick=()=>{const p=moscowParts(new Date());state.cursor=new Date(Date.UTC(Number(p.year),Number(p.month)-1,1));loadCalendar()};$('newCalendarEvent').onclick=()=>newEvent();$('managerEventForm').addEventListener('submit',saveEvent);$('eventDone').onclick=markDone;$('eventDelete').onclick=deleteEvent;$('browserNotify').onclick=enableBrowser}
-async function init(){inject();const p=moscowParts(new Date());state.cursor=new Date(Date.UTC(Number(p.year),Number(p.month)-1,1));newEvent();await Promise.allSettled([loadBriefing(),loadCalendar(),loadOrderOptions(),loadNotifications(false)]);state.poll=setInterval(()=>{if(!document.hidden)loadNotifications(true)},30000)}
-window.addEventListener('beforeunload',()=>state.poll&&clearInterval(state.poll));if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+function initNotificationRealtime(){
+  if(typeof supabase.channel!=='function')return;
+  const reload=()=>{
+    clearTimeout(state.notificationTimer);
+    state.notificationTimer=setTimeout(()=>{if(!document.hidden)loadNotifications(true)},250);
+  };
+  state.notificationChannel=supabase.channel('manager-notifications-live-v2')
+    .on('postgres_changes',{event:'*',schema:'public',table:'notifications'},reload)
+    .subscribe();
+}
+
+async function init(){
+  inject();
+  const p=moscowParts(new Date());
+  state.cursor=new Date(Date.UTC(Number(p.year),Number(p.month)-1,1));
+  newEvent();
+  await Promise.allSettled([loadBriefing(),loadCalendar(),loadOrderOptions(),loadNotifications(false)]);
+  initNotificationRealtime();
+  state.poll=setInterval(()=>{if(!document.hidden)loadNotifications(true)},300000);
+}
+window.addEventListener('beforeunload',()=>{
+  if(state.poll)clearInterval(state.poll);
+  if(state.notificationTimer)clearTimeout(state.notificationTimer);
+  if(state.notificationChannel)supabase.removeChannel(state.notificationChannel).catch(()=>{});
+});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
