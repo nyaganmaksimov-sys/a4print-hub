@@ -76,7 +76,9 @@
   const init=()=>{
     scan();document.addEventListener('click',e=>{const wrap=e.target.closest?.('.a4-topbar-tools');if(!wrap)closeAll()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
     const reposition=()=>document.querySelectorAll('.a4-topbar-tools.a4-tools-open').forEach(positionPopover);window.addEventListener('resize',reposition,{passive:true});window.addEventListener('scroll',reposition,{passive:true,capture:true});
-    observer=new MutationObserver(()=>{if(busy)return;clearTimeout(observer._a4Timer);observer._a4Timer=setTimeout(scan,80)});observer.observe(document.body,{childList:true,subtree:true});setTimeout(scan,350);setTimeout(scan,1100);
+    // Avoid a permanent body-wide MutationObserver. Topbar utilities mount during boot;
+    // one delayed pass covers late controls without keeping a hot observer alive.
+    setTimeout(scan,350);
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
