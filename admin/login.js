@@ -67,6 +67,7 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     const rt=safeReturnTo();if(rt)rememberReturn(rt);
     if(button){button.disabled=true;button.textContent=`Открываем ${providerName(provider)}…`}
     try{
+      if(window.A4AuthUI&&!(await window.A4AuthUI.isEnabled('login',provider)))throw new Error(`${providerName(provider)} отключён администратором для входа A4PRINT HUB.`);
       const redirectTo=new URL('./login.html?oauth=1',location.href).href;
       const {error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo}});
       if(error)throw error;
