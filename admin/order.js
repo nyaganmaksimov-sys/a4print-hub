@@ -35,7 +35,7 @@ async function load(force=false){
   if(state.loading){if(force)state.reloadQueued=true;return}
   state.loading=true;$('refresh').disabled=true;$('refresh').textContent='Обновление…';
   try{
-    const baseSelect='id,order_number,business_unit,customer_id,assigned_to,status,total,customer_comment,internal_comment,source,model_id,model_name,model_url,created_at,updated_at,partner_id,partner_user_id,fulfillment_partner_id,partner_direction,due_at,partner_workflow,partner_fulfillment_status,customers(id,full_name,company_name,phone,email),order_items(id,name,quantity,unit_price,total_price,parameters),order_status_history(id,old_status,new_status,changed_by,comment,created_at)';
+    const baseSelect='id,order_number,business_unit,customer_id,assigned_to,status,total,customer_comment,internal_comment,source,model_id,model_name,model_url,created_at,updated_at,partner_id,partner_user_id,fulfillment_partner_id,partner_direction,due_at,partner_workflow,partner_fulfillment_status,partner_planned_cost,partner_actual_cost,partner_external_ref,partner_tracking,partner_fulfillment_updated_at,partner_sent_at,partner_confirmed_at,partner_production_at,partner_shipped_at,partner_received_at,customers(id,full_name,company_name,phone,email),order_items(id,name,quantity,unit_price,total_price,parameters),order_status_history(id,old_status,new_status,changed_by,comment,created_at)';
     const managerRelations=canManage()?',requester:partners!orders_partner_id_fkey(id,name,contact_name,email,phone,discount_percent,payment_terms_days),executor:partners!orders_fulfillment_partner_id_fkey(id,name,contact_name,email,phone,discount_percent,payment_terms_days),partner_users(id,full_name,email,phone)':'';
     const orderQuery=supabase.from('orders').select(baseSelect+managerRelations).eq('id',id).single();
     const jobsQuery=supabase.from('production_jobs').select('id,order_id,assigned_to,status,title,priority,planned_start,planned_end,started_at,completed_at,notes,created_at,updated_at,assignee:users!production_jobs_assigned_to_fkey(full_name,email)').eq('order_id',id).order('created_at',{ascending:false});
@@ -99,6 +99,8 @@ function render(){
   $('orderDirection').textContent=pc?.direction||(o.customer_id?'КЛИЕНТ → A4PRINT':'HUB');
   document.querySelectorAll('[data-status]').forEach(b=>{b.hidden=!canManage();b.classList.toggle('active',b.dataset.status===o.status)});
   renderOrder(o,pc,c);renderFiles();renderFinance(o,pc);renderProduction();renderHistory(o);renderMessages(o);
+  window.__A4_ORDER_DETAIL__={order:o,roles:[...state.roles]};
+  document.dispatchEvent(new CustomEvent('a4:order-detail-loaded',{detail:window.__A4_ORDER_DETAIL__}));
 }
 
 function renderOrder(o,pc,c){
