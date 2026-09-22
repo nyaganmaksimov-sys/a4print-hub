@@ -1,0 +1,37 @@
+name: Check MASTER PROMPT Requests
+
+on:
+  pull_request:
+    paths:
+      - 'admin/requests.html'
+      - 'admin/requests-runtime.js'
+      - '.github/workflows/check-master-prompt-requests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/requests.html'
+      - 'admin/requests-runtime.js'
+
+jobs:
+  requests-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --input-type=module --check < admin/requests-runtime.js
+      - name: Requests architecture contract
+        shell: bash
+        run: |
+          grep -q 'requests-runtime.js?v=' admin/requests.html
+          grep -q 'requestsPager' admin/requests.html
+          grep -q 'human-light-ui.css' admin/requests.html
+          grep -q '.range(from,to)' admin/requests-runtime.js
+          grep -q "count:'exact'" admin/requests-runtime.js
+          grep -q "select(fields\[state.tab\]" admin/requests-runtime.js
+          ! grep -q '<script type="module">' admin/requests.html
+          ! grep -q "select('\*')" admin/requests-runtime.js
+          ! grep -q 'window.alert' admin/requests-runtime.js
+          ! grep -q 'MutationObserver' admin/requests-runtime.js
