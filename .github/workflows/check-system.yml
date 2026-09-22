@@ -52,7 +52,7 @@ jobs:
             admin/login.html admin/register.html admin/profile.html admin/index.html admin/manager.html admin/orders.html admin/order.html admin/requests.html
             admin/customers.html admin/customer.html admin/partners.html admin/messages.html admin/settings.html admin/equipment.html admin/expenses.html
             admin/config.js admin/guard.js admin/navigation.js admin/profile.js admin/manager-runtime.js admin/partners-api-fallback.js admin/partners-workspace.js admin/expenses.js
-            admin/dashboard-home.js admin/dashboard-home.css admin/equipment-consumables.js
+            admin/dashboard-home.js admin/dashboard-home.css admin/dashboard-command-center.css admin/equipment-consumables.js
             admin/order-delete-request.js admin/order-delete-moderation.js
             admin/auth-ui.js admin/auth-settings.js
             shared/hub-chat-core.js shared/hub-chat.css shared/hub-chat-enhance.js shared/hub-chat-enhance.css shared/hub-chat-drawer.js shared/hub-chat-drawer.css
@@ -101,8 +101,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'dashboard-home.css?v=' admin/index.html
-          grep -q 'dashboard-home.js?v=' admin/index.html
+          grep -q 'dashboard-command-center.css?v=' admin/index.html
+          grep -q 'app.js?v=' admin/index.html
+          ! grep -q 'dashboard-home.js' admin/index.html
+          ! grep -q 'dashboard-panels.js' admin/index.html
+          ! grep -q 'cbr-rates-widget.js' admin/index.html
+          ! grep -q 'workspace-layout.js' admin/dialog-fixes.js
           grep -q 'equipment-consumables.js?v=' admin/equipment.html
           ! grep -q 'equipment-consumables-v2.js' admin/equipment.html
           ! grep -q 'equipment-consumables-units-fix.js' admin/equipment.html
