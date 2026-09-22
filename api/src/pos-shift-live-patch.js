@@ -139,7 +139,17 @@ async function calculateHubShift(){
         .eq('status','OPEN').order('opened_at',{ascending:false}).limit(1).maybeSingle(),
       supabase.from('pos_cash_balance_state').select('baseline_amount,baseline_at').order('updated_at',{ascending:false}).limit(1).maybeSingle()
     ]);
-    if(shiftResult.error||!shiftResult.data?.moysklad_shift_id)return null;
+    if(shiftResult.error)return null;
+    if(!shiftResult.data?.moysklad_shift_id){
+      return{
+        build:BUILD,
+        shift:null,
+        store:null,
+        summary:null,
+        local_state:'CLOSED',
+        source:'HUB_FAST'
+      };
+    }
     if(baselineResult.error)throw baselineResult.error;
     const data=shiftResult.data;
     const baseline=baselineResult.data;
@@ -207,7 +217,7 @@ async function hubShift(){
 }
 
 if(supabase){
-  const warm=setTimeout(()=>refreshHubSnapshot().catch(()=>{}),2500);
+  const warm=setTimeout(()=>refreshHubSnapshot().catch(()=>{}),500);
   warm.unref?.();
 }
 
