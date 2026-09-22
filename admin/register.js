@@ -1,11 +1,26 @@
 import {supabase} from './guard.js?v=20260922-authflow1';
 const cfg=window.A4PRINT_CONFIG||{};
 const $=id=>document.getElementById(id),error=$('error'),success=$('success'),submit=$('submit');
-let authSettings=null;
+let authSettings=null,organizations=[];
 const RETURN_KEY='a4print_auth_return_to';
+const ORG_KEY='a4print_staff_registration_org';
 function validReturn(raw){if(!raw)return null;try{const u=new URL(raw,location.origin);if(u.origin===location.origin&&(u.pathname.startsWith('/chat/')||u.pathname.startsWith('/mobile/')||u.pathname.startsWith('/admin/')||u.pathname.startsWith('/pos/')))return u.pathname+u.search+u.hash}catch{}return null}
 function returnTarget(){return validReturn(new URLSearchParams(location.search).get('returnTo'))}
 function rememberReturn(){const target=returnTarget();try{if(target)localStorage.setItem(RETURN_KEY,target)}catch{}return target}
+function selectedOrganization(){return $('organization')?.value||''}
+function rememberOrganization(id=selectedOrganization()){try{if(id)localStorage.setItem(ORG_KEY,id)}catch{}return id}
+function storedOrganization(){try{return localStorage.getItem(ORG_KEY)||''}catch{return''}}
+async function loadOrganizations(){
+  const {data,error}=await supabase.rpc('get_public_staff_registration_organizations');
+  if(error)throw error;
+  organizations=Array.isArray(data)?data:[];
+  const select=$('organization');if(!select)return;
+  select.innerHTML='<option value="">Выберите организацию</option>'+organizations.map(o=>`<option value="${o.id}">${String(o.name||o.code||'Организация')}</option>`).join('');
+  const saved=storedOrganization();
+  if(saved&&organizations.some(o=>o.id===saved))select.value=saved;
+  if(organizations.length===1&&!select.value){select.value=organizations[0].id;rememberOrganization(select.value)}
+  select.addEventListener('change',()=>rememberOrganization(select.value));
+}
 function showError(m){error.textContent=m;error.style.display='block';success.style.display='none'}
 function showSuccess(m){success.textContent=m;success.style.display='block';error.style.display='none'}
 function providerName(provider){if(provider==='google')return'Google';if(provider==='custom:yandex')return'Яндекс';if(provider==='custom:mailru')return'Mail.ru';return provider}
@@ -13,7 +28,19 @@ async function uiEnabled(provider){try{return window.A4AuthUI?await window.A4Aut
 async function loadAuthSettings(){if(authSettings)return authSettings;try{const r=await fetch(`${cfg.supabaseUrl}/auth/v1/settings`,{headers:{apikey:cfg.supabasePublishableKey}});if(!r.ok)return null;authSettings=await r.json();return authSettings}catch{return null}}
 function providerEnabled(settings,provider){const ext=settings?.external;if(!ext||typeof ext!=='object')return null;if(Object.prototype.hasOwnProperty.call(ext,provider))return Boolean(ext[provider]);if(provider.startsWith('custom:')){const key=provider.slice(7);if(Object.prototype.hasOwnProperty.call(ext,key))return Boolean(ext[key])}return null}
 async function goByProfile(){const{data,error}=await supabase.rpc('get_my_staff_profile');if(error)throw error;const st=data?.status;if(st==='ACTIVE')return location.replace('./profile.html');if(st==='PENDING'||st==='REJECTED')return location.replace('./pending.html');return data}
-async function submitRequest(provider){const user=(await supabase.auth.getUser()).data.user,meta=user?.user_metadata||{};const fullName=$('fullName')?.value.trim()||meta.full_name||meta.name||user?.email?.split('@')[0]||'';const phone=$('phone')?.value.trim()||meta.phone||'';const{error}=await supabase.rpc('submit_staff_registration',{p_full_name:fullName||null,p_phone:phone||null,p_provider:provider||null});if(error)throw error;location.replace('./pending.html')}
-for(const b of document.querySelectorAll('[data-provider]'))b.onclick=async()=>{error.style.display='none';const provider=b.dataset.provider;b.disabled=true;try{if(!(await uiEnabled(provider)))throw new Error(`${providerName(provider)} отключён администратором для регистрации A4PRINT HUB.`);const settings=await loadAuthSettings(),enabled=providerEnabled(settings,provider);if(enabled===false)throw new Error(`${providerName(provider)} пока не подключён в настройках регистрации A4PRINT HUB. Зарегистрируйтесь по email или обратитесь к администратору.`);const redirectUrl=new URL('./register.html?oauth=1',location.href),target=rememberReturn();if(target)redirectUrl.searchParams.set('returnTo',target);const{error:e}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:redirectUrl.href}});if(e)throw e}catch(e){showError(e?.message||'Не удалось открыть авторизацию.');b.disabled=false}};
-$('form').onsubmit=async e=>{e.preventDefault();error.style.display='none';success.style.display='none';const password=$('password').value;if(password!==$('password2').value)return showError('Пароли не совпадают.');submit.disabled=true;submit.textContent='Создаём аккаунт…';try{if(!(await uiEnabled('email')))throw new Error('Регистрация по email отключена администратором A4PRINT HUB.');const full_name=$('fullName').value.trim(),phone=$('phone').value.trim(),email=$('email').value.trim().toLowerCase();const emailRedirectTo=new URL('./register.html?confirm=1',location.href).href;const{data,error:e}=await supabase.auth.signUp({email,password,options:{emailRedirectTo,data:{full_name,phone,staff_registration:true}}});if(e)throw e;if(data.session){await submitRequest('email')}else showSuccess('Аккаунт создан. Откройте письмо на указанном email и подтвердите регистрацию.')}catch(e){showError(e?.message||'Не удалось зарегистрироваться.')}finally{submit.disabled=false;submit.textContent='Зарегистрироваться'}};
-(async()=>{try{const target=rememberReturn(),loginLink=document.querySelector('a[href*="login.html"]');if(loginLink&&target)loginLink.href='./login.html?returnTo='+encodeURIComponent(target);window.A4AuthUI?.apply?.('registration').catch(()=>{});await loadAuthSettings();const{data:{session}}=await supabase.auth.getSession();if(!session)return;const q=new URLSearchParams(location.search);const provider=session.user?.app_metadata?.provider||'email';if(q.get('oauth')==='1'||q.get('confirm')==='1'){await submitRequest(provider);return}const state=await goByProfile();if(state?.status==='UNREGISTERED'){await submitRequest(state?.provider||provider)}}catch(e){showError(e?.message||'Не удалось завершить регистрацию.')}})();
+async function submitRequest(provider){
+  const organizationId=selectedOrganization()||storedOrganization();
+  if(!organizationId)throw new Error('Выберите организацию, в которой будете работать.');
+  rememberOrganization(organizationId);
+  const user=(await supabase.auth.getUser()).data.user,meta=user?.user_metadata||{};
+  const fullName=$('fullName')?.value.trim()||meta.full_name||meta.name||user?.email?.split('@')[0]||'';
+  const phone=$('phone')?.value.trim()||meta.phone||'';
+  const{error}=await supabase.rpc('submit_staff_registration_v2',{
+    p_full_name:fullName||null,p_phone:phone||null,p_provider:provider||null,p_organization_id:organizationId
+  });
+  if(error)throw error;
+  location.replace('./pending.html')
+}
+for(const b of document.querySelectorAll('[data-provider]'))b.onclick=async()=>{error.style.display='none';const provider=b.dataset.provider;b.disabled=true;try{if(!selectedOrganization())throw new Error('Сначала выберите организацию.');rememberOrganization();if(!(await uiEnabled(provider)))throw new Error(`${providerName(provider)} отключён администратором для регистрации A4PRINT HUB.`);const settings=await loadAuthSettings(),enabled=providerEnabled(settings,provider);if(enabled===false)throw new Error(`${providerName(provider)} пока не подключён в настройках регистрации A4PRINT HUB. Зарегистрируйтесь по email или обратитесь к администратору.`);const redirectUrl=new URL('./register.html?oauth=1',location.href),target=rememberReturn();if(target)redirectUrl.searchParams.set('returnTo',target);const{error:e}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:redirectUrl.href}});if(e)throw e}catch(e){showError(e?.message||'Не удалось открыть авторизацию.');b.disabled=false}};
+$('form').onsubmit=async e=>{e.preventDefault();error.style.display='none';success.style.display='none';const password=$('password').value;if(password!==$('password2').value)return showError('Пароли не совпадают.');submit.disabled=true;submit.textContent='Создаём аккаунт…';try{if(!(await uiEnabled('email')))throw new Error('Регистрация по email отключена администратором A4PRINT HUB.');const organizationId=selectedOrganization();if(!organizationId)throw new Error('Выберите организацию.');rememberOrganization(organizationId);const full_name=$('fullName').value.trim(),phone=$('phone').value.trim(),email=$('email').value.trim().toLowerCase();const emailRedirectTo=new URL('./register.html?confirm=1',location.href).href;const{data,error:e}=await supabase.auth.signUp({email,password,options:{emailRedirectTo,data:{full_name,phone,staff_registration:true}}});if(e)throw e;if(data.session){await submitRequest('email')}else showSuccess('Аккаунт создан. Откройте письмо на указанном email и подтвердите регистрацию.')}catch(e){showError(e?.message||'Не удалось зарегистрироваться.')}finally{submit.disabled=false;submit.textContent='Зарегистрироваться'}};
+(async()=>{try{const target=rememberReturn(),loginLink=document.querySelector('a[href*="login.html"]');if(loginLink&&target)loginLink.href='./login.html?returnTo='+encodeURIComponent(target);window.A4AuthUI?.apply?.('registration').catch(()=>{});await Promise.all([loadOrganizations(),loadAuthSettings()]);const{data:{session}}=await supabase.auth.getSession();if(!session)return;const q=new URLSearchParams(location.search);const provider=session.user?.app_metadata?.provider||'email';if(q.get('oauth')==='1'||q.get('confirm')==='1'){await submitRequest(provider);return}const state=await goByProfile();if(state?.status==='UNREGISTERED'){await submitRequest(state?.provider||provider)}}catch(e){showError(e?.message||'Не удалось завершить регистрацию.')}})();
