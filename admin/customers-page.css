@@ -48,3 +48,10 @@ body{--customers-row-grid:minmax(300px,1.35fr) minmax(170px,.72fr) minmax(210px,
   .cf-toolbar.customers-toolbar{grid-template-columns:1fr}.cf-toolbar.customers-toolbar input{grid-column:auto}
   .cf-row.customers-row{grid-template-columns:1fr;margin:8px}.cf-row.customers-row .customer-actions{grid-column:auto;justify-content:flex-start}.cf-row.customers-row .cf-cell{padding-left:49px}.cf-customer-avatar{width:40px;height:40px;flex-basis:40px}
 }
+
+.customers-loading-list{display:grid;gap:7px;padding:12px 2px}
+.customers-loading-list .a4-skeleton{height:64px}
+.customers-pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0 2px;color:var(--hub-text-secondary);font-size:11px}
+.customers-pager button{min-height:32px;padding:5px 10px;border:1px solid var(--hub-border-strong);border-radius:var(--hub-radius-sm);background:#fff;color:var(--hub-text);font:700 10px var(--hub-font);cursor:pointer}
+.customers-pager button:hover:not(:disabled){background:var(--hub-surface-secondary)}
+.customers-pager button:disabled{opacity:.45;cursor:not-allowed}
