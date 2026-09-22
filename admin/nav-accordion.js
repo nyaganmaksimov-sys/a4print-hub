@@ -236,10 +236,9 @@
   function init(){
     if(window.matchMedia?.('(max-width:900px)').matches) document.body.classList.remove('a4-sidebar-collapsed');
     ensureHealthDot();
-    if(!build()){
-      let tries=0;
-      const t=setInterval(()=>{ensureHealthDot();if(build()||++tries>40)clearInterval(t)},100);
-    }
+    // navigation.js is loaded before this module, so the sidebar should already exist.
+    // Keep one cheap fallback pass instead of polling every 100 ms during startup.
+    if(!build()) setTimeout(()=>{ensureHealthDot();build()},250);
     setInterval(checkSystemHealth,60000);
     window.addEventListener('online',checkSystemHealth);
     window.addEventListener('offline',()=>setHealth('error','Нет подключения к интернету'));
