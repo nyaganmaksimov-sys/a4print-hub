@@ -25,7 +25,7 @@ jobs:
       - name: Expenses architecture contract
         shell: bash
         run: |
-          grep -q 'organization_id' admin/expenses.js
+          grep -q 'current_user_organization_id' admin/expenses.js
           grep -q 'list_expenses_masked' admin/expenses.js
           grep -q 'human-light-ui.css' admin/expenses.html
           grep -q 'expenses.js?v=' admin/expenses.html
