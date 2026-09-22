@@ -5,7 +5,8 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels={FREE:'Свободен',WORKING:'В работе',QUEUED:'В очереди',MAINTENANCE:'Обслуживание',REPAIR:'Ремонт',BROKEN:'Неисправен',WAITING_PARTS:'Ожидает запчасти',OFFLINE:'Отключён'};
 const jobLabels={NEW:'Новое',QUEUED:'В очереди',IN_PROGRESS:'В работе',PAUSED:'Пауза',DONE:'Готово'};
-const state={permissions:[],detailId:null,asset:null,jobs:[],observer:null,actionBusy:false};
+const state={permissions:[],detailId:null,asset:null,jobs:[],actionBusy:false};
+const notify=(tone,title,message,options={})=>{if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});const method=tone==='error'?'error':tone==='warning'?'warn':'log';console[method]('[A4PRINT HUB]',title,message)};
 
 const can=code=>state.permissions.includes(code);
 const canEquipmentView=()=>can('equipment.view')||can('equipment.manage')||can('equipment.repair')||can('production.view')||can('production.manage');
@@ -170,9 +171,9 @@ function enhanceDetail(){
   }
 }
 
-function observe(){
-  state.observer=new MutationObserver(()=>{addGridButtons();enhanceDetail()});
-  state.observer.observe(document.body,{childList:true,subtree:true});
+function bindRenderEvents(){
+  document.addEventListener('a4:equipment-grid-rendered',addGridButtons);
+  document.addEventListener('a4:equipment-detail-rendered',enhanceDetail);
   addGridButtons();enhanceDetail();
 }
 
@@ -194,7 +195,7 @@ async function openQr(id){
     $('equipmentQrCopy').onclick=async()=>{try{await navigator.clipboard.writeText(url);$('equipmentQrCopy').textContent='Скопировано ✓';setTimeout(()=>$('equipmentQrCopy').textContent='Копировать ссылку',1200)}catch{$('equipmentQrError').textContent='Не удалось скопировать ссылку.'}};
     $('equipmentQrPrint').onclick=()=>printLabel(asset,url);
     $('equipmentQrDlg').showModal();
-  }catch(error){window.alert(friendly(error))}
+  }catch(error){notify('error','QR-код недоступен',friendly(error))}
 }
 
 function printLabel(asset,url){
@@ -248,7 +249,7 @@ function clickService(id){
   const b=document.querySelector('#detailBody [data-open-service="'+id+'"]');
   if(b){b.click();return}
   const cal=$('calendarTabButton');if(cal){cal.click();return}
-  window.alert('Для обслуживания нужны права управления оборудованием.');
+  notify('warning','Недостаточно прав','Для обслуживания нужны права управления оборудованием.');
 }
 
 function clickIncident(id){
@@ -258,7 +259,7 @@ function clickIncident(id){
     return false;
   };
   if(tryClick())return;
-  setTimeout(()=>{if(!tryClick())window.alert('Для сообщения о неисправности нужны права production.manage или equipment.repair.');},60);
+  setTimeout(()=>{if(!tryClick())notify('warning','Недостаточно прав','Для сообщения о неисправности нужны права production.manage или equipment.repair.');},60);
 }
 
 function friendly(error){
@@ -277,7 +278,7 @@ function bind(){
     const card=event.target.closest('[data-asset]');
     if(card&&!event.target.closest('button,a,input,select,textarea'))state.detailId=card.dataset.asset;
     const qr=event.target.closest('[data-equipment-qr]');if(qr){event.preventDefault();event.stopPropagation();await openQr(qr.dataset.equipmentQr);return}
-    const action=event.target.closest('[data-eq-qr-action]');if(action){event.preventDefault();action.disabled=true;try{await operatorAction(action.dataset.jobId,action.dataset.eqQrAction)}catch(error){window.alert(friendly(error))}finally{action.disabled=false}return}
+    const action=event.target.closest('[data-eq-qr-action]');if(action){event.preventDefault();action.disabled=true;try{await operatorAction(action.dataset.jobId,action.dataset.eqQrAction)}catch(error){notify('error','Операция не выполнена',friendly(error))}finally{action.disabled=false}return}
     const complete=event.target.closest('[data-eq-qr-complete]');if(complete){event.preventDefault();openComplete(complete.dataset.eqQrComplete);return}
     const service=event.target.closest('[data-eq-qr-service]');if(service){event.preventDefault();clickService(service.dataset.eqQrService);return}
     const incident=event.target.closest('[data-eq-qr-incident]');if(incident){event.preventDefault();clickIncident(incident.dataset.eqQrIncident);return}
@@ -296,8 +297,9 @@ function openDeepLink(id){
     return true;
   };
   if(open())return;
-  const ob=new MutationObserver(()=>{if(open())ob.disconnect()});ob.observe(document.body,{childList:true,subtree:true});
-  setTimeout(()=>ob.disconnect(),8000);
+  const onRender=()=>{if(open())document.removeEventListener('a4:equipment-grid-rendered',onRender)};
+  document.addEventListener('a4:equipment-grid-rendered',onRender);
+  setTimeout(()=>document.removeEventListener('a4:equipment-grid-rendered',onRender),8000);
 }
 
 async function init(){
@@ -305,14 +307,13 @@ async function init(){
   try{
     await loadPermissions();
     if(!canEquipmentView())return;
-    observe();
+    bindRenderEvents();
     const id=new URLSearchParams(window.location.search).get('equipment');
     if(id&&uuid.test(id)){
       const asset=await getAsset(id);
-      if(!asset){window.alert('Оборудование не найдено или недоступно.');return}
+      if(!asset){notify('error','Оборудование недоступно','Оборудование не найдено или недоступно.');return}
       state.asset=asset;openDeepLink(id);
     }
-    window.addEventListener('beforeunload',()=>state.observer?.disconnect(),{once:true});
   }catch(error){console.warn('Equipment QR unavailable',error)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
