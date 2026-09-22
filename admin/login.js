@@ -1,6 +1,5 @@
+import {supabase} from './guard.js?v=20260922-authflow1';
 const config=window.A4PRINT_CONFIG||{};
-const SUPABASE_URL=config.supabaseUrl||'https://qgakliolffnwkymoqvzn.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY=config.supabasePublishableKey||'sb_publishable_WbZxATu_lxqWF21jR_qFag_fcEeVIMu';
 const API_BASE=String(config.apiBaseUrl||'https://a4print-hub-api.onrender.com').replace(/\/$/,'');
 const RETURN_KEY='a4print_auth_return_to';
 
@@ -41,12 +40,6 @@ function rememberReturn(rt){try{if(rt)localStorage.setItem(RETURN_KEY,rt)}catch{
 function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
 
 (async()=>{
-  const createClient=window.supabase?.createClient;
-  if(!createClient)throw new Error('Локальный модуль авторизации не загрузился. Обновите страницу.');
-  const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
-    global:{fetch:window.A4SupabaseFetch||fetch},
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-  });
   window.__A4_AUTH_CLIENT__=supabase;
 
   async function routeByProfile(){
