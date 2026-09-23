@@ -1,0 +1,39 @@
+name: Check MASTER PROMPT Auth Pending
+
+on:
+  pull_request:
+    paths:
+      - 'admin/pending.html'
+      - 'admin/pending.js'
+      - '.github/workflows/check-master-prompt-auth-pending.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/pending.html'
+      - 'admin/pending.js'
+
+jobs:
+  auth-pending-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pending syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/pending.js
+      - name: Tenant-aware registration contract
+        shell: bash
+        run: |
+          grep -q "import {supabase} from './guard.js" admin/pending.js
+          grep -q 'submit_staff_registration_v2' admin/pending.js
+          grep -q 'p_organization_id' admin/pending.js
+          grep -q 'get_public_staff_registration_organizations' admin/pending.js
+          grep -q 'a4print_staff_registration_org' admin/pending.js
+          grep -q 'src="./pending.js?v=20260923-authpending1"' admin/pending.html
+          ! grep -q "submit_staff_registration'," admin/pending.js
+          ! grep -q 'createClient' admin/pending.js
+          ! grep -q 'cdn.jsdelivr.net/npm/@supabase/supabase-js' admin/pending.html
+          ! grep -q '<script type="module">' admin/pending.html
