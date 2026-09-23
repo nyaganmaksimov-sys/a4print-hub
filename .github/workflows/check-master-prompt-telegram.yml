@@ -1,0 +1,41 @@
+name: Check MASTER PROMPT Telegram
+
+on:
+  pull_request:
+    paths:
+      - 'admin/telegram.html'
+      - 'admin/telegram.js'
+      - '.github/workflows/check-master-prompt-telegram.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/telegram.html'
+      - 'admin/telegram.js'
+
+jobs:
+  telegram-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/telegram.js
+      - name: Telegram inbox contract
+        shell: bash
+        run: |
+          grep -q "params.set('q',q)" admin/telegram.js
+          grep -q "params.set('status',status)" admin/telegram.js
+          grep -q 'async function loadStatus()' admin/telegram.js
+          grep -q 'async function loadMessages()' admin/telegram.js
+          grep -q 'id="replyDlg"' admin/telegram.html
+          grep -q 'id="orderDlg"' admin/telegram.html
+          grep -q 'src="./telegram.js?v=20260923-phase6-1"' admin/telegram.html
+          grep -q 'human-light-ui.css' admin/telegram.html
+          ! grep -q 'window.alert' admin/telegram.js
+          ! grep -q 'prompt(' admin/telegram.js
+          ! grep -q 'confirm(' admin/telegram.js
+          ! grep -q '<script type="module">' admin/telegram.html
