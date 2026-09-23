@@ -1,0 +1,40 @@
+name: Check Master Prompt Drive Connect
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'admin/drive-connect.html'
+      - 'admin/drive-connect.js'
+      - 'admin/feedback.js'
+      - 'admin/guard.js'
+      - 'admin/config.js'
+      - '.github/workflows/check-master-prompt-drive-connect.yml'
+  workflow_dispatch:
+
+jobs:
+  drive-connect-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify files
+        run: |
+          set -euo pipefail
+          test -s admin/drive-connect.html
+          test -s admin/drive-connect.js
+          node --check admin/drive-connect.js
+      - name: Verify Master Prompt contract
+        run: |
+          set -euo pipefail
+          grep -q 'human-light-ui.css' admin/drive-connect.html
+          grep -q 'drive-connect.js' admin/drive-connect.html
+          grep -q 'A4Feedback' admin/drive-connect.js
+          grep -q 'AbortController' admin/drive-connect.js
+          grep -q 'DRIVE_TIMEOUT_MS=7000' admin/drive-connect.js
+          grep -q 'index.html#hub-chat' admin/drive-connect.html
+          if grep -q '<script type="module">' admin/drive-connect.html; then echo 'Inline module runtime is forbidden'; exit 1; fi
+          if grep -Eq 'alert[[:space:]]*\(|prompt[[:space:]]*\(|confirm[[:space:]]*\(' admin/drive-connect.js; then echo 'Blocking dialogs are forbidden'; exit 1; fi
+          if grep -Eq 'setInterval[[:space:]]*\(|MutationObserver' admin/drive-connect.js; then echo 'Constant polling/MutationObserver is forbidden'; exit 1; fi
