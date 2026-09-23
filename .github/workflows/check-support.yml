@@ -7,6 +7,7 @@ on:
     paths:
       - 'admin/support.html'
       - 'admin/support.js'
+      - 'admin/feedback.js'
       - 'admin/support-access.js'
       - 'admin/support-notifications.js'
       - 'admin/support-employee-helper.js'
@@ -35,6 +36,7 @@ jobs:
           set -euo pipefail
           test -s admin/support.html
           test -s admin/support.js
+          test -s admin/feedback.js
           test -s admin/support-access.js
           test -s admin/support-notifications.js
           test -s admin/support-employee-helper.js
@@ -61,6 +63,10 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'support.js' admin/support.html
+          grep -q 'human-light-ui.css' admin/support.html
+          grep -q 'A4Feedback' admin/support.js
+          if grep -Eq 'alert[[:space:]]*\(' admin/support.js; then echo 'Blocking alert() is forbidden in Support'; exit 1; fi
+          if grep -Eq 'setInterval[[:space:]]*\(' admin/support.js; then echo 'Constant Support polling is forbidden'; exit 1; fi
           grep -q 'open_support_ticket' admin/support.js
           grep -q 'send_support_message' admin/support.js
           grep -q "'SUPPORT'" database/migrations/108_support_center_and_support_role.sql
@@ -92,7 +98,7 @@ jobs:
             page=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.html?check=${GITHUB_SHA}" || true)
             js=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/support.js?check=${GITHUB_SHA}" || true)
             guard=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/admin/guard.js?check=${GITHUB_SHA}" || true)
-            if echo "$page" | grep -q 'Джарвис · служба поддержки' && echo "$js" | grep -q 'open_support_ticket' && echo "$guard" | grep -q 'window.__A4_SUPPORT_ONLY__' && echo "$guard" | grep -q 'hub-chat-drawer.js'; then
+            if echo "$page" | grep -q 'Служба поддержки' && echo "$page" | grep -q 'human-light-ui.css' && echo "$js" | grep -q 'open_support_ticket' && echo "$js" | grep -q 'A4Feedback' && ! echo "$js" | grep -Eq 'alert[[:space:]]*\(' && ! echo "$js" | grep -Eq 'setInterval[[:space:]]*\(' && echo "$guard" | grep -q 'window.__A4_SUPPORT_ONLY__' && echo "$guard" | grep -q 'hub-chat-drawer.js'; then
               echo 'Support center and support-only chat isolation are live.'
               exit 0
             fi

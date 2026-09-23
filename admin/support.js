@@ -1,4 +1,4 @@
-import { supabase } from './guard.js';
+import { supabase } from './guard.js?v=20260923-support1';
 
 const cfg=window.A4PRINT_CONFIG||{};
 const $=id=>document.getElementById(id);
@@ -12,22 +12,40 @@ let faq=[];
 let currentTicket=null;
 let operatorTickets=[];
 let operatorTicket=null;
-let pollTimer=null;
 let realtimeChannel=null;
 let realtimeTimer=null;
 let canOperate=false;
 let isAdmin=false;
 let aiBusy=false;
 const jarvisEnabled=window.A4PRINT_FEATURES?.jarvis===true;
+const SUPPORT_API_TIMEOUT_MS=7000;
+
+function notify(tone,title,message,options={}){
+  if(window.A4Feedback?.show)return window.A4Feedback.show({...options,tone,title,message});
+  const method=tone==='error'?'error':tone==='warning'?'warn':'log';
+  console[method]('[A4PRINT HUB]',title,message);
+}
 
 function apiBase(){return String(cfg.apiBaseUrl||'').replace(/\/$/,'')}
 async function hubApi(path,options={}){
   const {data:{session}}=await supabase.auth.getSession();
   if(!session)throw new Error('AUTH_REQUIRED');
-  const response=await fetch(`${apiBase()}${path}`,{...options,cache:'no-store',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Accept:'application/json',...(options.headers||{})}});
-  const body=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(body.message||body.error||`HTTP ${response.status}`);
-  return body;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),SUPPORT_API_TIMEOUT_MS);
+  try{
+    const response=await fetch(`${apiBase()}${path}`,{
+      ...options,
+      cache:'no-store',
+      signal:options.signal||controller.signal,
+      headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Accept:'application/json',...(options.headers||{})}
+    });
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(body.message||body.error||`HTTP ${response.status}`);
+    return body;
+  }catch(error){
+    if(error?.name==='AbortError')throw new Error('Сервис отвечает слишком долго. Повторите попытку.');
+    throw error;
+  }finally{clearTimeout(timer)}
 }
 function normalize(text){return String(text||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9\s]/gi,' ').replace(/\s+/g,' ').trim()}
 function words(text){return new Set(normalize(text).split(' ').filter(x=>x.length>2))}
@@ -142,13 +160,13 @@ async function openOperator(initialText=''){
     renderOwnTicketHead();
     if(initialText){const {error:e}=await supabase.rpc('send_support_message',{p_ticket_id:id,p_body:initialText});if(e)throw e}
     await findOwnTicket();$('ticketText')?.focus();
-  }catch(e){alert('Не удалось открыть поддержку: '+(e.message||e))}
+  }catch(e){notify('error','Не удалось открыть поддержку',e.message||String(e),{actionLabel:'Повторить',onAction:()=>openOperator(initialText)})}
 }
 async function sendOwn(e){
   e.preventDefault();const text=$('ticketText').value.trim();if(!text)return;
   if(!currentTicket)await openOperator();if(!currentTicket)return;
   $('ticketSend').disabled=true;
-  try{const {error}=await supabase.rpc('send_support_message',{p_ticket_id:currentTicket.id,p_body:text});if(error)throw error;$('ticketText').value='';await findOwnTicket()}catch(x){alert(x.message||x)}finally{$('ticketSend').disabled=false}
+  try{const {error}=await supabase.rpc('send_support_message',{p_ticket_id:currentTicket.id,p_body:text});if(error)throw error;$('ticketText').value='';await findOwnTicket()}catch(x){notify('error','Не удалось отправить сообщение',x.message||String(x))}finally{$('ticketSend').disabled=false}
 }
 
 async function loadOperatorTickets(keep=true){
@@ -205,11 +223,11 @@ async function loadOperatorMessages(){
 }
 async function sendOperator(e){
   e.preventDefault();if(!operatorTicket)return;const text=$('operatorText').value.trim();if(!text)return;$('operatorSend').disabled=true;
-  try{const {error}=await supabase.rpc('send_support_message',{p_ticket_id:operatorTicket.id,p_body:text});if(error)throw error;$('operatorText').value='';const panel=aiPanel();if(panel)panel.hidden=true;await loadOperatorTickets(true)}catch(x){alert(x.message||x)}finally{$('operatorSend').disabled=false}
+  try{const {error}=await supabase.rpc('send_support_message',{p_ticket_id:operatorTicket.id,p_body:text});if(error)throw error;$('operatorText').value='';const panel=aiPanel();if(panel)panel.hidden=true;await loadOperatorTickets(true)}catch(x){notify('error','Не удалось отправить ответ',x.message||String(x))}finally{$('operatorSend').disabled=false}
 }
 async function saveOperatorStatus(){
   if(!operatorTicket)return;const status=$('operatorStatus').value;const patch={status,updated_at:new Date().toISOString(),closed_at:['RESOLVED','CLOSED'].includes(status)?new Date().toISOString():null};
-  const {error}=await supabase.from('support_tickets').update(patch).eq('id',operatorTicket.id);if(error)return alert(error.message);operatorTicket={...operatorTicket,...patch};await loadOperatorTickets(true);
+  try{const {error}=await supabase.from('support_tickets').update(patch).eq('id',operatorTicket.id);if(error)throw error;operatorTicket={...operatorTicket,...patch};await loadOperatorTickets(true);notify('success','Статус сохранён',`Обращение: ${statusLabel(status)}`)}catch(error){notify('error','Не удалось сохранить статус',error.message||String(error))}
 }
 
 function scheduleRealtimeReload(){
@@ -236,10 +254,10 @@ async function init(){
   await loadFaq();
   if(canOperate){
     $('userSupport')?.classList.add('hidden');$('operatorSupport')?.classList.remove('hidden');ensureOperatorAiControls();await loadOperatorTickets(false);
-    pollTimer=setInterval(()=>{if(!document.hidden)loadOperatorTickets(true).catch(console.warn)},60000);
+
   }else{
     $('operatorSupport')?.classList.add('hidden');$('userSupport')?.classList.remove('hidden');await findOwnTicket();
-    pollTimer=setInterval(()=>{if(!document.hidden&&currentTicket)findOwnTicket().catch(console.warn)},60000);
+
   }
   initRealtime();
 }
@@ -251,12 +269,12 @@ $('callOperatorTop')?.addEventListener('click',()=>openOperator($('botQuestion')
 $('ticketComposer')?.addEventListener('submit',sendOwn);
 $('ticketSearch')?.addEventListener('input',renderOperatorTickets);
 $('ticketFilter')?.addEventListener('change',renderOperatorTickets);
-$('reloadTickets')?.addEventListener('click',()=>loadOperatorTickets(true).catch(e=>alert(e.message)));
+$('reloadTickets')?.addEventListener('click',()=>loadOperatorTickets(true).catch(e=>notify('error','Не удалось обновить очередь',e.message||String(e),{actionLabel:'Повторить',onAction:()=>loadOperatorTickets(true)})));
 $('operatorComposer')?.addEventListener('submit',sendOperator);
 $('saveTicketStatus')?.addEventListener('click',saveOperatorStatus);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleRealtimeReload()});
 window.addEventListener('beforeunload',()=>{
-  if(pollTimer)clearInterval(pollTimer);
   if(realtimeTimer)clearTimeout(realtimeTimer);
   if(realtimeChannel)supabase.removeChannel(realtimeChannel).catch(()=>{});
 });
-init().catch(e=>{console.error(e);alert('Не удалось открыть поддержку: '+(e.message||e))});
+init().catch(e=>{console.error(e);if($('supportRole'))$('supportRole').textContent='Ошибка загрузки';notify('error','Не удалось открыть поддержку',e.message||String(e),{duration:0,actionLabel:'Повторить',onAction:()=>location.reload()})});
