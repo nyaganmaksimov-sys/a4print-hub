@@ -1,0 +1,51 @@
+name: Check Master Prompt Commerce
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'admin/commerce.html'
+      - 'admin/commerce.js'
+      - 'api/src/saas-billing.js'
+      - 'api/src/saas-billing-preload.js'
+      - 'admin/guard.js'
+      - 'admin/feedback.js'
+      - 'admin/navigation.js'
+      - '.github/workflows/check-master-prompt-commerce.yml'
+  workflow_dispatch:
+
+jobs:
+  commerce-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify syntax
+        run: |
+          set -euo pipefail
+          test -s admin/commerce.html
+          test -s admin/commerce.js
+          test -s api/src/saas-billing-preload.js
+          node --check admin/commerce.js
+          node --check api/src/saas-billing-preload.js
+          node --check api/src/saas-billing.js
+      - name: Verify Commerce contract
+        run: |
+          set -euo pipefail
+          grep -q 'human-light-ui.css' admin/commerce.html
+          grep -q 'navigation.js' admin/commerce.html
+          grep -q 'promoDeleteDlg' admin/commerce.html
+          grep -q "from './guard.js" admin/commerce.js
+          grep -q 'A4Feedback' admin/commerce.js
+          grep -q 'AbortController' admin/commerce.js
+          grep -q 'COMMERCE_API_TIMEOUT_MS=7000' admin/commerce.js
+          grep -q 'SAAS_CONTROL_ORGANIZATION_CODE' api/src/saas-billing-preload.js
+          grep -q 'PLATFORM_ADMIN_REQUIRED' api/src/saas-billing-preload.js
+          grep -q "organization_units" api/src/saas-billing-preload.js
+          grep -q "organizations" api/src/saas-billing-preload.js
+          if grep -Eq 'createClient|cdn\.jsdelivr' admin/commerce.js; then echo 'Commerce must use shared Supabase client'; exit 1; fi
+          if grep -Eq 'alert[[:space:]]*\(|prompt[[:space:]]*\(|confirm[[:space:]]*\(' admin/commerce.js; then echo 'Blocking dialogs are forbidden'; exit 1; fi
+          grep -q "app.get('/api/v1/admin/commerce',requireAdmin" api/src/saas-billing.js
+          grep -q "app.put('/api/v1/admin/commerce/gateway',requireAdmin" api/src/saas-billing.js
