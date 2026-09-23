@@ -1,0 +1,44 @@
+name: Check Master Prompt CUIM Delivery
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'admin/cuim-delivery.html'
+      - 'admin/cuim-delivery.js'
+      - 'admin/feedback.js'
+      - 'admin/guard.js'
+      - 'admin/navigation.js'
+      - '.github/workflows/check-master-prompt-cuim-delivery.yml'
+  workflow_dispatch:
+
+jobs:
+  cuim-delivery-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify files
+        run: |
+          set -euo pipefail
+          test -s admin/cuim-delivery.html
+          test -s admin/cuim-delivery.js
+          node --check admin/cuim-delivery.js
+      - name: Verify delivery contract
+        run: |
+          set -euo pipefail
+          grep -q 'human-light-ui.css' admin/cuim-delivery.html
+          grep -q 'cuim-delivery.js' admin/cuim-delivery.html
+          grep -q 'navigation.js' admin/cuim-delivery.html
+          grep -q "manager_delivery_offers" admin/cuim-delivery.js
+          grep -q "manager_create_courier_offer" admin/cuim-delivery.js
+          grep -q "courier-push-notify" admin/cuim-delivery.js
+          grep -q 'A4Feedback' admin/cuim-delivery.js
+          grep -q 'postgres_changes' admin/cuim-delivery.js
+          grep -q 'setTimeout' admin/cuim-delivery.js
+          grep -q 'removeChannel' admin/cuim-delivery.js
+          if grep -q '<script type="module">' admin/cuim-delivery.html; then echo 'Inline module runtime is forbidden'; exit 1; fi
+          if grep -Eq 'alert[[:space:]]*\(|prompt[[:space:]]*\(|confirm[[:space:]]*\(' admin/cuim-delivery.js; then echo 'Blocking dialogs are forbidden'; exit 1; fi
+          if grep -Eq 'setInterval[[:space:]]*\(|MutationObserver' admin/cuim-delivery.js; then echo 'Constant polling/MutationObserver is forbidden'; exit 1; fi
