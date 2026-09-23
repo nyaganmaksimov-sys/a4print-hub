@@ -100,6 +100,22 @@ async function operatorProfile(authUserId) {
   };
 }
 
+async function requireAdminOrganization(req, res, next) {
+  try {
+    const profile = await operatorProfile(req.authUser?.id);
+    if (!profile?.id || !profile?.organization_unit_id || !profile?.organization_id) {
+      return res.status(403).json({
+        success: false,
+        error: 'ADMIN_ORGANIZATION_REQUIRED',
+        message: 'Администратор не привязан к подразделению организации.'
+      });
+    }
+    req.authProfile = profile;
+    req.staffOrganizationId = profile.organization_id;
+    next();
+  } catch (e) { next(e); }
+}
+
 async function posStaffAccess(authUserId) {
   if (!supabase || !authUserId) return null;
   const { data, error } = await supabase
@@ -697,20 +713,40 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get('/api/v1/operators', requireAdmin, async (_req, res, next) => {
+app.get('/api/v1/operators', requireAdmin, requireAdminOrganization, async (req, res, next) => {
   try {
     const { data: role, error: roleErr } = await supabase.from('roles').select('id').eq('name', 'POS_OPERATOR').single();
     if (roleErr) throw roleErr;
-    const { data, error } = await supabase
+
+    const { data: units, error: unitErr } = await supabase
+      .from('organization_units')
+      .select('id')
+      .eq('organization_id', req.staffOrganizationId)
+      .eq('is_active', true);
+    if (unitErr) throw unitErr;
+    const unitIds = (units || []).map(x => x.id);
+    if (!unitIds.length) return res.json({ success: true, operators: [] });
+
+    const { data: roleRows, error: roleRowsErr } = await supabase
       .from('user_roles')
-      .select('users(id,auth_user_id,full_name,email,phone,is_active,created_at)')
+      .select('user_id')
       .eq('role_id', role.id);
+    if (roleRowsErr) throw roleRowsErr;
+    const userIds = (roleRows || []).map(x => x.user_id);
+    if (!userIds.length) return res.json({ success: true, operators: [] });
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('id,auth_user_id,full_name,email,phone,is_active,created_at,organization_unit_id')
+      .in('id', userIds)
+      .in('organization_unit_id', unitIds)
+      .order('created_at', { ascending: false });
     if (error) throw error;
-    res.json({ success: true, operators: (data || []).map(x => x.users).filter(Boolean) });
+    res.json({ success: true, operators: data || [] });
   } catch (e) { next(e); }
 });
 
-app.post('/api/v1/operators', requireAdmin, async (req, res, next) => {
+app.post('/api/v1/operators', requireAdmin, requireAdminOrganization, async (req, res, next) => {
   try {
     if (!supabase) return res.status(503).json({ success: false, error: 'DATABASE_NOT_CONFIGURED' });
     const fullName = String(req.body?.full_name || '').trim();
@@ -722,7 +758,13 @@ app.post('/api/v1/operators', requireAdmin, async (req, res, next) => {
     if (authErr) throw authErr;
     const authUser = authData.user;
     try {
-      const { data: profile, error: pErr } = await supabase.from('users').upsert({ auth_user_id: authUser.id, full_name: fullName, email, is_active: true }, { onConflict: 'auth_user_id' }).select('id').single();
+      const { data: profile, error: pErr } = await supabase.from('users').upsert({
+        auth_user_id: authUser.id,
+        full_name: fullName,
+        email,
+        is_active: true,
+        organization_unit_id: req.authProfile.organization_unit_id
+      }, { onConflict: 'auth_user_id' }).select('id,organization_unit_id').single();
       if (pErr) throw pErr;
       const { data: role, error: rErr } = await supabase.from('roles').select('id').eq('name', 'POS_OPERATOR').single();
       if (rErr) throw rErr;
@@ -736,10 +778,17 @@ app.post('/api/v1/operators', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.patch('/api/v1/operators/:id', requireAdmin, async (req, res, next) => {
+app.patch('/api/v1/operators/:id', requireAdmin, requireAdminOrganization, async (req, res, next) => {
   try {
-    const { data: operator, error: findErr } = await supabase.from('users').select('id,auth_user_id').eq('id', req.params.id).single();
+    const { data: operator, error: findErr } = await supabase
+      .from('users')
+      .select('id,auth_user_id,organization_unit_id,organization_units!users_organization_unit_id_fkey(organization_id)')
+      .eq('id', req.params.id)
+      .single();
     if (findErr) throw findErr;
+    if (operator?.organization_units?.organization_id !== req.staffOrganizationId) {
+      return res.status(404).json({ success: false, error: 'OPERATOR_NOT_FOUND' });
+    }
     const updates = {};
     if (typeof req.body?.full_name === 'string') updates.full_name = req.body.full_name.trim();
     if (typeof req.body?.is_active === 'boolean') updates.is_active = req.body.is_active;
@@ -748,7 +797,10 @@ app.patch('/api/v1/operators/:id', requireAdmin, async (req, res, next) => {
       if (error) throw error;
     }
     const authUpdates = {};
-    if (typeof req.body?.password === 'string' && req.body.password) authUpdates.password = req.body.password;
+    if (typeof req.body?.password === 'string' && req.body.password) {
+      if (req.body.password.length < 6) return res.status(400).json({ success: false, error: 'PASSWORD_TOO_SHORT', message: 'Минимум 6 символов.' });
+      authUpdates.password = req.body.password;
+    }
     if (typeof req.body?.is_active === 'boolean') authUpdates.ban_duration = req.body.is_active ? 'none' : '876000h';
     if (Object.keys(authUpdates).length && operator.auth_user_id) {
       const { error } = await supabase.auth.admin.updateUserById(operator.auth_user_id, authUpdates);

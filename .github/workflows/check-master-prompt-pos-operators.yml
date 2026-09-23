@@ -1,0 +1,41 @@
+name: Check MASTER PROMPT POS Operators
+
+on:
+  pull_request:
+    paths:
+      - 'admin/operators.html'
+      - 'admin/operators.js'
+      - 'api/src/server.js'
+      - '.github/workflows/check-master-prompt-pos-operators.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/operators.html'
+      - 'admin/operators.js'
+      - 'api/src/server.js'
+
+jobs:
+  pos-operators-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/operators.js
+          node --input-type=module --check < api/src/server.js
+      - name: Operator tenant contract
+        shell: bash
+        run: |
+          grep -q 'requireAdminOrganization' api/src/server.js
+          grep -q 'req.staffOrganizationId' api/src/server.js
+          grep -q "organization_unit_id: req.authProfile.organization_unit_id" api/src/server.js
+          grep -q 'OPERATOR_NOT_FOUND' api/src/server.js
+          grep -q 'PASSWORD_TOO_SHORT' api/src/server.js
+          grep -q 'src="./operators.js?v=20260923-phase6-1"' admin/operators.html
+          grep -q 'human-light-ui.css' admin/operators.html
+          ! grep -q 'window.alert' admin/operators.js
+          ! grep -q '<script type="module">' admin/operators.html
