@@ -1,0 +1,38 @@
+name: Check Master Prompt Apps
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'admin/apps.html'
+      - 'admin/apps.js'
+      - 'admin/navigation.js'
+      - 'admin/feedback.js'
+      - '.github/workflows/check-master-prompt-apps.yml'
+  workflow_dispatch:
+
+jobs:
+  apps-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Apps files
+        run: |
+          set -euo pipefail
+          test -s admin/apps.html
+          test -s admin/apps.js
+          node --check admin/apps.js
+      - name: Verify Apps contract
+        run: |
+          set -euo pipefail
+          grep -q 'human-light-ui.css' admin/apps.html
+          grep -q 'apps.js' admin/apps.html
+          grep -q 'navigation.js' admin/apps.html
+          grep -q 'Установить веб-приложение' admin/apps.html
+          grep -q 'beforeinstallprompt' admin/apps.js
+          grep -q 'serviceWorker.getRegistration' admin/apps.js
+          if grep -Eq '<script( type="module")?>[^<]' admin/apps.html; then echo 'Inline runtime is forbidden on Apps page'; exit 1; fi
+          if grep -Eq 'window\.alert[[:space:]]*\(|window\.prompt[[:space:]]*\(|window\.confirm[[:space:]]*\(' admin/apps.js; then echo 'Blocking browser dialogs are forbidden'; exit 1; fi
