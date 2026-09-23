@@ -1,0 +1,42 @@
+name: Check MASTER PROMPT Executor Requests
+
+on:
+  pull_request:
+    paths:
+      - 'admin/executor-requests.html'
+      - 'admin/executor-requests.js'
+      - '.github/workflows/check-master-prompt-executor-requests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/executor-requests.html'
+      - 'admin/executor-requests.js'
+
+jobs:
+  executor-requests-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/executor-requests.js
+      - name: Executor requests architecture contract
+        shell: bash
+        run: |
+          grep -q 'createSignedUrls(paths,3600)' admin/executor-requests.js
+          grep -q "executor_registration_requests').select(fields)" admin/executor-requests.js
+          grep -q '.limit(100)' admin/executor-requests.js
+          grep -q 'approve_executor_registration' admin/executor-requests.js
+          grep -q 'invite-approved-executor' admin/executor-requests.js
+          grep -q 'reviewDlg' admin/executor-requests.html
+          grep -q 'human-light-ui.css' admin/executor-requests.html
+          grep -q 'src="./executor-requests.js?v=20260923-phase6-1"' admin/executor-requests.html
+          ! grep -q "select('\*')" admin/executor-requests.js
+          ! grep -q 'window.alert' admin/executor-requests.js
+          ! grep -q 'prompt(' admin/executor-requests.js
+          ! grep -q 'confirm(' admin/executor-requests.js
+          ! grep -q '<script type="module">' admin/executor-requests.html
