@@ -1,0 +1,41 @@
+name: Check MASTER PROMPT Item Card
+
+on:
+  pull_request:
+    paths:
+      - 'admin/item.html'
+      - 'admin/item.js'
+      - '.github/workflows/check-master-prompt-item-card.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'admin/item.html'
+      - 'admin/item.js'
+
+jobs:
+  item-card-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Item card syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < admin/item.js
+      - name: Warehouse item architecture contract
+        shell: bash
+        run: |
+          grep -q "from('inventory_balances').select('quantity')" admin/item.js
+          grep -q "created_by:state.profileId" admin/item.js
+          grep -q "/api/v1/warehouse/stock" admin/item.js
+          grep -q "external_source==='MOYSKLAD'" admin/item.js
+          grep -q 'src="./item.js?v=20260923-phase6-1"' admin/item.html
+          grep -q 'human-light-ui.css' admin/item.html
+          ! grep -q "select('\*')" admin/item.js
+          ! grep -q 'window.alert' admin/item.js
+          ! grep -q '€' admin/item.html
+          ! grep -q '<script type="module">' admin/item.html
+          ! grep -q "created_by:session" admin/item.js
+          ! grep -q "transaction_type:'TRANSFER_OUT'" admin/item.js
