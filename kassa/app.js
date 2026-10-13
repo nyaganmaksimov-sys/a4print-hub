@@ -53,7 +53,9 @@
 
   async function api(path,opt={},retry=true){
     if(!state.session?.access_token)throw new Error('AUTH_REQUIRED');
-    const controller=new AbortController();const t=setTimeout(()=>controller.abort(),8000);
+    const controller=new AbortController();
+    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:8000;
+    const t=setTimeout(()=>controller.abort(),timeoutMs);
     try{
       const r=await fetch(API+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
       const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
@@ -162,16 +164,52 @@
     }catch(e){renderShift();console.warn('Shift:',e)}
   }
   async function toggleShift(){
-    if(!state.backendOnline){toast('Для открытия или закрытия смены нужна связь с сервером.',true);return}
-    await refreshQueue();
-    if(state.shift&&state.queue.length){openQueue();toast('Сначала синхронизируйте чеки в очереди.',true);return}
+    // Do not trust a stale backendOnline flag: it can be cleared by an unrelated
+    // timed-out catalog request while the shift endpoint is healthy.
+    if($('shiftButton').disabled)return;
     $('shiftButton').disabled=true;
     try{
+      await refreshQueue();
+      if(state.shift&&state.queue.length){openQueue();toast('Сначала синхронизируйте чеки в очереди.',true);return}
+      if(!navigator.onLine){toast('Нет интернет-соединения. Проверьте подключение и повторите.',true);return}
       const operatorId=$('operatorSelect').value||state.profile?.id||null;
-      if(state.shift){await api('/api/v1/pos/shift/close',{method:'POST',body:JSON.stringify({operator_id:operatorId})});state.shift=null;await DB.setMeta('shift',null);toast('Смена закрыта')}
-      else{const d=await api('/api/v1/pos/shift/open',{method:'POST',body:JSON.stringify({operator_id:operatorId})});state.shift={...(d.shift||{}),store:d.store||null,checked_at:nowIso()};await DB.setMeta('shift',state.shift);toast(d.alreadyOpen?'Подключились к открытой смене':'Смена открыта')}
+      if(state.shift){
+        const expectedShiftId=String(state.shift.id||'');
+        try{
+          const result=await api('/api/v1/pos/shift/close',{method:'POST',body:JSON.stringify({operator_id:operatorId})});
+          if(result?.success===false)throw new Error(result.message||result.error||'Смена не закрыта');
+          state.shift=null;
+          await DB.setMeta('shift',null);
+          toast('Смена закрыта');
+        }catch(error){
+          // The write may have succeeded while the network response was lost.
+          // Only a fresh server read can settle the outcome; never blindly
+          // send a second close request against potentially another shift.
+          try{
+            const current=await api('/api/v1/pos/shift');
+            if(!current?.shift){
+              state.shift=null;await DB.setMeta('shift',null);toast('Смена закрыта (подтверждено сервером)');
+            }else{
+              state.shift={...current.shift,store:current.store||null,checked_at:nowIso()};
+              await DB.setMeta('shift',state.shift);
+              toast(expectedShiftId&&String(current.shift.id)!==expectedShiftId
+                ?'Активная смена изменилась. Проверьте её перед закрытием.'
+                :friendly(error,'Не удалось закрыть смену'),true);
+            }
+          }catch(verificationError){
+            toast('Не удалось подтвердить статус смены. Не нажимайте повторно до проверки связи.',true);
+            console.warn('Shift close: uncertain result',error,verificationError);
+          }
+        }
+      }else{
+        const d=await api('/api/v1/pos/shift/open',{method:'POST',body:JSON.stringify({operator_id:operatorId})});
+        state.shift={...(d.shift||{}),store:d.store||null,checked_at:nowIso()};
+        await DB.setMeta('shift',state.shift);
+        toast(d.alreadyOpen?'Подключились к открытой смене':'Смена открыта');
+      }
       renderShift();
-    }catch(e){toast(friendly(e,'Ошибка смены'),true)}finally{$('shiftButton').disabled=false}
+    }catch(e){toast(friendly(e,'Ошибка смены'),true)}
+    finally{$('shiftButton').disabled=false}
   }
 
   async function loadStock(){try{const d=await api('/api/v1/integrations/moysklad/stock');state.stock=d.stock||{};filterCatalog()}catch(e){console.warn('Stock:',e)}}
