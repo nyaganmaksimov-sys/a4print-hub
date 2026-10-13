@@ -58,6 +58,133 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       res.json({success:true,items:(data.rows||[]).filter(x=>allowed.has(x.meta?.type)&&!x.archived).map(x=>({id:x.id,type:x.meta.type,name:x.name,price:Number(x.salePrices?.[0]?.value||0)/100,vat:x.vat??null,vatEnabled:x.vatEnabled??null}))});
     }catch(e){sendError(res,next,e)}
   });
+
+  // Payment approval is verified against MoySklad's recorded incoming funds.
+  // It intentionally does NOT fabricate a cash-in or bank receipt.
+  const closingLock=new Set();
+  const closingCode=id=>'A4CLOSE-'+id.replace(/-/g,'');
+  const lookupByCode=async(type,externalCode)=>{
+    const data=await api('/entity/'+type+'?limit=10&filter='+encodeURIComponent('externalCode='+externalCode));
+    return data.rows?.[0]||null;
+  };
+  const closingSnapshot=async(id)=>{
+    const invoice=await api('/entity/invoiceout/'+id+'?expand=agent,organization,positions.assortment');
+    const sum=Number(invoice.sum||0),paid=Number(invoice.payedSum||0);
+    const positions=invoice.positions?.rows||[];
+    const linkedDemands=Array.isArray(invoice.demands)?invoice.demands:[];
+    const related=await lookupByCode('demand',closingCode(id));
+    // Existing manually issued shipments must be reviewed rather than duplicated.
+    const hasOtherShipments=linkedDemands.some(d=>d.meta?.href&&!d.meta.href.endsWith('/'+(related?.id||'')));
+    const facture=related?await lookupByCode('factureout',closingCode(id)):null;
+    return{invoice,sum,paid,positions,related,facture,hasOtherShipments,fullyPaid:sum>0&&paid>=sum};
+  };
+  const closingView=s=>({
+    invoice:shortInvoice(s.invoice),fully_paid:s.fullyPaid,outstanding:Math.max(0,(s.sum-s.paid)/100),
+    demand:s.related?{id:s.related.id,name:s.related.name,url:s.related.meta?.uuidHref||null}:null,existing_shipments_need_review:s.hasOtherShipments,
+    facture:s.facture?{id:s.facture.id,name:s.facture.name,url:s.facture.meta?.uuidHref||null}:null,
+    items:s.positions.map(p=>({name:p.assortment?.name||'',type:p.assortment?.meta?.type||'',quantity:p.quantity})),
+    vat_enabled:Boolean(s.invoice.vatEnabled),vat_sum:Number(s.invoice.vatSum||0)/100
+  });
+  app.get('/api/v1/pos/invoices/:id/closing',...protect,async(req,res,next)=>{
+    try{const id=safeId(req.params.id);res.json({success:true,...closingView(await closingSnapshot(id))})}catch(e){sendError(res,next,e)}
+  });
+  app.post('/api/v1/pos/invoices/:id/closing/prepare',...protect,async(req,res,next)=>{
+    const id=safeId(req.params.id);
+    if(closingLock.has(id))return fail(res,'Подготовка документов уже выполняется. Обновите карточку счёта.',409);
+    closingLock.add(id);
+    try{
+      const s=await closingSnapshot(id),invoice=s.invoice;
+      if(!s.fullyPaid)return fail(res,'Оплата ещё не отражена полностью в МойСклад. Сначала проведите поступление денег и обновите статус.',409);
+      if(s.hasOtherShipments)return fail(res,'К этому счёту уже привязана другая отгрузка. Проверьте документы в МойСклад, чтобы не создать дубли.',409);
+      if(!s.positions.length)return fail(res,'Счёт без позиций не может быть закрыт.',409);
+      if(!invoice.agent?.meta||!invoice.organization?.meta)return fail(res,'Не найдены контрагент или юридическое лицо.',409);
+      if(!s.related){
+        const containsGoods=s.positions.some(p=>p.assortment?.meta?.type!=='service');
+        const stores=await api('/entity/store?limit=100');
+        const requestedStore=str(reqBody(req).store_id,40);
+        if(!requestedStore)return fail(res,'Выберите склад оформления реализации (требование МойСклад).',409);
+        if(!stores.rows?.some(x=>x.id===requestedStore&&!x.archived))return fail(res,'Выбранный склад недоступен.',409);
+        const positions=s.positions.map(p=>({
+          assortment:{meta:p.assortment.meta},quantity:p.quantity,price:p.price,
+          ...(p.discount!=null?{discount:p.discount}:{}),
+          ...(p.vat!=null?{vat:p.vat}:{}),
+          ...(p.vatEnabled!=null?{vatEnabled:p.vatEnabled}:{})
+        }));
+        const payload={
+          externalCode:closingCode(id),agent:{meta:invoice.agent.meta},organization:{meta:invoice.organization.meta},
+          positions,invoicesOut:[wrap(id,'invoiceout')],description:'По счёту '+invoice.name+' · A4PRINT KASSA',
+          store:wrap(requestedStore,'store')
+        };
+        s.related=await api('/entity/demand',{method:'POST',body:JSON.stringify(payload)});
+      }
+      // A facture is not universally required: only create one for taxable VAT sales.
+      if(s.invoice.vatEnabled&&Number(s.invoice.vatSum||0)>0&&!s.facture){
+        const payload={
+          externalCode:closingCode(id),
+          organization:{meta:invoice.organization.meta},agent:{meta:invoice.agent.meta},
+          demands:[wrap(s.related.id,'demand')],
+          description:'По счёту '+invoice.name+' · A4PRINT KASSA'
+        };
+        s.facture=await api('/entity/factureout',{method:'POST',body:JSON.stringify(payload)});
+      }
+      res.json({success:true,...closingView(s),note:'Созданы документы МойСклад. Перед выдачей распечатайте и проверьте реквизиты, вид документа и налоговый режим.'});
+    }catch(e){sendError(res,next,e)}
+    finally{closingLock.delete(id)}
+  });
+  app.get('/api/v1/pos/invoices/lookup/stores',...protect,async(req,res,next)=>{
+    try{const data=await api('/entity/store?limit=100');res.json({success:true,stores:(data.rows||[]).filter(x=>!x.archived).map(x=>({id:x.id,name:x.name}))})}catch(e){sendError(res,next,e)}
+  });
+
+
+  // Expose only supported printable templates. PDF bytes are proxied server-side;
+  // no MoySklad access token or temporary print URL is sent to the browser.
+  const printTypes=new Set(['invoiceout','demand','factureout']);
+  async function documentToPrint(id,type){
+    const snap=await closingSnapshot(id);
+    if(type==='invoiceout')return{id:snap.invoice.id,type};
+    if(type==='demand'&&snap.related)return{id:snap.related.id,type};
+    if(type==='factureout'&&snap.facture)return{id:snap.facture.id,type};
+    throw Object.assign(new Error('Документ для печати пока не создан.'),{status:409});
+  }
+  async function templates(type){
+    const d=await api('/entity/'+type+'/metadata/embeddedtemplate');
+    return(d.rows||[]).map(t=>({id:t.id,name:t.name||'',type:t.meta?.type||'embeddedtemplate'})).filter(t=>uuid.test(t.id));
+  }
+  app.get('/api/v1/pos/invoices/:id/closing/templates',...protect,async(req,res,next)=>{
+    try{
+      const id=safeId(req.params.id),snap=await closingSnapshot(id);
+      const docs=[{type:'invoiceout',ready:true},{type:'demand',ready:!!snap.related},{type:'factureout',ready:!!snap.facture}];
+      const results=await Promise.all(docs.filter(d=>d.ready).map(async d=>({...d,templates:await templates(d.type)})));
+      res.json({success:true,documents:results});
+    }catch(e){sendError(res,next,e)}
+  });
+  app.get('/api/v1/pos/invoices/:id/closing/pdf',...protect,async(req,res,next)=>{
+    try{
+      const id=safeId(req.params.id),type=str(req.query.type,25),templateId=safeId(req.query.template);
+      if(!printTypes.has(type))return fail(res,'Недопустимый тип документа.');
+      const doc=await documentToPrint(id,type);
+      const available=await templates(type);
+      if(!available.some(t=>t.id===templateId))return fail(res,'Шаблон печати недоступен.');
+      const requestBody={template:wrap(templateId,'embeddedtemplate'),extension:'pdf'};
+      requestBody.template.meta.href='https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/metadata/embeddedtemplate/'+templateId;
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+      let response;
+      try{
+        response=await fetch('https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/'+doc.id+'/export',{
+          method:'POST',headers:{Authorization:'Bearer '+getToken(),Accept:'application/pdf','Content-Type':'application/json'},body:JSON.stringify(requestBody),signal:controller.signal
+        });
+        if(!response.ok)throw Object.assign(new Error('Не удалось получить печатную форму: '+response.status),{status:502});
+        const data=Buffer.from(await response.arrayBuffer());
+        if(data.length<5||data.subarray(0,5).toString()!=='%PDF-')throw Object.assign(new Error('МойСклад не вернул PDF. Проверьте шаблон документа.'),{status:502});
+        if(data.length>20*1024*1024)throw Object.assign(new Error('Файл превышает лимит 20 МБ.'),{status:502});
+        res.setHeader('Content-Type','application/pdf');
+        res.setHeader('Content-Disposition','inline; filename="'+type+'-'+doc.id+'.pdf"');
+        res.setHeader('Cache-Control','private, no-store');
+        res.send(data);
+      }finally{clearTimeout(timeout)}
+    }catch(e){sendError(res,next,e)}
+  });
+
   const processing=new Map();
   app.post('/api/v1/pos/invoices',...protect,async(req,res,next)=>{
     try{

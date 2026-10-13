@@ -83,6 +83,11 @@ jobs:
           node --check api/src/pos-cash-operations.js
           node --check api/src/boot.js
           node --check api/src/pos-build-marker.js
+      - name: Test invoice closing and PDF modules
+        run: |
+          node --check api/src/pos-invoices.js
+          node --check kassa/invoices.js
+          node --test api/test/pos-invoices-closing.test.js
       - name: Check Kassa shell
         run: |
           test -f kassa/index.html
