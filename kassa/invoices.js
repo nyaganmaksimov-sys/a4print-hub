@@ -76,7 +76,7 @@ function renderClosingSummary(id,closing){
   '<span>'+((closing.vat_enabled&&closing.vat_sum>0)?'Счёт-фактура ещё не создан':'Счёт-фактура не требуется по данным НДС в счёте')+'</span>')+
   '</div>';
  if(closing.demand){
-  $('invoicePrepare').disabled=true;
+  $('invoicePrepare').disabled=!(closing.vat_enabled&&closing.vat_sum>0&&!closing.facture);
   const print=$('invoicePrintArea');print.innerHTML='<button id="invoiceLoadPrintForms" type="button">Подобрать печатные формы и распечатать пакет</button><div id="invoicePrintChoices"></div>';
   $('invoiceLoadPrintForms').onclick=()=>loadPrintForms(id);
  }
