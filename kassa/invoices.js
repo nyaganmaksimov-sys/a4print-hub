@@ -85,19 +85,19 @@ async function prepareClosing(id,closing){
  const button=$('invoicePrepare'),err=$('invoiceClosingError');err.textContent='';
  if(!closing.fully_paid){err.textContent='Оплата ещё не подтверждена МойСклад.';return}
  let storeId=null;
- if(closing.items.some(x=>x.type!=='service')){
+ if(!closing.demand){
    const chooser=$('invoiceStoreChooser');
    if(chooser.hidden){
     try{
      const d=await request('/lookup/stores');
      chooser.hidden=false;
      chooser.innerHTML='<label>Склад фактической отгрузки<select id="invoiceClosingStore"><option value="">Выберите склад</option>'+d.stores.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('')+'</select></label>';
-     err.textContent='Выберите склад и снова нажмите «Подготовить документы».';
+     err.textContent='Выберите склад оформления реализации и снова нажмите «Подготовить документы».';
     }catch(e){err.textContent=e.message}
     return;
    }
    storeId=$('invoiceClosingStore')?.value;
-   if(!storeId){err.textContent='Выберите склад фактической отгрузки.';return}
+   if(!storeId){err.textContent='Выберите склад оформления реализации.';return}
  }
  if(!window.confirm(closing.items.some(x=>x.type!=='service')?'Подтвердите фактическую отгрузку товара. Создание отгрузки в МойСклад может изменить складские остатки. Продолжить?':'Подтвердите, что услуги оказаны и можно оформить акт/реализацию. Продолжить?'))return;
  button.disabled=true;button.textContent='Создаём документы…';
