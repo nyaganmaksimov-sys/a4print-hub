@@ -4,6 +4,7 @@ import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, repairMoySkladSaleItems, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
 import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
+import { registerPosMoySkladInvoices } from './pos-invoices.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -809,6 +810,8 @@ app.patch('/api/v1/operators/:id', requireAdmin, requireAdminOrganization, async
     res.json({ success: true });
   } catch (e) { next(e); }
 });
+
+registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantReady,()=>process.env.MOYSKLAD_TOKEN);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
