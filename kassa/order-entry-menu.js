@@ -14,6 +14,7 @@
     print:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v5H7zM6 16h12v5H6zM5 8h14a2 2 0 0 1 2 2v6h-3v-2H6v2H3v-6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M17.5 11h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
     wide:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H4z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 19h8M12 15v4M7.5 12 10 9.5l2 2 2.5-3 2 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     cube:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+    translate:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h12M9 3v2m4 0c0 7-4 11-9 13m1-9c1 3 3 5 7 7M14 21l4-11 4 11m-6.5-3h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     outdoor:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H4zM8 15v5m8-5v5M6 20h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 8h10M7 11h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
   };
 
@@ -49,6 +50,7 @@
             <span class="order-entry-copy"><b>Сувениры и знаки</b><small>Сфера · таблички, знаки, памятные и нестандартные изделия</small></span>
             <span class="order-entry-arrow">→</span>
           </button>
+          <button type="button" class="order-entry-card" data-order-entry="TRANSLATION"><span class="order-entry-icon">${ICONS.translate}</span><span class="order-entry-copy"><b>Перевод документов</b><small>Обычный и нотариальный · сканы · расчёт с партнёром</small></span><span class="order-entry-arrow">→</span></button>
           <button type="button" class="order-entry-card" data-order-entry="TYPOGRAPHY">
             <span class="order-entry-icon">${ICONS.print}</span>
             <span class="order-entry-copy"><b>Типография</b><small>Группа М · визитки, листовки, буклеты, каталоги, календари и другое</small></span>
@@ -89,7 +91,7 @@
       window.A4KassaStampOrders?.open?.();
       return;
     }
-    if(['MEMORIAL','SOUVENIR','TYPOGRAPHY','WIDE_FORMAT','THREE_D','OUTDOOR'].includes(kind)){
+    if(['MEMORIAL','SOUVENIR','TYPOGRAPHY','TRANSLATION','WIDE_FORMAT','THREE_D','OUTDOOR'].includes(kind)){
       window.A4KassaPartnerOrders?.open?.(kind);
     }
   }
