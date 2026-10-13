@@ -448,3 +448,6 @@ export async function createRetailReturn({token,saleId,items,paymentMethod,opera
   else if(sourceDemand?.agent?.meta)payload.agent={meta:sourceDemand.agent.meta};
   return ms(token,'/entity/retailsalesreturn',{method:'POST',body:JSON.stringify(payload)});
 }
+
+// Server-side invoice module uses the existing retry/timeout/authorization transport.
+export const moyskladRequest=(token,path,options)=>ms(token,path,options);
