@@ -131,6 +131,56 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
     try{const data=await api('/entity/store?limit=100');res.json({success:true,stores:(data.rows||[]).filter(x=>!x.archived).map(x=>({id:x.id,name:x.name}))})}catch(e){sendError(res,next,e)}
   });
 
+
+  // Expose only supported printable templates. PDF bytes are proxied server-side;
+  // no MoySklad access token or temporary print URL is sent to the browser.
+  const printTypes=new Set(['invoiceout','demand','factureout']);
+  async function documentToPrint(id,type){
+    const snap=await closingSnapshot(id);
+    if(type==='invoiceout')return{id:snap.invoice.id,type};
+    if(type==='demand'&&snap.related)return{id:snap.related.id,type};
+    if(type==='factureout'&&snap.facture)return{id:snap.facture.id,type};
+    throw Object.assign(new Error('Документ для печати пока не создан.'),{status:409});
+  }
+  async function templates(type){
+    const d=await api('/entity/'+type+'/metadata/embeddedtemplate');
+    return(d.rows||[]).map(t=>({id:t.id,name:t.name||'',type:t.meta?.type||'embeddedtemplate'})).filter(t=>uuid.test(t.id));
+  }
+  app.get('/api/v1/pos/invoices/:id/closing/templates',...protect,async(req,res,next)=>{
+    try{
+      const id=safeId(req.params.id),snap=await closingSnapshot(id);
+      const docs=[{type:'invoiceout',ready:true},{type:'demand',ready:!!snap.related},{type:'factureout',ready:!!snap.facture}];
+      const results=await Promise.all(docs.filter(d=>d.ready).map(async d=>({...d,templates:await templates(d.type)})));
+      res.json({success:true,documents:results});
+    }catch(e){sendError(res,next,e)}
+  });
+  app.get('/api/v1/pos/invoices/:id/closing/pdf',...protect,async(req,res,next)=>{
+    try{
+      const id=safeId(req.params.id),type=str(req.query.type,25),templateId=safeId(req.query.template);
+      if(!printTypes.has(type))return fail(res,'Недопустимый тип документа.');
+      const doc=await documentToPrint(id,type);
+      const available=await templates(type);
+      if(!available.some(t=>t.id===templateId))return fail(res,'Шаблон печати недоступен.');
+      const requestBody={template:wrap(templateId,'embeddedtemplate'),extension:'pdf'};
+      requestBody.template.meta.href='https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/metadata/embeddedtemplate/'+templateId;
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+      let response;
+      try{
+        response=await fetch('https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/'+doc.id+'/export',{
+          method:'POST',headers:{Authorization:'Bearer '+getToken(),Accept:'application/pdf','Content-Type':'application/json'},body:JSON.stringify(requestBody),signal:controller.signal
+        });
+        if(!response.ok)throw Object.assign(new Error('Не удалось получить печатную форму: '+response.status),{status:502});
+        const data=Buffer.from(await response.arrayBuffer());
+        if(data.length<5||data.subarray(0,5).toString()!=='%PDF-')throw Object.assign(new Error('МойСклад не вернул PDF. Проверьте шаблон документа.'),{status:502});
+        if(data.length>20*1024*1024)throw Object.assign(new Error('Файл превышает лимит 20 МБ.'),{status:502});
+        res.setHeader('Content-Type','application/pdf');
+        res.setHeader('Content-Disposition','inline; filename="'+type+'-'+doc.id+'.pdf"');
+        res.setHeader('Cache-Control','private, no-store');
+        res.send(data);
+      }finally{clearTimeout(timeout)}
+    }catch(e){sendError(res,next,e)}
+  });
+
   const processing=new Map();
   app.post('/api/v1/pos/invoices',...protect,async(req,res,next)=>{
     try{
