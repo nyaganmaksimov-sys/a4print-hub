@@ -96,10 +96,10 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       if(!invoice.agent?.meta||!invoice.organization?.meta)return fail(res,'Не найдены контрагент или юридическое лицо.',409);
       if(!s.related){
         const containsGoods=s.positions.some(p=>p.assortment?.meta?.type!=='service');
-        const stores=containsGoods?await api('/entity/store?limit=100'):null;
+        const stores=await api('/entity/store?limit=100');
         const requestedStore=str(reqBody(req).store_id,40);
-        if(containsGoods&&!requestedStore)return fail(res,'В счёте есть товары: выберите склад фактической отгрузки.',409);
-        if(containsGoods&&!stores.rows?.some(x=>x.id===requestedStore))return fail(res,'Выбранный склад недоступен.',409);
+        if(!requestedStore)return fail(res,'Выберите склад оформления реализации (требование МойСклад).',409);
+        if(!stores.rows?.some(x=>x.id===requestedStore&&!x.archived))return fail(res,'Выбранный склад недоступен.',409);
         const positions=s.positions.map(p=>({
           assortment:{meta:p.assortment.meta},quantity:p.quantity,price:p.price,
           ...(p.discount!=null?{discount:p.discount}:{}),
@@ -109,7 +109,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         const payload={
           externalCode:closingCode(id),agent:{meta:invoice.agent.meta},organization:{meta:invoice.organization.meta},
           positions,description:'По счёту '+invoice.name+' · A4PRINT KASSA',
-          ...(containsGoods?{store:wrap(requestedStore,'store')}:{})
+          store:wrap(requestedStore,'store')
         };
         s.related=await api('/entity/demand',{method:'POST',body:JSON.stringify(payload)});
       }
