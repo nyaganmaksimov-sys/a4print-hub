@@ -444,9 +444,30 @@
     $('discountLabel').textContent=d>0?`Подытог ${money(subtotal())} · скидка −${money(d)}`:'Скидка на чек';
     $('discountButton').textContent=d>0?(state.discount.type==='RUB'?`−${money(state.discount.value)}`:`−${Number(state.discount.value).toLocaleString('ru-RU')}%`):'Добавить';
     if(!state.cart.length){state.discount={type:'PERCENT',value:0};$('cartItems').innerHTML='<div class="empty-cart"><div>🧾</div><b>Чек пока пуст</b><span>Нажмите на товар или услугу слева</span></div>';return}
-    $('cartItems').innerHTML=state.cart.map((x,i)=>`<div class="cart-row"><div class="cart-row-head"><div class="cart-row-name">${esc(x.name)}</div><div class="cart-row-total">${money(x.price*x.qty)}</div></div><div class="cart-row-actions"><div class="qty"><button data-minus="${i}">−</button><span>${x.qty}</span><button data-plus="${i}">+</button></div><button class="price-edit${x.price_overridden?' overridden':''}" data-price="${i}" title="Изменить цену">${money(x.price)} / шт${x.price_overridden?' · изменена':''}</button><button class="remove" data-remove="${i}">×</button></div></div>`).join('');
+    $('cartItems').innerHTML=state.cart.map((x,i)=>`<div class="cart-row"><div class="cart-row-head"><div class="cart-row-name">${esc(x.name)}</div><div class="cart-row-total">${money(x.price*x.qty)}</div></div><div class="cart-row-actions"><div class="qty"><button type="button" data-minus="${i}" aria-label="Уменьшить количество">−</button><input data-cart-qty="${i}" type="number" inputmode="numeric" min="1" max="999999" step="1" value="${x.qty}" aria-label="Количество: ${esc(x.name)}" title="Введите количество вручную"><button type="button" data-plus="${i}" aria-label="Увеличить количество">+</button></div><button class="price-edit${x.price_overridden?' overridden':''}" data-price="${i}" title="Изменить цену">${money(x.price)} / шт${x.price_overridden?' · изменена':''}</button><button class="remove" data-remove="${i}">×</button></div></div>`).join('');
     document.querySelectorAll('[data-minus]').forEach(b=>b.onclick=()=>{const x=state.cart[+b.dataset.minus];x.qty-=1;if(x.qty<1)state.cart.splice(+b.dataset.minus,1);renderCart()});
     document.querySelectorAll('[data-plus]').forEach(b=>b.onclick=()=>{state.cart[+b.dataset.plus].qty+=1;renderCart()});
+    document.querySelectorAll('[data-cart-qty]').forEach(input=>{
+      const commit=()=>{
+        const index=Number(input.dataset.cartQty);
+        const row=state.cart[index];
+        if(!row)return;
+        const raw=input.value.trim();
+        const amount=Number(raw);
+        if(!raw||!Number.isSafeInteger(amount)||amount<1||amount>999999){
+          input.value=String(row.qty);
+          toast('Количество должно быть целым числом от 1 до 999999.',true);
+          return;
+        }
+        if(amount!==row.qty){row.qty=amount;renderCart()}
+      };
+      input.addEventListener('change',commit);
+      input.addEventListener('keydown',event=>{
+        if(event.key==='Enter'){event.preventDefault();input.blur()}
+        if(event.key==='Escape'){input.value=String(state.cart[Number(input.dataset.cartQty)]?.qty||1);input.blur()}
+      });
+      input.addEventListener('wheel',event=>{if(document.activeElement===input)input.blur()},{passive:true});
+    });
     document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{state.cart.splice(+b.dataset.remove,1);renderCart()});
     document.querySelectorAll('[data-price]').forEach(b=>b.onclick=()=>openPriceEditor(+b.dataset.price));
   }
