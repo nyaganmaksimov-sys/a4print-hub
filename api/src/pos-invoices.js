@@ -71,13 +71,16 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
     const invoice=await api('/entity/invoiceout/'+id+'?expand=agent,organization,positions.assortment');
     const sum=Number(invoice.sum||0),paid=Number(invoice.payedSum||0);
     const positions=invoice.positions?.rows||[];
+    const linkedDemands=Array.isArray(invoice.demands)?invoice.demands:[];
     const related=await lookupByCode('demand',closingCode(id));
+    // Existing manually issued shipments must be reviewed rather than duplicated.
+    const hasOtherShipments=linkedDemands.some(d=>d.meta?.href&&!d.meta.href.endsWith('/'+(related?.id||'')));
     const facture=related?await lookupByCode('factureout',closingCode(id)):null;
-    return{invoice,sum,paid,positions,related,facture,fullyPaid:sum>0&&paid>=sum};
+    return{invoice,sum,paid,positions,related,facture,hasOtherShipments,fullyPaid:sum>0&&paid>=sum};
   };
   const closingView=s=>({
     invoice:shortInvoice(s.invoice),fully_paid:s.fullyPaid,outstanding:Math.max(0,(s.sum-s.paid)/100),
-    demand:s.related?{id:s.related.id,name:s.related.name,url:s.related.meta?.uuidHref||null}:null,
+    demand:s.related?{id:s.related.id,name:s.related.name,url:s.related.meta?.uuidHref||null}:null,existing_shipments_need_review:s.hasOtherShipments,
     facture:s.facture?{id:s.facture.id,name:s.facture.name,url:s.facture.meta?.uuidHref||null}:null,
     items:s.positions.map(p=>({name:p.assortment?.name||'',type:p.assortment?.meta?.type||'',quantity:p.quantity})),
     vat_enabled:Boolean(s.invoice.vatEnabled),vat_sum:Number(s.invoice.vatSum||0)/100
@@ -92,6 +95,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
     try{
       const s=await closingSnapshot(id),invoice=s.invoice;
       if(!s.fullyPaid)return fail(res,'Оплата ещё не отражена полностью в МойСклад. Сначала проведите поступление денег и обновите статус.',409);
+      if(s.hasOtherShipments)return fail(res,'К этому счёту уже привязана другая отгрузка. Проверьте документы в МойСклад, чтобы не создать дубли.',409);
       if(!s.positions.length)return fail(res,'Счёт без позиций не может быть закрыт.',409);
       if(!invoice.agent?.meta||!invoice.organization?.meta)return fail(res,'Не найдены контрагент или юридическое лицо.',409);
       if(!s.related){
