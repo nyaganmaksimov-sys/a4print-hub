@@ -55,9 +55,91 @@ function renderRows(){
 async function details(id){
  setView('detail');$('invoicesContent').innerHTML='<p class="invoices-loading">Открываем счёт…</p>';
  try{
-  const d=await request('/'+encodeURIComponent(id)),x=d.invoice;
-  $('invoicesContent').innerHTML='<h3>Счёт №'+esc(x.name)+'</h3><p>Контрагент: <b>'+esc(x.agent_name)+'</b> · Организация: '+esc(x.organization_name)+'</p><p>Дата: '+esc(x.moment||'')+' · Статус: '+esc(x.state||'—')+'</p><div class="invoices-table-wrap"><table class="invoices-table"><thead><tr><th>Товар / услуга</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+d.positions.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+esc(p.quantity)+'</td><td>'+money(p.price)+'</td><td>'+money(p.sum)+'</td></tr>').join('')+'</tbody></table></div><h3>К оплате '+money(x.sum)+' · Оплачено '+money(x.payed_sum)+'</h3>'+(x.href?'<a href="'+esc(x.href)+'" target="_blank" rel="noopener noreferrer">Открыть документ в МойСклад ↗</a>':'');
+  const [d,closing]=await Promise.all([request('/'+encodeURIComponent(id)),request('/'+encodeURIComponent(id)+'/closing')]),x=d.invoice;
+  const state=closing.fully_paid?'Оплата полностью отражена в МойСклад':'Ожидается оплата / оплата частичная';
+  $('invoicesContent').innerHTML='<h3>Счёт №'+esc(x.name)+'</h3><p>Контрагент: <b>'+esc(x.agent_name)+'</b> · Организация: '+esc(x.organization_name)+'</p><p>Дата: '+esc(x.moment||'')+' · Статус: '+esc(x.state||'—')+'</p><div class="invoices-table-wrap"><table class="invoices-table"><thead><tr><th>Товар / услуга</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+d.positions.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+esc(p.quantity)+'</td><td>'+money(p.price)+'</td><td>'+money(p.sum)+'</td></tr>').join('')+'</tbody></table></div><h3>К оплате '+money(x.sum)+' · Оплачено '+money(x.payed_sum)+'</h3>'+
+   '<section class="invoice-section" id="invoiceClosingSection"><h3>Оплата и закрывающие документы</h3><p id="invoicePaymentStatus">'+esc(state)+'</p><p>Остаток оплаты: <strong>'+money(closing.outstanding)+'</strong></p>'+
+   '<p class="invoices-note">Подтверждение оплаты берётся из документов МоегоСклада. Кнопка проверки не создаёт фиктивное поступление денег.</p>'+
+   '<div class="invoice-actions"><button id="invoiceRefreshPayment" type="button">↻ Проверить оплату</button><button id="invoicePrepare" class="primary" type="button" '+(!closing.fully_paid?'disabled':'')+'>Подготовить документы в МойСклад</button></div>'+
+   '<div id="invoiceStoreChooser" hidden></div><div id="invoiceClosingResult"></div><div id="invoicePrintArea"></div><p id="invoiceClosingError" class="invoices-error"></p></section>'+
+   (x.href?'<p><a href="'+esc(x.href)+'" target="_blank" rel="noopener noreferrer">Открыть счёт в МойСклад ↗</a></p>':'');
+  $('invoiceRefreshPayment').onclick=()=>details(id);
+  $('invoicePrepare').onclick=()=>prepareClosing(id,closing);
+  renderClosingSummary(id,closing);
  }catch(e){$('invoicesContent').innerHTML='<p class="invoices-error">'+esc(e.message)+'</p>'}
+}
+function renderClosingSummary(id,closing){
+ const box=$('invoiceClosingResult');if(!box)return;
+ box.innerHTML='<div class="invoice-closing-links">'+
+  (closing.demand?'<a href="'+esc(closing.demand.url||'#')+'" target="_blank" rel="noopener noreferrer">Отгрузка / реализация №'+esc(closing.demand.name)+' ↗</a>':'<span>Реализация ещё не создана</span>')+
+  (closing.facture?'<a href="'+esc(closing.facture.url||'#')+'" target="_blank" rel="noopener noreferrer">Счёт-фактура №'+esc(closing.facture.name)+' ↗</a>':
+  '<span>'+((closing.vat_enabled&&closing.vat_sum>0)?'Счёт-фактура ещё не создан':'Счёт-фактура не требуется по данным НДС в счёте')+'</span>')+
+  '</div>';
+ if(closing.demand){
+  $('invoicePrepare').disabled=true;
+  const print=$('invoicePrintArea');print.innerHTML='<button id="invoiceLoadPrintForms" type="button">Подобрать печатные формы и распечатать пакет</button><div id="invoicePrintChoices"></div>';
+  $('invoiceLoadPrintForms').onclick=()=>loadPrintForms(id);
+ }
+}
+async function prepareClosing(id,closing){
+ const button=$('invoicePrepare'),err=$('invoiceClosingError');err.textContent='';
+ if(!closing.fully_paid){err.textContent='Оплата ещё не подтверждена МойСклад.';return}
+ let storeId=null;
+ if(closing.items.some(x=>x.type!=='service')){
+   const chooser=$('invoiceStoreChooser');
+   if(chooser.hidden){
+    try{
+     const d=await request('/lookup/stores');
+     chooser.hidden=false;
+     chooser.innerHTML='<label>Склад фактической отгрузки<select id="invoiceClosingStore"><option value="">Выберите склад</option>'+d.stores.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('')+'</select></label>';
+     err.textContent='Выберите склад и снова нажмите «Подготовить документы».';
+    }catch(e){err.textContent=e.message}
+    return;
+   }
+   storeId=$('invoiceClosingStore')?.value;
+   if(!storeId){err.textContent='Выберите склад фактической отгрузки.';return}
+ }
+ button.disabled=true;button.textContent='Создаём документы…';
+ try{
+  const d=await request('/'+encodeURIComponent(id)+'/closing/prepare',{method:'POST',body:{store_id:storeId}});
+  renderClosingSummary(id,d);
+  inform('Документы созданы в МойСклад');
+  $('invoicePaymentStatus').textContent='Оплата подтверждена данными МоегоСклада';
+ }catch(e){err.textContent=e.message;button.disabled=false}
+ finally{button.textContent='Подготовить документы в МойСклад'}
+}
+async function loadPrintForms(id){
+ const box=$('invoicePrintChoices');box.textContent='Загружаем формы МойСклад…';
+ try{
+  const d=await request('/'+encodeURIComponent(id)+'/closing/templates');
+  if(!d.documents?.length)throw Error('Печатные формы пока отсутствуют.');
+  box.innerHTML='<p>Выберите официальный шаблон для каждого документа. Акт доступен среди шаблонов реализации услуг.</p>'+
+   d.documents.map(doc=>'<label>'+esc(doc.type==='invoiceout'?'Счёт покупателю':doc.type==='demand'?'Акт / накладная / УПД':'Счёт-фактура')+
+   '<select data-print-document="'+esc(doc.type)+'"><option value="">Выберите форму</option>'+
+   doc.templates.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('')+'</select></label>').join('')+
+   '<button type="button" id="invoicePrintPack" class="primary">Открыть все выбранные PDF для печати</button><p id="invoicePrintError" class="invoices-error"></p>';
+  $('invoicePrintPack').onclick=()=>printPack(id);
+ }catch(e){box.textContent=e.message}
+}
+async function printPack(id){
+ const selects=[...document.querySelectorAll('[data-print-document]')].filter(x=>x.value);
+ const error=$('invoicePrintError');error.textContent='';
+ if(!selects.length){error.textContent='Выберите хотя бы одну печатную форму.';return}
+ // Windows must open synchronously on the user gesture so the popup blocker permits them.
+ const tabs=selects.map(()=>window.open('about:blank','_blank'));
+ if(tabs.some(t=>!t)){tabs.forEach(t=>t?.close());error.textContent='Браузер заблокировал вкладки. Разрешите всплывающие окна для кассы.';return}
+ try{
+  const {data}=await client.auth.getSession(),token=data?.session?.access_token;
+  if(!token)throw Error('Сессия истекла.');
+  for(let i=0;i<selects.length;i++){
+   const select=selects[i],url=API+'/api/v1/pos/invoices/'+encodeURIComponent(id)+'/closing/pdf?type='+encodeURIComponent(select.dataset.printDocument)+'&template='+encodeURIComponent(select.value);
+   const response=await fetch(url,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+   if(!response.ok){const d=await response.json().catch(()=>({}));throw Error(d.message||'Не удалось получить PDF');}
+   const blob=await response.blob(),objectUrl=URL.createObjectURL(blob);
+   tabs[i].location.href=objectUrl;
+  }
+  inform('PDF открыты в отдельных вкладках. Для печати используйте Ctrl+P в каждой вкладке.');
+ }catch(e){tabs.forEach(t=>{try{t.close()}catch{}});error.textContent=e.message}
 }
 async function newForm(){
  setView('new');selectedAgent=null;items=[];operationId=uid();catalog=[];counterparties=[];
