@@ -115,6 +115,15 @@
     $('partnerCostLabel').textContent=f.costLabel||(f.partner?'Цена партнёра за ед., ₽':'Плановая себестоимость за ед., ₽');
     $('partnerPresetList').innerHTML=f.presets.map((x,i)=>'<button type="button" data-partner-preset="'+i+'">'+esc(x)+'</button>').join('');
     $('partnerItemName').value='';
+    // The dedicated translation free-text field holds exact Russian spelling;
+    // hide generic duplicate and product-only inputs for this workflow.
+    const translation=flow==='TRANSLATION';
+    $('partnerFinishing')?.closest('label')?.toggleAttribute('hidden',translation);
+    $('partnerReference')?.closest('label')?.toggleAttribute('hidden',translation);
+    $('partnerMaterial').placeholder=translation?'Например: узбекский':'';
+    $('partnerFormat').placeholder=translation?'Например: русский':'';
+    $('partnerColor').placeholder=translation?'Например: паспорт':'';
+    $('partnerText').placeholder=translation?'Точное написание ФИО на русском без сокращений':'';
     $('translationPaymentField').hidden=flow!=='TRANSLATION';
     $('translationPaymentHelp').hidden=flow!=='TRANSLATION';
     $('partnerQty').value=flow==='TRANSLATION'?'1':$('partnerQty').value;
