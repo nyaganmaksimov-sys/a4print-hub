@@ -101,13 +101,13 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         if(containsGoods&&!requestedStore)return fail(res,'В счёте есть товары: выберите склад фактической отгрузки.',409);
         if(containsGoods&&!stores.rows?.some(x=>x.id===requestedStore))return fail(res,'Выбранный склад недоступен.',409);
         const positions=s.positions.map(p=>({
-          assortment:p.assortment,quantity:p.quantity,price:p.price,
+          assortment:{meta:p.assortment.meta},quantity:p.quantity,price:p.price,
           ...(p.discount!=null?{discount:p.discount}:{}),
           ...(p.vat!=null?{vat:p.vat}:{}),
           ...(p.vatEnabled!=null?{vatEnabled:p.vatEnabled}:{})
         }));
         const payload={
-          externalCode:closingCode(id),agent:invoice.agent,organization:invoice.organization,
+          externalCode:closingCode(id),agent:{meta:invoice.agent.meta},organization:{meta:invoice.organization.meta},
           positions,description:'По счёту '+invoice.name+' · A4PRINT KASSA',
           ...(containsGoods?{store:wrap(requestedStore,'store')}:{})
         };
@@ -117,7 +117,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       if(s.invoice.vatEnabled&&Number(s.invoice.vatSum||0)>0&&!s.facture){
         const payload={
           externalCode:closingCode(id),
-          organization:invoice.organization,agent:invoice.agent,
+          organization:{meta:invoice.organization.meta},agent:{meta:invoice.agent.meta},
           demand:wrap(s.related.id,'demand'),
           description:'По счёту '+invoice.name+' · A4PRINT KASSA'
         };
