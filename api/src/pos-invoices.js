@@ -122,7 +122,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         const payload={
           externalCode:closingCode(id),
           organization:{meta:invoice.organization.meta},agent:{meta:invoice.agent.meta},
-          demand:wrap(s.related.id,'demand'),
+          demands:[wrap(s.related.id,'demand')],
           description:'По счёту '+invoice.name+' · A4PRINT KASSA'
         };
         s.facture=await api('/entity/factureout',{method:'POST',body:JSON.stringify(payload)});
