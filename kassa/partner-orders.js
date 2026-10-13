@@ -17,6 +17,7 @@
   const FLOW={
     MEMORIAL:{title:'Памятники / фотокерамика',partner:'Сфера',url:'https://sferazakaz.ru/katalog/fotokeramika',presets:['Портрет для памятника','Ритуальная табличка','Портрет большого размера','Портрет под живопись / гризайль','Арка / сложная форма','Фото на стекле','Металлофото','Имитация гравировки','Икона','Временная табличка','Вкладка в цветник'],labels:['Материал','Размер / форма','Цветность','Ретушь / отверстия']},
     SOUVENIR:{title:'Сувениры и знаки',partner:'Сфера',url:'https://sferazakaz.ru/',presets:['Информационный знак','Табличка','Сувенирная продукция','Памятное изделие','Нестандартное изделие'],labels:['Материал','Размер / габариты','Цвет / нанесение','Обработка / крепление']},
+    TRANSLATION:{title:'Перевод документов',partner:'Бюро переводов',url:null,presets:['Обычный письменный перевод','Нотариально заверенный перевод'],labels:['Язык оригинала','Язык перевода','Тип документа','Написание ФИО на русском'],textLabel:'Точное написание ФИО на русском языке',costLabel:'Сумма партнёру за документ, ₽'},
     TYPOGRAPHY:{title:'Типография',partner:'Группа М',url:'https://gmprint.ru/',presets:['Визитки','Бирки','Листовки','Буклеты','Каталоги','Календари','Открытки','Другая полиграфия'],labels:['Бумага / материал','Формат','Цветность / стороны','Постпечатная обработка']},
     WIDE_FORMAT:{title:'Широкоформатная печать',department:'А4-Принт',url:null,presets:['Баннер','Плакат / постер','Самоклеящаяся плёнка','Холст','Фотообои','Roll-Up / X-banner','Чертёж / схема','Другое'],labels:['Материал','Размер / формат','Качество / цветность','Постпечатная обработка'],textLabel:'Монтаж / дополнительные требования',costLabel:'Плановая себестоимость за ед., ₽'},
     THREE_D:{title:'3D-печать',department:'3D-ARTPRINT',url:null,presets:['FDM-печать','Фотополимерная печать','Прототип','Деталь / запчасть','Макет / модель','Сувенир / фигурка','Серийная печать','Другое'],labels:['Технология / материал','Размер / габариты','Цвет / смола','Качество / постобработка'],textLabel:'Заполнение / поддержка / требования',costLabel:'Плановая себестоимость за ед., ₽'},
@@ -41,6 +42,7 @@
                 <button type="button" data-partner-flow="MEMORIAL" class="active"><b>Памятники / фотокерамика</b><small>Сфера</small></button>
                 <button type="button" data-partner-flow="SOUVENIR"><b>Сувениры и знаки</b><small>Сфера</small></button>
                 <button type="button" data-partner-flow="TYPOGRAPHY"><b>Типография</b><small>Группа М</small></button>
+                <button type="button" data-partner-flow="TRANSLATION"><b>Перевод документов</b><small>Бюро переводов</small></button>
                 <button type="button" data-partner-flow="WIDE_FORMAT"><b>Широкоформатная печать</b><small>А4-Принт</small></button>
                 <button type="button" data-partner-flow="THREE_D"><b>3D-печать</b><small>3D-ARTPRINT</small></button>
                 <button type="button" data-partner-flow="OUTDOOR"><b>Наружная реклама</b><small>3D-ARTPRINT</small></button>
@@ -79,6 +81,8 @@
                 <label><span>Желаемый срок</span><input id="partnerDueAt" type="datetime-local"></label>
                 <label class="wide"><span>Комментарий клиента</span><textarea id="partnerComment" rows="3"></textarea></label>
                 <label class="wide"><span>Файлы заказа</span><input id="partnerFiles" type="file" multiple></label>
+                <label class="wide" id="translationPaymentField" hidden><span>Получено от клиента (для учёта; не является подтверждением оплаты)</span><select id="translationPaymentMethod"><option value="CASH">Наличные</option><option value="PERSONAL_TRANSFER">Перевод на карту</option></select></label>
+                <div class="wide" id="translationPaymentHelp" hidden style="font-size:12px;color:#64748b">Полная сумма заказа отражается в чеке при фактической оплате. Перевод на карту учитывается отдельно от физических наличных. До проведения через кассу оплата не подтверждена.</div>
               </div>
               <div id="partnerFileList" class="partner-file-list"></div>
               <div id="partnerOrderEconomics" class="partner-economics"></div>
@@ -111,6 +115,10 @@
     $('partnerCostLabel').textContent=f.costLabel||(f.partner?'Цена партнёра за ед., ₽':'Плановая себестоимость за ед., ₽');
     $('partnerPresetList').innerHTML=f.presets.map((x,i)=>'<button type="button" data-partner-preset="'+i+'">'+esc(x)+'</button>').join('');
     $('partnerItemName').value='';
+    $('translationPaymentField').hidden=flow!=='TRANSLATION';
+    $('translationPaymentHelp').hidden=flow!=='TRANSLATION';
+    $('partnerQty').value=flow==='TRANSLATION'?'1':$('partnerQty').value;
+    recalc();
   }
 
   function recalc(){
@@ -133,14 +141,20 @@
     }catch(error){box.innerHTML='<div class="partner-search-state error">'+esc(error.message||error)+'</div>'}
   }
 
-  function renderFiles(){$('partnerFileList').innerHTML=files.map((f,i)=>'<span><b>'+esc(f.name)+'</b><small>'+((f.size/1024/1024).toFixed(1))+' МБ</small><button type="button" data-remove-partner-file="'+i+'">×</button></span>').join('')}
+  function renderFiles(){$('partnerFileList').innerHTML=files.map((f,i)=>'<span><b>'+esc(flow==='TRANSLATION'?translationFileName(f,i):f.name)+'</b><small>'+((f.size/1024/1024).toFixed(1))+' МБ</small><button type="button" data-remove-partner-file="'+i+'">×</button></span>').join('')}
+  function translationFileName(file,index){
+    const fio=cleanFileName($('partnerFullName').value.trim()).replace(/\.[^.]+$/,'').slice(0,90);
+    const ext=String(file.name||'').match(/\.[a-zA-Z0-9]{1,8}$/)?.[0]||'';
+    return cleanFileName(`${fio||'Клиент'}_${index+1}${ext}`);
+  }
   async function uploadFiles(orderId,save){
     const failures=[];
     for(let i=0;i<files.length;i++){
-      const file=files[i];save.textContent='Загрузка файлов '+(i+1)+'/'+files.length+'…';const path=orderId+'/'+uid()+'-'+cleanFileName(file.name);
+      const file=files[i];save.textContent='Загрузка файлов '+(i+1)+'/'+files.length+'…';const targetName=flow==='TRANSLATION'?translationFileName(file,i):file.name;
+      const path=orderId+'/'+uid()+'-'+cleanFileName(targetName);
       try{
         const up=await supabase.storage.from('order-files').upload(path,file,{contentType:file.type||'application/octet-stream',cacheControl:'3600',upsert:false});if(up.error)throw up.error;
-        const meta=await supabase.from('order_files').insert({order_id:orderId,file_name:file.name,file_url:path,mime_type:file.type||null});if(meta.error)throw meta.error;
+        const meta=await supabase.from('order_files').insert({order_id:orderId,file_name:targetName,file_url:path,mime_type:file.type||null});if(meta.error)throw meta.error;
       }catch(error){console.warn('Partner order file upload',error);failures.push(file.name)}
     }
     return failures;
@@ -154,6 +168,9 @@
     const err=$('partnerOrderError'),save=$('partnerOrderSave');err.textContent='';
     const fullName=$('partnerFullName').value.trim(),company=$('partnerCompanyName').value.trim(),item=$('partnerItemName').value.trim(),qty=Number($('partnerQty').value||0),price=Number($('partnerPrice').value||0),cost=Number($('partnerCost').value||0);
     if(!fullName&&!company){submitBusy=false;err.textContent='Укажите клиента.';return}if(!item){submitBusy=false;err.textContent='Укажите изделие или услугу.';return}if(!(qty>0)){submitBusy=false;err.textContent='Количество должно быть больше нуля.';return}if(price<0||cost<0){submitBusy=false;err.textContent='Цена не может быть отрицательной.';return}
+    if(flow==='TRANSLATION'&&(!fullName||!$('partnerPhone').value.trim()||!$('partnerText').value.trim()||!files.length||price<=0||cost>price)){
+      submitBusy=false;err.textContent='Для перевода обязательны ФИО, телефон, точное написание ФИО на русском, хотя бы один скан и корректные суммы клиента/партнёра.';return;
+    }
     if(!submitOperationId)submitOperationId=uid();
     save.disabled=true;save.textContent='Создаём заказ…';
     try{
@@ -162,9 +179,14 @@
       const isPartner=Boolean(current.partner);
       const order={workflow:flow,item_name:item,material:$('partnerMaterial').value.trim(),format:$('partnerFormat').value.trim(),color:$('partnerColor').value.trim(),finishing:$('partnerFinishing').value.trim(),reference:$('partnerReference').value.trim(),text:$('partnerText').value.trim(),quantity:qty,unit_price:price};
       if(isPartner)order.partner_unit_cost=cost;else order.planned_unit_cost=cost;
+      if(flow==='TRANSLATION'){
+        order.translation_payment_intent=$('translationPaymentMethod').value;
+        // Stored in the order's existing text/comment fields; NEVER mark funds received at intake.
+        order.reference=['Перевод документов',order.reference].filter(Boolean).join(' · ');
+      }
       const raw=$('partnerDueAt').value,due=raw?new Date(raw).toISOString():null;
       const rpc=isPartner?'create_kassa_partner_order_v2':'create_kassa_production_order_v2';
-      const {data,error}=await supabase.rpc(rpc,{p_client_operation_id:submitOperationId,p_customer:customer,p_order:order,p_comment:$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
+      const {data,error}=await supabase.rpc(rpc,{p_client_operation_id:submitOperationId,p_customer:customer,p_order:order,p_comment:(flow==='TRANSLATION'?'Способ планируемой оплаты: '+($('translationPaymentMethod').value==='CASH'?'наличные':'перевод на карту')+'. Оплата фиксируется отдельно при проведении через кассу.\n':'')+$('partnerComment').value.trim()||null,p_due_at:due});if(error)throw error;
       const result=Array.isArray(data)?data[0]:data;if(!result?.id)throw new Error('HUB не вернул ID заказа.');
       const failures=files.length?await uploadFiles(result.id,save):[];
       const planned=result.partner_planned_cost??result.planned_total_cost??0;
