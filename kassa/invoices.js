@@ -99,6 +99,7 @@ async function prepareClosing(id,closing){
    storeId=$('invoiceClosingStore')?.value;
    if(!storeId){err.textContent='Выберите склад фактической отгрузки.';return}
  }
+ if(!window.confirm(closing.items.some(x=>x.type!=='service')?'Подтвердите фактическую отгрузку товара. Создание отгрузки в МойСклад может изменить складские остатки. Продолжить?':'Подтвердите, что услуги оказаны и можно оформить акт/реализацию. Продолжить?'))return;
  button.disabled=true;button.textContent='Создаём документы…';
  try{
   const d=await request('/'+encodeURIComponent(id)+'/closing/prepare',{method:'POST',body:{store_id:storeId}});
