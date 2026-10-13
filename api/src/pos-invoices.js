@@ -58,6 +58,79 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       res.json({success:true,items:(data.rows||[]).filter(x=>allowed.has(x.meta?.type)&&!x.archived).map(x=>({id:x.id,type:x.meta.type,name:x.name,price:Number(x.salePrices?.[0]?.value||0)/100,vat:x.vat??null,vatEnabled:x.vatEnabled??null}))});
     }catch(e){sendError(res,next,e)}
   });
+
+  // Payment approval is verified against MoySklad's recorded incoming funds.
+  // It intentionally does NOT fabricate a cash-in or bank receipt.
+  const closingLock=new Set();
+  const closingCode=id=>'A4CLOSE-'+id.replace(/-/g,'');
+  const lookupByCode=async(type,externalCode)=>{
+    const data=await api('/entity/'+type+'?limit=10&filter='+encodeURIComponent('externalCode='+externalCode));
+    return data.rows?.[0]||null;
+  };
+  const closingSnapshot=async(id)=>{
+    const invoice=await api('/entity/invoiceout/'+id+'?expand=agent,organization,positions.assortment');
+    const sum=Number(invoice.sum||0),paid=Number(invoice.payedSum||0);
+    const positions=invoice.positions?.rows||[];
+    const related=await lookupByCode('demand',closingCode(id));
+    const facture=related?await lookupByCode('factureout',closingCode(id)):null;
+    return{invoice,sum,paid,positions,related,facture,fullyPaid:sum>0&&paid>=sum};
+  };
+  const closingView=s=>({
+    invoice:shortInvoice(s.invoice),fully_paid:s.fullyPaid,outstanding:Math.max(0,(s.sum-s.paid)/100),
+    demand:s.related?{id:s.related.id,name:s.related.name,url:s.related.meta?.uuidHref||null}:null,
+    facture:s.facture?{id:s.facture.id,name:s.facture.name,url:s.facture.meta?.uuidHref||null}:null,
+    items:s.positions.map(p=>({name:p.assortment?.name||'',type:p.assortment?.meta?.type||'',quantity:p.quantity})),
+    vat_enabled:Boolean(s.invoice.vatEnabled),vat_sum:Number(s.invoice.vatSum||0)/100
+  });
+  app.get('/api/v1/pos/invoices/:id/closing',...protect,async(req,res,next)=>{
+    try{const id=safeId(req.params.id);res.json({success:true,...closingView(await closingSnapshot(id))})}catch(e){sendError(res,next,e)}
+  });
+  app.post('/api/v1/pos/invoices/:id/closing/prepare',...protect,async(req,res,next)=>{
+    const id=safeId(req.params.id);
+    if(closingLock.has(id))return fail(res,'Подготовка документов уже выполняется. Обновите карточку счёта.',409);
+    closingLock.add(id);
+    try{
+      const s=await closingSnapshot(id),invoice=s.invoice;
+      if(!s.fullyPaid)return fail(res,'Оплата ещё не отражена полностью в МойСклад. Сначала проведите поступление денег и обновите статус.',409);
+      if(!s.positions.length)return fail(res,'Счёт без позиций не может быть закрыт.',409);
+      if(!invoice.agent?.meta||!invoice.organization?.meta)return fail(res,'Не найдены контрагент или юридическое лицо.',409);
+      if(!s.related){
+        const containsGoods=s.positions.some(p=>p.assortment?.meta?.type!=='service');
+        const stores=containsGoods?await api('/entity/store?limit=100'):null;
+        const requestedStore=str(reqBody(req).store_id,40);
+        if(containsGoods&&!requestedStore)return fail(res,'В счёте есть товары: выберите склад фактической отгрузки.',409);
+        if(containsGoods&&!stores.rows?.some(x=>x.id===requestedStore))return fail(res,'Выбранный склад недоступен.',409);
+        const positions=s.positions.map(p=>({
+          assortment:p.assortment,quantity:p.quantity,price:p.price,
+          ...(p.discount!=null?{discount:p.discount}:{}),
+          ...(p.vat!=null?{vat:p.vat}:{}),
+          ...(p.vatEnabled!=null?{vatEnabled:p.vatEnabled}:{})
+        }));
+        const payload={
+          externalCode:closingCode(id),agent:invoice.agent,organization:invoice.organization,
+          positions,description:'По счёту '+invoice.name+' · A4PRINT KASSA',
+          ...(containsGoods?{store:wrap(requestedStore,'store')}:{})
+        };
+        s.related=await api('/entity/demand',{method:'POST',body:JSON.stringify(payload)});
+      }
+      // A facture is not universally required: only create one for taxable VAT sales.
+      if(s.invoice.vatEnabled&&Number(s.invoice.vatSum||0)>0&&!s.facture){
+        const payload={
+          externalCode:closingCode(id),
+          organization:invoice.organization,agent:invoice.agent,
+          demand:wrap(s.related.id,'demand'),
+          description:'По счёту '+invoice.name+' · A4PRINT KASSA'
+        };
+        s.facture=await api('/entity/factureout',{method:'POST',body:JSON.stringify(payload)});
+      }
+      res.json({success:true,...closingView(s),note:'Созданы документы МойСклад. Перед выдачей распечатайте и проверьте реквизиты, вид документа и налоговый режим.'});
+    }catch(e){sendError(res,next,e)}
+    finally{closingLock.delete(id)}
+  });
+  app.get('/api/v1/pos/invoices/lookup/stores',...protect,async(req,res,next)=>{
+    try{const data=await api('/entity/store?limit=100');res.json({success:true,stores:(data.rows||[]).filter(x=>!x.archived).map(x=>({id:x.id,name:x.name}))})}catch(e){sendError(res,next,e)}
+  });
+
   const processing=new Map();
   app.post('/api/v1/pos/invoices',...protect,async(req,res,next)=>{
     try{
