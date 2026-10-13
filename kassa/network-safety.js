@@ -12,6 +12,7 @@
   const READ_TIMEOUT=6500;
   const HEAVY_READ_TIMEOUT=30000;
   const WRITE_TIMEOUT=14000;
+  const SHIFT_CLOSE_TIMEOUT=70000;
   const RETURN_WRITE_TIMEOUT=60000;
   const STAGGER_MS=250;
 
@@ -40,7 +41,7 @@
   }
 
   function writeTimeoutFor(url){
-    return /\/api\/v1\/pos\/returns\/?$/.test(url.pathname)?RETURN_WRITE_TIMEOUT:WRITE_TIMEOUT;
+    return /\/api\/v1\/pos\/shift\/close\/?$/.test(url.pathname)?SHIFT_CLOSE_TIMEOUT:/\/api\/v1\/pos\/returns\/?$/.test(url.pathname)?RETURN_WRITE_TIMEOUT:WRITE_TIMEOUT;
   }
 
   async function one(req,url,base,timeout){

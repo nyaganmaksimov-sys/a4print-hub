@@ -184,22 +184,11 @@
     }
 
     if(method==='POST'&&u.pathname.endsWith('/close')&&(state.local||isLocalShift(gate?.remoteShift))&&!state.confirmed){
-      const local=state.local||gate.remoteShift;
-      const pendingOpen=state.openTask;
-      if(gate){gate.active=false;gate.remoteShift=null;gate.openedAt=null;gate.pending='sync-close'}
-      DB?.setMeta?.('shift',null).catch(()=>{});emit('local-close',{local:true});
-      (async()=>{
-        try{
-          if(pendingOpen)await pendingOpen;
-          else await waitForConfirmed(30000);
-          state.local=null;
-          await previousFetch(input,cloneInit(init));
-          state.confirmed=null;
-          if(gate){gate.active=false;gate.remoteShift=null;gate.openedAt=null;gate.pending=null}
-          emit('sync-close-complete');
-        }catch(error){console.warn('Fast shift close sync:',error)}
-      })();
-      return responseJson({success:true,localPending:true,shift:local});
+      // Never report a close while the remote shift has not yet been confirmed:
+      // clearing local state here could hide an open shift and orphan receipts.
+      ensureRemoteOpen().catch(()=>{});
+      return responseJson({success:false,error:'SHIFT_SYNC_PENDING',
+        message:'Открытие смены ещё синхронизируется. Дождитесь подтверждения сервера и повторите закрытие.'},409);
     }
 
     return previousFetch(input,init);
