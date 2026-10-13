@@ -112,7 +112,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         }));
         const payload={
           externalCode:closingCode(id),agent:{meta:invoice.agent.meta},organization:{meta:invoice.organization.meta},
-          positions,description:'По счёту '+invoice.name+' · A4PRINT KASSA',
+          positions,invoicesOut:[wrap(id,'invoiceout')],description:'По счёту '+invoice.name+' · A4PRINT KASSA',
           store:wrap(requestedStore,'store')
         };
         s.related=await api('/entity/demand',{method:'POST',body:JSON.stringify(payload)});
