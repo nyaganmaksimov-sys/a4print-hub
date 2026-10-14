@@ -1,13 +1,23 @@
 name: A4PRINT HUB Windows Setup
 on:
   workflow_dispatch:
+    inputs:
+      publish_update:
+        description: 'Publish HUB Desktop update to stable release (main branch only)'
+        required: false
+        default: false
+        type: boolean
   push:
     paths:
       - 'hub-desktop/**'
       - '.github/workflows/a4print-hub-desktop.yml'
+permissions:
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: hub-desktop
@@ -16,11 +26,30 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
-      - run: npm run check
-      - run: npm run dist:win
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify JavaScript
+        run: npm run check
+      - name: Build Windows NSIS installer and update metadata
+        run: npm run dist:win
       - uses: actions/upload-artifact@v4
         with:
           name: A4PRINT-HUB-Setup-Windows
-          path: hub-desktop/dist/*.exe
+          path: |
+            hub-desktop/dist/*.exe
+            hub-desktop/dist/*.blockmap
+            hub-desktop/dist/latest.yml
+            hub-desktop/update-notes.json
           if-no-files-found: error
+      - name: Publish stable update only by manual approval on main
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_update && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $repo = "$env:GITHUB_REPOSITORY"
+          gh release view hub-desktop --repo $repo 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create hub-desktop --repo $repo --title "A4PRINT HUB Desktop — Stable update channel" --notes "Stable Windows update channel for A4PRINT HUB Desktop." --latest=false
+          }
+          gh release upload hub-desktop "dist/*.exe" "dist/*.blockmap" "dist/latest.yml" "update-notes.json" --repo $repo --clobber
