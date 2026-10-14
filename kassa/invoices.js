@@ -17,7 +17,30 @@ async function verifyPayment(id,operationId,method){
 async function request(path,options={}){
  const {data,error}=await client.auth.getSession();
  if(error||!data?.session?.access_token)throw Error('Необходимо войти в кассу заново.');
- const r=await fetch(API+'/api/v1/pos/invoices'+path,{method:options.method||'GET',cache:'no-store',headers:{'Authorization':'Bearer '+data.session.access_token,'Content-Type':'application/json'},...(options.body?{body:JSON.stringify(options.body)}:{})});
+ const method=options.method||'GET';
+ const opts={method,cache:'no-store',headers:{'Authorization':'Bearer '+data.session.access_token,'Content-Type':'application/json'},...(options.body?{body:JSON.stringify(options.body)}:{})};
+ // GET is read-only. Bypass cashier-wide fast-abort wrappers and retry via a
+ // second verified API host if the first one is slow or unreachable.
+ // POST is kept on the existing single-route pipeline: never repeat money writes.
+ let r;
+ if(method==='GET'&&window.A4KassaDirectFetch){
+   const direct=window.A4KassaDirectFetch;
+   const hosts=['https://a4print-hub-api.onrender.com',API].filter((v,i,a)=>v&&a.indexOf(v)===i);
+   let last;
+   for(const host of hosts){
+     const controller=new AbortController();
+     const timeout=setTimeout(()=>controller.abort(),25000);
+     try{
+       r=await direct(host+'/api/v1/pos/invoices'+path,{...opts,signal:controller.signal});
+       if(r.ok||r.status<500)break;
+       last=new Error('Сервер временно недоступен: '+r.status);
+     }catch(e){last=e;r=null}
+     finally{clearTimeout(timeout)}
+   }
+   if(!r)throw new Error('Не удалось загрузить данные МоегоСклада. Проверьте подключение и нажмите «Обновить». '+(last?.message||''));
+ }else{
+   r=await fetch(API+'/api/v1/pos/invoices'+path,opts);
+ }
  const d=await r.json().catch(()=>({}));
  if(!r.ok)throw Error(d.message||d.error||'Ошибка МойСклад '+r.status);
  return d;
@@ -44,7 +67,7 @@ async function load(nextOffset){
  if(busy)return;busy=true;offset=nextOffset;
  inform('Синхронизация списка…');
  try{const d=await request('?offset='+offset);rows=d.invoices||[];more=d.has_more;renderRows();inform('Данные МоегоСклада · '+(d.total==null?'загружено '+rows.length:'всего '+d.total)+' счетов')}
- catch(e){$('invoicesContent').innerHTML='<div class="invoices-error">'+esc(e.message)+'</div>';inform('Ошибка соединения',true)}
+ catch(e){$('invoicesContent').innerHTML='<div class="invoices-error">'+esc(e.message)+'</div><p><button type="button" id="invoicesTryAgain">↻ Повторить загрузку счетов</button></p>';$('invoicesTryAgain').onclick=()=>load(offset);inform('Ошибка соединения',true)}
  finally{busy=false}
 }
 function renderRows(){
