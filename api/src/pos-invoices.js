@@ -59,6 +59,68 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
     }catch(e){sendError(res,next,e)}
   });
 
+
+  // Operator-recorded payments are real finance documents, not a flag on the invoice.
+  // Cash goes to cashin; a transfer to a personal card must never be misclassified.
+  const paymentLocks=new Set();
+  const paymentCode=(id,operationId)=>'A4INV-'+id.replace(/-/g,'').slice(0,16)+'-'+operationId.replace(/-/g,'');
+  app.get('/api/v1/pos/invoices/:id/payment-options',...protect,async(req,res,next)=>{
+    try{
+      const id=safeId(req.params.id),invoice=await api('/entity/invoiceout/'+id+'?expand=organization');
+      const orgId=invoice.organization?.id||invoice.organization?.meta?.href?.split('/').pop();
+      if(!orgId) return fail(res,'У счёта не указана наша организация.',409);
+      const organization=await api('/entity/organization/'+safeId(orgId));
+      // Account metadata is returned by the organization and stays server-owned.
+      const accounts=Array.isArray(organization.accounts)?organization.accounts:[];
+      res.json({success:true,remaining:Math.max(0,(Number(invoice.sum||0)-Number(invoice.payedSum||0))/100),
+        bank_accounts:accounts.filter(a=>a.meta?.href&&!a.archived).map(a=>({id:a.id||a.meta.href.split('/').pop(),name:[a.accountNumber,a.bankName].filter(Boolean).join(' · ')||'Расчётный счёт',href:a.meta.href})),
+        available_methods:['CASH','BANK']});
+    }catch(e){sendError(res,next,e)}
+  });
+  app.post('/api/v1/pos/invoices/:id/confirm-payment',...protect,async(req,res,next)=>{
+    let key=null;
+    try{
+      const id=safeId(req.params.id),b=reqBody(req),opId=safeId(b.operation_id);
+      const method=str(b.method,20),amount=Number(b.amount);
+      if(!['CASH','BANK'].includes(method))return fail(res,'Выберите наличные или банковский перевод.');
+      if(!Number.isFinite(amount)||amount<=0||Math.round(amount*100)!==amount*100||amount>100000000)return fail(res,'Сумма должна быть положительной, с точностью до копеек.');
+      const cents=Math.round(amount*100);
+      key=paymentCode(id,opId);
+      if(paymentLocks.has(key))return fail(res,'Операция уже выполняется. Обновите статус счёта.',409);
+      paymentLocks.add(key);
+      try{
+        const type=method==='CASH'?'cashin':'paymentin';
+        const find=()=>api('/entity/'+type+'?limit=100&filter='+encodeURIComponent('externalCode='+key));
+        const existing=await find();
+        if(existing.rows?.length)return res.json({success:true,reused:true,payment:{id:existing.rows[0].id,name:existing.rows[0].name,method},message:'Платёж уже был зарегистрирован в МойСклад.'});
+        const invoice=await api('/entity/invoiceout/'+id+'?expand=agent,organization');
+        const outstanding=Number(invoice.sum||0)-Number(invoice.payedSum||0);
+        if(!(outstanding>0))return fail(res,'Счёт уже оплачен. Дополнительный платёж не создан.',409);
+        if(cents>outstanding)return fail(res,'Сумма превышает остаток задолженности по счёту.',409);
+        if(!invoice.agent?.meta||!invoice.organization?.meta)return fail(res,'Контрагент или организация счёта не найдены.',409);
+        const payload={
+          externalCode:key,
+          organization:{meta:invoice.organization.meta},agent:{meta:invoice.agent.meta},
+          operations:[{meta:wrap(id,'invoiceout').meta,linkedSum:cents}],
+          paymentPurpose:'Оплата счёта '+str(invoice.name,100)+' · A4PRINT KASSA',
+          description:'A4PRINT KASSA · подтверждено оператором после фактического поступления денег',
+          ...(method==='CASH'?{sum:cents}:{})
+        };
+        if(method==='BANK'){
+          const accountId=safeId(b.account_id);
+          const org=await api('/entity/organization/'+safeId(invoice.organization.id||invoice.organization.meta.href.split('/').pop()));
+          const accounts=Array.isArray(org.accounts)?org.accounts:[];
+          const account=accounts.find(a=>(a.id||a.meta?.href?.split('/').pop())===accountId&&a.meta?.href);
+          if(!account)return fail(res,'Выберите действующий расчётный счёт организации.',409);
+          payload.organizationAccount={meta:account.meta};
+          // Only a real receipt to a registered company account can become paymentin.
+        }
+        const posted=await api('/entity/'+type,{method:'POST',body:JSON.stringify(payload)});
+        res.status(201).json({success:true,payment:{id:posted.id,name:posted.name||'',method},message:'Поступление зарегистрировано в МойСклад.'});
+      }finally{paymentLocks.delete(key)}
+    }catch(e){sendError(res,next,e)}
+  });
+
   // Payment approval is verified against MoySklad's recorded incoming funds.
   // It intentionally does NOT fabricate a cash-in or bank receipt.
   const closingLock=new Set();
