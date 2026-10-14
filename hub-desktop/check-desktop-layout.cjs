@@ -1,1 +1,13 @@
-'use strict';const fs=require('node:fs'),assert=require('node:assert/strict');const main=fs.readFileSync('main.js','utf8'),css=fs.readFileSync('desktop-layout.css','utf8'),nav=fs.readFileSync('desktop-nav.js','utf8');assert.match(main,/insertCSS\(desktopCss,\{cssOrigin:'user'\}\)/);assert.match(main,/did-finish-load/);assert.match(main,/executeJavaScript\(desktopNavigation,true\)/);assert.match(css,/\.sidebar/);assert.match(css,/display:none!important/);assert.match(css,/margin-left:0!important/);assert.match(nav,/a4-desktop-menu-trigger/);assert.match(nav,/orders\.html/);assert.match(nav,/settings\.html/);console.log('Desktop-only sidebar removal and navigation checks passed');
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const main=fs.readFileSync('main.js','utf8');
+const css=fs.readFileSync('desktop-layout.css','utf8');
+assert.match(main,/insertCSS\(desktopCss,\{cssOrigin:'user'\}\)/);
+assert.match(main,/did-finish-load/);
+assert.doesNotMatch(main,/executeJavaScript\(desktopNavigation/);
+assert.match(css,/\.sidebar/);
+assert.match(css,/background:#101b2e!important/);
+assert.match(css,/display:block!important;visibility:visible!important/);
+assert.match(css,/margin-left:232px!important/);
+assert.doesNotMatch(css,/\.sidebar[^\n]*\{display:none!important/);
+console.log('Dark sidebar and standard navigation verified');
