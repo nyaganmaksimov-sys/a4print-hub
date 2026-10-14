@@ -71,3 +71,62 @@ test('fully paid invoice creates exactly one linked realization even on retry',a
   assert.equal(x.calls.demandPost,1);
  }finally{x.restore()}
 });
+
+test('cash invoice payment creates linked cashin once, then reuses operation id',async()=>{
+ const opId='77777777-7777-4777-8777-777777777777';
+ const payId='88888888-8888-4888-8888-888888888888';
+ const originalFetch=globalThis.fetch;
+ let doc=null,posted=0;
+ globalThis.fetch=async(url,options={})=>{
+  const path=new URL(url).pathname+new URL(url).search;
+  let result;
+  if(path.includes('/entity/cashin?'))result={rows:doc?[doc]:[]};
+  else if(path.includes('/entity/invoiceout/'+invoiceId))result=fakeInvoice(false);
+  else if(path.endsWith('/entity/cashin')&&options.method==='POST'){
+   const body=JSON.parse(options.body);
+   assert.equal(body.sum,50000);
+   assert.equal(body.operations[0].linkedSum,50000);
+   assert.equal(body.operations[0].meta.href,entity('invoiceout',invoiceId).meta.href);
+   doc={...entity('cashin',payId),name:'TEST-CASHIN'};posted++;result=doc;
+  }else throw Error('Unexpected '+path);
+  return new Response(JSON.stringify(result),{status:200,headers:{'Content-Type':'application/json'}});
+ };
+ try{
+  const routes={};
+  const app={get(p,...h){routes['GET '+p]=h.at(-1)},post(p,...h){routes['POST '+p]=h.at(-1)}};
+  registerPosMoySkladInvoices(app,()=>{},()=>true,async()=>true,()=> 'mock-token');
+  const invoke=async()=>{
+   const res={statusCode:200,status(n){this.statusCode=n;return this},json(x){this.body=x;return this}};
+   await routes['POST /api/v1/pos/invoices/:id/confirm-payment'](
+    {params:{id:invoiceId},body:{operation_id:opId,method:'CASH',amount:500}},res,e=>{throw e}
+   );
+   return res;
+  };
+  assert.equal((await invoke()).statusCode,201);
+  assert.equal((await invoke()).body.reused,true);
+  assert.equal(posted,1);
+ }finally{globalThis.fetch=originalFetch}
+});
+test('a paid invoice rejects an additional financial document',async()=>{
+ const opId='77777777-7777-4777-8777-777777777777';
+ const originalFetch=globalThis.fetch;
+ let posted=0;
+ globalThis.fetch=async(url,options={})=>{
+  const path=new URL(url).pathname+new URL(url).search;
+  let result;
+  if(path.includes('/entity/cashin?'))result={rows:[]};
+  else if(path.includes('/entity/invoiceout/'+invoiceId))result=fakeInvoice(true);
+  else if(options.method==='POST')posted++;
+  else throw Error('Unexpected '+path);
+  return new Response(JSON.stringify(result||{}),{status:200,headers:{'Content-Type':'application/json'}});
+ };
+ try{
+  const routes={};
+  const app={get(p,...h){routes['GET '+p]=h.at(-1)},post(p,...h){routes['POST '+p]=h.at(-1)}};
+  registerPosMoySkladInvoices(app,()=>{},()=>true,async()=>true,()=> 'mock-token');
+  const res={statusCode:200,status(n){this.statusCode=n;return this},json(x){this.body=x;return this}};
+  await routes['POST /api/v1/pos/invoices/:id/confirm-payment']({params:{id:invoiceId},body:{operation_id:opId,method:'CASH',amount:1000}},res,e=>{throw e});
+  assert.equal(res.statusCode,409);
+  assert.equal(posted,0);
+ }finally{globalThis.fetch=originalFetch}
+});
