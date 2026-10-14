@@ -24,19 +24,30 @@
     e.preventDefault();e.stopImmediatePropagation();
     const mode=btn.dataset.mode||((window.A4KassaShiftSession?.active)?'close':'open');
     if(mode==='close'){
-      try{const q=DB?await DB.getAll('queue'):[];if(q.length){toast(`Сначала синхронизируйте ${q.length} чек(а) из очереди.`,true);$('queueChip')?.click();return}}catch{}
+      try{
+        const q=DB?await DB.getAll('queue'):[];
+        if(q.length){toast('Сначала синхронизируйте '+q.length+' чек(а) из очереди.',true);$('queueChip')?.click();return}
+      }catch{toast('Не удалось проверить очередь чеков.',true);return}
       if(!confirm('Закрыть текущую смену? После закрытия новые продажи потребуют открыть следующую смену.'))return;
     }
-    busy=true;btn.disabled=true;btn.textContent=mode==='close'?'Закрываю смену…':'Открываю смену…';
+    busy=true;btn.disabled=true;btn.textContent=mode==='close'?'Закрываем смену…':'Открываем смену…';
     try{
       const path=mode==='close'?'/api/v1/pos/shift/close':'/api/v1/pos/shift/open';
-      await api(path,{method:'POST',body:JSON.stringify({operator_id:operatorId()})});
-      const ok=await waitState(mode==='open');
+      const d=await api(path,{method:'POST',body:JSON.stringify({operator_id:operatorId()})});
+      if(d?.success===false)throw new Error(d.message||d.error||'Операция не подтверждена');
+      const current=await api('/api/v1/pos/shift');
+      if(Boolean(current.shift)!==(mode==='open'))throw new Error('Состояние смены ещё не подтверждено. Обновите страницу смены.');
       toast(mode==='close'?'Смена закрыта':'Смена открыта');
+    }catch(err){
+      try{
+        const current=await api('/api/v1/pos/shift');
+        if(Boolean(current.shift)===(mode==='open'))toast(mode==='close'?'Смена закрыта (проверено сервером)':'Смена открыта');
+        else toast(String(err?.message||err||'Не удалось изменить состояние смены.'),true);
+      }catch{toast('Нет подтверждения от сервера. Не отправляйте закрытие повторно без проверки.',true)}
+    }finally{
+      busy=false;btn.disabled=false;
       $('shiftRefresh')?.click();
-      if(!ok)setTimeout(()=>$('shiftRefresh')?.click(),1000);
-    }catch(err){toast(String(err?.message||err||'Не удалось изменить состояние смены.'),true);$('shiftRefresh')?.click()}
-    finally{busy=false;btn.disabled=false}
+    }
   }
 
   document.addEventListener('click',handle,true);
