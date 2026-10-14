@@ -69,9 +69,10 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       const id=safeId(req.params.id),invoice=await api('/entity/invoiceout/'+id+'?expand=organization');
       const orgId=invoice.organization?.id||invoice.organization?.meta?.href?.split('/').pop();
       if(!orgId) return fail(res,'У счёта не указана наша организация.',409);
-      const organization=await api('/entity/organization/'+safeId(orgId));
-      // Account metadata is returned by the organization and stays server-owned.
-      const accounts=Array.isArray(organization.accounts)?organization.accounts:[];
+      // In MoySklad, organization.accounts is a paginated reference, not an array.
+      // Request the official subresource and expose only server-approved IDs.
+      const accountData=await api('/entity/organization/'+safeId(orgId)+'/accounts?limit=1000');
+      const accounts=Array.isArray(accountData.rows)?accountData.rows:[];
       res.json({success:true,remaining:Math.max(0,(Number(invoice.sum||0)-Number(invoice.payedSum||0))/100),
         bank_accounts:accounts.filter(a=>a.meta?.href&&!a.archived).map(a=>({id:a.id||a.meta.href.split('/').pop(),name:[a.accountNumber,a.bankName].filter(Boolean).join(' · ')||'Расчётный счёт',href:a.meta.href})),
         available_methods:['CASH','BANK']});
@@ -108,9 +109,10 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         };
         if(method==='BANK'){
           const accountId=safeId(b.account_id);
-          const org=await api('/entity/organization/'+safeId(invoice.organization.id||invoice.organization.meta.href.split('/').pop()));
-          const accounts=Array.isArray(org.accounts)?org.accounts:[];
-          const account=accounts.find(a=>(a.id||a.meta?.href?.split('/').pop())===accountId&&a.meta?.href);
+          const orgId=safeId(invoice.organization.id||invoice.organization.meta.href.split('/').pop());
+          const accountData=await api('/entity/organization/'+orgId+'/accounts?limit=1000');
+          const accounts=Array.isArray(accountData.rows)?accountData.rows:[];
+          const account=accounts.find(a=>(a.id||a.meta?.href?.split('/').pop())===accountId&&a.meta?.href&&!a.archived);
           if(!account)return fail(res,'Выберите действующий расчётный счёт организации.',409);
           payload.organizationAccount={meta:account.meta};
           // Only a real receipt to a registered company account can become paymentin.
