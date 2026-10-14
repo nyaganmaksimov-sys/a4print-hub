@@ -83,7 +83,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       const id=safeId(req.params.id),b=reqBody(req),opId=safeId(b.operation_id);
       const method=str(b.method,20),amount=Number(b.amount);
       if(!['CASH','BANK'].includes(method))return fail(res,'Выберите наличные или банковский перевод.');
-      if(!Number.isFinite(amount)||amount<=0||Math.round(amount*100)!==amount*100||amount>100000000)return fail(res,'Сумма должна быть положительной, с точностью до копеек.');
+      if(!Number.isFinite(amount)||amount<=0||Math.abs(Math.round(amount*100)-amount*100)>0.00001||amount>100000000)return fail(res,'Сумма должна быть положительной, с точностью до копеек.');
       const cents=Math.round(amount*100);
       key=paymentCode(id,opId);
       if(paymentLocks.has(key))return fail(res,'Операция уже выполняется. Обновите статус счёта.',409);
@@ -104,7 +104,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
           operations:[{meta:wrap(id,'invoiceout').meta,linkedSum:cents}],
           paymentPurpose:'Оплата счёта '+str(invoice.name,100)+' · A4PRINT KASSA',
           description:'A4PRINT KASSA · подтверждено оператором после фактического поступления денег',
-          ...(method==='CASH'?{sum:cents}:{})
+          sum:cents
         };
         if(method==='BANK'){
           const accountId=safeId(b.account_id);
