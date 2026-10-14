@@ -87,7 +87,7 @@ function createMain(){
    if(url.startsWith('a4hub://')){
      event.preventDefault();
      const id=url.slice('a4hub://'.length).replace(/\/$/,'');
-     openModule(id);
+     if(id==='updates'){updatesWindow();void checkUpdate()}else openModule(id);
      return;
    }
    if(!trusted(url)&&!url.startsWith('file://'))event.preventDefault();
