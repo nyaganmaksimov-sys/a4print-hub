@@ -212,10 +212,13 @@ async function printPack(id){
   if(!token)throw Error('Сессия истекла.');
   for(let i=0;i<selects.length;i++){
    const select=selects[i],url=API+'/api/v1/pos/invoices/'+encodeURIComponent(id)+'/closing/pdf?type='+encodeURIComponent(select.dataset.printDocument)+'&template='+encodeURIComponent(select.value);
-   const response=await fetch(url,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+   const response=await fetch(url,{headers:{Authorization:'Bearer '+token,Accept:'application/pdf'},cache:'no-store'});
    if(!response.ok){const d=await response.json().catch(()=>({}));throw Error(d.message||'Не удалось получить PDF');}
-   const blob=await response.blob(),objectUrl=URL.createObjectURL(blob);
+   const blob=await response.blob();
+   if(blob.type&&!blob.type.includes('pdf'))throw Error('Сервер вернул не PDF для '+select.dataset.printDocument);
+   const objectUrl=URL.createObjectURL(blob);
    tabs[i].location.href=objectUrl;
+   inform('Печатная форма '+(i+1)+' из '+selects.length+' загружена');
   }
   inform('PDF открыты в отдельных вкладках. Для печати используйте Ctrl+P в каждой вкладке.');
  }catch(e){tabs.forEach(t=>{try{t.close()}catch{}});error.textContent=e.message}

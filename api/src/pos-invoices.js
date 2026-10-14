@@ -248,7 +248,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       if(!available.some(t=>t.id===templateId))return fail(res,'Шаблон печати недоступен.');
       const requestBody={template:wrap(templateId,'embeddedtemplate'),extension:'pdf'};
       requestBody.template.meta.href='https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/metadata/embeddedtemplate/'+templateId;
-      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),85000);
       let response;
       try{
         response=await fetch('https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/'+doc.id+'/export',{
@@ -263,7 +263,10 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         res.setHeader('Cache-Control','private, no-store');
         res.send(data);
       }finally{clearTimeout(timeout)}
-    }catch(e){sendError(res,next,e)}
+    }catch(e){
+      if(e?.name==='AbortError')return res.status(504).json({success:false,error:'PRINT_TIMEOUT',message:'МойСклад слишком долго формирует PDF. Повторите печать — документы не будут созданы заново.'});
+      sendError(res,next,e)
+    }
   });
 
   const processing=new Map();
