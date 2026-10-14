@@ -1,10 +1,16 @@
 'use strict';
-const {app,BrowserWindow,Menu,shell}=require('electron');
+const {app,BrowserWindow,Menu,shell,WebContentsView}=require('electron');
 const path=require('path');
 const {autoUpdater}=require('electron-updater');
 const HUB='https://a4print-hub.ru/admin/index.html';
 const KASSA='https://a4print-hub.ru/kassa/';
 let windowMain=null;
+let hubView=null;
+const SHELL_SIDEBAR=265;
+const SHELL_HEADER=78;
+function sizeHubView(){if(!windowMain||windowMain.isDestroyed()||!hubView)return;const [w,h]=windowMain.getContentSize();hubView.setBounds({x:SHELL_SIDEBAR,y:SHELL_HEADER,width:Math.max(0,w-SHELL_SIDEBAR),height:Math.max(0,h-SHELL_HEADER)})}
+function showHubView(show){if(!hubView||!windowMain||windowMain.isDestroyed())return;if(show){sizeHubView();if(!windowMain.contentView.children.includes(hubView))windowMain.contentView.addChildView(hubView)}else if(windowMain.contentView.children.includes(hubView))windowMain.contentView.removeChildView(hubView)}
+function navigateHub(url=HUB){if(!trusted(url))return;showHubView(true);if(hubView.webContents.getURL()!==url)hubView.webContents.loadURL(url).catch(console.error)}
 let launcherMode=true;
 let updateWindow=null;
 let updateState={status:'idle',currentVersion:app.getVersion(),version:null,progress:0,message:'Проверка обновлений ещё не выполнялась.'};
@@ -14,6 +20,7 @@ function openLauncher(){
  if(!windowMain||windowMain.isDestroyed())return;
  launcherMode=true;
  windowMain.setTitle('A4PRINT HUB');
+ showHubView(false);
  windowMain.loadFile(path.join(__dirname,'index.html'));
 }
 function openModule(id){
@@ -27,7 +34,7 @@ function openModule(id){
  // Known HUB route only. Never invent module-specific routes.
  launcherMode=false;
  windowMain.setTitle('A4PRINT HUB — Центр управления');
- windowMain.loadURL(HUB);
+ navigateHub(HUB);
 }
 
 function updatesWindow(){
@@ -67,19 +74,25 @@ function createMain(){
    title:'A4PRINT HUB',backgroundColor:'#f2f6fb',
    webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false,webviewTag:false}
  });
+ windowMain.on('resize',sizeHubView);
+ hubView=new WebContentsView({webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false,webviewTag:false}});
+ hubView.setBackgroundColor('#f3f7fb');
+ hubView.webContents.setWindowOpenHandler(({url})=>{if(trusted(url))navigateHub(url);else if(url.startsWith('https:'))shell.openExternal(url).catch(console.error);return {action:'deny'}});
+ hubView.webContents.on('will-navigate',(event,url)=>{if(!trusted(url))event.preventDefault()});
+ hubView.webContents.on('did-navigate',()=>{windowMain?.webContents.send('hub:navigated',hubView.webContents.getURL())});
  windowMain.setMenu(Menu.buildFromTemplate([
   {label:'Навигация',submenu:[
    {label:'Каталог приложений',accelerator:'Ctrl+Home',click:openLauncher},
-   {label:'Назад',accelerator:'Alt+Left',click:()=>{if(!launcherMode&&windowMain.webContents.canGoBack())windowMain.webContents.goBack();else openLauncher()}},
+   {label:'Назад',accelerator:'Alt+Left',click:()=>{if(!launcherMode&&hubView?.webContents.canGoBack())hubView.webContents.goBack();else openLauncher()}},
    {label:'Центр управления HUB',click:()=>openModule('hub')},
-   {label:'Обновить',accelerator:'F5',click:()=>windowMain.reload()}
+   {label:'Обновить',accelerator:'F5',click:()=>launcherMode?windowMain.reload():hubView?.webContents.reload()}
   ]},
   {label:'Обновления',submenu:[{label:'Проверить обновления',click:()=>{updatesWindow();void checkUpdate()}}]},
   {label:'Окно',submenu:[{role:'minimize'},{role:'togglefullscreen'},{role:'close'}]}
  ]));
  windowMain.webContents.setWindowOpenHandler(({url})=>{
    // Internal HUB links stay inside the existing window.
-   if(trusted(url)){launcherMode=false;windowMain.loadURL(url).catch(console.error)}
+   if(trusted(url)){launcherMode=false;navigateHub(url)}
    else if(url.startsWith('https:'))shell.openExternal(url).catch(console.error);
    return {action:'deny'};
  });
@@ -93,7 +106,7 @@ function createMain(){
    if(!trusted(url)&&!url.startsWith('file://'))event.preventDefault();
    if(trusted(url))launcherMode=false;
  });
- windowMain.on('closed',()=>{windowMain=null});
+ windowMain.on('closed',()=>{if(hubView&&!hubView.webContents.isDestroyed())hubView.webContents.close();hubView=null;windowMain=null});
  openLauncher();
 }
 app.whenReady().then(()=>{
