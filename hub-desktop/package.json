@@ -1,11 +1,11 @@
 {
   "name": "a4print-hub-desktop",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Windows desktop shell for A4PRINT HUB",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check main.js && node --check update-preload.js && node --check desktop-nav.js && node check-desktop-layout.cjs",
+    "check": "node --check main.js && node --check update-preload.js && node check-desktop-layout.cjs",
     "dist:win": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -26,7 +26,6 @@
       "update-notes.json",
       "package.json",
       "desktop-layout.css",
-      "desktop-nav.js",
       "check-desktop-layout.cjs"
     ],
     "win": {
