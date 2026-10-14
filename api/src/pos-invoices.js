@@ -260,7 +260,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
           const location=response.headers.get('location');
           if(!location)throw Object.assign(new Error('МойСклад не вернул ссылку на готовый PDF.'),{status:502});
           const download=new URL(location);
-          if(download.protocol!=='https:'||!(/(^|\\.)moysklad\\.ru$/i.test(download.hostname)||download.hostname==='120708.selcdn.ru')){
+          if(download.protocol!=='https:'||!(download.hostname==='moysklad.ru'||download.hostname.endsWith('.moysklad.ru')||download.hostname==='120708.selcdn.ru')){
             throw Object.assign(new Error('Недопустимый адрес загрузки PDF.'),{status:502});
           }
           response=await fetch(download.href,{method:'GET',redirect:'follow',signal:controller.signal});
