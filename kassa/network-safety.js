@@ -4,6 +4,8 @@
   window.__A4_KASSA_NETWORK_SAFETY__=true;
 
   const nativeFetch=window.fetch.bind(window);
+  // Dedicated long reads may opt out of generic short-deadline network layers.
+  window.A4KassaDirectFetch=nativeFetch;
   const cfg=window.A4PRINT_CONFIG||{};
   const PRIMARY='https://api.a4print-hub.ru';
   const RENDER='https://a4print-hub-api.onrender.com';
