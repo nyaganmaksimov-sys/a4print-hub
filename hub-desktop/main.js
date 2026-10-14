@@ -1,6 +1,7 @@
 'use strict';
 const {app,BrowserWindow,Menu,shell,ipcMain}=require('electron');
 const path=require('path');
+const fs=require('fs');
 const {autoUpdater}=require('electron-updater');
 
 const HUB_URL='https://a4print-hub.ru/admin/index.html';
@@ -69,6 +70,18 @@ function createMainWindow(){
   backgroundColor:'#f5f7fb',
   autoHideMenuBar:true,
   webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false,webviewTag:false}
+ });
+ const desktopCss=fs.readFileSync(path.join(__dirname,'desktop-layout.css'),'utf8');
+ const desktopNavigation=fs.readFileSync(path.join(__dirname,'desktop-nav.js'),'utf8');
+ mainWindow.webContents.on('did-finish-load',async()=>{
+  let target;
+  try{target=new URL(mainWindow.webContents.getURL())}catch{return}
+  if(target.hostname!=='a4print-hub.ru'||!target.pathname.startsWith('/admin/'))return;
+  try{
+   // Restore fullscreen admin layout after every in-app navigation.
+   await mainWindow.webContents.insertCSS(desktopCss,{cssOrigin:'user'});
+   await mainWindow.webContents.executeJavaScript(desktopNavigation,true);
+  }catch(error){console.error('Desktop navigation injection failed',error)}
  });
  mainWindow.setMenu(Menu.buildFromTemplate([
   {label:'Навигация',submenu:[
