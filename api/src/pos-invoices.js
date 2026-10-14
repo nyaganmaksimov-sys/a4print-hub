@@ -254,7 +254,7 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       let response;
       try{
         response=await fetch('https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/'+doc.id+'/export',{
-          method:'POST',redirect:'manual',headers:{Authorization:'Bearer '+getToken(),Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(requestBody),signal:controller.signal
+          method:'POST',redirect:'manual',headers:{Authorization:'Bearer '+getToken(),Accept:'application/json;charset=utf-8','Content-Type':'application/json'},body:JSON.stringify(requestBody),signal:controller.signal
         });
         if([301,302,303,307,308].includes(response.status)){
           const location=response.headers.get('location');
