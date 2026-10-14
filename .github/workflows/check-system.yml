@@ -91,6 +91,11 @@ jobs:
             node --check "$f"
           done
 
+      - name: Verify compact navigation
+        run: |
+          node --check admin/compact-navigation.js
+          node scripts/check-compact-navigation.cjs
+
       - name: Run API tests
         run: npm test --prefix api
 
