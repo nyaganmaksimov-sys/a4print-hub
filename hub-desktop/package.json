@@ -1,6 +1,6 @@
 {
   "name": "a4print-hub-desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Windows desktop shell for A4PRINT HUB",
   "main": "main.js",
   "scripts": {
@@ -21,7 +21,6 @@
     },
     "files": [
       "main.js",
-      "index.html",
       "updates.html",
       "update-preload.js",
       "update-notes.json",
