@@ -77,7 +77,7 @@ function createMainWindow(){
    {label:'Главная HUB',accelerator:'Ctrl+Home',click:()=>mainWindow.loadURL(HUB_URL).catch(console.error)},
    {label:'Обновить страницу',accelerator:'F5',click:()=>mainWindow.webContents.reload()}
   ]},
-  {label:'Обновления',submenu:[{label:'Проверить обновления…',click:()=>{showUpdates();void checkUpdates()}}]},
+  {label:'Обновления',submenu:[{label:'Проверить обновления…',accelerator:'Ctrl+U',click:()=>{showUpdates();void checkUpdates()}}]},
   {label:'Окно',submenu:[{role:'minimize'},{role:'togglefullscreen'},{role:'close'}]}
  ]));
  mainWindow.webContents.setWindowOpenHandler(({url})=>{
