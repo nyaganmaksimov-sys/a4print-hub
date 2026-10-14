@@ -59,18 +59,31 @@ function renderRows(){
 async function details(id){
  setView('detail');$('invoicesContent').innerHTML='<p class="invoices-loading">Открываем счёт…</p>';
  try{
-  const [d,closing]=await Promise.all([request('/'+encodeURIComponent(id)),request('/'+encodeURIComponent(id)+'/closing')]),x=d.invoice;
+  // Invoice details are independent from the slower closing-state lookup.
+  // Keep the invoice visible even if MoySklad's closing endpoint times out.
+  const [detailsResult,closingResult]=await Promise.allSettled([
+    request('/'+encodeURIComponent(id)),
+    request('/'+encodeURIComponent(id)+'/closing')
+  ]);
+  if(detailsResult.status!=='fulfilled')throw detailsResult.reason;
+  const d=detailsResult.value,x=d.invoice;
+  const closingReady=closingResult.status==='fulfilled';
+  const closing=closingReady?closingResult.value:{
+    fully_paid:false,outstanding:Math.max(0,Number(x.sum||0)-Number(x.payed_sum||0)),
+    items:[],demand:null,facture:null,vat_enabled:false,vat_sum:0
+  };
   const state=closing.fully_paid?'Оплата полностью отражена в МойСклад':'Ожидается оплата / оплата частичная';
   $('invoicesContent').innerHTML='<h3>Счёт №'+esc(x.name)+'</h3><p>Контрагент: <b>'+esc(x.agent_name)+'</b> · Организация: '+esc(x.organization_name)+'</p><p>Дата: '+esc(x.moment||'')+' · Статус: '+esc(x.state||'—')+'</p><div class="invoices-table-wrap"><table class="invoices-table"><thead><tr><th>Товар / услуга</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+d.positions.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+esc(p.quantity)+'</td><td>'+money(p.price)+'</td><td>'+money(p.sum)+'</td></tr>').join('')+'</tbody></table></div><h3>К оплате '+money(x.sum)+' · Оплачено '+money(x.payed_sum)+'</h3>'+
    '<section class="invoice-section" id="invoiceClosingSection"><h3>Оплата и закрывающие документы</h3><p id="invoicePaymentStatus">'+esc(state)+'</p><p>Остаток оплаты: <strong>'+money(closing.outstanding)+'</strong></p>'+
+   (closingReady?'':'<p class="invoices-error">Данные закрывающих документов временно недоступны. Счёт загружен; нажмите «Проверить оплату», чтобы повторить запрос. Новые операции временно заблокированы.</p>')+
    '<p class="invoices-note">Подтверждение оплаты берётся из документов МоегоСклада. Кнопка проверки не создаёт фиктивное поступление денег.</p>'+
-   '<div class="invoice-actions"><button id="invoiceRefreshPayment" type="button">↻ Проверить оплату</button><button id="invoiceConfirmPayment" type="button" '+(closing.fully_paid?'disabled':'')+'>Подтвердить поступление оплаты</button><button id="invoicePrepare" class="primary" type="button" '+(!closing.fully_paid?'disabled':'')+'>Подготовить документы в МойСклад</button></div><div id="invoicePaymentForm"></div>'+
+   '<div class="invoice-actions"><button id="invoiceRefreshPayment" type="button">↻ Проверить оплату</button><button id="invoiceConfirmPayment" type="button" '+(!closingReady||closing.fully_paid?'disabled':'')+'>Подтвердить поступление оплаты</button><button id="invoicePrepare" class="primary" type="button" '+(!closingReady||!closing.fully_paid?'disabled':'')+'>Подготовить документы в МойСклад</button></div><div id="invoicePaymentForm"></div>'+
    '<div id="invoiceStoreChooser" hidden></div><div id="invoiceClosingResult"></div><div id="invoicePrintArea"></div><p id="invoiceClosingError" class="invoices-error"></p></section>'+
    (x.href?'<p><a href="'+esc(x.href)+'" target="_blank" rel="noopener noreferrer">Открыть счёт в МойСклад ↗</a></p>':'');
   $('invoiceRefreshPayment').onclick=()=>details(id);
   $('invoiceConfirmPayment').onclick=()=>showPaymentForm(id,closing);
   $('invoicePrepare').onclick=()=>prepareClosing(id,closing);
-  renderClosingSummary(id,closing);
+  if(closingReady)renderClosingSummary(id,closing);
  }catch(e){$('invoicesContent').innerHTML='<p class="invoices-error">'+esc(e.message)+'</p>'}
 }
 
