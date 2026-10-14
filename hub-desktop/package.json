@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check main.js && node --check update-preload.js && node --check desktop-nav.js",
+    "check": "node --check main.js && node --check update-preload.js && node --check desktop-nav.js && node check-desktop-layout.cjs",
     "dist:win": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -26,7 +26,8 @@
       "update-notes.json",
       "package.json",
       "desktop-layout.css",
-      "desktop-nav.js"
+      "desktop-nav.js",
+      "check-desktop-layout.cjs"
     ],
     "win": {
       "target": [
