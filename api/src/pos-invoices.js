@@ -229,7 +229,9 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
   }
   async function templates(type){
     const d=await api('/entity/'+type+'/metadata/embeddedtemplate');
-    return(d.rows||[]).map(t=>({id:t.id,name:t.name||'',type:t.meta?.type||'embeddedtemplate'})).filter(t=>uuid.test(t.id));
+    return(d.rows||[]).map(t=>({id:t.id,name:t.name||'',type:t.meta?.type||'embeddedtemplate',
+      // Preserve original template metadata, including its canonical href.
+      meta:t.meta})).filter(t=>uuid.test(t.id)&&t.meta?.href&&t.meta?.type==='embeddedtemplate');
   }
   app.get('/api/v1/pos/invoices/:id/closing/templates',...protect,async(req,res,next)=>{
     try{
@@ -246,15 +248,33 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
       const doc=await documentToPrint(id,type);
       const available=await templates(type);
       if(!available.some(t=>t.id===templateId))return fail(res,'Шаблон печати недоступен.');
-      const requestBody={template:wrap(templateId,'embeddedtemplate'),extension:'pdf'};
-      requestBody.template.meta.href='https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/metadata/embeddedtemplate/'+templateId;
+      const selected=available.find(t=>t.id===templateId);
+      const requestBody={template:{meta:{href:selected.meta.href,type:selected.meta.type,mediaType:'application/json'}},extension:'pdf'};
       const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),85000);
       let response;
       try{
         response=await fetch('https://api.moysklad.ru/api/remap/1.2/entity/'+type+'/'+doc.id+'/export',{
-          method:'POST',headers:{Authorization:'Bearer '+getToken(),Accept:'application/pdf','Content-Type':'application/json'},body:JSON.stringify(requestBody),signal:controller.signal
+          method:'POST',redirect:'manual',headers:{Authorization:'Bearer '+getToken(),Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(requestBody),signal:controller.signal
         });
-        if(!response.ok)throw Object.assign(new Error('Не удалось получить печатную форму: '+response.status),{status:502});
+        if([301,302,303,307,308].includes(response.status)){
+          const location=response.headers.get('location');
+          if(!location)throw Object.assign(new Error('МойСклад не вернул ссылку на готовый PDF.'),{status:502});
+          const download=new URL(location);
+          if(download.protocol!=='https:'||!(/(^|\\.)moysklad\\.ru$/i.test(download.hostname)||download.hostname==='120708.selcdn.ru')){
+            throw Object.assign(new Error('Недопустимый адрес загрузки PDF.'),{status:502});
+          }
+          response=await fetch(download.href,{method:'GET',redirect:'follow',signal:controller.signal});
+        }
+        if(!response.ok){
+          let message='';
+          // Expose safe diagnostic fields rather than hiding all 400 errors.
+          try{
+            const errorJson=await response.json();
+            const first=errorJson.errors?.[0]||errorJson;
+            message=String(first.error||first.message||'').slice(0,300);
+          }catch{}
+          throw Object.assign(new Error('Не удалось получить печатную форму: '+response.status+(message?' — '+message:'')),{status:502});
+        }
         const data=Buffer.from(await response.arrayBuffer());
         if(data.length<5||data.subarray(0,5).toString()!=='%PDF-')throw Object.assign(new Error('МойСклад не вернул PDF. Проверьте шаблон документа.'),{status:502});
         if(data.length>20*1024*1024)throw Object.assign(new Error('Файл превышает лимит 20 МБ.'),{status:502});
