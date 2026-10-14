@@ -6,9 +6,9 @@ const HUB='https://a4print-hub.ru/admin/index.html';
 const KASSA='https://a4print-hub.ru/kassa/';
 let windowMain=null;
 let hubView=null;
-const SHELL_SIDEBAR=265;
 const SHELL_HEADER=78;
-function sizeHubView(){if(!windowMain||windowMain.isDestroyed()||!hubView)return;const [w,h]=windowMain.getContentSize();hubView.setBounds({x:SHELL_SIDEBAR,y:SHELL_HEADER,width:Math.max(0,w-SHELL_SIDEBAR),height:Math.max(0,h-SHELL_HEADER)})}
+function sidebarWidth(width){return width<=740?0:width<=1120?220:265}
+function sizeHubView(){if(!windowMain||windowMain.isDestroyed()||!hubView)return;const [w,h]=windowMain.getContentSize();const sidebar=sidebarWidth(w);hubView.setBounds({x:sidebar,y:SHELL_HEADER,width:Math.max(0,w-sidebar),height:Math.max(0,h-SHELL_HEADER)})}
 function showHubView(show){if(!hubView||!windowMain||windowMain.isDestroyed())return;if(show){sizeHubView();if(!windowMain.contentView.children.includes(hubView))windowMain.contentView.addChildView(hubView)}else if(windowMain.contentView.children.includes(hubView))windowMain.contentView.removeChildView(hubView)}
 function navigateHub(url=HUB){if(!trusted(url))return;showHubView(true);if(hubView.webContents.getURL()!==url)hubView.webContents.loadURL(url).catch(console.error)}
 let launcherMode=true;
