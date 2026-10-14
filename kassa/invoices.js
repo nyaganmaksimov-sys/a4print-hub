@@ -10,6 +10,10 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₽';
 const uid=()=>crypto.randomUUID();
 let modal=null,view='list',rows=[],offset=0,more=false,busy=false,items=[],organizations=[],counterparties=[],catalog=[],operationId=null,selectedAgent=null;
+async function verifyPayment(id,operationId,method){
+ const q='?operation_id='+encodeURIComponent(operationId)+'&method='+encodeURIComponent(method);
+ return await request('/'+encodeURIComponent(id)+'/payment-check'+q);
+}
 async function request(path,options={}){
  const {data,error}=await client.auth.getSession();
  if(error||!data?.session?.access_token)throw Error('Необходимо войти в кассу заново.');
@@ -106,8 +110,37 @@ async function showPaymentForm(id,closing){
     inform(result.message||'Оплата зарегистрирована в МойСклад.');
     await details(id);
    }catch(e){
-    error.textContent=e.message+'. Если запрос оборвался, не меняйте идентификатор и не создавайте новый платёж без проверки.';
-    button.disabled=false;button.textContent='Повторить с тем же идентификатором';
+    // A finance POST may have completed after the browser lost its response.
+    // Reconcile by stable operation id rather than inviting a blind retry.
+    error.textContent='Проверяем, был ли зарегистрирован платёж в МойСклад…';
+    let verified=null;
+    try{verified=await verifyPayment(id,paymentOperationId,method)}catch(checkError){
+      console.warn('Invoice payment reconciliation failed:',checkError);
+    }
+    if(verified?.found){
+      inform('Оплата зарегистрирована в МойСклад. Ответ на исходный запрос не дошёл до кассы.');
+      await details(id);
+      return;
+    }
+    if(verified?.in_progress){
+      error.textContent='Сервер ещё проводит платёж. Подождите, затем нажмите «Проверить операцию».';
+    }else if(verified){
+      error.textContent='МойСклад пока не подтвердил создание платежа. Не создавайте новый платёж до повторной проверки.';
+    }else{
+      error.textContent='Не удалось проверить статус платежа: '+e.message+'. Не создавайте новый платёж без проверки.';
+    }
+    button.disabled=true;
+    button.textContent='Проверить операцию';
+    button.onclick=async()=>{
+      button.disabled=true;error.textContent='Повторно проверяем платёж…';
+      try{
+        const check=await verifyPayment(id,paymentOperationId,method);
+        if(check.found){await details(id);return}
+        error.textContent=check.in_progress?'Операция ещё выполняется. Повторите проверку позже.':'Платёж не найден по идентификатору. Проверьте его в МоёмСкладе перед новой попыткой.';
+      }catch(checkError){error.textContent='Проверка недоступна: '+checkError.message}
+      finally{button.disabled=false}
+    };
+    button.disabled=false;
    }
   };
  }catch(e){box.innerHTML='<p class="invoices-error">'+esc(e.message)+'</p>'}

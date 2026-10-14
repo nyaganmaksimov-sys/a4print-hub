@@ -78,6 +78,23 @@ export function registerPosMoySkladInvoices(app,requirePosUser,msReady,msTenantR
         available_methods:['CASH','BANK']});
     }catch(e){sendError(res,next,e)}
   });
+  // Read-only reconciliation after a POST whose response was lost. Never create
+  // another finance document just to determine whether the first one succeeded.
+  app.get('/api/v1/pos/invoices/:id/payment-check',...protect,async(req,res,next)=>{
+    try{
+      const id=safeId(req.params.id),opId=safeId(req.query.operation_id);
+      const method=str(req.query.method,20);
+      if(!['CASH','BANK'].includes(method))return fail(res,'Неверный способ оплаты.');
+      const type=method==='CASH'?'cashin':'paymentin';
+      const code=paymentCode(id,opId);
+      const result=await api('/entity/'+type+'?limit=100&filter='+encodeURIComponent('externalCode='+code));
+      const row=result.rows?.[0]||null;
+      const invoice=await api('/entity/invoiceout/'+id);
+      res.json({success:true,found:!!row,payment:row?{id:row.id,name:row.name||'',sum:Number(row.sum||0)/100,method}:null,
+        invoice:{id:invoice.id,paid_sum:Number(invoice.payedSum||0)/100,sum:Number(invoice.sum||0)/100},
+        in_progress:paymentLocks.has(code)});
+    }catch(e){sendError(res,next,e)}
+  });
   app.post('/api/v1/pos/invoices/:id/confirm-payment',...protect,async(req,res,next)=>{
     let key=null;
     try{
