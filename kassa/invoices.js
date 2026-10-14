@@ -232,7 +232,7 @@ async function loadPrintForms(id){
    d.documents.map(doc=>'<label>'+esc(doc.type==='invoiceout'?'Счёт покупателю':doc.type==='demand'?'Акт / накладная / УПД':'Счёт-фактура')+
    '<select data-print-document="'+esc(doc.type)+'"><option value="">Выберите форму</option>'+
    doc.templates.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('')+'</select></label>').join('')+
-   '<div class="invoice-actions"><button type="button" id="invoiceMergePack" class="primary">Скачать единый PDF-пакет</button><button type="button" id="invoicePrintPack">Открыть PDF по отдельности</button></div><p id="invoicePrintError" class="invoices-error"></p>';
+   '<div class="invoice-actions"><button type="button" id="invoiceMergePack" class="primary">Открыть единый PDF для печати</button><button type="button" id="invoicePrintPack">Открыть PDF по отдельности</button></div><p id="invoicePrintError" class="invoices-error"></p>';
   // Choose suitable templates by title, without assuming particular IDs.
   box.querySelectorAll('[data-print-document]').forEach(sel=>{
     const doc=d.documents.find(x=>x.type===sel.dataset.printDocument);
@@ -305,7 +305,7 @@ async function mergedPack(id){
   try{tab.close()}catch{}
   if(objectUrl)URL.revokeObjectURL(objectUrl);
   error.textContent=e.message||'Ошибка объединения PDF. Используйте отдельную печать.';
- }finally{button.disabled=false;button.textContent='Скачать единый PDF-пакет'}
+ }finally{button.disabled=false;button.textContent='Открыть единый PDF для печати'}
 }
 
 async function printPack(id){
