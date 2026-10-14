@@ -52,4 +52,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create hub-desktop --repo $repo --title "A4PRINT HUB Desktop — Stable update channel" --notes "Stable Windows update channel for A4PRINT HUB Desktop." --latest=false
           }
-          gh release upload hub-desktop "dist/*.exe" "dist/*.blockmap" "dist/latest.yml" "update-notes.json" --repo $repo --clobber
+          if (!(Test-Path "dist/latest.yml")) { throw "Missing latest.yml update manifest" }
+          $assets = @(Get-ChildItem "dist" -File | Where-Object { $_.Extension -in @(".exe", ".blockmap") } | ForEach-Object { $_.FullName })
+          $assets += (Resolve-Path "dist/latest.yml").Path
+          $assets += (Resolve-Path "update-notes.json").Path
+          gh release upload hub-desktop $assets --repo $repo --clobber
+          if ($LASTEXITCODE -ne 0) { throw "GitHub release upload failed" }
