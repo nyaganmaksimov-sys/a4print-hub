@@ -153,3 +153,27 @@ test('payment options load actual organization accounts subresource',async()=>{
   assert.equal(sawAccounts,true);
  }finally{globalThis.fetch=originalFetch}
 });
+
+test('payment-check recognizes an already registered payment without writing',async()=>{
+ const opId='77777777-7777-4777-8777-777777777777';
+ const payId='88888888-8888-4888-8888-888888888888';
+ const originalFetch=globalThis.fetch;let writes=0;
+ globalThis.fetch=async(url,opts={})=>{
+  const path=new URL(url).pathname;
+  if(opts.method==='POST')writes++;
+  let result;
+  if(path==='/api/remap/1.2/entity/paymentin')result={rows:[{id:payId,name:'BANK-TEST',sum:105000}]};
+  else if(path.endsWith('/entity/invoiceout/'+invoiceId))result=fakeInvoice(true);
+  else throw Error('Unexpected '+path);
+  return new Response(JSON.stringify(result),{status:200,headers:{'Content-Type':'application/json'}});
+ };
+ try{
+  const routes={};const app={get(p,...h){routes[p]=h.at(-1)},post(){}};
+  registerPosMoySkladInvoices(app,()=>{},()=>true,async()=>true,()=> 'mock-token');
+  const res={statusCode:200,status(n){this.statusCode=n;return this},json(x){this.body=x;return this}};
+  await routes['/api/v1/pos/invoices/:id/payment-check']({params:{id:invoiceId},query:{operation_id:opId,method:'BANK'}},res,e=>{throw e});
+  assert.equal(res.body.found,true);
+  assert.equal(res.body.payment.sum,1050);
+  assert.equal(writes,0);
+ }finally{globalThis.fetch=originalFetch}
+});
