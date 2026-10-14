@@ -1,12 +1,12 @@
 {
   "name": "a4print-hub-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Windows desktop shell for A4PRINT HUB",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check main.js",
-    "dist:win": "electron-builder --win nsis --x64"
+    "check": "node --check main.js && node --check update-preload.js",
+    "dist:win": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
     "electron": "^35.7.5",
@@ -22,6 +22,9 @@
     "files": [
       "main.js",
       "index.html",
+      "updates.html",
+      "update-preload.js",
+      "update-notes.json",
       "package.json"
     ],
     "win": {
@@ -34,6 +37,15 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/nyaganmaksimov-sys/a4print-hub/releases/download/hub-desktop"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   }
 }
