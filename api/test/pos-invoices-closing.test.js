@@ -130,3 +130,26 @@ test('a paid invoice rejects an additional financial document',async()=>{
   assert.equal(posted,0);
  }finally{globalThis.fetch=originalFetch}
 });
+
+test('payment options load actual organization accounts subresource',async()=>{
+ const originalFetch=globalThis.fetch;
+ let sawAccounts=false;
+ globalThis.fetch=async(url)=>{
+  const path=new URL(url).pathname;
+  let result;
+  if(path.endsWith('/entity/invoiceout/'+invoiceId))result=fakeInvoice(false);
+  else if(path.endsWith('/entity/organization/'+orgId+'/accounts')){sawAccounts=true;result={rows:[{id:storeId,meta:entity('account',storeId).meta,accountNumber:'40702810000000000000',bankName:'TEST BANK'}]};}
+  else throw Error('Unexpected request: '+path);
+  return new Response(JSON.stringify(result),{status:200,headers:{'Content-Type':'application/json'}});
+ };
+ try{
+  const routes={};const app={get(p,...h){routes[p]=h.at(-1)},post(){}};
+  registerPosMoySkladInvoices(app,()=>{},()=>true,async()=>true,()=> 'mock-token');
+  const res={statusCode:200,status(n){this.statusCode=n;return this},json(x){this.body=x;return this}};
+  await routes['/api/v1/pos/invoices/:id/payment-options']({params:{id:invoiceId}},res,e=>{throw e});
+  assert.equal(res.statusCode,200);
+  assert.equal(res.body.bank_accounts.length,1);
+  assert.equal(res.body.bank_accounts[0].id,storeId);
+  assert.equal(sawAccounts,true);
+ }finally{globalThis.fetch=originalFetch}
+});
