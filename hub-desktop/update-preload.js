@@ -1,0 +1,1 @@
+'use strict';const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('updates',{get:()=>ipcRenderer.invoke('update:state'),check:()=>ipcRenderer.invoke('update:check'),download:()=>ipcRenderer.invoke('update:download'),install:()=>ipcRenderer.invoke('update:install'),listen:(cb)=>ipcRenderer.on('update-state',(_e,s)=>cb(s))});
