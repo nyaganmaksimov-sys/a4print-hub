@@ -228,14 +228,86 @@ async function loadPrintForms(id){
  try{
   const d=await request('/'+encodeURIComponent(id)+'/closing/templates');
   if(!d.documents?.length)throw Error('Печатные формы пока отсутствуют.');
-  box.innerHTML='<p>Выберите официальный шаблон для каждого документа. Акт доступен среди шаблонов реализации услуг.</p>'+
+  box.innerHTML='<p>Выберите печатные формы МоегоСклада. Счёт и акт объединятся в один PDF в указанном порядке.</p>'+
    d.documents.map(doc=>'<label>'+esc(doc.type==='invoiceout'?'Счёт покупателю':doc.type==='demand'?'Акт / накладная / УПД':'Счёт-фактура')+
    '<select data-print-document="'+esc(doc.type)+'"><option value="">Выберите форму</option>'+
    doc.templates.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('')+'</select></label>').join('')+
-   '<button type="button" id="invoicePrintPack" class="primary">Открыть все выбранные PDF для печати</button><p id="invoicePrintError" class="invoices-error"></p>';
+   '<div class="invoice-actions"><button type="button" id="invoiceMergePack" class="primary">Скачать единый PDF-пакет</button><button type="button" id="invoicePrintPack">Открыть PDF по отдельности</button></div><p id="invoicePrintError" class="invoices-error"></p>';
+  // Choose suitable templates by title, without assuming particular IDs.
+  box.querySelectorAll('[data-print-document]').forEach(sel=>{
+    const doc=d.documents.find(x=>x.type===sel.dataset.printDocument);
+    const preferred=doc?.templates?.find(t=>sel.dataset.printDocument==='invoiceout'
+      ?/сч[её]т покупателю/i.test(t.name)
+      :sel.dataset.printDocument==='demand'
+        ?/^акт(?:\s|$)/i.test(t.name)
+        :/сч[её]т-фактур/i.test(t.name));
+    if(preferred)sel.value=preferred.id;
+  });
+  $('invoiceMergePack').onclick=()=>mergedPack(id);
   $('invoicePrintPack').onclick=()=>printPack(id);
  }catch(e){box.textContent=e.message}
 }
+let pdfLibLoad=null;
+async function ensurePdfLib(){
+ if(window.PDFLib?.PDFDocument)return window.PDFLib;
+ if(!pdfLibLoad){
+  // Pinned browser-only PDF assembly: documents never leave the cashier/API.
+  // External script is a fallback dependency; the existing separate print
+  // action stays available if this download fails.
+  pdfLibLoad=new Promise((resolve,reject)=>{
+   const script=document.createElement('script');
+   const timeout=setTimeout(()=>{script.remove();reject(new Error('Библиотека сборки PDF не загрузилась. Используйте отдельную печать.'))},18000);
+   script.src='https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+   script.async=true;script.crossOrigin='anonymous';
+   script.onload=()=>{clearTimeout(timeout);window.PDFLib?.PDFDocument?resolve(window.PDFLib):reject(new Error('Библиотека PDF недоступна.'))};
+   script.onerror=()=>{clearTimeout(timeout);reject(new Error('Не удалось загрузить библиотеку PDF. Используйте отдельную печать.'))};
+   document.head.appendChild(script);
+  }).catch(e=>{pdfLibLoad=null;throw e});
+ }
+ return pdfLibLoad;
+}
+async function mergedPack(id){
+ const selects=[...document.querySelectorAll('[data-print-document]')].filter(x=>x.value);
+ const error=$('invoicePrintError'),button=$('invoiceMergePack');
+ error.textContent='';
+ if(!selects.length){error.textContent='Выберите хотя бы один шаблон документа.';return}
+ // Open on click, rather than after async downloads (Electron popup blockers).
+ const tab=window.open('about:blank','_blank');
+ if(!tab){error.textContent='Разрешите всплывающие окна для кассы, затем повторите.';return}
+ button.disabled=true;button.textContent='Собираем PDF-пакет…';
+ let objectUrl=null;
+ try{
+  const lib=await ensurePdfLib();
+  const {data}=await client.auth.getSession();
+  const token=data?.session?.access_token;
+  if(!token)throw Error('Сессия истекла. Войдите заново.');
+  const joined=await lib.PDFDocument.create();
+  for(let i=0;i<selects.length;i++){
+   const select=selects[i],type=select.dataset.printDocument;
+   const url=API+'/api/v1/pos/invoices/'+encodeURIComponent(id)+'/closing/pdf?type='+encodeURIComponent(type)+'&template='+encodeURIComponent(select.value);
+   inform('Формируем комплект: '+(i+1)+' из '+selects.length);
+   const response=await fetch(url,{headers:{Authorization:'Bearer '+token,Accept:'application/pdf'},cache:'no-store'});
+   if(!response.ok){const msg=await response.json().catch(()=>({}));throw Error(msg.message||'Не удалось получить '+type+' (HTTP '+response.status+').')}
+   const bytes=new Uint8Array(await response.arrayBuffer());
+   if(bytes.byteLength>20*1024*1024)throw Error('Одна из печатных форм превышает 20 МБ.');
+   const documentPdf=await lib.PDFDocument.load(bytes,{updateMetadata:false});
+   const pages=await joined.copyPages(documentPdf,documentPdf.getPageIndices());
+   pages.forEach(page=>joined.addPage(page));
+  }
+  const bytes=await joined.save();
+  if(bytes.byteLength>40*1024*1024)throw Error('Собранный пакет слишком большой (больше 40 МБ).');
+  objectUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+  tab.location.href=objectUrl;
+  inform('Единый PDF собран: '+joined.getPageCount()+' стр. Откройте печать Ctrl+P.');
+  // Keep the object URL long enough for Electron/Chrome PDF viewer to load it.
+  setTimeout(()=>URL.revokeObjectURL(objectUrl),5*60*1000);
+ }catch(e){
+  try{tab.close()}catch{}
+  if(objectUrl)URL.revokeObjectURL(objectUrl);
+  error.textContent=e.message||'Ошибка объединения PDF. Используйте отдельную печать.';
+ }finally{button.disabled=false;button.textContent='Скачать единый PDF-пакет'}
+}
+
 async function printPack(id){
  const selects=[...document.querySelectorAll('[data-print-document]')].filter(x=>x.value);
  const error=$('invoicePrintError');error.textContent='';
