@@ -60,14 +60,54 @@ async function details(id){
   $('invoicesContent').innerHTML='<h3>Счёт №'+esc(x.name)+'</h3><p>Контрагент: <b>'+esc(x.agent_name)+'</b> · Организация: '+esc(x.organization_name)+'</p><p>Дата: '+esc(x.moment||'')+' · Статус: '+esc(x.state||'—')+'</p><div class="invoices-table-wrap"><table class="invoices-table"><thead><tr><th>Товар / услуга</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+d.positions.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+esc(p.quantity)+'</td><td>'+money(p.price)+'</td><td>'+money(p.sum)+'</td></tr>').join('')+'</tbody></table></div><h3>К оплате '+money(x.sum)+' · Оплачено '+money(x.payed_sum)+'</h3>'+
    '<section class="invoice-section" id="invoiceClosingSection"><h3>Оплата и закрывающие документы</h3><p id="invoicePaymentStatus">'+esc(state)+'</p><p>Остаток оплаты: <strong>'+money(closing.outstanding)+'</strong></p>'+
    '<p class="invoices-note">Подтверждение оплаты берётся из документов МоегоСклада. Кнопка проверки не создаёт фиктивное поступление денег.</p>'+
-   '<div class="invoice-actions"><button id="invoiceRefreshPayment" type="button">↻ Проверить оплату</button><button id="invoicePrepare" class="primary" type="button" '+(!closing.fully_paid?'disabled':'')+'>Подготовить документы в МойСклад</button></div>'+
+   '<div class="invoice-actions"><button id="invoiceRefreshPayment" type="button">↻ Проверить оплату</button><button id="invoiceConfirmPayment" type="button" '+(closing.fully_paid?'disabled':'')+'>Подтвердить поступление оплаты</button><button id="invoicePrepare" class="primary" type="button" '+(!closing.fully_paid?'disabled':'')+'>Подготовить документы в МойСклад</button></div><div id="invoicePaymentForm"></div>'+
    '<div id="invoiceStoreChooser" hidden></div><div id="invoiceClosingResult"></div><div id="invoicePrintArea"></div><p id="invoiceClosingError" class="invoices-error"></p></section>'+
    (x.href?'<p><a href="'+esc(x.href)+'" target="_blank" rel="noopener noreferrer">Открыть счёт в МойСклад ↗</a></p>':'');
   $('invoiceRefreshPayment').onclick=()=>details(id);
+  $('invoiceConfirmPayment').onclick=()=>showPaymentForm(id,closing);
   $('invoicePrepare').onclick=()=>prepareClosing(id,closing);
   renderClosingSummary(id,closing);
  }catch(e){$('invoicesContent').innerHTML='<p class="invoices-error">'+esc(e.message)+'</p>'}
 }
+
+let paymentOperationId=null;
+async function showPaymentForm(id,closing){
+ const box=$('invoicePaymentForm'),notice=$('invoiceClosingError');
+ if(!box)return;
+ notice.textContent='';
+ box.innerHTML='<p class="invoices-loading">Загружаем варианты оплаты…</p>';
+ try{
+  const d=await request('/'+encodeURIComponent(id)+'/payment-options');
+  if(!(d.remaining>0)){await details(id);return}
+  paymentOperationId=uid();
+  box.innerHTML='<div class="invoice-section"><h4>Подтвердить фактически полученную оплату</h4>'+
+   '<p class="invoices-note">Операция создаст реальный финансовый документ в МойСклад. Нажимайте только после получения денег. Частичная оплата допускается.</p>'+
+   '<label>Способ поступления<select id="invoicePaymentMethod"><option value="CASH">Наличные в кассу</option><option value="BANK">Банковский перевод на расчётный счёт организации</option></select></label>'+
+   '<div id="invoiceBankAccountField" hidden><label>Расчётный счёт организации<select id="invoicePaymentAccount"><option value="">Выберите счёт</option>'+d.bank_accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>').join('')+'</select></label></div>'+
+   '<label>Фактически полученная сумма, ₽<input id="invoicePaymentAmount" type="number" min="0.01" step="0.01" max="'+esc(d.remaining)+'" value="'+esc(d.remaining)+'"></label>'+
+   '<div class="invoice-actions"><button type="button" id="invoicePaymentCancel">Отмена</button><button type="button" class="primary" id="invoicePaymentSubmit">Подтвердить поступление и записать в МойСклад</button></div><p id="invoicePaymentError" class="invoices-error"></p></div>';
+  $('invoicePaymentCancel').onclick=()=>{box.innerHTML='';paymentOperationId=null};
+  $('invoicePaymentMethod').onchange=()=>{$('invoiceBankAccountField').hidden=$('invoicePaymentMethod').value!=='BANK'};
+  $('invoicePaymentSubmit').onclick=async()=>{
+   const method=$('invoicePaymentMethod').value,amount=Number($('invoicePaymentAmount').value),account_id=$('invoicePaymentAccount').value;
+   const error=$('invoicePaymentError');error.textContent='';
+   if(!Number.isFinite(amount)||amount<=0||amount>d.remaining){error.textContent='Проверьте сумму поступления.';return}
+   if(method==='BANK'&&!account_id){error.textContent='Выберите расчётный счёт организации.';return}
+   const message=method==='CASH'?'Подтверждаете фактическое получение наличных '+money(amount)+'?':'Подтверждаете зачисление '+money(amount)+' на расчётный счёт организации?';
+   if(!window.confirm(message+'\nВ МойСклад будет создан финансовый документ.'))return;
+   const button=$('invoicePaymentSubmit');button.disabled=true;button.textContent='Сохраняем платёж…';
+   try{
+    const result=await request('/'+encodeURIComponent(id)+'/confirm-payment',{method:'POST',body:{operation_id:paymentOperationId,method,account_id,amount}});
+    inform(result.message||'Оплата зарегистрирована в МойСклад.');
+    await details(id);
+   }catch(e){
+    error.textContent=e.message+'. Если запрос оборвался, не меняйте идентификатор и не создавайте новый платёж без проверки.';
+    button.disabled=false;button.textContent='Повторить с тем же идентификатором';
+   }
+  };
+ }catch(e){box.innerHTML='<p class="invoices-error">'+esc(e.message)+'</p>'}
+}
+
 function renderClosingSummary(id,closing){
  const box=$('invoiceClosingResult');if(!box)return;
  box.innerHTML='<div class="invoice-closing-links">'+
