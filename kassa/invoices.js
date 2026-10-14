@@ -87,7 +87,12 @@ async function showPaymentForm(id,closing){
    '<label>Фактически полученная сумма, ₽<input id="invoicePaymentAmount" type="number" min="0.01" step="0.01" max="'+esc(d.remaining)+'" value="'+esc(d.remaining)+'"></label>'+
    '<div class="invoice-actions"><button type="button" id="invoicePaymentCancel">Отмена</button><button type="button" class="primary" id="invoicePaymentSubmit">Подтвердить поступление и записать в МойСклад</button></div><p id="invoicePaymentError" class="invoices-error"></p></div>';
   $('invoicePaymentCancel').onclick=()=>{box.innerHTML='';paymentOperationId=null};
-  $('invoicePaymentMethod').onchange=()=>{$('invoiceBankAccountField').hidden=$('invoicePaymentMethod').value!=='BANK'};
+  $('invoicePaymentMethod').onchange=()=>{
+   const bank=$('invoicePaymentMethod').value==='BANK';
+   $('invoiceBankAccountField').hidden=!bank;
+   if(bank&&!d.bank_accounts.length)$('invoicePaymentError').textContent='У организации нет доступных расчётных счетов в МойСклад. Добавьте банковские реквизиты в карточку организации и обновите форму.';
+   else $('invoicePaymentError').textContent='';
+  };
   $('invoicePaymentSubmit').onclick=async()=>{
    const method=$('invoicePaymentMethod').value,amount=Number($('invoicePaymentAmount').value),account_id=$('invoicePaymentAccount').value;
    const error=$('invoicePaymentError');error.textContent='';
