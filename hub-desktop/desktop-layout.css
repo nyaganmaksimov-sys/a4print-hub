@@ -1,0 +1,22 @@
+/* Desktop-only layout: real HUB full width, no server deployment required. */
+html body .sidebar,html body.dashboard-home .sidebar,
+html body .a4-sidebar-head,html body .a4-mobile-menu {display:none!important;visibility:hidden!important}
+html body .main,html body.dashboard-home .main,
+html body.a4-sidebar-collapsed .main,html body.a4-has-sidebar .main {
+margin-left:0!important;width:100%!important;max-width:none!important;box-sizing:border-box!important
+}
+html body #a4-desktop-menu-trigger{position:fixed!important;bottom:20px!important;left:20px!important;z-index:2147483000!important;
+background:#102c50!important;color:#fff!important;border:0!important;border-radius:11px!important;
+padding:12px 19px!important;box-shadow:0 7px 24px #14223845!important;
+font:600 14px 'Segoe UI',sans-serif!important;cursor:pointer!important}
+html body #a4-desktop-menu-panel{position:fixed!important;left:20px!important;bottom:78px!important;
+width:min(350px,calc(100vw - 40px))!important;max-height:70vh!important;overflow:auto!important;z-index:2147483001!important;
+background:#fff!important;border:1px solid #d6e2ef!important;border-radius:14px!important;box-shadow:0 15px 45px #11223b45!important;
+padding:17px!important;color:#152b4d!important;font:14px 'Segoe UI',sans-serif!important}
+html body #a4-desktop-menu-panel[hidden]{display:none!important}
+html body #a4-desktop-menu-panel h2{font-size:18px!important;margin:0 0 12px!important;color:#162c4a!important}
+html body #a4-desktop-menu-panel .a4-desk-group{padding:12px 8px 5px!important;font-weight:750!important;color:#677b98!important}
+html body #a4-desktop-menu-panel a{display:block!important;padding:10px 12px!important;text-decoration:none!important;
+font-weight:550!important;color:#183a6c!important;border-radius:7px!important}
+html body #a4-desktop-menu-panel a:hover{background:#eaf2ff!important;color:#1457cf!important}
+@media print{html body #a4-desktop-menu-panel,html body #a4-desktop-menu-trigger{display:none!important}}
