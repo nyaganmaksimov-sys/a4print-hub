@@ -19,6 +19,14 @@
 
   window.fetch=async function a4ShiftTimeoutFetch(input,init={}){
     if(!isShiftRequest(input))return originalFetch(input,init);
+    // Closing a shift is a non-idempotent write and may take up to a minute
+    // in MoySklad. Never impose the 6.5s mobile read timeout on it.
+    try{
+      const raw=typeof input==='string'||input instanceof URL?String(input):String(input?.url||'');
+      const u=new URL(raw,location.href);
+      if(String(init?.method||input?.method||'GET').toUpperCase()==='POST'&&/\/api\/v1\/pos\/shift\/close\/?$/.test(u.pathname))return originalFetch(input,init);
+    }catch{}
+
     if(init?.signal)return originalFetch(input,init);
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),SHIFT_TIMEOUT);

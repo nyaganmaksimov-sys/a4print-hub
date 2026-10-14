@@ -42,7 +42,51 @@
   function enterShift(){closeMobileMenu();const view=ensureShiftView();if(!view)return;document.querySelectorAll('.main-nav .nav-item').forEach(x=>x.classList.remove('active'));$('navShift')?.classList.add('active');['saleSidebar','saleCatalog','saleCart','returnsView','reportsView'].forEach(id=>{const el=$(id);if(el)el.hidden=true});setShiftTopControls(true);view.hidden=false;paintCachedShift().finally(()=>loadShiftView(false,false));clearInterval(shiftRefreshTimer);shiftRefreshTimer=setInterval(()=>{if(!document.hidden&&!$('shiftView')?.hidden)loadShiftView(false,false)},120000)}
   function renderShiftSummary(shift,d){$('shiftHeading').textContent=`Смена ${shift.name||''}`.trim();$('shiftOpenedAt').textContent=shiftOpenedText(shift.openDate);$('shiftSalesCount').textContent=Number(d.sales_count||0).toLocaleString('ru-RU');$('shiftSalesTotal').textContent=money(d.sales_total);$('shiftSalesCash').textContent=money(d.sales_cash);$('shiftSalesCashless').textContent=money(d.sales_cashless);$('shiftReturnsCount').textContent=Number(d.returns_count||0).toLocaleString('ru-RU');$('shiftReturnsTotal').textContent=money(d.returns_total);$('shiftReturnsCash').textContent=money(d.returns_cash);$('shiftReturnsCashless').textContent=money(d.returns_cashless);$('shiftDepositsCount').textContent=Number(d.deposits_count||0).toLocaleString('ru-RU');$('shiftDepositsTotal').textContent=money(d.deposits_total);$('shiftPayoutsCount').textContent=Number(d.payouts_count||0).toLocaleString('ru-RU');$('shiftPayoutsTotal').textContent=money(d.payouts_total);$('shiftRevenueTotal').textContent=money(d.revenue_total);$('shiftRevenueCash').textContent=money(d.revenue_cash);$('shiftRevenueCashless').textContent=money(d.revenue_cashless);$('shiftCashRegister').textContent=money(d.cash_in_register)}
   async function loadShiftView(showToast=false,initial=false){const view=ensureShiftView();if(!view||view.hidden)return;const loading=$('shiftLoading'),closed=$('shiftClosed'),wrap=$('shiftSummaryWrap'),action=$('shiftMainAction');const hasContent=!closed.hidden||!wrap.hidden;if(initial||!hasContent){loading.textContent='Загрузка смены…';loading.hidden=false;closed.hidden=true;wrap.hidden=true}else{loading.hidden=true}action.disabled=true;try{const status=await shiftApi('/api/v1/pos/shift');const shift=status.shift||null;if(!shift){loading.hidden=true;closed.hidden=false;wrap.hidden=true;action.textContent='Открыть смену';action.dataset.mode='open';action.disabled=false;$('shiftHeading').textContent='Смена не открыта';if(showToast)toast('Данные смены обновлены');return}const d=status.summary||{};renderShiftSummary(shift,d);loading.hidden=true;closed.hidden=true;wrap.hidden=false;action.textContent='Закрыть смену';action.dataset.mode='close';action.disabled=false;if(showToast)toast('Данные смены обновлены')}catch(e){if(!hasContent){loading.hidden=false;loading.textContent='Не удалось загрузить смену: '+String(e?.message||e)}else loading.hidden=true;action.disabled=false;if(showToast||initial)toast('Не удалось загрузить данные смены',true)}}
-  async function shiftMainAction(){const action=$('shiftMainAction'),mode=action.dataset.mode||'open';if(mode==='close'){try{const queue=DB?await DB.getAll('queue'):[];if(queue.length){toast(`Сначала синхронизируйте ${queue.length} чек(а) из очереди.`,true);$('queueChip')?.click();return}}catch{}if(!confirm('Закрыть текущую смену? После закрытия новые продажи потребуют открыть следующую смену.'))return}const hiddenAction=$('shiftButton');if(!hiddenAction)return toast('Кнопка управления сменой не найдена.',true);action.disabled=true;action.textContent=mode==='close'?'Закрываю смену…':'Открываю смену…';hiddenAction.click();const wantOpen=mode==='open';for(let i=0;i<12;i++){await new Promise(r=>setTimeout(r,500));try{const status=await shiftApi('/api/v1/pos/shift');if(Boolean(status.shift)===wantOpen){toast(wantOpen?'Смена открыта':'Смена закрыта');await loadShiftView(false,false);syncFooterShift();return}}catch{}}action.disabled=false;await loadShiftView(false,false)}
+  let shiftActionPending=false;
+  async function shiftMainAction(){
+    if(shiftActionPending)return;
+    const action=$('shiftMainAction'),mode=action.dataset.mode||'open';
+    if(mode==='close'){
+      try{
+        const queue=DB?await DB.getAll('queue'):[];
+        if(queue.length){toast('Сначала синхронизируйте '+queue.length+' чек(а) из очереди.',true);$('queueChip')?.click();return}
+      }catch(error){toast('Не удалось проверить очередь чеков. Закрытие остановлено.',true);return}
+      if(!confirm('Закрыть текущую смену? После закрытия новые продажи потребуют открыть следующую смену.'))return;
+    }
+    shiftActionPending=true;
+    action.disabled=true;
+    action.textContent=mode==='close'?'Закрываем смену в МойСклад…':'Открываем смену…';
+    try{
+      const path=mode==='close'?'/api/v1/pos/shift/close':'/api/v1/pos/shift/open';
+      const operatorId=$('operatorSelect')?.value||null;
+      const result=await shiftApi(path,{method:'POST',body:JSON.stringify({operator_id:operatorId})});
+      if(result?.success===false)throw new Error(result.message||result.error||'Сервер не подтвердил операцию.');
+      // Do not report success from a click or a stale locally cached shift.
+      const current=await shiftApi('/api/v1/pos/shift');
+      const expectedOpen=mode==='open';
+      if(Boolean(current.shift)!==expectedOpen){
+        toast('Команда принята, но состояние смены пока не подтверждено. Обновите статус.',true);
+      }else{
+        toast(expectedOpen?'Смена открыта':'Смена закрыта');
+      }
+    }catch(error){
+      // A POST may have succeeded even if the response was lost. Never
+      // automatically retry this non-idempotent money-related operation.
+      try{
+        const current=await shiftApi('/api/v1/pos/shift');
+        const expectedOpen=mode==='open';
+        if(Boolean(current.shift)===expectedOpen)toast(expectedOpen?'Смена открыта':'Смена закрыта (проверено на сервере)');
+        else toast(String(error?.message||error||'Смена не изменилась.'),true);
+      }catch{
+        toast('Нет подтверждения от сервера. Не закрывайте смену повторно до проверки её состояния.',true);
+      }
+    }finally{
+      shiftActionPending=false;
+      action.disabled=false;
+      await loadShiftView(false,false);
+      syncFooterShift();
+    }
+  }
 
   function bind(){$('menuToggle')?.addEventListener('click',toggleMenu);document.querySelectorAll('.main-nav [data-section]').forEach(b=>b.addEventListener('click',()=>{hideShiftView(b.dataset.section);closeMobileMenu()}));$('navShift')?.addEventListener('click',enterShift);$('shiftChip')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();enterShift()},{capture:true});$('clearSearch')?.addEventListener('click',()=>{const q=$('search');q.value='';q.dispatchEvent(new Event('input',{bubbles:true}));q.focus()});$('quickAdd')?.addEventListener('click',()=>{const q=$('search');if(q){q.focus();q.select();toast('Введите название, код или штрихкод позиции')}});$('listView')?.addEventListener('click',()=>setCatalogMode('list'));$('gridView')?.addEventListener('click',()=>setCatalogMode('grid'));$('operatorSelect')?.addEventListener('change',syncCashierLabel);$('navHistory')?.addEventListener('click',()=>{closeMobileMenu();showHistory()});$('navHeld')?.addEventListener('click',()=>{closeMobileMenu();showHeld()});$('navSettings')?.addEventListener('click',()=>{closeMobileMenu();showSettings()});$('navHelp')?.addEventListener('click',()=>{closeMobileMenu();showHelp()});$('closeUtility')?.addEventListener('click',closeUtility);$('utilityDrawer')?.addEventListener('click',e=>{if(e.target===$('utilityDrawer'))closeUtility()});$('syncNow')?.addEventListener('click',()=>setTimeout(markSyncNow,400));window.addEventListener('keydown',e=>{if(e.key==='Escape')closeUtility()});const op=$('operatorSelect');if(op)new MutationObserver(()=>setTimeout(syncCashierLabel,0)).observe(op,{childList:true,subtree:true,attributes:true});const shift=$('shiftInfo');if(shift)new MutationObserver(syncFooterShift).observe(shift,{childList:true,subtree:true,characterData:true})}
   function init(){ensureShiftStyles();bind();ensureShiftView();let mode='list';try{mode=localStorage.getItem('a4_kassa_catalog_mode')||'list'}catch{}setCatalogMode(mode);setTimeout(()=>{syncCashierLabel();syncFooterShift();markSyncNow()},1000)}
