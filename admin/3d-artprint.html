@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D-ARTPRINT — A4PRINT HUB</title>
+<link rel="stylesheet" href="./3d-artprint.css?v=1">
+<script src="./config.js?v=20260922-direct1"></script>
+</head>
+<body>
+<div class="shell">
+<aside class="nav">
+<a class="brand" href="./index.html"><span class="logo">3D</span><span><strong>3D-ARTPRINT</strong><small>A4PRINT HUB · производство</small></span></a>
+<nav aria-label="Разделы 3D-ARTPRINT">
+<a class="selected" href="./3d-artprint.html">▦ &nbsp; Обзор</a>
+<a href="./orders.html?unit=3D_ARTPRINT">▤ &nbsp; Заказы</a>
+<a href="./production.html?unit=3D_ARTPRINT">▣ &nbsp; Производство</a>
+<a href="./warehouse.html">◈ &nbsp; Материалы и склад</a>
+<a href="./equipment.html">⚙ &nbsp; Оборудование</a>
+<a href="./customers.html">♙ &nbsp; Клиенты</a>
+<a href="./reports.html">▥ &nbsp; Финансы и отчёты</a>
+<a href="./staff.html">♧ &nbsp; Сотрудники</a>
+</nav>
+<div class="nav-bottom"><a href="./index.html">← Вернуться в HUB</a></div>
+</aside>
+<main class="main">
+<header class="top"><div><div class="eyebrow">Производственное направление</div><h1>Панель 3D-ARTPRINT</h1><p>Заказы, очередь производства и рабочие задачи</p></div><div class="actions"><span id="syncLabel" role="status">Подключение…</span><button id="reload" type="button">↻ Обновить</button><a class="primary" href="./orders.html?unit=3D_ARTPRINT&new=1">+ Новый заказ</a></div></header>
+<div id="notice" class="notice" hidden role="alert"></div>
+<section class="cards" aria-label="Показатели заказов">
+<a class="kpi" href="./orders.html?unit=3D_ARTPRINT&status=NEW"><span>Новые заказы</span><strong id="newOrders">—</strong><small>Ожидают обработки</small></a>
+<a class="kpi" href="./orders.html?unit=3D_ARTPRINT&status=IN_PROGRESS"><span>Активные заказы</span><strong id="activeOrders">—</strong><small>Подтверждены и в работе</small></a>
+<a class="kpi" href="./orders.html?unit=3D_ARTPRINT&status=READY"><span>Готовы</span><strong id="readyOrders">—</strong><small>Ожидают выдачи</small></a>
+<a class="kpi" href="./production.html?unit=3D_ARTPRINT"><span>Задания в очереди</span><strong id="queuedJobs">—</strong><small>По текущей выборке производства</small></a>
+</section>
+<div class="cols">
+<section class="panel"><div class="panelhead"><div><h2>Последние заказы</h2><p>Только направление 3D-ARTPRINT</p></div><a href="./orders.html?unit=3D_ARTPRINT">Все заказы →</a></div><div id="orderList" class="list"><div class="empty">Загружаем заказы…</div></div></section>
+<section class="panel"><div class="panelhead"><div><h2>Производство</h2><p>Очередь и задания в работе</p></div><a href="./production.html?unit=3D_ARTPRINT">Открыть →</a></div><div id="jobList" class="list"><div class="empty">Загружаем задания…</div></div></section>
+</div>
+<div class="footer-note">Показатели рассчитываются по данным HUB. Финансовые показатели появятся после подключения проверенных агрегатов для организации.</div>
+</main></div>
+<script type="module" src="./3d-artprint.js?v=1"></script>
+</body></html>
