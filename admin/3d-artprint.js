@@ -36,3 +36,16 @@ async function load(){
 }
 $('reload').addEventListener('click',load);
 load();
+const calcIds=['calcGrams','calcKg','calcHours','calcMachine','calcLabor','calcOther','calcMarkup'];
+const calcRub=n=>n.toLocaleString('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2});
+function calculate(){
+ const read=id=>{const value=$(id).value.trim();const n=value===''?0:Number(value);return Number.isFinite(n)?Math.max(0,n):0};
+ const grams=read('calcGrams'),kg=read('calcKg'),hours=read('calcHours'),machine=read('calcMachine'),labor=read('calcLabor'),other=read('calcOther'),markup=read('calcMarkup');
+ const cost=grams*kg/1000+hours*machine+labor+other;
+ const price=cost*(1+markup/100);
+ $('calcCost').textContent=calcRub(cost);
+ $('calcPrice').textContent=calcRub(price);
+ $('calcProfit').textContent=calcRub(price-cost);
+}
+calcIds.forEach(id=>$(id).addEventListener('input',calculate));
+calculate();
