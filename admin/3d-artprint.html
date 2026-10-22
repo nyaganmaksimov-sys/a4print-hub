@@ -40,7 +40,7 @@
 <label>Дополнительные расходы, ₽<input id="calcOther" type="number" min="0" step="1" value="0"></label>
 <label>Наценка, % от себестоимости<input id="calcMarkup" type="number" min="0" step="1" value="100"></label>
 <div class="calc-result"><span>Себестоимость <strong id="calcCost">—</strong></span><span>Цена продажи <strong id="calcPrice">—</strong></span><span>Валовая прибыль <strong id="calcProfit">—</strong></span></div>
-</div><p class="calc-hint">Расчёт локальный, без сохранения в заказ. Стоимость станка за час должна учитывать электроэнергию, амортизацию и обслуживание; если они уже включены, повторно не добавляйте их в расходы.</p></section>
+</div><p class="calc-hint">Расчёт локальный, без сохранения в заказ. Машинный час = цена станка / ресурс в часах + электричество и обслуживание за час. Ресурс и текущие расходы задаются вручную; закупочная цена подставляется из карточки выбранного станка, если она указана. Это управленческая оценка, не бухгалтерская амортизация.</p></section>
 <div class="cols">
 <section class="panel"><div class="panelhead"><div><h2>Последние заказы</h2><p>Только направление 3D-ARTPRINT</p></div><a href="./orders.html?unit=3D_ARTPRINT">Все заказы →</a></div><div id="orderList" class="list"><div class="empty">Загружаем заказы…</div></div></section>
 <section class="panel"><div class="panelhead"><div><h2>Производство</h2><p>Очередь и задания в работе</p></div><a href="./production.html?unit=3D_ARTPRINT">Открыть →</a></div><div id="jobList" class="list"><div class="empty">Загружаем задания…</div></div></section>
