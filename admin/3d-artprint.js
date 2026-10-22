@@ -101,6 +101,7 @@ function refreshCalcEquipment(assets){
  for(const a of assets)select.add(new Option((a.inventory_number||'—')+' · '+(a.name||a.model||'Станок'),a.id));
  if(assets.some(a=>a.id===current))select.value=current;
  const map=new Map(assets.map(a=>[a.id,a]));
+ if(select.value)loadMachinePreset();
  select.onchange=()=>{
   const item=map.get(select.value);
   if(item&&item.purchase_price!=null)$('calcPurchase').value=String(Math.max(0,Number(item.purchase_price)||0));
@@ -133,7 +134,7 @@ function loadMachinePreset(){
  info.textContent='';
  if(!id){info.textContent='Для сохранения выберите станок';return;}
  const preset=readPreset(id);
- if(!preset){info.textContent='Для станка нет сохранённого профиля';return;}
+ if(!preset){$('calcLife').value='5000';$('calcRunning').value='30';info.textContent='Для станка нет сохранённого профиля';return;}
  for(const key of ['calcLife','calcRunning']){
   const n=Number(preset[key]);if(Number.isFinite(n)&&n>=0)$(key).value=String(n);
  }
