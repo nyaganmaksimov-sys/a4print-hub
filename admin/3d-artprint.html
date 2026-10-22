@@ -3,27 +3,27 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>3D-ARTPRINT — A4PRINT HUB</title>
-<link rel="stylesheet" href="./3d-artprint.css?v=1">
+<link rel="stylesheet" href="./3d-artprint.css?v=5">
 <script src="./config.js?v=20260922-direct1"></script>
 </head>
 <body>
 <div class="shell">
 <aside class="nav">
-<a class="brand" href="./index.html"><span class="logo">3D</span><span><strong>3D-ARTPRINT</strong><small>A4PRINT HUB · производство</small></span></a>
+<a class="brand" href="./index.html"><span class="hub-mark">⬡</span><span><strong>A4PRINT HUB</strong><small>Экосистема управления</small></span></a>
 <nav aria-label="Разделы 3D-ARTPRINT">
-<a class="selected" href="./3d-artprint.html">▦ &nbsp; Обзор</a>
+<a class="selected" href="./3d-artprint.html">⌂ &nbsp; Обзор</a>
 <a href="./orders.html?unit=3D_ARTPRINT">▤ &nbsp; Заказы</a>
 <a href="./production.html?unit=3D_ARTPRINT">▣ &nbsp; Производство</a>
-<a href="./warehouse.html">◈ &nbsp; Материалы и склад</a>
+<a href="#fleetPanel">▣ &nbsp; Принтеры</a><a href="#serverProfilesPanel">▱ &nbsp; Профили печати</a><a href="./warehouse.html">◈ &nbsp; Материалы</a>
 <a href="./equipment.html">⚙ &nbsp; Оборудование</a>
 <a href="./customers.html">♙ &nbsp; Клиенты</a>
 <a href="./reports.html">▥ &nbsp; Финансы и отчёты</a>
-<a href="./staff.html">♧ &nbsp; Сотрудники</a>
+<a href="./staff.html">♧ &nbsp; Сотрудники</a><a href="#calculatorPanel">⚙ &nbsp; Калькулятор</a>
 </nav>
-<div class="nav-bottom"><a href="./index.html">← Вернуться в HUB</a></div>
+<div class="nav-bottom"><a class="brand-badge" href="./index.html"><span>3D-ARTPRINT</span><small>Модуль экосистемы A4PRINT HUB</small></a><a href="./index.html">← Вернуться в HUB</a></div>
 </aside>
 <main class="main">
-<header class="top"><div><div class="eyebrow">Производственное направление</div><h1>Панель 3D-ARTPRINT</h1><p>Заказы, очередь производства и рабочие задачи</p></div><div class="actions"><span id="syncLabel" role="status">Подключение…</span><button id="reload" type="button">↻ Обновить</button><a class="primary" href="./orders.html?unit=3D_ARTPRINT&new=1">+ Новый заказ</a></div></header>
+<header class="top"><div class="brand-header"><div class="brand-lockup"><strong class="wordmark"><span>3D</span>-<em>ART</em>PRINT</strong><div class="eyebrow">Отдельное производство · интеграция с A4PRINT HUB</div></div><div class="brand-splash" aria-hidden="true"></div></div><div class="actions"><span id="syncLabel" role="status">Подключение…</span><button id="reload" type="button">↻ Обновить</button><a class="primary" href="./orders.html?unit=3D_ARTPRINT&new=1">+ Новый заказ</a></div></header>
 <div id="notice" class="notice" hidden role="alert"></div>
 <section class="cards" aria-label="Показатели заказов">
 <a class="kpi" href="./orders.html?unit=3D_ARTPRINT&status=NEW"><span>Новые заказы</span><strong id="newOrders">—</strong><small>По всем доступным заказам</small></a>
@@ -31,7 +31,11 @@
 <a class="kpi" href="./orders.html?unit=3D_ARTPRINT&status=READY"><span>Готовы</span><strong id="readyOrders">—</strong><small>По всем доступным заказам</small></a>
 <a class="kpi" href="./production.html?unit=3D_ARTPRINT"><span>Задания в очереди</span><strong id="queuedJobs">—</strong><small>По активным заданиям в HUB</small></a>
 </section>
-<section class="panel calculator" aria-label="Калькулятор себестоимости"><div class="panelhead"><div><h2>Калькулятор 3D-печати</h2><p>Предварительная смета FDM · ввод вручную из слайсера</p></div></div><div class="calc-grid">
+<section class="panel" id="fleetPanel"><div class="panelhead"><div><h2>Парк FDM-принтеров</h2><p>4 физических устройства · 5 профилей слайсера</p></div></div><div id="printerFleet" class="fleet-grid"></div><p class="calc-hint">Привязка станков сохраняется только в этом браузере, не создаёт дубликаты оборудования и не меняет реестр HUB.</p></section><div class="cols production-overview">
+<section class="panel"><div class="panelhead"><div><h2>Последние заказы</h2><p>Только направление 3D-ARTPRINT</p></div><a href="./orders.html?unit=3D_ARTPRINT">Все заказы →</a></div><div id="orderList" class="list"><div class="empty">Загружаем заказы…</div></div></section>
+<section class="panel"><div class="panelhead"><div><h2>Очередь производства</h2><p>Очередь и задания в работе</p></div><a href="./production.html?unit=3D_ARTPRINT">Открыть →</a></div><div id="jobList" class="list"><div class="empty">Загружаем задания…</div></div></section>
+</div>
+<div class="workspace-row"><div class="workspace-primary"><section class="panel" id="serverProfilesPanel"><div class="panelhead"><div><h2>Общие профили OrcaSlicer</h2><p>Один станок может иметь несколько профилей печати</p></div></div><form id="serverProfileForm" class="calc-grid"><label>Физический станок<select id="serverProfileEquipment" required><option value="">Выберите станок</option></select></label><label>Название профиля<input id="serverProfileName" maxlength="160" required placeholder="Kobra X · PETG 0,4 мм"></label><label>Сопло, мм (необязательно)<input id="serverProfileNozzle" type="number" min="0.01" step="0.01" placeholder="0.4"></label><div class="calc-preset"><button id="serverProfileSave" type="submit">Добавить профиль в HUB</button><span id="serverProfileStatus" role="status">Проверка доступности…</span></div></form><div id="serverProfiles" class="list"></div></section></div><div class="workspace-secondary"><section class="panel" id="jobProfilePanel"><div class="panelhead"><div><h2>Профили печати для заданий</h2><p>Выбор подходящего профиля OrcaSlicer для назначенного станка</p></div><button id="refreshJobProfiles" type="button">↻ Обновить</button></div><div id="jobProfileAssignments" class="list"><div class="empty">Загрузка заданий…</div></div><p id="jobProfileStatus" class="calc-hint" role="status"></p></section></div></div><section class="panel calculator" id="calculatorPanel" aria-label="Калькулятор себестоимости"><div class="panelhead"><div><h2>Калькулятор 3D-печати</h2><p>Предварительная смета FDM · ввод вручную из слайсера</p></div></div><div class="calc-grid">
 <label>Станок<select id="calcEquipment"><option value="">Ручной расчёт</option></select></label><label>Материал, г<input id="calcGrams" type="number" min="0" step="1" value="100"></label>
 <label>Цена пластика, ₽/кг<input id="calcKg" type="number" min="0" step="10" value="1500"></label>
 <label>Время печати, ч<input id="calcHours" type="number" min="0" step=".1" value="5"></label>
@@ -41,12 +45,8 @@
 <label>Наценка, % от себестоимости<input id="calcMarkup" type="number" min="0" step="1" value="100"></label>
 <div class="calc-preset"><button id="calcSavePreset" type="button">Сохранить параметры станка в браузере</button><button id="calcClearPreset" type="button">Сбросить сохранённые параметры</button><span id="calcPresetStatus" role="status"></span></div><div class="calc-result"><span>Себестоимость <strong id="calcCost">—</strong></span><span>Цена продажи <strong id="calcPrice">—</strong></span><span>Валовая прибыль <strong id="calcProfit">—</strong></span></div>
 </div><p class="calc-hint">Расчёт локальный, без сохранения в заказ. Машинный час = цена станка / ресурс в часах + электричество и обслуживание за час. Ресурс и текущие расходы задаются вручную и могут сохраняться локально для выбранного станка в этом браузере. Закупочная цена подставляется из карточки, если указана. Это управленческая оценка, не бухгалтерская амортизация.</p></section>
-<div class="cols">
-<section class="panel"><div class="panelhead"><div><h2>Последние заказы</h2><p>Только направление 3D-ARTPRINT</p></div><a href="./orders.html?unit=3D_ARTPRINT">Все заказы →</a></div><div id="orderList" class="list"><div class="empty">Загружаем заказы…</div></div></section>
-<section class="panel"><div class="panelhead"><div><h2>Производство</h2><p>Очередь и задания в работе</p></div><a href="./production.html?unit=3D_ARTPRINT">Открыть →</a></div><div id="jobList" class="list"><div class="empty">Загружаем задания…</div></div></section>
-</div>
-<section class="panel" id="fleetPanel"><div class="panelhead"><div><h2>Парк FDM-принтеров</h2><p>4 физических устройства · 5 профилей слайсера</p></div></div><div id="printerFleet" class="fleet-grid"></div><p class="calc-hint">Привязка станков сохраняется только в этом браузере, не создаёт дубликаты оборудования и не меняет реестр HUB.</p></section><section class="panel" id="serverProfilesPanel"><div class="panelhead"><div><h2>Общие профили OrcaSlicer</h2><p>Один станок может иметь несколько профилей печати</p></div></div><form id="serverProfileForm" class="calc-grid"><label>Физический станок<select id="serverProfileEquipment" required><option value="">Выберите станок</option></select></label><label>Название профиля<input id="serverProfileName" maxlength="160" required placeholder="Kobra X · PETG 0,4 мм"></label><label>Сопло, мм (необязательно)<input id="serverProfileNozzle" type="number" min="0.01" step="0.01" placeholder="0.4"></label><div class="calc-preset"><button id="serverProfileSave" type="submit">Добавить профиль в HUB</button><span id="serverProfileStatus" role="status">Проверка доступности…</span></div></form><div id="serverProfiles" class="list"></div></section><section class="panel" id="jobProfilePanel"><div class="panelhead"><div><h2>Профили печати для заданий</h2><p>Выбор подходящего профиля OrcaSlicer для назначенного станка</p></div><button id="refreshJobProfiles" type="button">↻ Обновить</button></div><div id="jobProfileAssignments" class="list"><div class="empty">Загрузка заданий…</div></div><p id="jobProfileStatus" class="calc-hint" role="status"></p></section><section class="panel" id="machinesPanel"><div class="panelhead"><div><h2>Оборудование 3D-ARTPRINT</h2><p>Все станки организации, включая свободные, и их производственная загрузка</p></div><a href="./equipment.html">Реестр →</a></div><div id="machineList" class="list"><div class="empty">Загружаем оборудование…</div></div></section>
+<section class="panel" id="machinesPanel"><div class="panelhead"><div><h2>Оборудование 3D-ARTPRINT</h2><p>Все станки организации, включая свободные, и их производственная загрузка</p></div><a href="./equipment.html">Реестр →</a></div><div id="machineList" class="list"><div class="empty">Загружаем оборудование…</div></div></section>
 <div class="footer-note">Показатели рассчитываются по данным HUB. Финансовые показатели появятся после подключения проверенных агрегатов для организации.</div>
 </main></div>
-<script type="module" src="./3d-artprint-fleet.js?v=1"></script><script type="module" src="./3d-artprint-profiles.js?v=1"></script><script type="module" src="./3d-artprint-job-profiles.js?v=1"></script><script type="module" src="./3d-artprint.js?v=4"></script>
+<script type="module" src="./3d-artprint-fleet.js?v=1"></script><script type="module" src="./3d-artprint-profiles.js?v=1"></script><script type="module" src="./3d-artprint-job-profiles.js?v=1"></script><script type="module" src="./3d-artprint.js?v=5"></script>
 </body></html>
