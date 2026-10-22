@@ -82,7 +82,7 @@ function jobHtml(job){
   const late=overdue(job),priority=Number(job.priority||0),high=priority>=70,deadline=deadlineOf(job);
   const assignee=job.assignee_name||job.assignee_email||'Не назначен';
   const controls=canManage()?`<select class="production-status-select" data-status data-id="${job.id}">${statusOptions(job.status)}</select><button class="production-edit" type="button" data-edit="${job.id}">Изменить</button>`:`<span class="production-readonly-status">${esc(statusLabels[job.status]||job.status)}</span>`;
-  return `<article class="production-job ${late?'overdue':''}">
+  return `<article data-production-job-id="${esc(job.id)}" class="production-job ${late?'overdue':''}">
     <div class="production-job-top"><div class="production-job-title"><b>${esc(job.title||'Производственное задание')}</b><small>${job.order_id?`Заказ №${esc(job.order_number??'—')} · ${esc(unitLabels[job.order_business_unit]||job.order_business_unit||'Общее')}`:'Внутреннее задание'}${job.operation_type?` · ${esc(job.operation_type)}`:''}</small></div><span class="production-priority ${high?'high':''}" title="Приоритет">${priority}</span></div>
     <div class="production-job-meta"><div class="production-meta-cell"><span>Исполнитель</span><b>${esc(assignee)}</b></div><div class="production-meta-cell ${late?'danger':''}"><span>Срок</span><b>${esc(fmtDate(deadline))}</b></div></div>
     <div class="production-job-meta"><div class="production-meta-cell"><span>Машинное время</span><b>${job.planned_machine_minutes?`${esc(Math.round(Number(job.planned_machine_minutes)))} мин`:'не задано'}</b></div><div class="production-meta-cell"><span>План станка</span><b>${esc(scheduleLabel(job))}</b></div></div>
