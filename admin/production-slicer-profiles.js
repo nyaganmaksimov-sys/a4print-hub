@@ -1,25 +1,27 @@
 // Optional printer profile picker in existing production cards.
 // No mutation of production_jobs: profile assignment has its own guarded table.
 import {supabase} from './guard.js?v=20260905-netfix1';
-let jobs=[],profiles=[],assignments=[],loading=false,currentOrgId=null;
-const canEdit=()=>Array.isArray(window.__A4_CURRENT_ROLES__)&&window.__A4_CURRENT_ROLES__.some(r=>['ADMIN','MANAGER','PRODUCTION'].includes(r));
+let jobs=[],profiles=[],assignments=[],loading=false,currentOrgId=null,editable=false,rerun=false;
+const canEdit=()=>editable;
 function text(tag,content){const e=document.createElement(tag);e.textContent=content;return e}
 async function refresh(){
- if(loading)return;loading=true;
+ if(loading){rerun=true;return;}loading=true;
  try{
   const selected=jobs.filter(j=>j.order_business_unit==='3D_ARTPRINT'&&j.equipment_id);
   if(!selected.length)return;
   const equipmentIds=[...new Set(selected.map(j=>j.equipment_id))],jobIds=selected.map(j=>j.id);
-  const [p,a,org]=await Promise.all([
+  const [p,a,org,roles]=await Promise.all([
    supabase.from('production_printer_profiles').select('id,equipment_id,name,is_active').in('equipment_id',equipmentIds),
    supabase.from('production_job_printer_profiles').select('production_job_id,printer_profile_id').in('production_job_id',jobIds),
-   supabase.rpc('current_user_organization_id')
+   supabase.rpc('current_user_organization_id'),
+   supabase.rpc('get_my_roles')
   ]);
-  if(p.error||a.error||org.error||!org.data)return;
+  if(p.error||a.error||org.error||!org.data){console.warn('Printer profiles unavailable',p.error||a.error||org.error);return;}
   currentOrgId=org.data;
+  editable=!roles.error&&Array.isArray(roles.data)&&roles.data.some(role=>['ADMIN','MANAGER','PRODUCTION'].includes(String(role)));
   profiles=p.data||[];assignments=a.data||[];
   render();
- }finally{loading=false}
+ }finally{loading=false;if(rerun){rerun=false;void refresh();}}
 }
 function render(){
  const editable=canEdit();
