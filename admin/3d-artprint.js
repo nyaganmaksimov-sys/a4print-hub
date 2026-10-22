@@ -41,8 +41,6 @@ async function machines(jobs){
  const assets=assetsResult.data||[];
  const ids=assets.map(a=>a.id);
  const economicsResult=ids.length?await supabase.from('equipment_economics_daily').select('equipment_id,metric_date,machine_minutes,operation_revenue,production_cost,service_cost,net_margin_after_service').in('equipment_id',ids).gte('metric_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)):{data:[],error:null};
- if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
- const assets=assetsResult.data||[];
  refreshCalcEquipment(assets);
  document.dispatchEvent(new CustomEvent("a4:3d-equipment-loaded",{detail:{orgId:org.id,assets}}));
  const status={ACTIVE:'В эксплуатации',REPAIR:'В ремонте',RESERVE:'Резерв',STORAGE:'На хранении',WRITTEN_OFF:'Списано'};
