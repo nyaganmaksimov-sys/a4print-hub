@@ -32,3 +32,10 @@ body{background:radial-gradient(ellipse 55% 30% at 84% -7%,#122645 0,transparent
 @media(max-width:680px){.fleet-art{height:150px}.fleet-card{min-height:260px}}
 
 .official-brand-logo{display:block;width:min(330px,100%);height:auto;object-fit:contain;filter:drop-shadow(0 5px 18px #e51db041);image-rendering:auto}.brand-header .brand-lockup{min-width:0}
+
+/* Standalone browser dashboard: protect the dark workspace from inherited HUB/light themes. */
+html:has(body>.shell),body:has(>.shell){background:#070d18!important;color:#edf6ff!important;min-height:100%;color-scheme:dark!important}
+body>.shell{background:#070d18!important;color:#edf6ff;min-height:100vh}
+body>.shell>.main{background:radial-gradient(ellipse 55% 30% at 84% -7%,#122645 0,transparent 70%),#070d18!important;color:#edf6ff!important}
+body>.shell .panel,body>.shell .kpi{color:#edf6ff!important}
+body>.shell .nav{background:linear-gradient(180deg,#0c192b,#091323 66%,#0d1930)!important}
