@@ -44,6 +44,7 @@ async function machines(jobs){
  if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
  const assets=assetsResult.data||[];
  refreshCalcEquipment(assets);
+ document.dispatchEvent(new CustomEvent("a4:3d-equipment-loaded",{detail:{orgId:org.id,assets}}));
  const status={ACTIVE:'В эксплуатации',REPAIR:'В ремонте',RESERVE:'Резерв',STORAGE:'На хранении',WRITTEN_OFF:'Списано'};
  const counts=new Map();jobs.forEach(j=>{if(j.equipment_id&&['NEW','QUEUED','IN_PROGRESS','PAUSED'].includes(j.status))counts.set(j.equipment_id,(counts.get(j.equipment_id)||0)+1)});
  const rub=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽';
