@@ -32,7 +32,17 @@ async function jobs(){
   $('queuedJobs').title='Счётчик по возвращённым производственным заданиям';
 }
 async function load(){
- if(busy)return;busy=true;$('reload').disabled=true;$('notice').hidden=true;$('syncLabel').textContent='Обновление…';
+ if(busy)return;busy=true;$('reload').disabled=true;$('notice').hidden=true;$('syncLabel').textContent='Проверка доступа…';
+ try {
+   const {data:{session},error:authError}=await supabase.auth.getSession();
+   if(authError||!session){location.replace('./login.html');return}
+   const {data:profile,error:profileError}=await supabase.rpc('get_my_staff_profile');
+   if(profileError||profile?.status!=='ACTIVE')throw new Error('Нет подтверждённого доступа сотрудника к HUB');
+ } catch(error){
+   $('notice').hidden=false;$('notice').textContent='Доступ не подтверждён: '+errorText(error);
+   $('syncLabel').textContent='Нет доступа';$('reload').disabled=false;busy=false;return;
+ }
+ $('syncLabel').textContent='Обновление…';
  const results=await Promise.allSettled([orders(),jobs()]);
  const errors=results.filter(r=>r.status==='rejected').map(r=>errorText(r.reason));
  $('notice').hidden=!errors.length;
