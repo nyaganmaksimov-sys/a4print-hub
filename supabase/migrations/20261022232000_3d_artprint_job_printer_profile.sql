@@ -1,6 +1,6 @@
 -- Printer profile assignment to production job: optional 1:1 mapping.
 create table if not exists public.production_job_printer_profiles (
- production_job_id uuid primary key references public.production_jobs(id) on delete cascade,
+ production_job_id uuid primary key references public.production_jobs(id),
  organization_id uuid not null references public.organizations(id),
  printer_profile_id uuid not null references public.production_printer_profiles(id),
  assigned_at timestamptz not null default now()
@@ -23,7 +23,12 @@ drop trigger if exists trg_validate_production_job_printer_profile on public.pro
 create trigger trg_validate_production_job_printer_profile
 before insert or update on public.production_job_printer_profiles
 for each row execute function public.validate_production_job_printer_profile();
+alter table public.production_job_printer_profiles add column if not exists assigned_at timestamptz not null default now();
 alter table public.production_job_printer_profiles enable row level security;
+drop policy if exists job_printer_profile_read on public.production_job_printer_profiles;
+drop policy if exists job_printer_profile_insert on public.production_job_printer_profiles;
+drop policy if exists job_printer_profile_update on public.production_job_printer_profiles;
+drop policy if exists job_printer_profile_delete on public.production_job_printer_profiles;
 create policy job_printer_profile_read on public.production_job_printer_profiles
 for select to authenticated using(organization_id=(select public.current_user_organization_id()) and (select public.is_hub_staff()));
 create policy job_printer_profile_insert on public.production_job_printer_profiles
