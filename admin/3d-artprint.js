@@ -104,6 +104,7 @@ function refreshCalcEquipment(assets){
  select.onchange=()=>{
   const item=map.get(select.value);
   if(item&&item.purchase_price!=null)$('calcPurchase').value=String(Math.max(0,Number(item.purchase_price)||0));
+  loadMachinePreset();
   calculate();
  };
 }
@@ -122,3 +123,33 @@ function calculate(){
 }
 calcIds.forEach(id=>$(id).addEventListener('input',calculate));
 calculate();
+
+const presetKey=id=>'a4print:3d-artprint:machine-cost:v1:'+id;
+function readPreset(id){
+ try{const value=JSON.parse(localStorage.getItem(presetKey(id))||'null');return value&&typeof value==='object'?value:null;}catch{return null}
+}
+function loadMachinePreset(){
+ const id=$('calcEquipment').value,info=$('calcPresetStatus');
+ info.textContent='';
+ if(!id){info.textContent='Для сохранения выберите станок';return;}
+ const preset=readPreset(id);
+ if(!preset){info.textContent='Для станка нет сохранённого профиля';return;}
+ for(const key of ['calcLife','calcRunning']){
+  const n=Number(preset[key]);if(Number.isFinite(n)&&n>=0)$(key).value=String(n);
+ }
+ info.textContent='Параметры загружены из этого браузера';
+}
+$('calcSavePreset').addEventListener('click',()=>{
+ const id=$('calcEquipment').value,info=$('calcPresetStatus');
+ if(!id){info.textContent='Выберите станок для сохранения';return;}
+ const life=Number($('calcLife').value),running=Number($('calcRunning').value);
+ if(!Number.isFinite(life)||life<=0||!Number.isFinite(running)||running<0){info.textContent='Проверьте ресурс и расходы';return;}
+ try{localStorage.setItem(presetKey(id),JSON.stringify({calcLife:life,calcRunning:running}));info.textContent='Сохранено только в этом браузере';}
+ catch{info.textContent='Не удалось сохранить параметры браузера';}
+});
+$('calcClearPreset').addEventListener('click',()=>{
+ const id=$('calcEquipment').value,info=$('calcPresetStatus');
+ if(!id){info.textContent='Выберите станок';return;}
+ try{localStorage.removeItem(presetKey(id));info.textContent='Локальный профиль сброшен';}
+ catch{info.textContent='Не удалось сбросить профиль';}
+});
