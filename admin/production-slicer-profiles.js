@@ -8,7 +8,7 @@ async function refresh(){
  if(loading){rerun=true;return;}loading=true;
  try{
   const selected=jobs.filter(j=>j.order_business_unit==='3D_ARTPRINT'&&j.equipment_id);
-  if(!selected.length)return;
+  if(!selected.length){profiles=[];assignments=[];return;}
   const equipmentIds=[...new Set(selected.map(j=>j.equipment_id))],jobIds=selected.map(j=>j.id);
   const [p,a,org,roles]=await Promise.all([
    supabase.from('production_printer_profiles').select('id,equipment_id,name,is_active').in('equipment_id',equipmentIds),
@@ -24,7 +24,7 @@ async function refresh(){
  }finally{loading=false;if(rerun){rerun=false;void refresh();}}
 }
 function render(){
- const editable=canEdit();
+ const editable=canEdit()&&Boolean(currentOrgId);
  for(const job of jobs){
   const node=document.querySelector('[data-production-job-id="'+job.id+'"]');
   if(!node||job.order_business_unit!=='3D_ARTPRINT'||!job.equipment_id)continue;
@@ -47,6 +47,7 @@ function render(){
     save.disabled=true;
     const value=select.value;
     try{
+      if(value&&!options.some(p=>p.id===value))throw new Error('Профиль не принадлежит выбранному станку');
       const result=value
        ?await supabase.from('production_job_printer_profiles').upsert({production_job_id:job.id,printer_profile_id:value,organization_id:currentOrgId},{onConflict:'production_job_id'})
        :await supabase.from('production_job_printer_profiles').delete().eq('production_job_id',job.id);
