@@ -3,3 +3,5 @@
 #machinesPanel{margin-top:20px}
 
 .machine-economics{font-size:12px;color:var(--muted);padding:0 8px 14px;border-bottom:1px solid var(--border);line-height:1.7;overflow-wrap:anywhere}
+
+.calc-preset{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.calc-preset button{background:#243348;border:1px solid #41526c;border-radius:8px;color:#e5edf8;padding:10px;cursor:pointer}.calc-preset span{font-size:12px;color:var(--muted)}
