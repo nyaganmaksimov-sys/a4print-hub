@@ -63,8 +63,13 @@ async function machines(jobs){
   root.append(link);
   const meta=document.createElement('div');meta.className='machine-economics';
   const purchase=a.purchase_price==null?'не указана':rub(a.purchase_price);
-  if(economicsResult.error)meta.textContent='Закупочная цена: '+purchase+' · Экономика за 30 дней недоступна';
-  else meta.textContent='Закупочная цена: '+purchase+' · Машинные часы (30 дней): '+((m?.minutes||0)/60).toFixed(1)+' · Выручка операций: '+rub(m?.revenue)+' · Затраты с сервисом: '+rub((m?.cost||0)+(m?.service||0))+' · Маржа после сервиса: '+rub(m?.margin);
+  const serviceDate=a.next_service_date?new Date(a.next_service_date+'T00:00:00'):null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const daysToService=serviceDate&&Number.isFinite(serviceDate.getTime())?Math.ceil((serviceDate.getTime()-today.getTime())/86400000):null;
+  const serviceLabel=daysToService===null?'ТО не запланировано':daysToService<0?'ТО просрочено на '+Math.abs(daysToService)+' дн.':daysToService===0?'ТО сегодня':'До ТО '+daysToService+' дн.';
+  const base='Закупочная цена: '+purchase+' · '+serviceLabel;
+  if(economicsResult.error)meta.textContent=base+' · Экономика за 30 дней недоступна';
+  else meta.textContent=base+' · Машинные часы (30 дней): '+((m?.minutes||0)/60).toFixed(1)+' · Выручка операций: '+rub(m?.revenue)+' · Затраты с сервисом: '+rub((m?.cost||0)+(m?.service||0))+' · Маржа после сервиса: '+rub(m?.margin);
   root.append(meta);
  }
 }
