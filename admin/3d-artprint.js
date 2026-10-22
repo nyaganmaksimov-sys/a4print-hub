@@ -1,0 +1,38 @@
+import {supabase} from './guard.js?v=20260905-netfix1';
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labels={NEW:'Новый',CONFIRMED:'Подтверждён',IN_PROGRESS:'В работе',READY:'Готов',COMPLETED:'Завершён',ON_HOLD:'Приостановлен',CANCELLED:'Отменён',QUEUED:'Очередь',PAUSED:'Пауза',DONE:'Готово'};
+let busy=false;
+const errorText=e=>e?.message||String(e);
+function line(href,title,subtitle,badge){const a=document.createElement('a');a.className='line';a.href=href;a.innerHTML='<span><b>'+esc(title)+'</b><small>'+esc(subtitle)+'</small></span><span class="pill">'+esc(badge)+'</span>';return a}
+function draw(id,rows,fn){const root=$(id);root.replaceChildren();if(!rows.length){const el=document.createElement('div');el.className='empty';el.textContent='Записей пока нет';root.append(el);return}rows.forEach(r=>root.append(fn(r)))}
+async function orders(){
+  const {data,error}=await supabase.rpc('get_orders_workspace_page',{p_query:'',p_status:'',p_unit:'3D_ARTPRINT',p_attention:'',p_page:1,p_page_size:50});
+  if(error)throw error;
+  const rows=(Array.isArray(data)?data:[]).filter(o=>o.business_unit==='3D_ARTPRINT');
+  $('newOrders').textContent=rows.filter(o=>o.status==='NEW').length;
+  $('activeOrders').textContent=rows.filter(o=>['CONFIRMED','IN_PROGRESS'].includes(o.status)).length;
+  $('readyOrders').textContent=rows.filter(o=>o.status==='READY').length;
+  draw('orderList',rows.slice(0,8),o=>line('./order.html?id='+encodeURIComponent(o.id),'№'+(o.order_number||String(o.id).slice(0,8))+' · '+(o.item_name||o.model_name||'Заказ'),o.customer_full_name||o.customer_company_name||'Клиент не указан',labels[o.status]||o.status||'—'));
+  // These three counters represent only the loaded page of orders, not a global total.
+  ['newOrders','activeOrders','readyOrders'].forEach(id=>$(id).title='Количество среди последних 50 загруженных заказов');
+}
+async function jobs(){
+  const {data,error}=await supabase.rpc('get_production_workspace_jobs',{p_query:'',p_unit:'3D_ARTPRINT',p_assignee:null,p_priority:'',p_done_limit:20,p_cancelled_limit:0});
+  if(error)throw error;
+  const rows=(Array.isArray(data)?data:[]).filter(j=>j.order_business_unit==='3D_ARTPRINT');
+  $('queuedJobs').textContent=rows.filter(j=>['NEW','QUEUED'].includes(j.status)).length;
+  draw('jobList',rows.filter(j=>!['DONE','CANCELLED'].includes(j.status)).slice(0,8),j=>line('./production.html?unit=3D_ARTPRINT',j.title||'Производственное задание','Заказ '+(j.order_number||'—')+' · '+(j.assignee_name||'Исполнитель не назначен'),labels[j.status]||j.status||'—'));
+  $('queuedJobs').title='Счётчик по возвращённым производственным заданиям';
+}
+async function load(){
+ if(busy)return;busy=true;$('reload').disabled=true;$('notice').hidden=true;$('syncLabel').textContent='Обновление…';
+ const results=await Promise.allSettled([orders(),jobs()]);
+ const errors=results.filter(r=>r.status==='rejected').map(r=>errorText(r.reason));
+ $('notice').hidden=!errors.length;
+ if(errors.length)$('notice').textContent='Не все данные загрузились: '+errors.join('; ')+'. Повторите обновление.';
+ $('syncLabel').textContent=errors.length?'Есть ошибки':'Данные HUB · '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+ $('reload').disabled=false;busy=false;
+}
+$('reload').addEventListener('click',load);
+load();
