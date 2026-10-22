@@ -1,7 +1,7 @@
 // Optional printer profile picker in existing production cards.
 // No mutation of production_jobs: profile assignment has its own guarded table.
 import {supabase} from './guard.js?v=20260905-netfix1';
-let jobs=[],profiles=[],assignments=[],loading=false;
+let jobs=[],profiles=[],assignments=[],loading=false,currentOrgId=null;
 const canEdit=()=>Array.isArray(window.__A4_CURRENT_ROLES__)&&window.__A4_CURRENT_ROLES__.some(r=>['ADMIN','MANAGER','PRODUCTION'].includes(r));
 function text(tag,content){const e=document.createElement(tag);e.textContent=content;return e}
 async function refresh(){
@@ -10,11 +10,13 @@ async function refresh(){
   const selected=jobs.filter(j=>j.order_business_unit==='3D_ARTPRINT'&&j.equipment_id);
   if(!selected.length)return;
   const equipmentIds=[...new Set(selected.map(j=>j.equipment_id))],jobIds=selected.map(j=>j.id);
-  const [p,a]=await Promise.all([
+  const [p,a,org]=await Promise.all([
    supabase.from('production_printer_profiles').select('id,equipment_id,name,is_active').in('equipment_id',equipmentIds),
-   supabase.from('production_job_printer_profiles').select('production_job_id,printer_profile_id').in('production_job_id',jobIds)
+   supabase.from('production_job_printer_profiles').select('production_job_id,printer_profile_id').in('production_job_id',jobIds),
+   supabase.rpc('current_user_organization_id')
   ]);
-  if(p.error||a.error)return;
+  if(p.error||a.error||org.error||!org.data)return;
+  currentOrgId=org.data;
   profiles=p.data||[];assignments=a.data||[];
   render();
  }finally{loading=false}
@@ -44,7 +46,7 @@ function render(){
     const value=select.value;
     try{
       const result=value
-       ?await supabase.from('production_job_printer_profiles').upsert({production_job_id:job.id,printer_profile_id:value,organization_id:job.organization_id},{onConflict:'production_job_id'})
+       ?await supabase.from('production_job_printer_profiles').upsert({production_job_id:job.id,printer_profile_id:value,organization_id:currentOrgId},{onConflict:'production_job_id'})
        :await supabase.from('production_job_printer_profiles').delete().eq('production_job_id',job.id);
       if(result.error)throw result.error;
       status.textContent='Сохранено';await refresh();
