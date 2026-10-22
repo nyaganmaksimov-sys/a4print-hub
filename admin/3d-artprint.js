@@ -35,16 +35,36 @@ async function jobs(){
 async function machines(jobs){
  const ids=[...new Set(jobs.map(j=>j.equipment_id).filter(Boolean))];
  const root=$('machineList');
- if(!ids.length){root.innerHTML='<div class="empty">В заданиях 3D-ARTPRINT оборудование пока не назначено. Добавить станок можно через реестр оборудования.</div>';return;}
- const {data,error}=await supabase.from('equipment_assets')
-   .select('id,name,inventory_number,status,category,brand,model,next_service_date')
-   .in('id',ids);
- if(error){root.textContent='Не удалось загрузить станки: '+errorText(error);return;}
- const assets=Array.isArray(data)?data:[], byId=new Map(assets.map(a=>[a.id,a]));
+ if(!ids.length){root.textContent='В заданиях 3D-ARTPRINT оборудование пока не назначено. Добавить станок можно через реестр оборудования.';return;}
+ const [assetsResult,economicsResult]=await Promise.all([
+   supabase.from('equipment_assets').select('id,name,inventory_number,status,category,brand,model,next_service_date,purchase_price').in('id',ids),
+   supabase.from('equipment_economics_daily').select('equipment_id,metric_date,machine_minutes,operation_revenue,production_cost,service_cost,net_margin_after_service').in('equipment_id',ids).gte('metric_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10))
+ ]);
+ if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
+ const assets=assetsResult.data||[];
  const status={ACTIVE:'В эксплуатации',REPAIR:'В ремонте',RESERVE:'Резерв',STORAGE:'На хранении',WRITTEN_OFF:'Списано'};
  const counts=new Map();jobs.forEach(j=>{if(j.equipment_id&&['NEW','QUEUED','IN_PROGRESS','PAUSED'].includes(j.status))counts.set(j.equipment_id,(counts.get(j.equipment_id)||0)+1)});
- draw('machineList',assets,a=>line('./equipment.html?equipment='+encodeURIComponent(a.id),'№'+(a.inventory_number||'—')+' · '+(a.name||a.model||'Оборудование'),[a.brand,a.model].filter(Boolean).join(' ')+' · '+(status[a.status]||a.status||'—'),'Заданий: '+(counts.get(a.id)||0)));
- // Unreadable equipment IDs are intentionally not rendered; access is enforced by equipment RLS.
+ const rub=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽';
+ const metrics=new Map();
+ if(!economicsResult.error){
+  for(const item of economicsResult.data||[]){
+   const m=metrics.get(item.equipment_id)||{minutes:0,revenue:0,cost:0,service:0,margin:0};
+   m.minutes+=Number(item.machine_minutes||0);m.revenue+=Number(item.operation_revenue||0);
+   m.cost+=Number(item.production_cost||0);m.service+=Number(item.service_cost||0);
+   m.margin+=Number(item.net_margin_after_service||0);metrics.set(item.equipment_id,m);
+  }
+ }
+ root.replaceChildren();
+ if(!assets.length){root.textContent='Связанное оборудование недоступно для вашей учётной записи.';return;}
+ for(const a of assets){
+  const m=metrics.get(a.id),link=line('./equipment.html?equipment='+encodeURIComponent(a.id),'№'+(a.inventory_number||'—')+' · '+(a.name||a.model||'Оборудование'),[a.brand,a.model].filter(Boolean).join(' ')+' · '+(status[a.status]||a.status||'—'),'Активных: '+(counts.get(a.id)||0));
+  root.append(link);
+  const meta=document.createElement('div');meta.className='machine-economics';
+  const purchase=a.purchase_price==null?'не указана':rub(a.purchase_price);
+  if(economicsResult.error)meta.textContent='Закупочная цена: '+purchase+' · Экономика за 30 дней недоступна';
+  else meta.textContent='Закупочная цена: '+purchase+' · Машинные часы (30 дней): '+((m?.minutes||0)/60).toFixed(1)+' · Выручка операций: '+rub(m?.revenue)+' · Затраты с сервисом: '+rub((m?.cost||0)+(m?.service||0))+' · Маржа после сервиса: '+rub(m?.margin);
+  root.append(meta);
+ }
 }
 async function load(){
  if(busy)return;busy=true;$('reload').disabled=true;$('notice').hidden=true;$('syncLabel').textContent='Проверка доступа…';
