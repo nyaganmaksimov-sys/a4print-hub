@@ -42,6 +42,7 @@ async function machines(jobs){
  ]);
  if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
  const assets=assetsResult.data||[];
+ refreshCalcEquipment(assets);
  const status={ACTIVE:'В эксплуатации',REPAIR:'В ремонте',RESERVE:'Резерв',STORAGE:'На хранении',WRITTEN_OFF:'Списано'};
  const counts=new Map();jobs.forEach(j=>{if(j.equipment_id&&['NEW','QUEUED','IN_PROGRESS','PAUSED'].includes(j.status))counts.set(j.equipment_id,(counts.get(j.equipment_id)||0)+1)});
  const rub=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:0})+' ₽';
@@ -87,12 +88,27 @@ async function load(){
 }
 $('reload').addEventListener('click',load);
 load();
-const calcIds=['calcGrams','calcKg','calcHours','calcMachine','calcLabor','calcOther','calcMarkup'];
+const calcIds=['calcGrams','calcKg','calcHours','calcPurchase','calcLife','calcRunning','calcLabor','calcOther','calcMarkup'];
+function refreshCalcEquipment(assets){
+ const select=$('calcEquipment'),current=select.value;
+ select.replaceChildren(new Option('Ручной расчёт',''));
+ for(const a of assets)select.add(new Option((a.inventory_number||'—')+' · '+(a.name||a.model||'Станок'),a.id));
+ if(assets.some(a=>a.id===current))select.value=current;
+ const map=new Map(assets.map(a=>[a.id,a]));
+ select.onchange=()=>{
+  const item=map.get(select.value);
+  if(item&&item.purchase_price!=null)$('calcPurchase').value=String(Math.max(0,Number(item.purchase_price)||0));
+  calculate();
+ };
+}
+
 const calcRub=n=>n.toLocaleString('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2});
 function calculate(){
  const read=id=>{const value=$(id).value.trim();const n=value===''?0:Number(value);return Number.isFinite(n)?Math.max(0,n):0};
  const grams=read('calcGrams'),kg=read('calcKg'),hours=read('calcHours'),machine=read('calcMachine'),labor=read('calcLabor'),other=read('calcOther'),markup=read('calcMarkup');
- const cost=grams*kg/1000+hours*machine+labor+other;
+ const hourly=(read('calcLife')>0?read('calcPurchase')/read('calcLife'):0)+read('calcRunning');
+ $('calcMachine').value=hourly.toFixed(2);
+ const cost=grams*kg/1000+hours*hourly+labor+other;
  const price=cost*(1+markup/100);
  $('calcCost').textContent=calcRub(cost);
  $('calcPrice').textContent=calcRub(price);
