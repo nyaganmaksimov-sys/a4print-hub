@@ -31,6 +31,16 @@
 <a class="kpi" href="./orders.html?unit=3D_ARTPRINT&status=READY"><span>Готовы</span><strong id="readyOrders">—</strong><small>Среди последних 50 заказов</small></a>
 <a class="kpi" href="./production.html?unit=3D_ARTPRINT"><span>Задания в очереди</span><strong id="queuedJobs">—</strong><small>По текущей выборке производства</small></a>
 </section>
+<section class="panel calculator" aria-label="Калькулятор себестоимости"><div class="panelhead"><div><h2>Калькулятор 3D-печати</h2><p>Предварительная смета FDM · ввод вручную из слайсера</p></div></div><div class="calc-grid">
+<label>Материал, г<input id="calcGrams" type="number" min="0" step="1" value="100"></label>
+<label>Цена пластика, ₽/кг<input id="calcKg" type="number" min="0" step="10" value="1500"></label>
+<label>Время печати, ч<input id="calcHours" type="number" min="0" step=".1" value="5"></label>
+<label>Стоимость станка, ₽/ч<input id="calcMachine" type="number" min="0" step="1" value="30"></label>
+<label>Работа и постобработка, ₽<input id="calcLabor" type="number" min="0" step="1" value="150"></label>
+<label>Дополнительные расходы, ₽<input id="calcOther" type="number" min="0" step="1" value="0"></label>
+<label>Наценка, % от себестоимости<input id="calcMarkup" type="number" min="0" step="1" value="100"></label>
+<div class="calc-result"><span>Себестоимость <strong id="calcCost">—</strong></span><span>Цена продажи <strong id="calcPrice">—</strong></span><span>Валовая прибыль <strong id="calcProfit">—</strong></span></div>
+</div><p class="calc-hint">Расчёт локальный, без сохранения в заказ. Стоимость станка за час должна учитывать электроэнергию, амортизацию и обслуживание; если они уже включены, повторно не добавляйте их в расходы.</p></section>
 <div class="cols">
 <section class="panel"><div class="panelhead"><div><h2>Последние заказы</h2><p>Только направление 3D-ARTPRINT</p></div><a href="./orders.html?unit=3D_ARTPRINT">Все заказы →</a></div><div id="orderList" class="list"><div class="empty">Загружаем заказы…</div></div></section>
 <section class="panel"><div class="panelhead"><div><h2>Производство</h2><p>Очередь и задания в работе</p></div><a href="./production.html?unit=3D_ARTPRINT">Открыть →</a></div><div id="jobList" class="list"><div class="empty">Загружаем задания…</div></div></section>
