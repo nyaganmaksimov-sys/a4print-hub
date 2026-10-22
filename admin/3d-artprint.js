@@ -33,13 +33,14 @@ async function jobs(){
   $('queuedJobs').title='Счётчик по возвращённым производственным заданиям';
 }
 async function machines(jobs){
- const ids=[...new Set(jobs.map(j=>j.equipment_id).filter(Boolean))];
  const root=$('machineList');
- if(!ids.length){root.textContent='В заданиях 3D-ARTPRINT оборудование пока не назначено. Добавить станок можно через реестр оборудования.';return;}
- const [assetsResult,economicsResult]=await Promise.all([
-   supabase.from('equipment_assets').select('id,name,inventory_number,status,category,brand,model,next_service_date,purchase_price').in('id',ids),
-   supabase.from('equipment_economics_daily').select('equipment_id,metric_date,machine_minutes,operation_revenue,production_cost,service_cost,net_margin_after_service').in('equipment_id',ids).gte('metric_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10))
- ]);
+ const {data:org,error:orgError}=await supabase.from('organizations').select('id').eq('code','3DARTPRINT').maybeSingle();
+ if(orgError||!org?.id){root.textContent='Организация 3D-ARTPRINT недоступна для вашей учётной записи.';refreshCalcEquipment([]);return;}
+ const assetsResult=await supabase.from('equipment_assets').select('id,name,inventory_number,status,category,brand,model,next_service_date,purchase_price').eq('organization_id',org.id).order('name');
+ if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
+ const assets=assetsResult.data||[];
+ const ids=assets.map(a=>a.id);
+ const economicsResult=ids.length?await supabase.from('equipment_economics_daily').select('equipment_id,metric_date,machine_minutes,operation_revenue,production_cost,service_cost,net_margin_after_service').in('equipment_id',ids).gte('metric_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)):{data:[],error:null};
  if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
  const assets=assetsResult.data||[];
  refreshCalcEquipment(assets);
@@ -56,7 +57,7 @@ async function machines(jobs){
   }
  }
  root.replaceChildren();
- if(!assets.length){root.textContent='Связанное оборудование недоступно для вашей учётной записи.';return;}
+ if(!assets.length){root.textContent='В реестре организации 3D-ARTPRINT пока нет оборудования.';return;}
  for(const a of assets){
   const m=metrics.get(a.id),link=line('./equipment.html?equipment='+encodeURIComponent(a.id),'№'+(a.inventory_number||'—')+' · '+(a.name||a.model||'Оборудование'),[a.brand,a.model].filter(Boolean).join(' ')+' · '+(status[a.status]||a.status||'—'),'Активных: '+(counts.get(a.id)||0));
   root.append(link);
