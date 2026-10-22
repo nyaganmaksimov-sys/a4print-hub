@@ -6,16 +6,22 @@ let busy=false;
 const errorText=e=>e?.message||String(e);
 function line(href,title,subtitle,badge){const a=document.createElement('a');a.className='line';a.href=href;a.innerHTML='<span><b>'+esc(title)+'</b><small>'+esc(subtitle)+'</small></span><span class="pill">'+esc(badge)+'</span>';return a}
 function draw(id,rows,fn){const root=$(id);root.replaceChildren();if(!rows.length){const el=document.createElement('div');el.className='empty';el.textContent='Записей пока нет';root.append(el);return}rows.forEach(r=>root.append(fn(r)))}
+const orderArgs=(status='',pageSize=1)=>({p_query:'',p_status:status,p_unit:'3D_ARTPRINT',p_attention:'',p_page:1,p_page_size:pageSize});
+async function orderPage(status='',pageSize=1){
+ const {data,error}=await supabase.rpc('get_orders_workspace_page',orderArgs(status,pageSize));
+ if(error)throw error;
+ const rows=Array.isArray(data)?data:[];
+ return {rows:rows.filter(o=>o.business_unit==='3D_ARTPRINT'),total:rows.length?Number(rows[0].total_count||0):0};
+}
 async function orders(){
-  const {data,error}=await supabase.rpc('get_orders_workspace_page',{p_query:'',p_status:'',p_unit:'3D_ARTPRINT',p_attention:'',p_page:1,p_page_size:50});
-  if(error)throw error;
-  const rows=(Array.isArray(data)?data:[]).filter(o=>o.business_unit==='3D_ARTPRINT');
-  $('newOrders').textContent=rows.filter(o=>o.status==='NEW').length;
-  $('activeOrders').textContent=rows.filter(o=>['CONFIRMED','IN_PROGRESS'].includes(o.status)).length;
-  $('readyOrders').textContent=rows.filter(o=>o.status==='READY').length;
-  draw('orderList',rows.slice(0,8),o=>line('./order.html?id='+encodeURIComponent(o.id),'№'+(o.order_number||String(o.id).slice(0,8))+' · '+(o.item_name||o.model_name||'Заказ'),o.customer_full_name||o.customer_company_name||'Клиент не указан',labels[o.status]||o.status||'—'));
-  // These three counters represent only the loaded page of orders, not a global total.
-  ['newOrders','activeOrders','readyOrders'].forEach(id=>$(id).title='Количество среди последних 50 загруженных заказов');
+ const [recent,newCount,workCount,readyCount]=await Promise.all([
+   orderPage('',8),orderPage('NEW'),orderPage('WORK'),orderPage('READY')
+ ]);
+ $('newOrders').textContent=newCount.total;
+ $('activeOrders').textContent=workCount.total;
+ $('readyOrders').textContent=readyCount.total;
+ draw('orderList',recent.rows,o=>line('./order.html?id='+encodeURIComponent(o.id),'№'+(o.order_number||String(o.id).slice(0,8))+' · '+(o.item_name||o.model_name||'Заказ'),o.customer_full_name||o.customer_company_name||'Клиент не указан',labels[o.status]||o.status||'—'));
+ ['newOrders','activeOrders','readyOrders'].forEach(id=>$(id).title='Количество по всем доступным заказам 3D-ARTPRINT, рассчитанное на сервере');
 }
 async function jobs(){
   const {data,error}=await supabase.rpc('get_production_workspace_jobs',{p_query:'',p_unit:'3D_ARTPRINT',p_assignee:null,p_priority:'',p_done_limit:20,p_cancelled_limit:0});
