@@ -37,7 +37,7 @@ async function start(){
   if(pe||profile?.status!=='ACTIVE')throw new Error('Нет подтверждённого доступа к кабинету');
   if(key==='orders'||key==='clients'){
     if(key==='orders'){
-      const {installOrderEntry}=await import('./3d-artprint-orders.js?v=1');
+      const {installOrderEntry}=await import('./3d-artprint-orders.js?v=20261023-fix1');
       await installOrderEntry({supabase,root,refresh:async()=>renderOrders(await orderData()),notify:message=>{notice.hidden=false;notice.textContent=message}});
     }
     await renderOrders(await orderData());return
