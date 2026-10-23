@@ -32,8 +32,10 @@ function updateRuntimeClocks(){
    elapsed+=run.ended_at&&run.elapsed_seconds!=null&&Number.isFinite(Number(run.elapsed_seconds))?Math.max(0,Number(run.elapsed_seconds)):Math.max(0,(ended-started)/1000);
   }
   const remaining=Math.ceil(planned-elapsed);
-  el.textContent=remaining>0?runtimeText(remaining):'00:00:00';
+  el.textContent=remaining>0?runtimeText(remaining):'+'+runtimeText(Math.max(0,Math.floor(elapsed-planned)));
   el.classList.toggle('fleet-runtime-overdue',remaining<=0);
+  const label=el.closest('.fleet-runtime')?.querySelector('span');
+  if(label)label.textContent=remaining<=0?'Превышение плана':'Осталось по плану';
   el.title=remaining<=0?'Плановое время истекло; печать может продолжаться':'Прогноз по G-code за вычетом учтённых интервалов работы';
  });
 }
