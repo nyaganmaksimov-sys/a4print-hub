@@ -26,7 +26,7 @@ function updateRuntimeClocks(){
    const started=Date.parse(run.started_at);
    const ended=run.ended_at?Date.parse(run.ended_at):now;
    if(!Number.isFinite(started)||!Number.isFinite(ended)||ended<started)continue;
-   elapsed+=run.ended_at&&Number.isFinite(Number(run.elapsed_seconds))?Math.max(0,Number(run.elapsed_seconds)):Math.max(0,(ended-started)/1000);
+   elapsed+=run.ended_at&&run.elapsed_seconds!=null&&Number.isFinite(Number(run.elapsed_seconds))?Math.max(0,Number(run.elapsed_seconds)):Math.max(0,(ended-started)/1000);
   }
   const remaining=Math.ceil(planned-elapsed);
   el.textContent=remaining>0?runtimeText(remaining):'00:00:00';
