@@ -28,7 +28,17 @@ async function jobs(){
   if(error)throw error;
   const rows=(Array.isArray(data)?data:[]).filter(j=>j.order_business_unit==='3D_ARTPRINT');
   $('queuedJobs').textContent=rows.filter(j=>['NEW','QUEUED'].includes(j.status)).length;
-  document.dispatchEvent(new CustomEvent('a4:3d-production-jobs-loaded',{detail:{jobs:rows}}));
+  // Each production run is an independent interval. Pauses are excluded by design.
+  let runs=[];
+  const ids=rows.map(j=>j.id).filter(Boolean);
+  if(ids.length){
+   const result=await supabase.from('production_job_runs')
+     .select('production_job_id,started_at,ended_at,elapsed_seconds')
+     .in('production_job_id',ids);
+   if(!result.error)runs=result.data||[];
+   else console.warn('3D printer timers: production runs unavailable',result.error);
+  }
+  document.dispatchEvent(new CustomEvent('a4:3d-production-jobs-loaded',{detail:{jobs:rows,runs}}));
   await machines(rows);
   draw('jobList',rows.filter(j=>!['DONE','CANCELLED'].includes(j.status)).slice(0,8),j=>line('./3d-artprint-workspace.html?section=production',j.title||'Производственное задание','Заказ '+(j.order_number||'—')+' · '+(j.assignee_name||'Исполнитель не назначен'),labels[j.status]||j.status||'—'));
   $('queuedJobs').title='Счётчик по возвращённым производственным заданиям';
