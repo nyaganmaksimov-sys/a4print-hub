@@ -139,3 +139,5 @@ body > .shell .brand-header .brand-splash{
 .fleet-job strong{font-size:12px;color:#eafaff;flex:1;min-width:120px}
 .fleet-job-state{font-size:11px;color:#64e9d0;border:1px solid #275a69;border-radius:999px;padding:2px 7px}
 .fleet-job small{width:100%;color:#8faecb;margin:0;font-size:11px}
+
+.fleet-history-head{display:block;margin-top:13px;padding-top:10px;border-top:1px solid #28405b;font-size:12px;color:#d7eaff}
