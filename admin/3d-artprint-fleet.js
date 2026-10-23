@@ -35,7 +35,7 @@ function updateRuntimeClocks(){
   el.textContent=remaining>0?runtimeText(remaining):'+'+runtimeText(Math.max(0,Math.floor(elapsed-planned)));
   el.classList.toggle('fleet-runtime-overdue',remaining<=0);
   const label=el.closest('.fleet-runtime')?.querySelector('span');
-  if(label)label.textContent=remaining<=0?'Превышение плана':'Осталось по плану';
+  if(label)label.textContent=el.dataset.paused==='true'?(remaining<=0?'Пауза · превышение':'Пауза · осталось'):(remaining<=0?'Превышение плана':'Осталось по плану');
   el.title=remaining<=0?'Плановое время истекло; печать может продолжаться':'Прогноз по G-code за вычетом учтённых интервалов работы';
  });
 }
@@ -103,7 +103,7 @@ function render(){
    const clockLabel=document.createElement('span');clockLabel.textContent='Осталось по плану';
    const time=document.createElement('strong');time.className='fleet-runtime-clock';time.textContent='—';
    if(job&&Number.isFinite(minutes)&&minutes>0){
-    time.dataset.jobTimer=job.id;time.dataset.plannedSeconds=String(minutes*60);
+    time.dataset.jobTimer=job.id;time.dataset.plannedSeconds=String(minutes*60);time.dataset.paused=String(!running.length);
     if(!running.length)clockLabel.textContent='На паузе · осталось';
    }else clockLabel.textContent='Укажите время из G-code в задании';
    clock.append(clockLabel,time);art.append(clock);
