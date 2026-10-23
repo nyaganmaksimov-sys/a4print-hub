@@ -20,7 +20,7 @@ async function orders(){
  $('newOrders').textContent=newCount.total;
  $('activeOrders').textContent=workCount.total;
  $('readyOrders').textContent=readyCount.total;
- draw('orderList',recent.rows,o=>line('./order.html?id='+encodeURIComponent(o.id),'№'+(o.order_number||String(o.id).slice(0,8))+' · '+(o.item_name||o.model_name||'Заказ'),o.customer_full_name||o.customer_company_name||'Клиент не указан',labels[o.status]||o.status||'—'));
+ draw('orderList',recent.rows,o=>line('./3d-artprint-workspace.html?section=orders','№'+(o.order_number||String(o.id).slice(0,8))+' · '+(o.item_name||o.model_name||'Заказ'),o.customer_full_name||o.customer_company_name||'Клиент не указан',labels[o.status]||o.status||'—'));
  ['newOrders','activeOrders','readyOrders'].forEach(id=>$(id).title='Количество по всем доступным заказам 3D-ARTPRINT, рассчитанное на сервере');
 }
 async function jobs(){
@@ -29,7 +29,7 @@ async function jobs(){
   const rows=(Array.isArray(data)?data:[]).filter(j=>j.order_business_unit==='3D_ARTPRINT');
   $('queuedJobs').textContent=rows.filter(j=>['NEW','QUEUED'].includes(j.status)).length;
   await machines(rows);
-  draw('jobList',rows.filter(j=>!['DONE','CANCELLED'].includes(j.status)).slice(0,8),j=>line('./production.html?unit=3D_ARTPRINT',j.title||'Производственное задание','Заказ '+(j.order_number||'—')+' · '+(j.assignee_name||'Исполнитель не назначен'),labels[j.status]||j.status||'—'));
+  draw('jobList',rows.filter(j=>!['DONE','CANCELLED'].includes(j.status)).slice(0,8),j=>line('./3d-artprint-workspace.html?section=production',j.title||'Производственное задание','Заказ '+(j.order_number||'—')+' · '+(j.assignee_name||'Исполнитель не назначен'),labels[j.status]||j.status||'—'));
   $('queuedJobs').title='Счётчик по возвращённым производственным заданиям';
 }
 async function machines(jobs){
@@ -58,7 +58,7 @@ async function machines(jobs){
  root.replaceChildren();
  if(!assets.length){root.textContent='В доступном реестре 3D-ARTPRINT нет оборудования. Проверьте организацию входа и права на оборудование.';return;}
  for(const a of assets){
-  const m=metrics.get(a.id),link=line('./equipment.html?equipment='+encodeURIComponent(a.id),'№'+(a.inventory_number||'—')+' · '+(a.name||a.model||'Оборудование'),[a.brand,a.model].filter(Boolean).join(' ')+' · '+(status[a.status]||a.status||'—'),'Активных: '+(counts.get(a.id)||0));
+  const m=metrics.get(a.id),link=line('./3d-artprint-workspace.html?section=equipment','№'+(a.inventory_number||'—')+' · '+(a.name||a.model||'Оборудование'),[a.brand,a.model].filter(Boolean).join(' ')+' · '+(status[a.status]||a.status||'—'),'Активных: '+(counts.get(a.id)||0));
   root.append(link);
   const meta=document.createElement('div');meta.className='machine-economics';
   const purchase=a.purchase_price==null?'не указана':rub(a.purchase_price);
