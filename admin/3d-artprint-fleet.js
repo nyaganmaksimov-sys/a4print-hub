@@ -74,8 +74,8 @@ function render(){
    for(const job of ordered.slice(0,4))addJobLine(jobsBox,job);
    if(ordered.length>4){const more=document.createElement('a');more.href='./3d-artprint-workspace.html?section=production';more.textContent='Все задания ('+ordered.length+')';jobsBox.append(more)}
   }
-  const history=assigned.filter(j=>j.status==='DONE').slice(0,1);
-  if(history.length){const latest=document.createElement('small');latest.textContent='Последний завершённый: заказ №'+(history[0].order_number||'—');jobsBox.append(latest)}
+  const history=assigned.filter(j=>j.status==='DONE').sort((a,b)=>new Date(b.completed_at||b.updated_at||0)-new Date(a.completed_at||a.updated_at||0)).slice(0,3);
+  if(history.length){const historyHead=document.createElement('strong');historyHead.className='fleet-history-head';historyHead.textContent='Завершённые заказы';jobsBox.append(historyHead);for(const finished of history)addJobLine(jobsBox,finished)}
   card.append(jobsBox);root.append(card);
  }
 }
@@ -84,6 +84,12 @@ document.addEventListener('a4:3d-equipment-loaded',event=>{
  if(typeof detail.orgId!=='string'||!Array.isArray(detail.assets))return;
  orgId=detail.orgId;
  assets=detail.assets.filter(a=>a&&typeof a.id==='string');
+ render();
+});
+document.addEventListener('a4:3d-production-jobs-loaded',event=>{
+ const incoming=event.detail?.jobs;
+ if(!Array.isArray(incoming))return;
+ jobs=incoming.filter(j=>j&&typeof j.equipment_id==='string'&&j.order_business_unit==='3D_ARTPRINT');
  render();
 });
 render();
