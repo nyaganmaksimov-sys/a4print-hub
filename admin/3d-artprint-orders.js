@@ -26,7 +26,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
   <div class="row-controls"><button type="submit">Сохранить заказ</button><button type="button" data-cancel>Отмена</button></div>
   <div class="order-entry-status" role="status" aria-live="polite"></div>`;
   setupSTLCalculator(form);
-  setupGcodeCalculator(form);
+  await setupGcodeCalculator(form,supabase);
   wrapper.append(toggle,form);
   root.before(wrapper);
   const status=form.querySelector('.order-entry-status');
