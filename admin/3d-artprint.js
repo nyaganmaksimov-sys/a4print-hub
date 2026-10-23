@@ -28,6 +28,7 @@ async function jobs(){
   if(error)throw error;
   const rows=(Array.isArray(data)?data:[]).filter(j=>j.order_business_unit==='3D_ARTPRINT');
   $('queuedJobs').textContent=rows.filter(j=>['NEW','QUEUED'].includes(j.status)).length;
+  document.dispatchEvent(new CustomEvent('a4:3d-production-jobs-loaded',{detail:{jobs:rows}}));
   await machines(rows);
   draw('jobList',rows.filter(j=>!['DONE','CANCELLED'].includes(j.status)).slice(0,8),j=>line('./3d-artprint-workspace.html?section=production',j.title||'Производственное задание','Заказ '+(j.order_number||'—')+' · '+(j.assignee_name||'Исполнитель не назначен'),labels[j.status]||j.status||'—'));
   $('queuedJobs').title='Счётчик по возвращённым производственным заданиям';
