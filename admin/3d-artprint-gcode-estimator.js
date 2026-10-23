@@ -45,7 +45,7 @@ export async function setupGcodeCalculator(form,supabase){
  <label>Стоимость филамента, ₽/кг<input name="gcodeKg" type="number" step="1" min="0" value="1500"></label>
  <label>Стоимость станка, ₽/ч<input name="gcodeHourly" type="number" step="1" min="0" value="100"></label>
  <label>Подготовка / обработка, ₽<input name="gcodeLabor" type="number" step="1" min="0" value="150"></label>
- <label>Наценка, %<input name="gcodeMarkup" type="number" step="1" min="0" value="70"></label>
+ <label>Наценка, %<input name="gcodeMarkup" type="number" step="1" min="0" value="70"></label><label>Доля владельца принтера, % от цены заказа<input name="gcodeRent" type="number" step="1" min="15" max="30" value="15"></label>
  </div>
  <div class="stl-result" data-gcode-result role="status">Загрузите G-code или заполните поля вручную.</div>
  <button type="button" data-gcode-apply disabled>Подставить цену по G-code</button>`;
@@ -54,17 +54,18 @@ export async function setupGcodeCalculator(form,supabase){
  const printer=get('gcodePrinter'),tariff=div.querySelector('[data-printer-tariff]');
  const recalc=()=>{
   apply.disabled=true;
-  const grams=Number(get('gcodeGrams').value),hours=Number(get('gcodeHours').value),kg=Number(get('gcodeKg').value),hourly=Number(get('gcodeHourly').value),labor=Number(get('gcodeLabor').value),markup=Number(get('gcodeMarkup').value);
+  const grams=Number(get('gcodeGrams').value),hours=Number(get('gcodeHours').value),kg=Number(get('gcodeKg').value),hourly=Number(get('gcodeHourly').value),labor=Number(get('gcodeLabor').value),markup=Number(get('gcodeMarkup').value),rent=Number(get('gcodeRent').value);
   if(!get('gcodeGrams').value||!get('gcodeHours').value){info.textContent='Укажите расход и время печати — из файла либо вручную.';return}
-  if(![grams,hours,kg,hourly,labor,markup].every(Number.isFinite)||grams<=0||hours<=0||kg<0||hourly<0||labor<0||markup<0){info.textContent='Проверьте значения расхода, времени и цены.';return}
-  const cost=grams/1000*kg+hours*hourly+labor,price=Math.round(cost*(1+markup/100)*100)/100;
+  if(![grams,hours,kg,hourly,labor,markup,rent].every(Number.isFinite)||grams<=0||hours<=0||kg<0||hourly<0||labor<0||(markup<0||rent<15||rent>30)){info.textContent='Проверьте значения расхода, времени и цены.';return}
+  const cost=grams/1000*kg+hours*hourly+labor,price=Math.round(cost*(1+markup/100)/(1-rent/100)*100)/100;
+  const ownerShare=Math.round(price*rent)/100,remaining=Math.round((price-ownerShare-cost)*100)/100;
   if(!Number.isFinite(price)||price>1e9){info.textContent='Параметры расчёта превышают лимит.';return}
-  info.textContent='Материал: '+(meta.material||'не указан')+' · Расход: '+grams.toLocaleString('ru-RU')+' г · Время: '+hours.toLocaleString('ru-RU')+' ч · Себестоимость: '+cost.toFixed(2)+' ₽ · Предварительная цена: '+price.toFixed(2)+' ₽';
+  info.textContent='Материал: '+(meta.material||'не указан')+' · Расход: '+grams.toLocaleString('ru-RU')+' г · Время: '+hours.toLocaleString('ru-RU')+' ч · Себестоимость: '+cost.toFixed(2)+' ₽ · Аренда владельцу ('+rent+'%): '+ownerShare.toFixed(2)+' ₽ · Остаток после расходов: '+remaining.toFixed(2)+' ₽ · Цена заказа: '+price.toFixed(2)+' ₽';
   apply.disabled=false;
   apply.onclick=()=>{
    form.querySelector('[name="price"]').value=price.toFixed(2);
    const comment=form.querySelector('[name="comment"]');
-   const note='G-code: '+(filename||'параметры вручную')+'; расход: '+grams+' г; время: '+hours+' ч; материал: '+(meta.material||'уточняется')+'; расчёт по данным слайсинга.';
+   const note='G-code: '+(filename||'параметры вручную')+'; расход: '+grams+' г; время: '+hours+' ч; материал: '+(meta.material||'уточняется')+'; доля владельца: '+rent+'% ('+ownerShare.toFixed(2)+' ₽); расчёт по данным слайсинга.';
    if(!comment.value.includes('G-code: '))comment.value=(comment.value?comment.value+'\n':'')+note;
    form.querySelector('[name="price"]').dispatchEvent(new Event('input',{bubbles:true}));
   };
@@ -81,7 +82,7 @@ export async function setupGcodeCalculator(form,supabase){
   const assetMap=new Map(available.map(a=>[a.id,a]));
   printer.addEventListener('change',()=>{
    const asset=assetMap.get(printer.value);
-   if(!asset){tariff.textContent='Укажите тариф вручную';recalc();return}
+   if(!asset){tariff.textContent='Укажите эксплуатационные расходы вручную';recalc();return}
    const key='a4print:3d-artprint:machine-cost:v1:'+asset.id;
    let preset=null;
    try{preset=JSON.parse(localStorage.getItem(key)||'null')}catch{}
@@ -89,9 +90,10 @@ export async function setupGcodeCalculator(form,supabase){
    if(!Number.isFinite(life)||life<=0||!Number.isFinite(running)||running<0||asset.purchase_price==null||!Number.isFinite(purchase)||purchase<0){
      tariff.textContent='У станка нет полного тарифа. Укажите ₽/ч вручную.';recalc();return
    }
-   const rate=Math.round((purchase/life+running)*100)/100;
+   // Rented machines: acquisition value belongs to owner and is not our depreciation.
+   const rate=Math.round(running*100)/100;
    get('gcodeHourly').value=String(rate);
-   tariff.textContent='Тариф из профиля станка: '+rate.toLocaleString('ru-RU')+' ₽/ч (этот браузер)';
+   tariff.textContent='Эксплуатационные расходы из профиля: '+rate.toLocaleString('ru-RU')+' ₽/ч; доля аренды считается отдельно';
    recalc();
   });
   tariff.textContent=available.length?'Выберите принтер; тарифы берутся из сохранённых профилей':'Принтеры пока не доступны';
