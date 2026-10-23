@@ -39,3 +39,21 @@ body>.shell{background:#070d18!important;color:#edf6ff;min-height:100vh}
 body>.shell>.main{background:radial-gradient(ellipse 55% 30% at 84% -7%,#122645 0,transparent 70%),#070d18!important;color:#edf6ff!important}
 body>.shell .panel,body>.shell .kpi{color:#edf6ff!important}
 body>.shell .nav{background:linear-gradient(180deg,#0c192b,#091323 66%,#0d1930)!important}
+
+/* Fix inherited global .panel / .cols backgrounds (including injected HUB shell styles). */
+body .shell .main .panel,
+body .shell .main .panelhead,
+body .shell .main .calculator,
+body .shell .main #fleetPanel,
+body .shell .main #serverProfilesPanel,
+body .shell .main #jobProfilePanel,
+body .shell .main #machinesPanel{
+ background:linear-gradient(155deg,#142236,#101a2b 67%,#101725)!important;
+ color:#edf6ff!important;
+ border-color:#293a52!important;
+}
+body .shell .main .panelhead{background:#101c2d!important}
+body .shell .main .panel h2,body .shell .main .fleet-card h3{color:#edf6ff!important}
+body .shell .main .panel p,body .shell .main .panel small,body .shell .main .calc-hint{color:#a6bfdb!important}
+body .shell .main .fleet-card{background:radial-gradient(ellipse 90% 65% at 50% 0,#1d3448,#0e1828 80%)!important;color:#edf6ff!important}
+body .shell .main .fleet-card select{background:#142339!important;color:#eef7ff!important;border:1px solid #48617d!important}
