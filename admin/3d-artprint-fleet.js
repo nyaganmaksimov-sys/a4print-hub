@@ -31,23 +31,24 @@ function render(){
   const label=document.createElement('label');label.textContent='Привязать к оборудованию HUB';
   const select=document.createElement('select');select.setAttribute('aria-label','Оборудование для '+device.name);
   select.add(new Option(orgId?'Не привязано':'Загрузка реестра…',''));
-  for(const a of assets)select.add(new Option((a.inventory_number||'Без номера')+' · '+(a.name||a.model||'Станок'),a.id));
-  const manuallyMapped=assets.find(a=>a.id===saved[device.key]);
+  for(const a of assets.filter(a=>norm(a.inventory_number)===norm(device.inventory)&&norm(a.name)===norm(device.name)))select.add(new Option((a.inventory_number||'Без номера')+' · '+(a.name||a.model||'Станок'),a.id));
   const automatic=matchingAsset(device);
-  const mapped=manuallyMapped||automatic;
+  const manuallyMapped=assets.find(a=>a.id===saved[device.key]&&norm(a.inventory_number)===norm(device.inventory)&&norm(a.name)===norm(device.name));
+  const mapped=automatic||manuallyMapped;
   if(mapped&&assets.some(a=>a.id===mapped.id))select.value=mapped.id;
   if(!mapped&&saved[device.key]){const warning=document.createElement('small');warning.textContent='Прежняя привязка не найдена или недоступна';card.append(warning)}
-  select.disabled=!orgId;
+  select.disabled=!orgId||!automatic;
   const status=document.createElement('small');status.className='fleet-status';
-  status.textContent=manuallyMapped?'Ручная привязка (этот браузер)':automatic?'Найдена карточка '+device.inventory+' в HUB':'Карточка недоступна: проверьте организацию и права';
+  status.textContent=automatic?'Подтверждена карточка '+device.inventory+' в HUB':'Карточка '+device.inventory+' недоступна: проверьте организацию и права';
   select.addEventListener('change',()=>{
     const next=readMap();
+    if(select.value!==automatic?.id){status.textContent='Разрешена только проверенная карточка '+device.inventory;select.value=automatic?.id||'';return;}
     if(select.value&&Object.entries(next).some(([key,val])=>key!==device.key&&val===select.value)){
       status.textContent='Этот станок уже назначен другому устройству. Выберите другой.';select.value=next[device.key]||automatic?.id||'';return;
     }
     if(select.value)next[device.key]=select.value;else delete next[device.key];
     if(!writeMap(next)){status.textContent='Не удалось сохранить привязку в браузере';return;}
-    status.textContent=select.value?'Ручная привязка сохранена в браузере':'Автоматическая привязка восстановится при обновлении';
+    status.textContent=select.value?'Карточка подтверждена в браузере':'Автоматическая привязка восстановится при обновлении';
   });
   label.append(select);card.append(label,status);root.append(card);
  }
@@ -59,4 +60,5 @@ document.addEventListener('a4:3d-equipment-loaded',event=>{
  assets=detail.assets.filter(a=>a&&typeof a.id==='string');
  render();
 });
+document.addEventListener('a4:3d-equipment-error',()=>{orgId='';assets=[];render();});
 render();
