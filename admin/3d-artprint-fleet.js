@@ -9,6 +9,19 @@ const fleet=[
 const root=document.getElementById('printerFleet');
 let assets=[],orgId='',jobs=[];
 const activeStatuses=new Set(['NEW','QUEUED','IN_PROGRESS','PAUSED']);
+// Timestamp-based clock survives page reloads. Shows wall time since the job began,
+// not verified machine motion or pause-adjusted runtime.
+const runtimeText=seconds=>{const n=Math.max(0,Math.floor(seconds));return String(Math.floor(n/3600)).padStart(2,'0')+':'+String(Math.floor(n%3600/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')};
+function updateRuntimeClocks(){
+ if(!root)return;
+ const now=Date.now();
+ root.querySelectorAll('[data-print-start]').forEach(el=>{
+  const started=Date.parse(el.dataset.printStart);
+  if(!Number.isFinite(started)||started>now){el.textContent='—';return}
+  el.textContent=runtimeText((now-started)/1000);
+ });
+}
+setInterval(updateRuntimeClocks,1000);
 const stageLabel={NEW:'Новое',QUEUED:'В очереди',IN_PROGRESS:'Печать',PAUSED:'Пауза',DONE:'Готово',CANCELLED:'Отменено'};
 function addJobLine(parent,job){
  const link=document.createElement('a');link.className='fleet-job';link.href='./3d-artprint-workspace.html?section=production';
@@ -65,6 +78,15 @@ function render(){
   const queue=active.filter(j=>j.status==='QUEUED'||j.status==='NEW');
   // Visualize workflow state, not physical printer telemetry.
   const phase=running.length?'printing':paused.length?'paused':queue.length?'queued':'idle';
+  if(running.length){
+   const job=running.find(j=>j.started_at&&Number.isFinite(Date.parse(j.started_at)));
+   const clock=document.createElement('div');clock.className='fleet-runtime';
+   const clockLabel=document.createElement('span');clockLabel.textContent='С момента запуска';
+   const time=document.createElement('strong');time.className='fleet-runtime-clock';time.textContent='—';
+   if(job)time.dataset.printStart=job.started_at;
+   else clockLabel.textContent='Время запуска не записано';
+   clock.append(clockLabel,time);art.append(clock);
+  }
   card.dataset.phase=phase;
   art.classList.add('fleet-art--'+phase);
   if(phase!=='idle'){
@@ -93,6 +115,7 @@ function render(){
   if(history.length){const historyHead=document.createElement('strong');historyHead.className='fleet-history-head';historyHead.textContent='Завершённые заказы';jobsBox.append(historyHead);for(const finished of history)addJobLine(jobsBox,finished)}
   card.append(jobsBox);root.append(card);
  }
+ updateRuntimeClocks();
 }
 document.addEventListener('a4:3d-equipment-loaded',event=>{
  const detail=event.detail||{};
