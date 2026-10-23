@@ -7,7 +7,7 @@ const fleet=[
  {key:'ad5x',inventory:'A4-EQ-00057',name:'Flashforge AD5X',image:'./assets/3d-artprint/ad5x.png?v=hq20261023',profiles:['Flashforge AD5X']}
 ];
 const root=document.getElementById('printerFleet');
-let assets=[],orgId='',jobs=[];
+let assets=[],orgId='',jobs=[],runs=[];
 const activeStatuses=new Set(['NEW','QUEUED','IN_PROGRESS','PAUSED']);
 // Timestamp-based clock survives page reloads. Shows wall time since the job began,
 // not verified machine motion or pause-adjusted runtime.
@@ -15,12 +15,23 @@ const runtimeText=seconds=>{const n=Math.max(0,Math.floor(seconds));return Strin
 function updateRuntimeClocks(){
  if(!root)return;
  const now=Date.now();
- root.querySelectorAll('[data-print-start]').forEach(el=>{
-  const started=Date.parse(el.dataset.printStart);
-  if(!Number.isFinite(started)||started>now){el.textContent='—';return}
+ root.querySelectorAll('[data-job-timer]').forEach(el=>{
+  const jobId=el.dataset.jobTimer;
   const planned=Number(el.dataset.plannedSeconds);
-  if(Number.isFinite(planned)&&planned>0){const remaining=Math.max(0,Math.ceil(planned-(now-started)/1000));el.textContent=runtimeText(remaining);el.classList.toggle('fleet-runtime-overdue',remaining===0)}
-  else el.textContent='—';
+  const jobRuns=runs.filter(run=>run.production_job_id===jobId);
+  if(!Number.isFinite(planned)||planned<=0){el.textContent='План не задан';return}
+  if(!jobRuns.length){el.textContent='Нет данных времени';return}
+  let elapsed=0;
+  for(const run of jobRuns){
+   const started=Date.parse(run.started_at);
+   const ended=run.ended_at?Date.parse(run.ended_at):now;
+   if(!Number.isFinite(started)||!Number.isFinite(ended)||ended<started)continue;
+   elapsed+=run.ended_at&&Number.isFinite(Number(run.elapsed_seconds))?Math.max(0,Number(run.elapsed_seconds)):Math.max(0,(ended-started)/1000);
+  }
+  const remaining=Math.ceil(planned-elapsed);
+  el.textContent=remaining>0?runtimeText(remaining):'00:00:00';
+  el.classList.toggle('fleet-runtime-overdue',remaining<=0);
+  el.title=remaining<=0?'Плановое время истекло; печать может продолжаться':'Прогноз по G-code за вычетом учтённых интервалов работы';
  });
 }
 setInterval(updateRuntimeClocks,1000);
@@ -87,8 +98,8 @@ function render(){
    const clockLabel=document.createElement('span');clockLabel.textContent='Осталось по плану';
    const time=document.createElement('strong');time.className='fleet-runtime-clock';time.textContent='—';
    if(job&&Number.isFinite(minutes)&&minutes>0){
-    if(running.length){time.dataset.printStart=job.started_at;time.dataset.plannedSeconds=String(minutes*60)}
-    else {clockLabel.textContent='Пауза · ориентир';const used=Number(job.actual_machine_minutes);time.textContent=runtimeText(Math.max(0,(minutes-(Number.isFinite(used)?used:0))*60))}
+    time.dataset.jobTimer=job.id;time.dataset.plannedSeconds=String(minutes*60);
+    if(!running.length)clockLabel.textContent='На паузе · осталось';
    }else clockLabel.textContent='Укажите время из G-code в задании';
    clock.append(clockLabel,time);art.append(clock);
   }
@@ -133,6 +144,7 @@ document.addEventListener('a4:3d-production-jobs-loaded',event=>{
  const incoming=event.detail?.jobs;
  if(!Array.isArray(incoming))return;
  jobs=incoming.filter(j=>j&&typeof j.equipment_id==='string'&&j.order_business_unit==='3D_ARTPRINT');
+ runs=Array.isArray(event.detail?.runs)?event.detail.runs:[];
  render();
 });
 render();
