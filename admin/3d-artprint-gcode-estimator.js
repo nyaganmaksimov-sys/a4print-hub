@@ -1,3 +1,4 @@
+import {unpackGcode3mf} from './3d-artprint-3mf-reader.js?v=1';
 // Parse recognized slicer annotations only; don't infer time from raw G-code movement.
 export function parseGcodeMetadata(text){
  const lines=text.split(/\r?\n/);const found={grams:null,hours:null,material:null,layerHeight:null,source:[]};
@@ -5,6 +6,7 @@ export function parseGcodeMetadata(text){
   {key:'grams',rx:/^;\s*(?:total filament used \[g\]|filament used \[g\]|filament used \(g\)|filament used \[g\]|filament weight(?: \[g\])?|total filament weight(?: \[g\])?)\s*[:=]\s*([\d.,]+)/i},
   {key:'grams',rx:/^;\s*filament used\s*:\s*[\d.,]+\s*m\s*\(([\d.,]+)\s*g\)/i},
   {key:'hours',rx:/^;\s*(?:estimated printing time \(normal mode\)|estimated printing time|print time|total estimated time|printing time)\s*[:=]\s*(.+)$/i},
+  {key:'material',rx:/^;\s*(?:right_extruder_material|left_extruder_material)\s*:\s*(PLA|PETG|ABS|ASA|TPU|PA|PC|NYLON)\b/i},
   {key:'material',rx:/^;\s*(?:filament_type|filament type|material_type|material)\s*[:=]\s*(PLA|PETG|ABS|ASA|TPU|PA|PC|NYLON)(?:\b|$)/i},
   {key:'layerHeight',rx:/^;\s*(?:layer_height|layer height)\s*[:=]\s*([\d.,]+)/i}
  ];
@@ -36,7 +38,7 @@ export async function setupGcodeCalculator(form,supabase){
  div.className='gcode-calc';
  div.innerHTML=`<h3>Расчёт по G-code после слайсинга</h3>
  <p>Используются комментарии, записанные слайсером. Если расход или время отсутствуют, введите их вручную. G-code анализируется локально.</p>
- <label>G-code (до 50 МБ)<input type="file" name="gcode" accept=".gcode,.gco,.gc" /></label>
+ <label>G-code из OrcaSlicer (.gcode, .gcode.3mf, до 50 МБ)<input type="file" name="gcode" accept=".gcode,.gco,.gc,.3mf" /></label>
  <div class="order-entry-grid"><label>Принтер 3D-ARTPRINT<select name="gcodePrinter"><option value="">Ручной тариф</option></select></label><label>Тариф принтера <small data-printer-tariff>Выберите станок</small></label>
  <label>Расход филамента, г<input name="gcodeGrams" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
  <label>Время печати, ч<input name="gcodeHours" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
@@ -98,9 +100,9 @@ export async function setupGcodeCalculator(form,supabase){
  get('gcode').addEventListener('change',async e=>{
   const file=e.target.files?.[0];apply.disabled=true;
   if(!file)return;
-  if(!/\.(gcode|gco|gc)$/i.test(file.name)||file.size>50*1024*1024){info.textContent='Нужен G-code до 50 МБ';return}
+  if(!/\.(gcode|gco|gc|gcode\.3mf)$/i.test(file.name)||file.size>50*1024*1024){info.textContent='Нужен G-code до 50 МБ';return}
   try{
-   const text=await file.text();meta=parseGcodeMetadata(text);filename=file.name;
+   const text=/\.gcode\.3mf$/i.test(file.name)?await unpackGcode3mf(file):await file.text();meta=parseGcodeMetadata(text);filename=file.name;
    if(meta.grams!=null)get('gcodeGrams').value=String(meta.grams);
    if(meta.hours!=null)get('gcodeHours').value=String(Math.round(meta.hours*100)/100);
    recalc();
