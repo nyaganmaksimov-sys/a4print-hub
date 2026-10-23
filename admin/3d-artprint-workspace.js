@@ -1,6 +1,6 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
 const section=new URLSearchParams(location.search).get('section')||'orders';
-const titles={orders:['Заказы','Заказы направления 3D-ARTPRINT, полученные из HUB.'],production:['Производство','Задания и этапы выполнения изделий.'],materials:['Материалы','Склад пластика, смолы и расходных материалов.'],equipment:['Оборудование','Инвентарные карточки, обслуживание и эксплуатация.'],clients:['Клиенты','Клиенты заказов производства 3D-ARTPRINT.'],finance:['Финансы и отчёты','Экономика производства и отчётность.'],staff:['Сотрудники','Команда и доступы к производству.']};
+const titles={printers:['Принтеры','Парк печати, текущие задания и выбор оборудования для заказов.'],orders:['Заказы','Заказы направления 3D-ARTPRINT, полученные из HUB.'],production:['Производство','Задания и этапы выполнения изделий.'],materials:['Материалы','Склад пластика, смолы и расходных материалов.'],equipment:['Оборудование','Инвентарные карточки, обслуживание и эксплуатация.'],clients:['Клиенты','Клиенты заказов производства 3D-ARTPRINT.'],finance:['Финансы и отчёты','Экономика производства и отчётность.'],staff:['Сотрудники','Команда и доступы к производству.']};
 const key=Object.hasOwn(titles,section)?section:'orders';
 const title=document.getElementById('sectionTitle'),intro=document.getElementById('sectionIntro'),root=document.getElementById('sectionContent'),notice=document.getElementById('sectionNotice');
 title.textContent=titles[key][0];intro.textContent=titles[key][1];
@@ -55,6 +55,7 @@ async function start(){
   if(e||!session){location.replace('./login.html?returnTo='+encodeURIComponent(location.pathname+location.search));return}
   const {data:profile,error:pe}=await supabase.rpc('get_my_staff_profile');
   if(pe||profile?.status!=='ACTIVE')throw new Error('Нет подтверждённого доступа к кабинету');
+  if(key==='printers'||key==='equipment'){const {renderEquipment}=await import('./3d-artprint-equipment.js?v=1');await renderEquipment({supabase,root,mode:key});return}
   if(key==='staff'){const {renderStaffAdmin}=await import('./3d-artprint-staff.js?v=1');await renderStaffAdmin({supabase,root,profile});return}
   if(key==='orders'||key==='clients'){
     if(key==='orders'){
