@@ -117,10 +117,10 @@ function render(){
     minuteInput.addEventListener('input',()=>{save.disabled=!valid()});
     picker.addEventListener('change',async()=>{
      const file=picker.files?.[0];if(!file)return;
-     if(file.size>50*1024*1024||!/\\.(?:gcode|gco|gc|gcode\\.3mf)$/i.test(file.name)){feedback.textContent='Нужен G-code до 50 МБ';return}
+     if(file.size>50*1024*1024||!/\.(?:gcode|gco|gc|gcode\.3mf)$/i.test(file.name)){feedback.textContent='Нужен G-code до 50 МБ';return}
      try{
       feedback.textContent='Читаем время слайсинга…';
-      const content=/\\.gcode\\.3mf$/i.test(file.name)?await unpackGcode3mf(file):await file.text();
+      const content=/\.gcode\.3mf$/i.test(file.name)?await unpackGcode3mf(file):await file.text();
       const meta=parseGcodeMetadata(content);
       if(!(Number(meta.hours)>0))throw Error('В файле нет расчётного времени');
       minuteInput.value=(meta.hours*60).toFixed(3);save.disabled=false;
