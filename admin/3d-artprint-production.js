@@ -1,5 +1,5 @@
 // Production cards use the existing tenant-scoped production RPC.
-const actions={NEW:[['В очередь','QUEUE']],QUEUED:[['Начать','START']],IN_PROGRESS:[['Приостановить','PAUSE'],['Завершить','COMPLETE']],PAUSED:[['Продолжить','RESUME']]};
+const actions={NEW:[['Начать','START']],QUEUED:[['Начать','START']],IN_PROGRESS:[['Приостановить','PAUSE'],['Завершить','COMPLETE']],PAUSED:[['Продолжить','RESUME']]};
 const names={NEW:'Новое',QUEUED:'В очереди',IN_PROGRESS:'Печать',PAUSED:'Приостановлено',DONE:'Готово',CANCELLED:'Отменено'};
 const rub=value=>Number(value||0).toLocaleString('ru-RU',{style:'currency',currency:'RUB'});
 export async function renderProduction({supabase,root,notify}){
