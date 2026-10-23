@@ -26,7 +26,7 @@ const packedOrcaGcode = parseGcodeMetadata([
 '; filament used [g] = 26.50, 0.00, 0.00, 0.00',
 '; total filament used [g] = 26.50',
 '; total layers count = 160'
-].join('\\n'));
+].join('\n'));
 assert.equal(packedOrcaGcode.grams,26.5);
 assert.ok(Math.abs(packedOrcaGcode.hours-(44*60+1)/3600)<1e-8);
 assert.equal(packedOrcaGcode.material,'PETG');
