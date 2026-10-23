@@ -20,3 +20,5 @@
 .production-note-history{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-left:2px solid #3d7795;background:#10273a}.production-job-card details{margin:10px 0}.production-job-card summary{cursor:pointer;color:#b6daf4}
 
 .production-operator{color:#9fdbf7!important;font-weight:650}.production-overdue{color:#ffb5a6!important;padding:9px 12px;border-left:3px solid #ff6b5c;background:#391f2a}
+
+.art-staff-admin{max-width:900px}.art-staff-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:20px 0}.art-staff-form label{display:grid;gap:6px}.art-staff-form input{width:100%;padding:10px;border-radius:8px;background:#0d2033;color:#fff;border:1px solid #345a77}.art-staff-form button{align-self:end}.art-staff-person{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #2f4b67;border-radius:10px;padding:14px;margin:9px 0}.art-staff-person strong{flex:1;min-width:200px}.art-staff-result{color:#9be4f7;min-height:20px}
