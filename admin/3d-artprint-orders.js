@@ -1,3 +1,4 @@
+import {setupGcodeCalculator} from './3d-artprint-gcode-estimator.js?v=1';
 import {setupSTLCalculator} from './3d-artprint-stl-estimator.js?v=1';
 // Native, organization-scoped 3D-ARTPRINT order entry.
 // Uses the existing audited RPC, with no direct table mutations or database changes.
@@ -25,6 +26,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
   <div class="row-controls"><button type="submit">Сохранить заказ</button><button type="button" data-cancel>Отмена</button></div>
   <div class="order-entry-status" role="status" aria-live="polite"></div>`;
   setupSTLCalculator(form);
+  setupGcodeCalculator(form);
   wrapper.append(toggle,form);
   root.before(wrapper);
   const status=form.querySelector('.order-entry-status');
