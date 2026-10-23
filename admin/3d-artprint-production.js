@@ -7,7 +7,7 @@ export async function renderProduction({supabase,root,notify}){
  const top=document.createElement('div');top.className='production-toolbar';
  const heading=document.createElement('h2');heading.textContent='Производственная очередь';
  const reload=document.createElement('button');reload.type='button';reload.textContent='↻ Обновить';
- top.append(heading,reload);root.append(top);
+ const newOrder=document.createElement('a');newOrder.href='./3d-artprint-workspace.html?section=orders&new=1';newOrder.textContent='+ Новый заказ';top.append(heading,newOrder,reload);root.append(top);
  const list=document.createElement('div');root.append(list);
  let printers=[];
  try{
@@ -34,6 +34,11 @@ export async function renderProduction({supabase,root,notify}){
     const detail=document.createElement('p');detail.textContent='Оборудование: '+(job.equipment_name||job.equipment_inventory_number||'не назначено')+' · Исполнитель: '+(job.assignee_name||'не назначен');
     const numeric=document.createElement('p');numeric.textContent='План: '+(job.planned_machine_minutes??'—')+' мин · Факт: '+(job.actual_machine_minutes??'—')+' мин · Годных: '+(job.good_quantity??'—')+' · Брак: '+(job.scrap_quantity??'—')+' · Себестоимость: '+(job.production_cost==null?'—':rub(job.production_cost));
     card.append(h,status,detail,numeric);
+    if(['DONE','CANCELLED'].includes(job.status)){
+     const explanation=document.createElement('p');explanation.className='production-job-note';
+     explanation.textContent=job.status==='DONE'?'Задание завершено. Назначение принтера и управление печатью недоступны для закрытого задания.':'Задание отменено. Для запуска работы оформите новое задание.';
+     card.append(explanation);
+    }
     if(printers.length&&['NEW','QUEUED','PAUSED'].includes(job.status)){
      const assign=document.createElement('div');assign.className='row-controls';
      const choice=document.createElement('select');choice.setAttribute('aria-label','Принтер для задания '+(job.title||''));
