@@ -43,7 +43,7 @@ export async function setupGcodeCalculator(form,supabase){
  <label>Расход филамента, г<input name="gcodeGrams" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
  <label>Время печати, ч<input name="gcodeHours" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
  <label>Стоимость филамента, ₽/кг<input name="gcodeKg" type="number" step="1" min="0" value="1500"></label>
- <label>Стоимость станка, ₽/ч<input name="gcodeHourly" type="number" step="1" min="0" value="100"></label>
+ <label>Стоимость станка, ₽/ч<input name="gcodeHourly" type="number" step="1" min="0" value="0"></label>
  <label>Подготовка / обработка, ₽<input name="gcodeLabor" type="number" step="1" min="0" value="150"></label>
  <label>Наценка, %<input name="gcodeMarkup" type="number" step="1" min="0" value="70"></label><label>Доля владельца принтера, % от цены заказа<input name="gcodeRent" type="number" step="1" min="15" max="30" value="15"></label>
  </div>
@@ -86,9 +86,9 @@ export async function setupGcodeCalculator(form,supabase){
    const key='a4print:3d-artprint:machine-cost:v1:'+asset.id;
    let preset=null;
    try{preset=JSON.parse(localStorage.getItem(key)||'null')}catch{}
-   const life=Number(preset?.calcLife),running=Number(preset?.calcRunning),purchase=Number(asset.purchase_price);
-   if(!Number.isFinite(life)||life<=0||!Number.isFinite(running)||running<0||asset.purchase_price==null||!Number.isFinite(purchase)||purchase<0){
-     tariff.textContent='У станка нет полного тарифа. Укажите ₽/ч вручную.';recalc();return
+   const running=Number(preset?.calcRunning);
+   if(!preset||!Number.isFinite(running)||running<0){
+     get('gcodeHourly').value='0';tariff.textContent='У станка нет эксплуатационного тарифа. Укажите ₽/ч вручную; арендная доля считается отдельно.';recalc();return
    }
    // Rented machines: acquisition value belongs to owner and is not our depreciation.
    const rate=Math.round(running*100)/100;
