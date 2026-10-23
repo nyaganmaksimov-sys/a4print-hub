@@ -1,10 +1,10 @@
 // Presentation-only mapping of confirmed physical printers to existing HUB assets.
 // No INSERT or UPDATE of equipment_assets. All choices are drawn from RLS-visible assets.
 const fleet=[
- {key:'kobra-x',name:'Anycubic Kobra X',image:'./assets/3d-artprint/kobra-x.png',profiles:['Anycubic Kobra X · 0,4 мм (профиль из OrcaSlicer)','Anycubic Kobra X']},
- {key:'kobra-2-max',name:'Anycubic Kobra 2 Max',image:'./assets/3d-artprint/kobra-2-max.png',profiles:['Anycubic Kobra 2 Max']},
- {key:'ender-v3-se',name:'Creality Ender-3 V3 SE',image:'./assets/3d-artprint/ender-v3-se.png',profiles:['Creality Ender-3 V3 SE']},
- {key:'ad5x',name:'Flashforge AD5X',image:'./assets/3d-artprint/ad5x.png',profiles:['Flashforge AD5X']}
+ {key:'kobra-x',name:'Anycubic Kobra X',image:'./assets/3d-artprint/kobra-x.png?v=hq20261023',profiles:['Anycubic Kobra X · 0,4 мм (профиль из OrcaSlicer)','Anycubic Kobra X']},
+ {key:'kobra-2-max',name:'Anycubic Kobra 2 Max',image:'./assets/3d-artprint/kobra-2-max.png?v=hq20261023',profiles:['Anycubic Kobra 2 Max']},
+ {key:'ender-v3-se',name:'Creality Ender-3 V3 SE',image:'./assets/3d-artprint/ender-v3-se.png?v=hq20261023',profiles:['Creality Ender-3 V3 SE']},
+ {key:'ad5x',name:'Flashforge AD5X',image:'./assets/3d-artprint/ad5x.png?v=hq20261023',profiles:['Flashforge AD5X']}
 ];
 const root=document.getElementById('printerFleet');
 let assets=[],orgId='';
