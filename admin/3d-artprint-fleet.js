@@ -1,16 +1,21 @@
 // Presentation-only mapping of confirmed physical printers to existing HUB assets.
 // No INSERT or UPDATE of equipment_assets. All choices are drawn from RLS-visible assets.
 const fleet=[
- {key:'kobra-x',name:'Anycubic Kobra X',image:'./assets/3d-artprint/kobra-x.png',profiles:['Anycubic Kobra X · 0,4 мм (профиль из OrcaSlicer)','Anycubic Kobra X']},
- {key:'kobra-2-max',name:'Anycubic Kobra 2 Max',image:'./assets/3d-artprint/kobra-2-max.png',profiles:['Anycubic Kobra 2 Max']},
- {key:'ender-v3-se',name:'Creality Ender-3 V3 SE',image:'./assets/3d-artprint/ender-v3-se.png',profiles:['Creality Ender-3 V3 SE']},
- {key:'ad5x',name:'Flashforge AD5X',image:'./assets/3d-artprint/ad5x.png',profiles:['Flashforge AD5X']}
+ {key:'kobra-x',name:'Anycubic Kobra X',inventory:'A4-EQ-00054',image:'./assets/3d-artprint/kobra-x.png',profiles:['Anycubic Kobra X · 0,4 мм (профиль из OrcaSlicer)','Anycubic Kobra X']},
+ {key:'kobra-2-max',name:'Anycubic Kobra 2 Max',inventory:'A4-EQ-00055',image:'./assets/3d-artprint/kobra-2-max.png',profiles:['Anycubic Kobra 2 Max']},
+ {key:'ender-v3-se',name:'Creality Ender-3 V3 SE',inventory:'A4-EQ-00056',image:'./assets/3d-artprint/ender-v3-se.png',profiles:['Creality Ender-3 V3 SE']},
+ {key:'ad5x',name:'Flashforge AD5X',inventory:'A4-EQ-00057',image:'./assets/3d-artprint/ad5x.png',profiles:['Flashforge AD5X']}
 ];
 const root=document.getElementById('printerFleet');
 let assets=[],orgId='';
 const storeKey=()=> 'a4:3dartprint:fleet-mapping:v1:'+orgId;
 function readMap(){try{const obj=JSON.parse(localStorage.getItem(storeKey())||'{}');return obj&&typeof obj==='object'?obj:{}}catch{return {}}}
 function writeMap(value){try{localStorage.setItem(storeKey(),JSON.stringify(value));return true}catch{return false}}
+const norm=v=>String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ru-RU');
+function matchingAsset(device){
+ const matches=assets.filter(a=>norm(a.inventory_number)===norm(device.inventory)&&norm(a.name)===norm(device.name));
+ return matches.length===1?matches[0]:null;
+}
 function render(){
  if(!root)return;
  const saved=orgId?readMap():{};
@@ -27,20 +32,22 @@ function render(){
   const select=document.createElement('select');select.setAttribute('aria-label','Оборудование для '+device.name);
   select.add(new Option(orgId?'Не привязано':'Загрузка реестра…',''));
   for(const a of assets)select.add(new Option((a.inventory_number||'Без номера')+' · '+(a.name||a.model||'Станок'),a.id));
-  const mapped=assets.find(a=>a.id===saved[device.key]);
-  if(mapped)select.value=mapped.id;
-  else if(saved[device.key]){const warning=document.createElement('small');warning.textContent='Прежняя привязка не найдена или недоступна';card.append(warning)}
+  const manuallyMapped=assets.find(a=>a.id===saved[device.key]);
+  const automatic=matchingAsset(device);
+  const mapped=manuallyMapped||automatic;
+  if(mapped&&assets.some(a=>a.id===mapped.id))select.value=mapped.id;
+  if(!mapped&&saved[device.key]){const warning=document.createElement('small');warning.textContent='Прежняя привязка не найдена или недоступна';card.append(warning)}
   select.disabled=!orgId;
   const status=document.createElement('small');status.className='fleet-status';
-  status.textContent=mapped?'Связано с реестром этого кабинета':'Требуется сопоставление';
+  status.textContent=manuallyMapped?'Ручная привязка (этот браузер)':automatic?'Найдена карточка '+device.inventory+' в HUB':'Карточка недоступна: проверьте организацию и права';
   select.addEventListener('change',()=>{
     const next=readMap();
     if(select.value&&Object.entries(next).some(([key,val])=>key!==device.key&&val===select.value)){
-      status.textContent='Этот станок уже назначен другому устройству. Выберите другой.';select.value=next[device.key]||'';return;
+      status.textContent='Этот станок уже назначен другому устройству. Выберите другой.';select.value=next[device.key]||automatic?.id||'';return;
     }
     if(select.value)next[device.key]=select.value;else delete next[device.key];
     if(!writeMap(next)){status.textContent='Не удалось сохранить привязку в браузере';return;}
-    status.textContent=select.value?'Привязка сохранена в этом браузере':'Привязка очищена';
+    status.textContent=select.value?'Ручная привязка сохранена в браузере':'Автоматическая привязка восстановится при обновлении';
   });
   label.append(select);card.append(label,status);root.append(card);
  }
