@@ -83,7 +83,7 @@ export async function renderProduction({supabase,root,notify}){
       if(selected.size>50*1024*1024){hint.textContent='Файл больше 50 МБ';return}
       try{
        const {parseGcodeMetadata}=await import('./3d-artprint-gcode-estimator.js?v=1');
-       const source=/\\.gcode\\.3mf$/i.test(selected.name)?await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(selected):await selected.text();
+       const source=/\.gcode\.3mf$/i.test(selected.name)?await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(selected):await selected.text();
        const meta=parseGcodeMetadata(source);
        if(!Number.isFinite(meta.hours)||meta.hours<=0)throw Error('В файле нет времени печати. Укажите минуты вручную.');
        minutes.value=(meta.hours*60).toFixed(3);save.disabled=false;
