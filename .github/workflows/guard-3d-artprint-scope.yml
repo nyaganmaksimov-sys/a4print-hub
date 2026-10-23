@@ -1,0 +1,22 @@
+name: Guard 3D-ARTPRINT scope
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  check-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check changed files for 3D/cashier overlap
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only --diff-filter=ACMRT "$BASE_SHA" "$HEAD_SHA" > /tmp/pr-files.txt
+          python3 scripts/check_3d_artprint_scope.py < /tmp/pr-files.txt
+      - name: Self-test scope protection
+        run: python3 -m unittest discover -s scripts/tests -p 'test_3d_artprint_scope.py'
