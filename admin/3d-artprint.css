@@ -63,3 +63,17 @@ body:has(>.shell) > .sidebar,body:has(>.shell) > .a4-sidebar-head{display:none!i
 body:has(>.shell).a4-has-sidebar > .shell{margin:0!important;max-width:none!important}
 body:has(>.shell) > .shell > .main{margin-left:0!important;width:auto!important;flex:1}
 body:has(>.shell) .nav{z-index:3}
+
+/* 3D-ARTPRINT owns its sidebar: hide only the injected HUB navigation.
+   navigation.js inserts .sidebar as a direct child of .shell before .main. */
+html body > .shell > aside.sidebar,
+html body > .shell > .sidebar,
+html body > .shell > .sidebar-backdrop,
+html body > .shell > .sidebar-overlay {
+  display:none!important;
+  width:0!important;
+  min-width:0!important;
+  flex:0 0 0!important;
+}
+html body > .shell > aside.nav {display:flex!important;flex:0 0 250px!important;}
+html body > .shell > main.main {margin-left:0!important;flex:1 1 auto!important;min-width:0;max-width:none;}
