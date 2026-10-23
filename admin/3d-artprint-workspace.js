@@ -55,6 +55,7 @@ async function start(){
   if(e||!session){location.replace('./login.html?returnTo='+encodeURIComponent(location.pathname+location.search));return}
   const {data:profile,error:pe}=await supabase.rpc('get_my_staff_profile');
   if(pe||profile?.status!=='ACTIVE')throw new Error('Нет подтверждённого доступа к кабинету');
+  if(key==='staff'){const {renderStaffAdmin}=await import('./3d-artprint-staff.js?v=1');await renderStaffAdmin({supabase,root,profile});return}
   if(key==='orders'||key==='clients'){
     if(key==='orders'){
       const {installOrderEntry}=await import('./3d-artprint-orders.js?v=20261023-fix1');
