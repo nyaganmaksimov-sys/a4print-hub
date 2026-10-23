@@ -1,3 +1,4 @@
+import {setupSTLCalculator} from './3d-artprint-stl-estimator.js?v=1';
 // Native, organization-scoped 3D-ARTPRINT order entry.
 // Uses the existing audited RPC, with no direct table mutations or database changes.
 const rub=value=>Number(value).toLocaleString('ru-RU',{style:'currency',currency:'RUB'});
@@ -10,7 +11,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
   const form=document.createElement('form');
   form.className='order-entry-form';form.hidden=true;
   form.innerHTML=`<h2>Новый заказ 3D-ARTPRINT</h2>
-  <p>Укажите изделие, клиента и стоимость. Модель STL/3MF и технологические параметры добавим отдельным этапом.</p>
+  <p>Укажите изделие, клиента и стоимость. Загрузите STL для предварительной оценки; цена уточняется после слайсинга.</p>
   <div class="order-entry-grid">
     <label>ФИО / название клиента *<input name="customer" maxlength="200" autocomplete="name" required></label>
     <label>Телефон<input name="phone" maxlength="40" autocomplete="tel" type="tel"></label>
@@ -20,9 +21,10 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
     <label>Итого <output id="orderNewTotal">0 ₽</output></label>
   </div>
   <label>Комментарий / материал / требования<textarea name="comment" rows="3" maxlength="2000" placeholder="Материал, цвет, сроки, примечания"></textarea></label>
-  <p class="order-entry-note">Создание выполняется только после нажатия «Сохранить заказ». Файлы моделей пока не загружаются.</p>
+  <p class="order-entry-note">Создание выполняется только после нажатия «Сохранить заказ». STL обрабатывается локально в браузере и не прикрепляется к заказу.</p>
   <div class="row-controls"><button type="submit">Сохранить заказ</button><button type="button" data-cancel>Отмена</button></div>
   <div class="order-entry-status" role="status" aria-live="polite"></div>`;
+  setupSTLCalculator(form);
   wrapper.append(toggle,form);
   root.before(wrapper);
   const status=form.querySelector('.order-entry-status');
