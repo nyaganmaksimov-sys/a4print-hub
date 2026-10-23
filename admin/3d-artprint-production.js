@@ -25,6 +25,17 @@ export async function renderProduction({supabase,root,notify}){
    const {data,error}=await supabase.rpc('get_production_workspace_jobs',{p_query:'',p_unit:'3D_ARTPRINT',p_assignee:null,p_priority:'',p_done_limit:50,p_cancelled_limit:10});
    if(error)throw error;
    const jobs=(Array.isArray(data)?data:[]).filter(j=>j.order_business_unit==='3D_ARTPRINT');
+   const ids=jobs.map(j=>j.id).filter(Boolean);
+   let runs=[];
+   if(ids.length){const rr=await supabase.from('production_job_runs').select('production_job_id,operator_user_id,started_at,ended_at,elapsed_seconds').in('production_job_id',ids);if(!rr.error)runs=rr.data||[]}
+   const operatorIds=[...new Set(runs.map(r=>r.operator_user_id).filter(Boolean))];
+   let operators=new Map();
+   if(operatorIds.length){const ur=await supabase.from('users').select('id,full_name').in('id',operatorIds);if(!ur.error)operators=new Map((ur.data||[]).map(u=>[u.id,u.full_name||'Сотрудник']))}
+   const totalSeconds=jobId=>runs.filter(r=>r.production_job_id===jobId).reduce((acc,r)=>{
+     const start=Date.parse(r.started_at),end=r.ended_at?Date.parse(r.ended_at):Date.now();
+     if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return acc;
+     return acc+(r.ended_at&&r.elapsed_seconds!=null?Number(r.elapsed_seconds):(end-start)/1000)
+   },0);
    list.replaceChildren();
    if(!jobs.length){list.textContent='Производственных заданий пока нет. Они появляются после создания и назначения работ по заказу.';return}
    for(const job of jobs){
@@ -34,6 +45,13 @@ export async function renderProduction({supabase,root,notify}){
     const detail=document.createElement('p');detail.textContent='Оборудование: '+(job.equipment_name||job.equipment_inventory_number||'не назначено')+' · Исполнитель: '+(job.assignee_name||'не назначен');
     const numeric=document.createElement('p');numeric.textContent='План: '+(job.planned_machine_minutes??'—')+' мин · Факт: '+(job.actual_machine_minutes??'—')+' мин · Годных: '+(job.good_quantity??'—')+' · Брак: '+(job.scrap_quantity??'—')+' · Себестоимость: '+(job.production_cost==null?'—':rub(job.production_cost));
     card.append(h,status,detail,numeric);
+    const firstRun=runs.filter(r=>r.production_job_id===job.id).sort((a,b)=>Date.parse(a.started_at)-Date.parse(b.started_at))[0];
+    const operator=document.createElement('p');operator.className='production-operator';
+    operator.textContent=firstRun?.operator_user_id?'Запустил печать: '+(operators.get(firstRun.operator_user_id)||'Сотрудник · '+firstRun.operator_user_id.slice(0,8)):'Оператор запуска ещё не зафиксирован';
+    card.append(operator);
+    const planned=Number(job.planned_machine_minutes);
+    const overrun=Number.isFinite(planned)&&planned>0?totalSeconds(job.id)-planned*60:0;
+    if(job.status==='IN_PROGRESS'&&overrun>0){const alert=document.createElement('p');alert.className='production-overdue';alert.textContent='Плановое время превышено на '+Math.ceil(overrun/60)+' мин. Для завершения или отмены обязательно опишите задержку.';card.append(alert)}
     if(job.notes){const note=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Комментарии и причины остановок';const content=document.createElement('p');content.className='production-note-history';content.textContent=job.notes;note.append(summary,content);card.append(note)}
     if(['DONE','CANCELLED'].includes(job.status)){
      const explanation=document.createElement('p');explanation.className='production-job-note';
@@ -110,10 +128,11 @@ export async function renderProduction({supabase,root,notify}){
     for(const [label,action] of actions[job.status]||[]){
      const btn=document.createElement('button');btn.type='button';btn.textContent=label;
      btn.addEventListener('click',async()=>{
-      const requiresNote=action==='PAUSE'||action==='CANCEL';
+      const currentlyOverdue=Number.isFinite(Number(job.planned_machine_minutes))&&Number(job.planned_machine_minutes)>0&&totalSeconds(job.id)>Number(job.planned_machine_minutes)*60;
+      const requiresNote=action==='PAUSE'||action==='CANCEL'||(action==='COMPLETE'&&currentlyOverdue);
       let reason='',comment='';
       if(requiresNote){
-       const input=prompt(action==='PAUSE'?'Причина паузы (например, замена материала):':'Причина отмены задания:');
+       const input=prompt(action==='PAUSE'?'Причина паузы (например, замена материала):':action==='CANCEL'?'Причина отмены задания:':'Плановое время превышено. Обязательно опишите причину задержки:');
        if(input===null)return;
        reason=input.trim();
        if(!reason){notify('Укажите причину остановки');return}
@@ -126,7 +145,7 @@ export async function renderProduction({supabase,root,notify}){
        if(requiresNote){
         // Persist explanation before transition; never silently change status if the note fails to save.
         const stamp=new Date().toLocaleString('ru-RU');
-        const entry='['+stamp+'] '+(action==='PAUSE'?'Пауза':'Отмена')+': '+reason+(comment?' — '+comment:'');
+        const entry='['+stamp+'] '+(action==='PAUSE'?'Пауза':action==='CANCEL'?'Отмена':'Превышение срока перед завершением')+': '+reason+(comment?' — '+comment:'');
         const original=String(job.notes||'');
         const next=(original?original+'\n':'')+entry;
         const {data:updated,error:noteError}=await supabase.from('production_jobs')
