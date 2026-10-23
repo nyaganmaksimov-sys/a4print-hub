@@ -51,7 +51,7 @@ export function setupSTLCalculator(form){
  <div class="order-entry-grid">
  <label>Материал<select name="stlMaterial"><option value="PLA">PLA</option><option value="PETG" selected>PETG</option><option value="ABS">ABS</option><option value="ASA">ASA</option><option value="TPU">TPU</option><option value="RESIN">Фотополимер</option></select></label>
  <label>Оценочная доля пластика от сплошной модели, %<input name="stlFactor" type="number" min="1" max="100" step="1" value="30"></label>
- <label>Стоимость материала, ₽/кг<input name="stlKg" type="number" min="0" step="1" value="1800"></label>
+ <label>Стоимость материала, ₽/кг<input name="stlKg" type="number" min="0" step="1" value="1500"></label>
  <label>Работа станка, часов (ввести после слайсинга)<input name="stlHours" type="number" min="0" step="0.1" value="0"></label>
  <label>Стоимость работы станка, ₽/час<input name="stlHourly" type="number" min="0" step="1" value="100"></label>
  <label>Подготовка и постобработка, ₽<input name="stlLabor" type="number" min="0" step="1" value="150"></label>
