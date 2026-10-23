@@ -57,3 +57,9 @@ body .shell .main .panel h2,body .shell .main .fleet-card h3{color:#edf6ff!impor
 body .shell .main .panel p,body .shell .main .panel small,body .shell .main .calc-hint{color:#a6bfdb!important}
 body .shell .main .fleet-card{background:radial-gradient(ellipse 90% 65% at 50% 0,#1d3448,#0e1828 80%)!important;color:#edf6ff!important}
 body .shell .main .fleet-card select{background:#142339!important;color:#eef7ff!important;border:1px solid #48617d!important}
+
+/* Own workspace navigation only. The globally injected HUB sidebar stays off this page. */
+body:has(>.shell) > .sidebar,body:has(>.shell) > .a4-sidebar-head{display:none!important}
+body:has(>.shell).a4-has-sidebar > .shell{margin:0!important;max-width:none!important}
+body:has(>.shell) > .shell > .main{margin-left:0!important;width:auto!important;flex:1}
+body:has(>.shell) .nav{z-index:3}
