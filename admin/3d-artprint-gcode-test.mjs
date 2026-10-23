@@ -20,4 +20,14 @@ assert.equal(withoutAnnotations.hours,null);
 const bad = parseGcodeMetadata('; filament used [g] = -45\n; printing time = nonsense');
 assert.equal(bad.grams,null);
 assert.equal(bad.hours,null);
-console.log('G-code metadata parser: 3 fixtures passed.');
+const packedOrcaGcode = parseGcodeMetadata([
+'; estimated printing time (normal mode) = 0d 0h 44m 1s',
+';right_extruder_material:PETG',
+'; filament used [g] = 26.50, 0.00, 0.00, 0.00',
+'; total filament used [g] = 26.50',
+'; total layers count = 160'
+].join('\\n'));
+assert.equal(packedOrcaGcode.grams,26.5);
+assert.ok(Math.abs(packedOrcaGcode.hours-(44*60+1)/3600)<1e-8);
+assert.equal(packedOrcaGcode.material,'PETG');
+console.log('G-code metadata parser: 4 fixtures passed.');
