@@ -42,7 +42,7 @@ export async function setupGcodeCalculator(form,supabase){
  <div class="order-entry-grid"><label>Принтер 3D-ARTPRINT<select name="gcodePrinter"><option value="">Ручной тариф</option></select></label><label>Тариф принтера <small data-printer-tariff>Выберите станок</small></label>
  <label>Расход филамента, г<input name="gcodeGrams" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
  <label>Время печати, ч<input name="gcodeHours" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
- <label>Стоимость филамента, ₽/кг<input name="gcodeKg" type="number" step="1" min="0" value="1800"></label>
+ <label>Стоимость филамента, ₽/кг<input name="gcodeKg" type="number" step="1" min="0" value="1500"></label>
  <label>Стоимость станка, ₽/ч<input name="gcodeHourly" type="number" step="1" min="0" value="100"></label>
  <label>Подготовка / обработка, ₽<input name="gcodeLabor" type="number" step="1" min="0" value="150"></label>
  <label>Наценка, %<input name="gcodeMarkup" type="number" step="1" min="0" value="70"></label>
