@@ -1,3 +1,6 @@
+import {supabase} from './guard.js?v=20260905-netfix1';
+import {parseGcodeMetadata} from './3d-artprint-gcode-estimator.js?v=1';
+import {unpackGcode3mf} from './3d-artprint-3mf-reader.js?v=1';
 // Presentation-only mapping of confirmed physical printers to existing HUB assets.
 // No INSERT or UPDATE of equipment_assets. All choices are drawn from RLS-visible assets.
 const fleet=[
@@ -102,6 +105,43 @@ function render(){
     if(!running.length)clockLabel.textContent='На паузе · осталось';
    }else clockLabel.textContent='Укажите время из G-code в задании';
    clock.append(clockLabel,time);art.append(clock);
+   if(job&&!(Number.isFinite(minutes)&&minutes>0)){
+    const setup=document.createElement('div');setup.className='fleet-gcode-setup';
+    const label=document.createElement('label');label.textContent='G-code для таймера';
+    const picker=document.createElement('input');picker.type='file';picker.accept='.gcode,.gco,.gc,.3mf';
+    const minuteInput=document.createElement('input');minuteInput.type='number';minuteInput.min='0.01';minuteInput.step='0.01';minuteInput.placeholder='Время, мин';
+    minuteInput.setAttribute('aria-label','Плановое время в минутах');
+    const save=document.createElement('button');save.type='button';save.textContent='Запустить отсчёт';save.disabled=true;
+    const feedback=document.createElement('small');feedback.textContent='Выберите G-code или укажите минуты вручную.';
+    const valid=()=>Number.isFinite(Number(minuteInput.value))&&Number(minuteInput.value)>0&&Number(minuteInput.value)<=100000;
+    minuteInput.addEventListener('input',()=>{save.disabled=!valid()});
+    picker.addEventListener('change',async()=>{
+     const file=picker.files?.[0];if(!file)return;
+     if(file.size>50*1024*1024||!/\.(?:gcode|gco|gc|gcode\.3mf)$/i.test(file.name)){feedback.textContent='Нужен G-code до 50 МБ';return}
+     try{
+      feedback.textContent='Читаем время слайсинга…';
+      const content=/\.gcode\.3mf$/i.test(file.name)?await unpackGcode3mf(file):await file.text();
+      const meta=parseGcodeMetadata(content);
+      if(!(Number(meta.hours)>0))throw Error('В файле нет расчётного времени');
+      minuteInput.value=(meta.hours*60).toFixed(3);save.disabled=false;
+      feedback.textContent='Найдено '+minuteInput.value+' мин. Сохраните.';
+     }catch(error){feedback.textContent='Не удалось прочитать время: '+(error?.message||String(error))}
+    });
+    save.addEventListener('click',async()=>{
+     if(!valid())return;
+     save.disabled=true;feedback.textContent='Сохраняем…';
+     try{
+      const {data:current,error:readError}=await supabase.from('production_jobs').select('id,equipment_id,order_item_id,operation_type,quantity,operation_amount,primary_material_id,production_cost').eq('id',job.id).single();
+      if(readError||!current)throw readError||Error('Задание недоступно');
+      const {error}=await supabase.rpc('configure_production_job',{p_job_id:job.id,p_equipment_id:current.equipment_id,p_order_item_id:current.order_item_id,p_operation_type:current.operation_type,p_quantity:current.quantity,p_planned_machine_minutes:Number(minuteInput.value),p_operation_amount:current.operation_amount,p_primary_material_id:current.primary_material_id,p_production_cost:current.production_cost});
+      if(error)throw error;
+      job.planned_machine_minutes=Number(minuteInput.value);
+      feedback.textContent='Время сохранено';
+      render();
+     }catch(error){feedback.textContent='Не удалось сохранить: '+(error?.message||String(error));save.disabled=false}
+    });
+    label.append(picker);setup.append(label,minuteInput,save,feedback);jobsBox.append(setup);
+   }
   }
   card.dataset.phase=phase;
   art.classList.add('fleet-art--'+phase);
