@@ -1,5 +1,5 @@
 // Production cards use the existing tenant-scoped production RPC.
-const actions={NEW:[['Начать','START']],QUEUED:[['Начать','START']],IN_PROGRESS:[['Приостановить','PAUSE'],['Завершить','COMPLETE']],PAUSED:[['Продолжить','RESUME']]};
+const actions={NEW:[['Начать','START'],['Отменить','CANCEL']],QUEUED:[['Начать','START'],['Отменить','CANCEL']],IN_PROGRESS:[['Приостановить','PAUSE'],['Завершить','COMPLETE'],['Отменить','CANCEL']],PAUSED:[['Продолжить','RESUME'],['Отменить','CANCEL']]};
 const names={NEW:'Новое',QUEUED:'В очереди',IN_PROGRESS:'Печать',PAUSED:'Приостановлено',DONE:'Готово',CANCELLED:'Отменено'};
 const rub=value=>Number(value||0).toLocaleString('ru-RU',{style:'currency',currency:'RUB'});
 export async function renderProduction({supabase,root,notify}){
@@ -34,6 +34,7 @@ export async function renderProduction({supabase,root,notify}){
     const detail=document.createElement('p');detail.textContent='Оборудование: '+(job.equipment_name||job.equipment_inventory_number||'не назначено')+' · Исполнитель: '+(job.assignee_name||'не назначен');
     const numeric=document.createElement('p');numeric.textContent='План: '+(job.planned_machine_minutes??'—')+' мин · Факт: '+(job.actual_machine_minutes??'—')+' мин · Годных: '+(job.good_quantity??'—')+' · Брак: '+(job.scrap_quantity??'—')+' · Себестоимость: '+(job.production_cost==null?'—':rub(job.production_cost));
     card.append(h,status,detail,numeric);
+    if(job.notes){const note=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Комментарии и причины остановок';const content=document.createElement('p');content.className='production-note-history';content.textContent=job.notes;note.append(summary,content);card.append(note)}
     if(['DONE','CANCELLED'].includes(job.status)){
      const explanation=document.createElement('p');explanation.className='production-job-note';
      explanation.textContent=job.status==='DONE'?'Задание завершено. Назначение принтера и управление печатью недоступны для закрытого задания.':'Задание отменено. Для запуска работы оформите новое задание.';
@@ -109,9 +110,30 @@ export async function renderProduction({supabase,root,notify}){
     for(const [label,action] of actions[job.status]||[]){
      const btn=document.createElement('button');btn.type='button';btn.textContent=label;
      btn.addEventListener('click',async()=>{
-      if(!confirm('Подтвердить действие «'+label+'» для '+(job.title||'задания')+'?'))return;
+      const requiresNote=action==='PAUSE'||action==='CANCEL';
+      let reason='',comment='';
+      if(requiresNote){
+       const input=prompt(action==='PAUSE'?'Причина паузы (например, замена материала):':'Причина отмены задания:');
+       if(input===null)return;
+       reason=input.trim();
+       if(!reason){notify('Укажите причину остановки');return}
+       const extra=prompt('Комментарий оператора (необязательно):','');
+       if(extra===null)return;
+       comment=extra.trim();
+      }else if(!confirm('Подтвердить действие «'+label+'» для '+(job.title||'задания')+'?'))return;
       btn.disabled=true;
       try{
+       if(requiresNote){
+        // Persist explanation before transition; never silently change status if the note fails to save.
+        const stamp=new Date().toLocaleString('ru-RU');
+        const entry='['+stamp+'] '+(action==='PAUSE'?'Пауза':'Отмена')+': '+reason+(comment?' — '+comment:'');
+        const original=String(job.notes||'');
+        const next=(original?original+'\n':'')+entry;
+        const {data:updated,error:noteError}=await supabase.from('production_jobs')
+         .update({notes:next}).eq('id',job.id).eq('status',job.status).select('id');
+        if(noteError)throw noteError;
+        if(!updated?.length)throw Error('Причина не сохранена: недостаточно прав или статус изменился');
+       }
        const {error}=await supabase.rpc('transition_production_job',{p_job_id:job.id,p_action:action});
        if(error)throw error;
        notify('Статус задания обновлён');await load();
