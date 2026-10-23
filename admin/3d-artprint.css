@@ -169,3 +169,5 @@ body > .shell .brand-header .brand-splash{
 .fleet-gcode-setup button{padding:9px;border-radius:8px;border:1px solid #2dc9e5;background:#0c5675;color:#fff;cursor:pointer}
 .fleet-gcode-setup button:disabled{opacity:.5;cursor:not-allowed}
 .fleet-gcode-setup small{overflow-wrap:anywhere;color:#a4cbe0;margin:0}
+
+.fleet-runtime:has(.fleet-runtime-overdue){border-color:#ff625f;background:#3a1219ee;box-shadow:0 0 14px #e43d4159}.fleet-runtime-overdue{color:#ff9494!important;text-shadow:0 0 7px #df314580}
