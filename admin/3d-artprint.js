@@ -35,9 +35,9 @@ async function jobs(){
 async function machines(jobs){
  const root=$('machineList');
  const {data:org,error:orgError}=await supabase.from('organizations').select('id').eq('code','3DARTPRINT').maybeSingle();
- if(orgError||!org?.id){root.textContent='Организация 3D-ARTPRINT недоступна для вашей учётной записи.';refreshCalcEquipment([]);return;}
+ if(orgError||!org?.id){root.textContent='Не удалось определить организацию 3D-ARTPRINT. Проверьте права организации в HUB.';refreshCalcEquipment([]);document.dispatchEvent(new CustomEvent('a4:3d-equipment-error',{detail:{message:'Организация 3D-ARTPRINT недоступна'}}));return;}
  const assetsResult=await supabase.from('equipment_assets').select('id,name,inventory_number,status,category,brand,model,next_service_date,purchase_price').eq('organization_id',org.id).order('name');
- if(assetsResult.error){root.textContent='Не удалось загрузить станки: '+errorText(assetsResult.error);return;}
+ if(assetsResult.error){root.textContent='Нет доступа к оборудованию организации: '+errorText(assetsResult.error);document.dispatchEvent(new CustomEvent('a4:3d-equipment-error',{detail:{message:'Нет доступа к оборудованию 3D-ARTPRINT'}}));return;}
  const assets=assetsResult.data||[];
  const ids=assets.map(a=>a.id);
  const economicsResult=ids.length?await supabase.from('equipment_economics_daily').select('equipment_id,metric_date,machine_minutes,operation_revenue,production_cost,service_cost,net_margin_after_service').in('equipment_id',ids).gte('metric_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)):{data:[],error:null};
@@ -56,7 +56,7 @@ async function machines(jobs){
   }
  }
  root.replaceChildren();
- if(!assets.length){root.textContent='В реестре организации 3D-ARTPRINT пока нет оборудования.';return;}
+ if(!assets.length){root.textContent='В доступном реестре 3D-ARTPRINT нет оборудования. Проверьте организацию входа и права на оборудование.';return;}
  for(const a of assets){
   const m=metrics.get(a.id),link=line('./equipment.html?equipment='+encodeURIComponent(a.id),'№'+(a.inventory_number||'—')+' · '+(a.name||a.model||'Оборудование'),[a.brand,a.model].filter(Boolean).join(' ')+' · '+(status[a.status]||a.status||'—'),'Активных: '+(counts.get(a.id)||0));
   root.append(link);
