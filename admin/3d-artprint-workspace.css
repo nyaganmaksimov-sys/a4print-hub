@@ -10,3 +10,5 @@
 .stl-result{margin:14px 0;padding:13px;background:#0b1b2a;border-radius:9px;color:#b9f2e9}
 .stl-calc [data-apply-estimate]{background:#0a7198;color:#fff;border:1px solid #27bfe3}
 .stl-calc [data-apply-estimate]:disabled{opacity:.45;cursor:not-allowed}
+
+.production-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.production-toolbar h2{margin:0}.production-job-card{background:#0d1b2c;border:1px solid #304b65;border-radius:13px;padding:18px;margin:12px 0}.production-job-card h3{margin:0 0 10px;color:#ecf5ff}.production-job-card p{margin:6px 0;color:#b6cce2;line-height:1.5}.production-job-card .row-controls button{background:#113c59;color:#e5faff;border-color:#296686;cursor:pointer}.production-job-card .row-controls button:disabled{opacity:.5}
