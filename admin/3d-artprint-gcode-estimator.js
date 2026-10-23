@@ -29,7 +29,7 @@ export function parseGcodeMetadata(text){
  }
  return found;
 }
-export function setupGcodeCalculator(form){
+export async function setupGcodeCalculator(form,supabase){
  const stl=form.querySelector('.stl-calc');
  if(!stl)return;
  const div=document.createElement('div');
@@ -37,7 +37,7 @@ export function setupGcodeCalculator(form){
  div.innerHTML=`<h3>Расчёт по G-code после слайсинга</h3>
  <p>Используются комментарии, записанные слайсером. Если расход или время отсутствуют, введите их вручную. G-code анализируется локально.</p>
  <label>G-code (до 50 МБ)<input type="file" name="gcode" accept=".gcode,.gco,.gc" /></label>
- <div class="order-entry-grid">
+ <div class="order-entry-grid"><label>Принтер 3D-ARTPRINT<select name="gcodePrinter"><option value="">Ручной тариф</option></select></label><label>Тариф принтера <small data-printer-tariff>Выберите станок</small></label>
  <label>Расход филамента, г<input name="gcodeGrams" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
  <label>Время печати, ч<input name="gcodeHours" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
  <label>Стоимость филамента, ₽/кг<input name="gcodeKg" type="number" step="1" min="0" value="1800"></label>
@@ -49,6 +49,7 @@ export function setupGcodeCalculator(form){
  <button type="button" data-gcode-apply disabled>Подставить цену по G-code</button>`;
  stl.append(div);
  const get=n=>div.querySelector('[name="'+n+'"]'),info=div.querySelector('[data-gcode-result]'),apply=div.querySelector('[data-gcode-apply]');let filename='',meta={};
+ const printer=get('gcodePrinter'),tariff=div.querySelector('[data-printer-tariff]');
  const recalc=()=>{
   apply.disabled=true;
   const grams=Number(get('gcodeGrams').value),hours=Number(get('gcodeHours').value),kg=Number(get('gcodeKg').value),hourly=Number(get('gcodeHourly').value),labor=Number(get('gcodeLabor').value),markup=Number(get('gcodeMarkup').value);
@@ -67,6 +68,33 @@ export function setupGcodeCalculator(form){
   };
  };
  div.addEventListener('input',e=>{if(e.target.type!=='file')recalc()});
+ const inventory=['A4-EQ-00054','A4-EQ-00055','A4-EQ-00056','A4-EQ-00057'];
+ try{
+  const {data:org,error:orgError}=await supabase.from('organizations').select('id').eq('code','3DARTPRINT').maybeSingle();
+  if(orgError||!org?.id)throw Error('Оборудование организации недоступно');
+  const {data:assets,error:assetsError}=await supabase.from('equipment_assets').select('id,name,inventory_number,purchase_price').eq('organization_id',org.id).in('inventory_number',inventory);
+  if(assetsError)throw assetsError;
+  const available=(assets||[]).filter(a=>inventory.includes(a.inventory_number));
+  for(const a of available)printer.add(new Option((a.inventory_number||'')+' · '+(a.name||''),a.id));
+  const assetMap=new Map(available.map(a=>[a.id,a]));
+  printer.addEventListener('change',()=>{
+   const asset=assetMap.get(printer.value);
+   if(!asset){tariff.textContent='Укажите тариф вручную';recalc();return}
+   const key='a4print:3d-artprint:machine-cost:v1:'+asset.id;
+   let preset=null;
+   try{preset=JSON.parse(localStorage.getItem(key)||'null')}catch{}
+   const life=Number(preset?.calcLife),running=Number(preset?.calcRunning),purchase=Number(asset.purchase_price);
+   if(!Number.isFinite(life)||life<=0||!Number.isFinite(running)||running<0||asset.purchase_price==null||!Number.isFinite(purchase)||purchase<0){
+     tariff.textContent='У станка нет полного тарифа. Укажите ₽/ч вручную.';recalc();return
+   }
+   const rate=Math.round((purchase/life+running)*100)/100;
+   get('gcodeHourly').value=String(rate);
+   tariff.textContent='Тариф из профиля станка: '+rate.toLocaleString('ru-RU')+' ₽/ч (этот браузер)';
+   recalc();
+  });
+  tariff.textContent=available.length?'Выберите принтер; тарифы берутся из сохранённых профилей':'Принтеры пока не доступны';
+ }catch(error){tariff.textContent='Реестр принтеров не загружен — доступен ручной тариф';}
+
  get('gcode').addEventListener('change',async e=>{
   const file=e.target.files?.[0];apply.disabled=true;
   if(!file)return;
