@@ -1,3 +1,8 @@
+const params=new URLSearchParams(location.search);
+const requested=params.get('returnTo')||'./3d-artprint.html';
+const target=new URL(requested,location.href);
+const returnTo=target.origin===location.origin&&/\/admin\/3d-artprint(?:-workspace)?\.html$/.test(target.pathname)?target.pathname+target.search+target.hash:'/admin/3d-artprint.html';
+document.getElementById('existingLogin').href='./login.html?returnTo='+encodeURIComponent(returnTo);
 const form=document.getElementById('employeeLogin'),message=document.getElementById('message'),button=document.getElementById('submit');
 const config=window.A4PRINT_CONFIG||{};
 const create=window.supabase?.createClient;
@@ -18,10 +23,7 @@ else{
    if(profileResult.error||profile?.status!=='ACTIVE'||profile?.department?.organization?.code!=='3DARTPRINT'){
     await db.auth.signOut();throw Error('Нет активного доступа к 3D-ARTPRINT');
    }
-   const requested=new URLSearchParams(location.search).get('returnTo')||'./3d-artprint.html';
-   const allowed=new URL(requested,location.href);
-   if(allowed.origin!==location.origin||!/\/admin\/3d-artprint(?:-workspace)?\.html$/.test(allowed.pathname))throw Error('Недопустимый адрес перехода');
-   location.replace(allowed.href);
+   location.replace(returnTo);
   }catch(error){message.textContent=error?.message||'Ошибка входа';button.disabled=false}
  });
 }
