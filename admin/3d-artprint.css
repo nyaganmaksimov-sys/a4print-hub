@@ -171,3 +171,38 @@ body > .shell .brand-header .brand-splash{
 .fleet-gcode-setup small{overflow-wrap:anywhere;color:#a4cbe0;margin:0}
 
 .fleet-runtime:has(.fleet-runtime-overdue){border-color:#ff625f;background:#3a1219ee;box-shadow:0 0 14px #e43d4159}.fleet-runtime-overdue{color:#ff9494!important;text-shadow:0 0 7px #df314580}
+
+/* 3D-ARTPRINT brand: keep the CMYK halo and PNG glow inside generous visible space. */
+body > .shell .top{
+  padding:26px 24px 30px;
+  min-height:185px;
+  overflow:visible;
+}
+body > .shell .brand-header{
+  min-height:145px;
+  padding:18px 25px 20px;
+  margin:-8px -10px;
+  overflow:visible;
+  isolation:isolate;
+}
+body > .shell .brand-header .brand-lockup{
+  position:relative;
+  z-index:2;
+  overflow:visible;
+}
+body > .shell .brand-header .official-brand-logo{
+  width:min(420px,100%);
+  filter:drop-shadow(0 10px 24px rgba(238,28,169,.24));
+}
+body > .shell .brand-header .brand-splash{
+  left:10px!important;
+  width:min(560px,96%);
+  height:145px;
+  filter:blur(24px);
+  opacity:.62;
+}
+@media(max-width:680px){
+  body > .shell .top{padding:19px 12px 22px;min-height:125px}
+  body > .shell .brand-header{min-height:108px;padding:15px 15px 18px;margin:0;max-width:100%}
+  body > .shell .brand-header .brand-splash{left:3px!important;width:min(360px,94%);height:106px;filter:blur(18px)}
+}
