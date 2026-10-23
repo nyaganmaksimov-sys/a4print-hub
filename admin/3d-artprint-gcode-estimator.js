@@ -45,13 +45,15 @@ export async function setupGcodeCalculator(form,supabase){
  <label>Стоимость филамента, ₽/кг<input name="gcodeKg" type="number" step="1" min="0" value="1500"></label>
  <label>Стоимость станка, ₽/ч<input name="gcodeHourly" type="number" step="1" min="0" value="0"></label>
  <label>Подготовка / обработка, ₽<input name="gcodeLabor" type="number" step="1" min="0" value="150"></label>
- <label>Наценка, %<input name="gcodeMarkup" type="number" step="1" min="0" value="70"></label><label>Доля владельца принтера, % от цены заказа<input name="gcodeRent" type="number" step="1" min="15" max="30" value="15"></label>
+ <label>Наценка, %<input name="gcodeMarkup" type="number" step="1" min="0" value="70"></label><label>Доля владельца принтера, % от цены заказа<input name="gcodeRent" type="number" step="1" min="15" max="30" value="15"></label><div><button type="button" data-save-rent disabled>Сохранить процент принтера</button><small data-rent-status>Выберите принтер, чтобы сохранить его ставку.</small></div>
  </div>
  <div class="stl-result" data-gcode-result role="status">Загрузите G-code или заполните поля вручную.</div>
  <button type="button" data-gcode-apply disabled>Подставить цену по G-code</button>`;
  stl.append(div);
  const get=n=>div.querySelector('[name="'+n+'"]'),info=div.querySelector('[data-gcode-result]'),apply=div.querySelector('[data-gcode-apply]');let filename='',meta={};
- const printer=get('gcodePrinter'),tariff=div.querySelector('[data-printer-tariff]');
+ const printer=get('gcodePrinter'),tariff=div.querySelector('[data-printer-tariff]'),saveRent=div.querySelector('[data-save-rent]'),rentStatus=div.querySelector('[data-rent-status]');
+ const rentKey=id=>'a4print:3d-artprint:rent-share:v1:'+id;
+ const readRent=id=>{try{const value=Number(localStorage.getItem(rentKey(id)));return Number.isFinite(value)&&value>=15&&value<=30?value:null}catch{return null}};
  const recalc=()=>{
   apply.disabled=true;
   const grams=Number(get('gcodeGrams').value),hours=Number(get('gcodeHours').value),kg=Number(get('gcodeKg').value),hourly=Number(get('gcodeHourly').value),labor=Number(get('gcodeLabor').value),markup=Number(get('gcodeMarkup').value),rent=Number(get('gcodeRent').value);
@@ -80,9 +82,20 @@ export async function setupGcodeCalculator(form,supabase){
   const available=(assets||[]).filter(a=>inventory.includes(a.inventory_number));
   for(const a of available)printer.add(new Option((a.inventory_number||'')+' · '+(a.name||''),a.id));
   const assetMap=new Map(available.map(a=>[a.id,a]));
+  saveRent.addEventListener('click',()=>{
+   if(!assetMap.has(printer.value))return;
+   const value=Number(get('gcodeRent').value);
+   if(!Number.isFinite(value)||value<15||value>30){rentStatus.textContent='Укажите процент от 15 до 30.';return}
+   try{localStorage.setItem(rentKey(printer.value),String(value));rentStatus.textContent='Для выбранного принтера сохранено '+value+'% в этом браузере.'}
+   catch{rentStatus.textContent='Не удалось сохранить. Проверьте настройки браузера.'}
+  });
   printer.addEventListener('change',()=>{
    const asset=assetMap.get(printer.value);
-   if(!asset){tariff.textContent='Укажите эксплуатационные расходы вручную';recalc();return}
+   saveRent.disabled=!asset;
+   if(!asset){rentStatus.textContent='Выберите принтер, чтобы сохранить его ставку.';tariff.textContent='Укажите эксплуатационные расходы вручную';recalc();return}
+   const savedRent=readRent(asset.id);
+   get('gcodeRent').value=String(savedRent??15);
+   rentStatus.textContent=savedRent===null?'У этого принтера нет сохранённой ставки — временно 15%.':'Ставка '+savedRent+'% загружена из этого браузера.';
    const key='a4print:3d-artprint:machine-cost:v1:'+asset.id;
    let preset=null;
    try{preset=JSON.parse(localStorage.getItem(key)||'null')}catch{}
