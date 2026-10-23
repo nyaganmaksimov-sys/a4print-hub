@@ -63,6 +63,21 @@ function render(){
   const running=active.filter(j=>j.status==='IN_PROGRESS');
   const paused=active.filter(j=>j.status==='PAUSED');
   const queue=active.filter(j=>j.status==='QUEUED'||j.status==='NEW');
+  // Visualize workflow state, not physical printer telemetry.
+  const phase=running.length?'printing':paused.length?'paused':queue.length?'queued':'idle';
+  card.dataset.phase=phase;
+  art.classList.add('fleet-art--'+phase);
+  if(phase!=='idle'){
+   const badge=document.createElement('span');
+   badge.className='fleet-art-badge';
+   const dot=document.createElement('i');dot.className='fleet-art-dot';dot.setAttribute('aria-hidden','true');
+   const text=document.createElement('span');
+   text.textContent=phase==='printing'?'Печать':phase==='paused'?'Пауза':'В очереди';
+   badge.append(dot,text);art.append(badge);
+   if(phase==='printing'){
+    const scan=document.createElement('span');scan.className='fleet-art-scan';scan.setAttribute('aria-hidden','true');art.append(scan);
+   }
+  }
   const head=document.createElement('div');head.className='fleet-work-head';
   const labelJobs=document.createElement('strong');labelJobs.textContent='Работа и заказы';
   const count=document.createElement('span');count.textContent=active.length+' активных · '+queue.length+' в очереди';
