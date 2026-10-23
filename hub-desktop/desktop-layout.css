@@ -1,0 +1,41 @@
+/* A4PRINT HUB Desktop — restore the real dark navigation, no injected mini-menu. */
+@media (min-width:901px) {
+ html body .sidebar,
+ html body.dashboard-home .sidebar,
+ html body.a4-side-light .sidebar,
+ html body.a4-side-glass .sidebar,
+ html body.dashboard-home.a4-side-light .sidebar,
+ html body.dashboard-home.a4-side-glass .sidebar,
+ html body.a4-sidebar-collapsed .sidebar {
+   display:block!important;visibility:visible!important;
+   position:fixed!important;inset:0 auto 0 0!important;
+   width:232px!important;max-width:232px!important;
+   background:#101b2e!important;color:#e9f1ff!important;
+   border-right:1px solid #29405e!important;
+   box-shadow:none!important;transform:none!important;
+   overflow-y:auto!important;
+ }
+ html body .sidebar a,html body .sidebar .a4-nav-label,
+ html body .sidebar .a4-nav-group-head,
+ html body .sidebar .a4-sidebar-toggle,
+ html body .sidebar .a4-nav-icon {
+   color:#e1eafa!important;
+ }
+ html body .sidebar a:hover,html body .sidebar .a4-nav-group-head:hover {
+   background:#243955!important;color:#fff!important;
+ }
+ html body .sidebar a.active {background:#1c54ae!important;color:#fff!important}
+ html body .sidebar .a4-sidebar-head {display:flex!important;visibility:visible!important}
+ html body .main,html body.dashboard-home .main,
+ html body.a4-has-sidebar .main,
+ html body.a4-sidebar-collapsed .main,
+ html body.dashboard-home.a4-sidebar-collapsed .main {
+   margin-left:232px!important;width:calc(100% - 232px)!important;
+   max-width:none!important;box-sizing:border-box!important;
+ }
+ html body #a4-desktop-menu-trigger,html body #a4-desktop-menu-panel,
+ html body #a4CompactMenu,html body #a4CompactPanel {display:none!important}
+}
+@media (max-width:900px) {
+ html body #a4-desktop-menu-trigger,html body #a4-desktop-menu-panel {display:none!important}
+}

@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const main=fs.readFileSync('main.js','utf8');
+const css=fs.readFileSync('desktop-layout.css','utf8');
+assert.match(main,/insertCSS\(desktopCss,\{cssOrigin:'user'\}\)/);
+assert.match(main,/did-finish-load/);
+assert.doesNotMatch(main,/executeJavaScript\(desktopNavigation/);
+assert.match(css,/\.sidebar/);
+assert.match(css,/background:#101b2e!important/);
+assert.match(css,/display:block!important;visibility:visible!important/);
+assert.match(css,/margin-left:232px!important/);
+assert.doesNotMatch(css,/\.sidebar[^\n]*\{display:none!important/);
+console.log('Dark sidebar and standard navigation verified');
