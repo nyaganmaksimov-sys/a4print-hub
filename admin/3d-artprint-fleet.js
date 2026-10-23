@@ -18,7 +18,9 @@ function updateRuntimeClocks(){
  root.querySelectorAll('[data-print-start]').forEach(el=>{
   const started=Date.parse(el.dataset.printStart);
   if(!Number.isFinite(started)||started>now){el.textContent='—';return}
-  el.textContent=runtimeText((now-started)/1000);
+  const planned=Number(el.dataset.plannedSeconds);
+  if(Number.isFinite(planned)&&planned>0){const remaining=Math.max(0,Math.ceil(planned-(now-started)/1000));el.textContent=runtimeText(remaining);el.classList.toggle('fleet-runtime-overdue',remaining===0)}
+  else el.textContent='—';
  });
 }
 setInterval(updateRuntimeClocks,1000);
@@ -78,13 +80,16 @@ function render(){
   const queue=active.filter(j=>j.status==='QUEUED'||j.status==='NEW');
   // Visualize workflow state, not physical printer telemetry.
   const phase=running.length?'printing':paused.length?'paused':queue.length?'queued':'idle';
-  if(running.length){
-   const job=running.find(j=>j.started_at&&Number.isFinite(Date.parse(j.started_at)));
+  if(running.length||paused.length){
+   const job=(running.length?running:paused).find(j=>j.started_at&&Number.isFinite(Date.parse(j.started_at)));
+   const minutes=Number(job?.planned_machine_minutes);
    const clock=document.createElement('div');clock.className='fleet-runtime';
-   const clockLabel=document.createElement('span');clockLabel.textContent='С момента запуска';
+   const clockLabel=document.createElement('span');clockLabel.textContent='Осталось по плану';
    const time=document.createElement('strong');time.className='fleet-runtime-clock';time.textContent='—';
-   if(job)time.dataset.printStart=job.started_at;
-   else clockLabel.textContent='Время запуска не записано';
+   if(job&&Number.isFinite(minutes)&&minutes>0){
+    if(running.length){time.dataset.printStart=job.started_at;time.dataset.plannedSeconds=String(minutes*60)}
+    else {clockLabel.textContent='Пауза · ориентир';const used=Number(job.actual_machine_minutes);time.textContent=runtimeText(Math.max(0,(minutes-(Number.isFinite(used)?used:0))*60))}
+   }else clockLabel.textContent='Укажите время из G-code в задании';
    clock.append(clockLabel,time);art.append(clock);
   }
   card.dataset.phase=phase;

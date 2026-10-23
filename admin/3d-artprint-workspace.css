@@ -14,3 +14,5 @@
 .production-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.production-toolbar h2{margin:0}.production-job-card{background:#0d1b2c;border:1px solid #304b65;border-radius:13px;padding:18px;margin:12px 0}.production-job-card h3{margin:0 0 10px;color:#ecf5ff}.production-job-card p{margin:6px 0;color:#b6cce2;line-height:1.5}.production-job-card .row-controls button{background:#113c59;color:#e5faff;border-color:#296686;cursor:pointer}.production-job-card .row-controls button:disabled{opacity:.5}
 
 .production-toolbar>a{padding:10px 14px;border:1px solid #306a83;border-radius:9px;text-decoration:none;color:#baf1ff}.production-job-note{border-left:3px solid #70849c;padding:9px 12px;background:#12283b;color:#cbddec!important}@media(max-width:680px){.production-toolbar{flex-wrap:wrap}}
+
+.production-gcode-time{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #334a60}.production-gcode-time label{display:flex;gap:7px;align-items:center;flex-wrap:wrap;font-size:12px}.production-gcode-time input[type=number]{width:140px}.production-gcode-time small{color:#98c1da;width:100%}
