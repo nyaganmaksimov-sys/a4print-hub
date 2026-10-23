@@ -1,0 +1,18 @@
+name: Test 3D-ARTPRINT G-code
+on:
+  pull_request:
+    paths:
+      - 'admin/3d-artprint-gcode-estimator.js'
+      - 'admin/3d-artprint-gcode-test.mjs'
+      - '.github/workflows/test-3d-artprint-gcode.yml'
+permissions:
+  contents: read
+jobs:
+  gcode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --experimental-default-type=module admin/3d-artprint-gcode-test.mjs
