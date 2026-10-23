@@ -22,3 +22,23 @@
 .production-operator{color:#9fdbf7!important;font-weight:650}.production-overdue{color:#ffb5a6!important;padding:9px 12px;border-left:3px solid #ff6b5c;background:#391f2a}
 
 .art-staff-admin{max-width:900px}.art-staff-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:20px 0}.art-staff-form label{display:grid;gap:6px}.art-staff-form input{width:100%;padding:10px;border-radius:8px;background:#0d2033;color:#fff;border:1px solid #345a77}.art-staff-form button{align-self:end}.art-staff-person{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #2f4b67;border-radius:10px;padding:14px;margin:9px 0}.art-staff-person strong{flex:1;min-width:200px}.art-staff-result{color:#9be4f7;min-height:20px}
+
+.studio-equipment-intro{color:#a9c7dc;margin:0 0 16px}
+.studio-equipment-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 15px}
+.studio-equipment-toolbar input{flex:1;min-width:220px}
+.studio-equipment-toolbar a,.studio-machine-actions a{display:inline-flex;align-items:center;justify-content:center;padding:10px 13px;border:1px solid #356680;border-radius:9px;background:#112d43;text-decoration:none;color:#bcefff;font-size:13px}
+.studio-equipment-status{color:#9fc1d5;margin:12px 0}
+.studio-equipment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}
+.studio-machine{background:#101e30;border:1px solid #304960;border-radius:13px;padding:13px;min-width:0}
+.studio-machine-art{height:200px;display:grid;place-items:center;border-radius:9px;background:radial-gradient(ellipse at center,#18344f,#0b1728 70%);overflow:hidden}
+.studio-machine-art img{width:100%;height:100%;object-fit:contain}
+.studio-machine-placeholder{color:#7ab2c8;letter-spacing:.03em}
+.studio-machine h3{margin:12px 0 5px;font-size:17px;color:#f4fbff}
+.studio-machine p{margin:4px 0 9px;color:#a1bfd5;font-size:12px}
+.studio-machine .studio-machine-load{color:#67cfb4}
+.studio-machine>strong{display:block;margin:13px 0 7px}
+.studio-machine-jobs{display:grid;gap:7px;min-height:32px}
+.studio-machine-jobs a{display:block;background:#0b2739;border:1px solid #24445b;border-radius:7px;padding:9px;color:#a8e6ff;font-size:12px}
+.studio-machine-jobs small{color:#92afc4}
+.studio-machine-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+@media(max-width:650px){.studio-equipment-grid{grid-template-columns:1fr}.studio-equipment-toolbar>*{width:100%}}
