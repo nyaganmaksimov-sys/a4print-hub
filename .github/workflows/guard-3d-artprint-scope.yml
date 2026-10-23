@@ -20,3 +20,24 @@ jobs:
           python3 scripts/check_3d_artprint_scope.py < /tmp/pr-files.txt
       - name: Self-test scope protection
         run: python3 -m unittest discover -s scripts/tests -p 'test_3d_artprint_scope.py'
+      - name: Verify 3D-ARTPRINT browser JavaScript syntax
+        run: |
+          for file in admin/3d-artprint*.js admin/production-slicer-profiles.js; do
+            test -f "$file" || continue
+            echo "Checking $file"
+            node --check "$file"
+          done
+      - name: Verify standalone browser page and printer asset paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          page = Path('admin/3d-artprint.html').read_text(encoding='utf-8')
+          assert '3d-artprint.css' in page and '3d-artprint.js' in page
+          for name in ('logo.png', 'kobra-x.png', 'kobra-2-max.png', 'ender-v3-se.png', 'ad5x.png'):
+              assert (Path('admin/assets/3d-artprint') / name).is_file(), name
+          fleet = Path('admin/3d-artprint-fleet.js').read_text(encoding='utf-8')
+          for name in ('kobra-x.png', 'kobra-2-max.png', 'ender-v3-se.png', 'ad5x.png'):
+              assert name in fleet, name
+          print('Browser assets and references OK')
+          PY
