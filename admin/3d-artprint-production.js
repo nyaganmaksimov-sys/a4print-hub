@@ -69,6 +69,42 @@ export async function renderProduction({supabase,root,notify}){
      });
      assign.append(choice,save);card.append(assign);
     }
+    if(['NEW','QUEUED','PAUSED','IN_PROGRESS'].includes(job.status)){
+     const timeRow=document.createElement('div');timeRow.className='production-gcode-time';
+     const fileLabel=document.createElement('label');fileLabel.textContent='Время по G-code';
+     const file=document.createElement('input');file.type='file';file.accept='.gcode,.gco,.gc,.3mf';
+     fileLabel.append(file);
+     const minutes=document.createElement('input');minutes.type='number';minutes.min='0.01';minutes.step='0.01';minutes.placeholder='Минуты из G-code';minutes.setAttribute('aria-label','Плановое время печати, мин');
+     if(job.planned_machine_minutes!=null)minutes.value=String(job.planned_machine_minutes);
+     const save=document.createElement('button');save.type='button';save.textContent='Сохранить время';save.disabled=true;
+     const hint=document.createElement('small');hint.textContent='Загрузите нарезанный G-code или укажите время вручную. Файл не отправляется на сервер.';
+     file.addEventListener('change',async()=>{
+      const selected=file.files?.[0];if(!selected)return;
+      if(selected.size>50*1024*1024){hint.textContent='Файл больше 50 МБ';return}
+      try{
+       const {parseGcodeMetadata}=await import('./3d-artprint-gcode-estimator.js?v=1');
+       const source=/\\.gcode\\.3mf$/i.test(selected.name)?await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(selected):await selected.text();
+       const meta=parseGcodeMetadata(source);
+       if(!Number.isFinite(meta.hours)||meta.hours<=0)throw Error('В файле нет времени печати. Укажите минуты вручную.');
+       minutes.value=(meta.hours*60).toFixed(3);save.disabled=false;
+       hint.textContent='OrcaSlicer: '+(meta.hours*60).toFixed(2)+' мин. Проверьте и сохраните.';
+      }catch(err){hint.textContent='Не удалось определить время: '+(err?.message||String(err))}
+     });
+     minutes.addEventListener('input',()=>{save.disabled=!(Number(minutes.value)>0)});
+     save.addEventListener('click',async()=>{
+      const planned=Number(minutes.value);
+      if(!Number.isFinite(planned)||planned<=0||planned>100000){hint.textContent='Укажите корректное время в минутах';return}
+      save.disabled=true;
+      try{
+       const {data:current,error:readError}=await supabase.from('production_jobs').select('id,equipment_id,order_item_id,operation_type,quantity,operation_amount,primary_material_id,production_cost').eq('id',job.id).single();
+       if(readError||!current)throw readError||Error('Задание недоступно');
+       const {error}=await supabase.rpc('configure_production_job',{p_job_id:job.id,p_equipment_id:current.equipment_id,p_order_item_id:current.order_item_id,p_operation_type:current.operation_type,p_quantity:current.quantity,p_planned_machine_minutes:planned,p_operation_amount:current.operation_amount,p_primary_material_id:current.primary_material_id,p_production_cost:current.production_cost});
+       if(error)throw error;
+       notify('Время печати сохранено: '+planned.toFixed(2)+' мин');await load();
+      }catch(err){hint.textContent='Ошибка сохранения: '+(err?.message||String(err));save.disabled=false}
+     });
+     timeRow.append(fileLabel,minutes,save,hint);card.append(timeRow);
+    }
     const controls=document.createElement('div');controls.className='row-controls';
     for(const [label,action] of actions[job.status]||[]){
      const btn=document.createElement('button');btn.type='button';btn.textContent=label;
