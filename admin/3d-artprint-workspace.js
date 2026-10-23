@@ -26,7 +26,27 @@ async function renderOrders(rows){
  const wanted=new URLSearchParams(location.search).get('status')||'';
  const list=wanted?rows.filter(o=>o.status===wanted):rows;
  if(!list.length)return empty('Заказов с выбранным статусом нет в загруженной выборке.');
- for(const o of list){const number=o.order_number||String(o.id).slice(0,8);const el=item('№'+number+' · '+(o.item_name||o.model_name||'Заказ'),(o.customer_full_name||o.customer_company_name||'Клиент не указан')+' · '+(o.status||'Без статуса'));root.append(el)}
+ for(const o of list){
+  const number=o.order_number||String(o.id).slice(0,8);
+  const el=item('№'+number+' · '+(o.item_name||o.model_name||'Заказ'),(o.customer_full_name||o.customer_company_name||'Клиент не указан')+' · '+(o.status||'Без статуса'));
+  if(o.status==='NEW'&&o.id){
+   const btn=document.createElement('button');btn.type='button';btn.textContent='Подтвердить и передать в производство';
+   btn.addEventListener('click',async()=>{
+    if(!confirm('Подтвердить заказ №'+number+' и создать производственное задание?'))return;
+    btn.disabled=true;
+    try{
+     const {data,error}=await supabase.from('orders').update({status:'CONFIRMED'}).eq('id',o.id).eq('business_unit','3D_ARTPRINT').eq('status','NEW').select('id');
+     if(error)throw error;
+     if(!data?.length)throw Error('Заказ не обновлён: проверьте доступ или текущий статус');
+     const {data:jobs,error:jobsError}=await supabase.from('production_jobs').select('id').eq('order_id',o.id).limit(1);
+     if(jobsError)throw jobsError;
+     notice.hidden=false;notice.textContent=jobs?.length?'Заказ подтверждён, производственное задание создано.':'Заказ подтверждён. Задание ещё не появилось — проверьте раздел производства.';
+     await renderOrders(await orderData());
+    }catch(error){notice.hidden=false;notice.textContent='Не удалось подтвердить заказ: '+(error?.message||String(error));btn.disabled=false}
+   });el.append(btn);
+  }
+  root.append(el)
+}
  
 }
 async function start(){
