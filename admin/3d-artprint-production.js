@@ -128,6 +128,16 @@ export async function renderProduction({supabase,root,notify}){
     for(const [label,action] of actions[job.status]||[]){
      const btn=document.createElement('button');btn.type='button';btn.textContent=label;
      btn.addEventListener('click',async()=>{
+      if(action==='START'){
+       // Re-read immediately before start: dropdown selection alone does not save an assignment.
+       const {data:assigned,error:assignmentError}=await supabase.from('production_jobs')
+        .select('equipment_id,status').eq('id',job.id).single();
+       if(assignmentError||!assigned){notify('Не удалось проверить назначение принтера');return}
+       if(!['NEW','QUEUED'].includes(assigned.status)){notify('Статус задания изменился. Обновите производство.');await load();return}
+       const machine=printers.find(p=>p.id===assigned.equipment_id);
+       if(!machine){notify('Перед запуском назначьте принтер и сохраните выбор кнопкой «Назначить принтер».');return}
+       if(!confirm('Запустить печать задания «'+(job.title||'Без названия')+'» именно на '+machine.name+' ('+machine.inventory_number+')?\\nЕсли выбрали другой принтер, сначала сохраните назначение.'))return;
+      }
       const currentlyOverdue=Number.isFinite(Number(job.planned_machine_minutes))&&Number(job.planned_machine_minutes)>0&&totalSeconds(job.id)>Number(job.planned_machine_minutes)*60;
       const requiresNote=action==='PAUSE'||action==='CANCEL'||(action==='COMPLETE'&&currentlyOverdue);
       let reason='',comment='';
@@ -139,7 +149,7 @@ export async function renderProduction({supabase,root,notify}){
        const extra=prompt('Комментарий оператора (необязательно):','');
        if(extra===null)return;
        comment=extra.trim();
-      }else if(!confirm('Подтвердить действие «'+label+'» для '+(job.title||'задания')+'?'))return;
+      }else if(action!=='START'&&!confirm('Подтвердить действие «'+label+'» для '+(job.title||'задания')+'?'))return;
       btn.disabled=true;
       try{
        if(requiresNote){
