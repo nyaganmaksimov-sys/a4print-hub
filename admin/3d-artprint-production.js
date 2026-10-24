@@ -149,7 +149,7 @@ export async function renderProduction({supabase,root,notify}){
        const extra=prompt('Комментарий оператора (необязательно):','');
        if(extra===null)return;
        comment=extra.trim();
-      }else if(!confirm('Подтвердить действие «'+label+'» для '+(job.title||'задания')+'?'))return;
+      }else if(action!=='START'&&!confirm('Подтвердить действие «'+label+'» для '+(job.title||'задания')+'?'))return;
       btn.disabled=true;
       try{
        if(requiresNote){
