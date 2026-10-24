@@ -42,3 +42,5 @@
 .studio-machine-jobs small{color:#92afc4}
 .studio-machine-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 @media(max-width:650px){.studio-equipment-grid{grid-template-columns:1fr}.studio-equipment-toolbar>*{width:100%}}
+
+.production-job-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px;margin:14px 0;padding:14px;border:1px solid #2b4b63;border-radius:12px;background:#0c2034}.production-job-facts>div{min-width:0}.production-job-facts dt{font-size:11px;color:#8fb2cf;margin-bottom:3px}.production-job-facts dd{font-size:13px;color:#e6f7ff;font-weight:600;margin:0;overflow-wrap:anywhere}

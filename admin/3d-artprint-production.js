@@ -38,13 +38,39 @@ export async function renderProduction({supabase,root,notify}){
    },0);
    list.replaceChildren();
    if(!jobs.length){list.textContent='Производственных заданий пока нет. Они появляются после создания и назначения работ по заказу.';return}
+   const machineById=new Map(printers.map(p=>[p.id,p]));
+   // Also resolve equipment records that are no longer ACTIVE, so history stays accurate.
+   const equipmentIds=[...new Set(jobs.map(j=>j.equipment_id).filter(Boolean))];
+   if(equipmentIds.length){
+    const eq=await supabase.from('equipment_assets').select('id,name,inventory_number,status').in('id',equipmentIds);
+    if(!eq.error)for(const asset of eq.data||[])machineById.set(asset.id,asset);
+   }
+   const formatDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ru-RU')};
    for(const job of jobs){
     const card=document.createElement('article');card.className='production-job-card';
     const h=document.createElement('h3');h.textContent=(job.title||'Производственное задание')+' · заказ №'+(job.order_number||'—');
     const status=document.createElement('p');status.textContent='Этап: '+(names[job.status]||job.status||'—');
-    const detail=document.createElement('p');detail.textContent='Оборудование: '+(job.equipment_name||job.equipment_inventory_number||'не назначено')+' · Исполнитель: '+(job.assignee_name||'не назначен');
+    const linkedMachine=job.equipment_id?machineById.get(job.equipment_id):null;
+    const printerLabel=linkedMachine?(linkedMachine.name+' · '+(linkedMachine.inventory_number||'без инв. номера')):job.equipment_id?'ID '+job.equipment_id+' (карточка оборудования недоступна)':'Не назначено';
+    const detail=document.createElement('p');detail.textContent='Оборудование: '+printerLabel+' · Исполнитель: '+(job.assignee_name||'не назначен');
+    const overview=document.createElement('dl');overview.className='production-job-facts';
+    const fact=(label,value)=>{const box=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value==null||value===''?'—':String(value);box.append(dt,dd);overview.append(box)};
+    fact('Принтер',printerLabel);
+    fact('Производственное задание',job.title||'—');
+    fact('Номер заказа',job.order_number||'—');
+    fact('Текущий этап',names[job.status]||job.status||'—');
+    fact('Дата запуска',formatDate(job.started_at));
+    fact('План',job.planned_machine_minutes==null?'—':job.planned_machine_minutes+' мин');
+    fact('Факт',job.actual_machine_minutes==null?'—':job.actual_machine_minutes+' мин');
+    fact('Кол-во изделий',job.quantity??'—');
+    fact('Годных / брак / переделка',[job.good_quantity??'—',job.scrap_quantity??'—',job.rework_quantity??'—'].join(' / '));
+    fact('Себестоимость',job.production_cost==null?'—':rub(job.production_cost));
+    fact('Операция',job.operation_type||'—');
+    fact('Материал',job.primary_material_name||job.material_name||(job.primary_material_id?'ID '+job.primary_material_id:'Не указан'));
+    fact('Исполнитель',job.assignee_name||'Не назначен');
+    if(job.deadline_at)fact('Срок выполнения',formatDate(job.deadline_at));
     const numeric=document.createElement('p');numeric.textContent='План: '+(job.planned_machine_minutes??'—')+' мин · Факт: '+(job.actual_machine_minutes??'—')+' мин · Годных: '+(job.good_quantity??'—')+' · Брак: '+(job.scrap_quantity??'—')+' · Себестоимость: '+(job.production_cost==null?'—':rub(job.production_cost));
-    card.append(h,status,detail,numeric);
+    card.append(h,status,detail,overview,numeric);
     const firstRun=runs.filter(r=>r.production_job_id===job.id).sort((a,b)=>Date.parse(a.started_at)-Date.parse(b.started_at))[0];
     const operator=document.createElement('p');operator.className='production-operator';
     operator.textContent=firstRun?.operator_user_id?'Запустил печать: '+(operators.get(firstRun.operator_user_id)||'Сотрудник · '+firstRun.operator_user_id.slice(0,8)):'Оператор запуска ещё не зафиксирован';
