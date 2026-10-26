@@ -24,6 +24,8 @@
   };
 
   let toastTimer=null,customerTimer=null,healthTimer=null,syncTimer=null;
+  let saleSubmitting=false;
+  let editingHeldId=null;
   function toast(text,error=false){const n=$('toast');n.textContent=text;n.className='toast show'+(error?' error':'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.className='toast',3200)}
   function friendly(e,fallback='Ошибка'){const m=String(e?.message||e||'').trim();if(!m)return fallback;if(/invalid login credentials|invalid_credentials/i.test(m))return'Неверный email или пароль.';if(/failed to fetch|network|load failed|abort|socket|fetch failed/i.test(m))return'Нет связи с сервером.';if(/POS_ACCESS_REQUIRED|ADMIN_REQUIRED|Нет доступа/i.test(m))return'У этой учётной записи нет доступа к кассе.';return m}
   function uuid(){return crypto.randomUUID?crypto.randomUUID():`k2-${Date.now()}-${Math.random().toString(36).slice(2)}`}
@@ -501,16 +503,18 @@
   function openHeld(){renderHeldReceipts();$('heldModal').hidden=false}
   function closeHeld(){$('heldModal').hidden=true}
   function holdReceipt(){
+    if(saleSubmitting)return;
     if(!state.cart.length){toast('Нечего откладывать.',true);return}
     const note=prompt('Название отложенного чека (необязательно):','') ;
     if(note===null)return;
-    const entry={id:uuid(),createdAt:nowIso(),note:String(note).trim().slice(0,100),
+    const oldDraft=editingHeldId?heldReceipts().find(x=>x.id===editingHeldId):null;
+    const entry={id:oldDraft?.id||uuid(),createdAt:oldDraft?.createdAt||nowIso(),note:String(note).trim().slice(0,100),
       cart:structuredClone(state.cart),discount:structuredClone(state.discount),
       customer:state.customer?structuredClone(state.customer):null,
       payment:state.payment,cashAccount:$('cashAccount').value,
       operator:$('operatorSelect').value,total:total()};
-    try{persistHeld([entry,...heldReceipts()])}catch(e){toast('Не удалось сохранить чек. Корзина сохранена.',true);return}
-    state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;
+    try{persistHeld([entry,...heldReceipts().filter(x=>x.id!==entry.id)])}catch(e){toast('Не удалось сохранить чек. Корзина сохранена.',true);return}
+    editingHeldId=null;state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;
     $('customerName').textContent='Не выбран';renderCart();renderHeldReceipts();
     toast('Чек отложен. Можно обслужить следующего покупателя.');
   }
@@ -519,16 +523,17 @@
     if(!entry)return toast('Отложенный чек не найден.',true);
     if(state.cart.length&&!confirm('В текущем чеке уже есть товары. Отложить его перед открытием другого?'))return;
     if(state.cart.length){
-      const current={id:uuid(),createdAt:nowIso(),note:'Предыдущая корзина',
+      const oldCurrent=editingHeldId?list.find(x=>x.id===editingHeldId):null;
+      const current={id:oldCurrent?.id||uuid(),createdAt:oldCurrent?.createdAt||nowIso(),note:oldCurrent?.note||'Предыдущая корзина',
         cart:structuredClone(state.cart),discount:structuredClone(state.discount),
         customer:state.customer?structuredClone(state.customer):null,
         payment:state.payment,cashAccount:$('cashAccount').value,
         operator:$('operatorSelect').value,total:total()};
-      try{persistHeld([current,...list.filter(x=>x.id!==id)])}catch(e){toast('Не удалось сохранить текущую корзину.',true);return}
+      try{persistHeld([current,...list.filter(x=>x.id!==id&&x.id!==current.id)])}catch(e){toast('Не удалось сохранить текущую корзину.',true);return}
     }else{
       try{persistHeld(list.filter(x=>x.id!==id))}catch(e){toast('Не удалось открыть чек.',true);return}
     }
-    state.cart=entry.cart;state.discount=entry.discount||{type:'PERCENT',value:0};
+    editingHeldId=entry.id;state.cart=entry.cart;state.discount=entry.discount||{type:'PERCENT',value:0};
     state.customer=entry.customer||null;state.payment=entry.payment||'Наличные';
     $('customerName').textContent=state.customer?.full_name||'Не выбран';
     document.querySelectorAll('.pay-tab').forEach(b=>b.classList.toggle('active',b.dataset.payment===state.payment));
@@ -588,9 +593,13 @@
   async function searchCustomers(){const q=$('customerSearch').value.trim();if(q.length<2){$('customerResults').innerHTML='';return}try{const d=await api('/api/v1/pos/customers?q='+encodeURIComponent(q));$('customerResults').innerHTML=(d.customers||[]).map(c=>`<button data-customer="${c.id}"><b>${esc(c.full_name)}</b><small>${esc(c.phone||c.email||c.company_name||'')}</small></button>`).join('')||'<small>Не найдено</small>';document.querySelectorAll('[data-customer]').forEach(b=>b.onclick=()=>{state.customer=(d.customers||[]).find(x=>x.id===b.dataset.customer)||null;$('customerName').textContent=state.customer?.full_name||'Не выбран';$('customerPanel').hidden=true})}catch(e){$('customerResults').innerHTML=`<small>${esc(friendly(e))}</small>`}}
 
   async function queueSale(){
-    if(!state.cart.length)return;if(!state.shift){toast('Сначала откройте смену.',true);return}
+    if(saleSubmitting||!state.cart.length)return;if(!state.shift){toast('Сначала откройте смену.',true);return}
+    saleSubmitting=true;
+    $('payButton').disabled=true;
+    try{
     const sale={id:uuid(),created_at:nowIso(),stage:'queued',tries:0,last_error:null,items:saleItems(),payment_method:state.payment,customer_id:state.customer?.id||null,customer_name:state.customer?.full_name||null,operator_id:$('operatorSelect').value||state.profile?.id||null,operator_name:$('operatorSelect').selectedOptions[0]?.textContent||state.profile?.full_name||'',cash_account_id:$('cashAccount').value||null,subtotal:subtotal(),discount_type:state.discount.type,discount_value:state.discount.value,discount_amount:discountAmount(),total:total(),shift:{id:state.shift.id,name:state.shift.name||null,openDate:state.shift.openDate||null}};
     await DB.put('queue',sale);
+    if(editingHeldId){const existing=heldReceipts();persistHeld(existing.filter(x=>x.id!==editingHeldId));editingHeldId=null}
     state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;$('customerName').textContent='Не выбран';renderCart();
     // The durable IndexedDB write is the cashier commit point. Do not block the
     // next receipt on rescanning the queue or any network synchronization.
@@ -599,6 +608,7 @@
     renderQueueList();
     toast(state.backendOnline?'Продажа сохранена. Синхронизируем…':'Продажа сохранена локально. Уйдёт после восстановления связи.');
     window.dispatchEvent(new CustomEvent('a4:kassa-queue-pending',{detail:{id:sale.id}}));
+    }catch(e){toast('Не удалось сохранить продажу: '+friendly(e),true)}finally{saleSubmitting=false;renderCart()}
   }
 
   async function refreshQueue(){state.queue=(await DB.getAll('queue')).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));const chip=$('queueChip');chip.querySelector('span').textContent=`Очередь ${state.queue.length}`;chip.className='status-chip '+(state.queue.length?'warn':'ok');renderQueueList()}
@@ -616,8 +626,8 @@
     try{
       await refreshQueue();
       for(const sale of [...state.queue]){
+        let current=sale;
         try{
-          let current=sale;
           if(current.stage==='queued'){
             const d=await api('/api/v1/pos/sale',{method:'POST',body:JSON.stringify({items:current.items,payment_method:current.payment_method,customer_id:current.customer_id,operator_id:current.operator_id,client_operation_id:current.id})});
             current={...current,stage:'backend_done',backend_result:d,tries:Number(current.tries||0)+1,last_error:null};await DB.put('queue',current);
@@ -628,7 +638,7 @@
             if(r.error&&!/duplicate|unique/i.test(String(r.error.message||'')))throw r.error;
             await DB.put('receipts',{...current,id:current.id,stage:'done',synced_at:nowIso(),backend_result:d});await DB.del('queue',current.id);await DB.trimReceipts(100);
           }
-        }catch(e){sale.tries=Number(sale.tries||0)+1;sale.last_error=friendly(e);await DB.put('queue',sale);if(/AUTH_REQUIRED|INVALID_SESSION|401/i.test(String(e?.message||'')))break}
+        }catch(e){current.tries=Number(current.tries||0)+1;current.last_error=friendly(e);await DB.put('queue',current);if(/AUTH_REQUIRED|INVALID_SESSION|401/i.test(String(e?.message||'')))break}
       }
     }finally{state.syncing=false;await refreshQueue()}
   }
