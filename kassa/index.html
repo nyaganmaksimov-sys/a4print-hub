@@ -81,7 +81,7 @@
         </section>
 
         <aside id="saleCart" class="cart-panel">
-          <div class="cart-head"><div><h2>Чек</h2><span id="cartCount">0 позиций</span></div><div class="cart-head-actions"><button id="clearCart" class="link-btn" type="button">Очистить</button><span class="kebab">•••</span></div></div>
+          <div class="cart-head"><div><h2>Чек</h2><span id="cartCount">0 позиций</span></div><div class="cart-head-actions"><button id="openHeld" class="link-btn" type="button">Отложенные <span id="heldCount"></span></button><button id="clearCart" class="link-btn" type="button">Очистить</button><span class="kebab">•••</span></div></div>
           <div id="cartItems" class="cart-items"><div class="empty-cart"><div class="empty-arrow">←</div><b>Щёлкните по товару,<br>чтобы добавить его в чек</b></div></div>
           <div class="cart-bottom">
             <div class="customer-box"><button id="customerToggle" class="customer-toggle" type="button"><span>♙ Покупатель</span><b id="customerName">Не выбран</b><i>›</i></button><div id="customerPanel" class="customer-panel" hidden><input id="customerSearch" autocomplete="off" placeholder="Имя, телефон или email"><div id="customerResults" class="customer-results"></div><button id="clearCustomer" class="link-btn" type="button">Без покупателя</button></div></div>
@@ -89,6 +89,7 @@
             <div class="payment-tabs" role="group" aria-label="Способ оплаты"><button class="pay-tab active" data-payment="Наличные" type="button">▤ Наличные</button><button class="pay-tab" data-payment="Карта" type="button">▣ Карта</button><button class="pay-tab" data-payment="СБП" type="button">▷ СБП</button></div>
             <div class="discount-strip"><div><span>Скидка</span><b id="discountLabel">Скидка на чек</b></div><button id="discountButton" type="button">Добавить</button></div>
             <select id="cashAccount" class="account-select" aria-label="Счёт"></select>
+            <button id="holdReceipt" type="button" style="width:100%;padding:11px;border:1px solid #0e8991;border-radius:9px;background:#eefaf9;color:#087781;font-weight:700;cursor:pointer">⏸ Отложить чек</button>
             <div class="checkout-bar"><div class="total-row"><span>Итого:</span><strong id="cartTotal">0 ₽</strong></div><button id="payButton" class="pay-button" type="button" disabled><span>Оплатить</span><strong>0 ₽</strong><i>→</i></button></div>
             <div class="bottom-info"><span id="shiftInfo">Смена не открыта</span><button id="shiftButton" class="link-btn" type="button">Открыть смену</button></div>
           </div>
@@ -131,6 +132,25 @@
     </section>
   </section>
 
-  <script src="./bootstrap.js?v=20260920-price-discount1"></script>
+<section id="heldModal" hidden role="dialog" aria-modal="true" aria-label="Отложенные чеки" style="position:fixed;inset:0;z-index:9999;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="background:#fff;color:#202a35;border-radius:18px;padding:22px;width:min(560px,100%);max-height:80vh;overflow:auto;box-shadow:0 18px 60px #0003">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2 style="margin:0">Отложенные чеки</h2><button id="closeHeld" type="button" class="btn light">Закрыть</button></div>
+      <p style="color:#64748b;font-size:13px">Сохранены на этом рабочем месте для текущего сотрудника. Продажи ещё не проведены.</p>
+      <div id="heldList"></div>
+    </div>
+  </section>
+  <style>
+    #heldModal[hidden]{display:none!important}
+    #heldList{display:grid;gap:9px}
+    .held-item{display:flex;justify-content:space-between;gap:12px;padding:13px;border:1px solid #e5e7eb;border-radius:11px}
+    .held-item>div:first-child{display:grid;gap:4px;min-width:0}
+    .held-item b{overflow-wrap:anywhere}
+    .held-item small{color:#64748b}
+    .held-actions{display:flex;flex-direction:column;gap:6px;justify-content:center}
+    .held-actions button{border-radius:8px;padding:8px 11px;border:1px solid #d1d5db;cursor:pointer;background:#f8fafc}
+    .held-actions button:first-child{background:#087f8c;color:white;border-color:#087f8c}
+    .held-empty{color:#64748b}
+  </style>
+    <script src="./bootstrap.js?v=20260920-price-discount1"></script>
 </body>
 </html>
