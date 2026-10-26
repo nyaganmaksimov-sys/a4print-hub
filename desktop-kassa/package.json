@@ -1,6 +1,6 @@
 {
   "name": "a4print-kassa-desktop",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "private": true,
   "description": "A4PRINT KASSA Desktop for Windows",
   "main": "main.js",
