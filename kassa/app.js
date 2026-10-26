@@ -502,21 +502,34 @@
   }
   function openHeld(){renderHeldReceipts();$('heldModal').hidden=false}
   function closeHeld(){$('heldModal').hidden=true}
+  function clearCartForNextSale(){
+    // Called only after the unpaid draft has been saved durably.
+    editingHeldId=null;
+    state.cart=[];
+    state.discount={type:'PERCENT',value:0};
+    state.customer=null;
+    state.payment='Наличные';
+    $('customerName').textContent='Не выбран';
+    $('customerPanel').hidden=true;
+    document.querySelectorAll('.pay-tab').forEach(b=>b.classList.toggle('active',b.dataset.payment==='Наличные'));
+    renderCart();
+  }
   function holdReceipt(){
     if(saleSubmitting)return;
     if(!state.cart.length){toast('Нечего откладывать.',true);return}
-    const note=prompt('Название отложенного чека (необязательно):','') ;
-    if(note===null)return;
     const oldDraft=editingHeldId?heldReceipts().find(x=>x.id===editingHeldId):null;
-    const entry={id:oldDraft?.id||uuid(),createdAt:oldDraft?.createdAt||nowIso(),note:String(note).trim().slice(0,100),
+    const entry={id:oldDraft?.id||uuid(),createdAt:oldDraft?.createdAt||nowIso(),
+      note:oldDraft?.note||'Отложенный чек',
       cart:structuredClone(state.cart),discount:structuredClone(state.discount),
       customer:state.customer?structuredClone(state.customer):null,
       payment:state.payment,cashAccount:$('cashAccount').value,
       operator:$('operatorSelect').value,total:total()};
-    try{persistHeld([entry,...heldReceipts().filter(x=>x.id!==entry.id)])}catch(e){toast('Не удалось сохранить чек. Корзина сохранена.',true);return}
-    editingHeldId=null;state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;
-    $('customerName').textContent='Не выбран';renderCart();renderHeldReceipts();
-    toast('Чек отложен. Можно обслужить следующего покупателя.');
+    // Never clear the working cart if storage fails.
+    try{persistHeld([entry,...heldReceipts().filter(x=>x.id!==entry.id)])}
+    catch(e){toast('Не удалось сохранить чек. Корзина не очищена.',true);return}
+    clearCartForNextSale();
+    renderHeldReceipts();
+    toast('Чек отложен. Корзина очищена для новой продажи.');
   }
   function restoreHeld(id){
     const list=heldReceipts(),entry=list.find(x=>x.id===id);
@@ -665,6 +678,7 @@
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
     $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];state.discount={type:'PERCENT',value:0};renderCart()}};
     $('holdReceipt').onclick=holdReceipt;$('openHeld').onclick=openHeld;$('closeHeld').onclick=closeHeld;
+    $('navHeld').addEventListener('click',()=>{document.getElementById('appView')?.classList.remove('nav-open');openHeld()});
     $('heldModal').onclick=e=>{if(e.target===$('heldModal'))closeHeld()};
     $('discountButton').onclick=openDiscountEditor;
     $('adjustClose').onclick=closeAdjustModal;$('adjustCancel').onclick=closeAdjustModal;$('adjustSave').onclick=saveAdjustment;$('adjustReset').onclick=resetAdjustment;
