@@ -31,9 +31,9 @@
     $('a4HeldRefresh')?.addEventListener('click',render);$('a4HeldRetry')?.addEventListener('click',retry)
   }
   async function retry(){const btn=$('a4HeldRetry');if(btn){btn.disabled=true;btn.textContent='Синхронизация…'}$('retryQueue')?.click();clearInterval(pollTimer);let ticks=0;pollTimer=setInterval(async()=>{ticks++;await render().catch(()=>{});const list=await rows().catch(()=>[]);if(!list.length||ticks>=20){clearInterval(pollTimer);pollTimer=null}},750)}
-  function openHeld(event){if(event){event.preventDefault();event.stopImmediatePropagation()}document.getElementById('appView')?.classList.remove('nav-open');if(!openDrawer())return;document.querySelectorAll('.main-nav .nav-item').forEach(x=>x.classList.remove('active'));$('navHeld')?.classList.add('active');const body=$('utilityBody');if(body)body.innerHTML='<div class="a4-held-empty">Читаю локальную очередь…</div>';render().catch(e=>{if(body)body.innerHTML=`<div class="a4-held-empty"><b>Не удалось открыть очередь</b><span>${esc(e?.message||e)}</span></div>`})}
+  function openHeld(event){if(event){event.preventDefault();event.stopImmediatePropagation()}document.getElementById('appView')?.classList.remove('nav-open');if(!openDrawer())return;document.querySelectorAll('.main-nav .nav-item').forEach(x=>x.classList.remove('active'));$('navSyncQueue')?.classList.add('active');const body=$('utilityBody');if(body)body.innerHTML='<div class="a4-held-empty">Читаю локальную очередь…</div>';render().catch(e=>{if(body)body.innerHTML=`<div class="a4-held-empty"><b>Не удалось открыть очередь</b><span>${esc(e?.message||e)}</span></div>`})}
   document.addEventListener('click',event=>{
-    if(event.target?.closest?.('#navHeld'))openHeld(event);
+    if(event.target?.closest?.('#navSyncQueue'))openHeld(event);
     else if(event.target?.closest?.('#navSettings,#navHelp'))$('utilityDrawer')?.classList.remove('a4-held-mode','a4-history-mode');
     else if(event.target?.closest?.('#navHistory'))$('utilityDrawer')?.classList.remove('a4-held-mode');
   },true)
