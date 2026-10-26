@@ -474,6 +474,74 @@
     closeAdjustModal();renderCart();
   }
 
+
+  // Held receipts are drafts, never sales: no shift totals, queue writes or MoySklad calls.
+  // Per-user/per-organization local storage prevents another cashier viewing a draft.
+  const heldKey=()=>`a4_kassa_held_v1_${state.organizationId||'org'}_${state.profile?.id||'user'}`;
+  function heldReceipts(){
+    try{
+      const data=JSON.parse(localStorage.getItem(heldKey())||'[]');
+      return Array.isArray(data)?data.filter(x=>x&&Array.isArray(x.cart)&&x.id).slice(0,100):[];
+    }catch(e){console.warn('Held receipts read failed',e);return []}
+  }
+  function persistHeld(items){
+    // An error must never clear the active receipt.
+    localStorage.setItem(heldKey(),JSON.stringify(items));
+  }
+  function renderHeldReceipts(){
+    const list=heldReceipts();
+    $('heldCount').textContent=list.length?String(list.length):'';
+    $('heldList').innerHTML=list.length?list.map(x=>`<article class="held-item">
+      <div><b>${esc(x.note||'Отложенный чек')}</b><small>${esc(new Date(x.createdAt).toLocaleString('ru-RU'))} · ${x.cart.length} поз.</small><strong>${money(x.total)}</strong></div>
+      <div class="held-actions"><button type="button" data-restore-held="${esc(x.id)}">Продолжить</button><button type="button" data-delete-held="${esc(x.id)}">Удалить</button></div>
+    </article>`).join(''):'<p class="held-empty">Отложенных чеков пока нет.</p>';
+    $('heldList').querySelectorAll('[data-restore-held]').forEach(b=>b.onclick=()=>restoreHeld(b.dataset.restoreHeld));
+    $('heldList').querySelectorAll('[data-delete-held]').forEach(b=>b.onclick=()=>deleteHeld(b.dataset.deleteHeld));
+  }
+  function openHeld(){renderHeldReceipts();$('heldModal').hidden=false}
+  function closeHeld(){$('heldModal').hidden=true}
+  function holdReceipt(){
+    if(!state.cart.length){toast('Нечего откладывать.',true);return}
+    const note=prompt('Название отложенного чека (необязательно):','') ;
+    if(note===null)return;
+    const entry={id:uuid(),createdAt:nowIso(),note:String(note).trim().slice(0,100),
+      cart:structuredClone(state.cart),discount:structuredClone(state.discount),
+      customer:state.customer?structuredClone(state.customer):null,
+      payment:state.payment,cashAccount:$('cashAccount').value,
+      operator:$('operatorSelect').value,total:total()};
+    try{persistHeld([entry,...heldReceipts()])}catch(e){toast('Не удалось сохранить чек. Корзина сохранена.',true);return}
+    state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;
+    $('customerName').textContent='Не выбран';renderCart();renderHeldReceipts();
+    toast('Чек отложен. Можно обслужить следующего покупателя.');
+  }
+  function restoreHeld(id){
+    const list=heldReceipts(),entry=list.find(x=>x.id===id);
+    if(!entry)return toast('Отложенный чек не найден.',true);
+    if(state.cart.length&&!confirm('В текущем чеке уже есть товары. Отложить его перед открытием другого?'))return;
+    if(state.cart.length){
+      const current={id:uuid(),createdAt:nowIso(),note:'Предыдущая корзина',
+        cart:structuredClone(state.cart),discount:structuredClone(state.discount),
+        customer:state.customer?structuredClone(state.customer):null,
+        payment:state.payment,cashAccount:$('cashAccount').value,
+        operator:$('operatorSelect').value,total:total()};
+      try{persistHeld([current,...list.filter(x=>x.id!==id)])}catch(e){toast('Не удалось сохранить текущую корзину.',true);return}
+    }else{
+      try{persistHeld(list.filter(x=>x.id!==id))}catch(e){toast('Не удалось открыть чек.',true);return}
+    }
+    state.cart=entry.cart;state.discount=entry.discount||{type:'PERCENT',value:0};
+    state.customer=entry.customer||null;state.payment=entry.payment||'Наличные';
+    $('customerName').textContent=state.customer?.full_name||'Не выбран';
+    document.querySelectorAll('.pay-tab').forEach(b=>b.classList.toggle('active',b.dataset.payment===state.payment));
+    if([...$('cashAccount').options].some(o=>o.value===entry.cashAccount))$('cashAccount').value=entry.cashAccount;
+    if([...$('operatorSelect').options].some(o=>o.value===entry.operator))$('operatorSelect').value=entry.operator;
+    renderCart();closeHeld();toast('Отложенный чек открыт для продолжения.');
+  }
+  function deleteHeld(id){
+    const list=heldReceipts(),entry=list.find(x=>x.id===id);if(!entry)return;
+    if(!confirm('Удалить отложенный чек без проведения продажи?'))return;
+    try{persistHeld(list.filter(x=>x.id!==id));renderHeldReceipts()}catch(e){toast('Не удалось удалить чек.',true)}
+  }
+
   function renderCart(){
     if(state.discount?.type==='RUB'&&Number(state.discount.value||0)>subtotal())state.discount.value=subtotal();
     $('cartCount').textContent=`${count()} поз.`;$('cartTotal').textContent=money(total());
@@ -585,6 +653,8 @@
     $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin').onclick=googleLogin;$('logout').onclick=logout;
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
     $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];state.discount={type:'PERCENT',value:0};renderCart()}};
+    $('holdReceipt').onclick=holdReceipt;$('openHeld').onclick=openHeld;$('closeHeld').onclick=closeHeld;
+    $('heldModal').onclick=e=>{if(e.target===$('heldModal'))closeHeld()};
     $('discountButton').onclick=openDiscountEditor;
     $('adjustClose').onclick=closeAdjustModal;$('adjustCancel').onclick=closeAdjustModal;$('adjustSave').onclick=saveAdjustment;$('adjustReset').onclick=resetAdjustment;
     $('adjustValue').oninput=updateAdjustPreview;$('adjustValue').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveAdjustment()}};
@@ -596,12 +666,12 @@
     $('customerToggle').onclick=toggleCustomerPanel;$('customerSearch').oninput=()=>{clearTimeout(customerTimer);customerTimer=setTimeout(searchCustomers,250)};$('clearCustomer').onclick=()=>{state.customer=null;$('customerName').textContent='Не выбран';$('customerPanel').hidden=true};
     $('openOldPos').onclick=()=>location.href='../pos/';
     window.addEventListener('online',()=>health());window.addEventListener('offline',()=>{state.backendOnline=false;renderNetwork()});
-    window.addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();$('search').focus();$('search').select()}if(e.key==='F4'){e.preventDefault();openDiscountEditor()}if(e.key==='F8'){e.preventDefault();if(!$('payButton').disabled)queueSale()}if(e.key==='Escape'){closeAdjustModal();closeQueue();$('customerPanel').hidden=true}});
+    window.addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();$('search').focus();$('search').select()}if(e.key==='F4'){e.preventDefault();openDiscountEditor()}if(e.key==='F8'){e.preventDefault();if(!$('payButton').disabled)queueSale()}if(e.key==='Escape'){closeHeld();closeAdjustModal();closeQueue();$('customerPanel').hidden=true}});
     if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn),{once:true});
   }
 
   async function startApp(){
-    if(!state.profile)await checkAccess();loadFavorites();renderOperators();renderAccounts();renderCart();renderShift();
+    if(!state.profile)await checkAccess();loadFavorites();renderOperators();renderAccounts();renderCart();renderShift();renderHeldReceipts();
     await loadCached();
     health().catch(()=>{});refreshRemoteData(false).catch(()=>{});
     queueMicrotask(()=>{loadShift().catch(()=>{});if(!Object.keys(state.stock||{}).length)loadStock().catch(()=>{});if(state.queue.length)syncQueue().catch(()=>{})});
