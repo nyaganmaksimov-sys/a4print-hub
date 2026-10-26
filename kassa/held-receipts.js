@@ -22,7 +22,7 @@
       @media(max-width:900px){#utilityDrawer.a4-held-mode .utility-card{width:100vw}.a4-held-summary{grid-template-columns:1fr}.a4-held-actions{flex-direction:column}}
     `;document.head.appendChild(st)
   }
-  function openDrawer(){installStyles();const drawer=$('utilityDrawer');if(!drawer)return false;drawer.classList.remove('a4-history-mode');drawer.classList.add('a4-held-mode');$('utilityTitle').textContent='Отложенные чеки';$('utilitySubtitle').textContent='Локальная очередь · отправка в МойСклад и A4PRINT HUB';drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');return true}
+  function openDrawer(){installStyles();const drawer=$('utilityDrawer');if(!drawer)return false;drawer.classList.remove('a4-history-mode');drawer.classList.add('a4-held-mode');$('utilityTitle').textContent='Очередь отправки чеков';$('utilitySubtitle').textContent='Локальная очередь · отправка в МойСклад и A4PRINT HUB';drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');return true}
   async function rows(){const list=DB?await DB.getAll('queue'):[];return list.sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')))}
   function itemNames(row){const list=Array.isArray(row.items)?row.items:[];return list.slice(0,4).map(i=>`${esc(i.name||'Позиция')} × ${Number(i.qty||0).toLocaleString('ru-RU')}`).join(' · ')+(list.length>4?` · ещё ${list.length-4}`:'')}
   async function render(){

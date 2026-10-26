@@ -154,7 +154,7 @@ jobs:
           grep -q 'updater:Object.freeze' desktop-kassa/preload.js
           grep -q 'desktop-updater.js' kassa/bootstrap.js
           grep -q 'Перезапустить и установить' kassa/desktop-updater.js
-          grep -q '2.1.9' desktop-kassa/package.json
+          grep -q '2.1.10' desktop-kassa/package.json
           node -e "const p=require('./desktop-kassa/package.json'),n=require('./desktop-kassa/update-notes.json');if(p.version!==n.version)throw new Error('release notes version mismatch')"
           grep -q 'Что нового' kassa/desktop-updater.js
           grep -q 'showWhatsNew' desktop-kassa/main.js
