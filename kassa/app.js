@@ -495,7 +495,7 @@
     $('heldCount').textContent=list.length?String(list.length):'';
     $('heldList').innerHTML=list.length?list.map(x=>`<article class="held-item">
       <div><b>${esc(x.note||'Отложенный чек')}</b><small>${esc(new Date(x.createdAt).toLocaleString('ru-RU'))} · ${x.cart.length} поз.</small><strong>${money(x.total)}</strong></div>
-      <div class="held-actions"><button type="button" data-restore-held="${esc(x.id)}">Продолжить</button><button type="button" data-delete-held="${esc(x.id)}">Удалить</button></div>
+      <div class="held-actions"><button type="button" data-restore-held="${esc(x.id)}">Редактировать</button><button type="button" data-delete-held="${esc(x.id)}">Удалить</button></div>
     </article>`).join(''):'<p class="held-empty">Отложенных чеков пока нет.</p>';
     $('heldList').querySelectorAll('[data-restore-held]').forEach(b=>b.onclick=()=>restoreHeld(b.dataset.restoreHeld));
     $('heldList').querySelectorAll('[data-delete-held]').forEach(b=>b.onclick=()=>deleteHeld(b.dataset.deleteHeld));
@@ -521,6 +521,7 @@
   function restoreHeld(id){
     const list=heldReceipts(),entry=list.find(x=>x.id===id);
     if(!entry)return toast('Отложенный чек не найден.',true);
+    if(saleSubmitting)return;
     if(state.cart.length&&!confirm('В текущем чеке уже есть товары. Отложить его перед открытием другого?'))return;
     if(state.cart.length){
       const oldCurrent=editingHeldId?list.find(x=>x.id===editingHeldId):null;
@@ -544,7 +545,7 @@
   function deleteHeld(id){
     const list=heldReceipts(),entry=list.find(x=>x.id===id);if(!entry)return;
     if(!confirm('Удалить отложенный чек без проведения продажи?'))return;
-    try{persistHeld(list.filter(x=>x.id!==id));renderHeldReceipts()}catch(e){toast('Не удалось удалить чек.',true)}
+    try{persistHeld(list.filter(x=>x.id!==id));if(editingHeldId===id)editingHeldId=null;renderHeldReceipts()}catch(e){toast('Не удалось удалить чек.',true)}
   }
 
   function renderCart(){
@@ -599,7 +600,7 @@
     try{
     const sale={id:uuid(),created_at:nowIso(),stage:'queued',tries:0,last_error:null,items:saleItems(),payment_method:state.payment,customer_id:state.customer?.id||null,customer_name:state.customer?.full_name||null,operator_id:$('operatorSelect').value||state.profile?.id||null,operator_name:$('operatorSelect').selectedOptions[0]?.textContent||state.profile?.full_name||'',cash_account_id:$('cashAccount').value||null,subtotal:subtotal(),discount_type:state.discount.type,discount_value:state.discount.value,discount_amount:discountAmount(),total:total(),shift:{id:state.shift.id,name:state.shift.name||null,openDate:state.shift.openDate||null}};
     await DB.put('queue',sale);
-    if(editingHeldId){const existing=heldReceipts();persistHeld(existing.filter(x=>x.id!==editingHeldId));editingHeldId=null}
+    if(editingHeldId){try{persistHeld(heldReceipts().filter(x=>x.id!==editingHeldId))}catch(e){console.warn('Held draft cleanup failed',e)}editingHeldId=null}
     state.cart=[];state.discount={type:'PERCENT',value:0};state.customer=null;$('customerName').textContent='Не выбран';renderCart();
     // The durable IndexedDB write is the cashier commit point. Do not block the
     // next receipt on rescanning the queue or any network synchronization.
