@@ -665,6 +665,7 @@
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
     $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];state.discount={type:'PERCENT',value:0};renderCart()}};
     $('holdReceipt').onclick=holdReceipt;$('openHeld').onclick=openHeld;$('closeHeld').onclick=closeHeld;
+    $('navHeld').addEventListener('click',()=>{document.getElementById('appView')?.classList.remove('nav-open');openHeld()});
     $('heldModal').onclick=e=>{if(e.target===$('heldModal'))closeHeld()};
     $('discountButton').onclick=openDiscountEditor;
     $('adjustClose').onclick=closeAdjustModal;$('adjustCancel').onclick=closeAdjustModal;$('adjustSave').onclick=saveAdjustment;$('adjustReset').onclick=resetAdjustment;
