@@ -124,7 +124,7 @@
     </div>`;
     $('a4SetSync')?.addEventListener('click',()=>{$('syncNow')?.click();setTimeout(()=>showSettings(),700)});
     $('a4SetCatalog')?.addEventListener('click',()=>{$('refreshCatalog')?.click()});
-    $('a4SetQueue')?.addEventListener('click',()=>{$('navHeld')?.click()});
+    $('a4SetQueue')?.addEventListener('click',()=>{$('navSyncQueue')?.click()});
     $('a4SetList')?.addEventListener('click',()=>{$('listView')?.click();setTimeout(()=>showSettings(),120)});
     $('a4SetGrid')?.addEventListener('click',()=>{$('gridView')?.click();setTimeout(()=>showSettings(),120)});
     renderCashSetup().catch(()=>{});
