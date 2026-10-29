@@ -22,7 +22,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
     <label>Итого <output id="orderNewTotal">0 ₽</output></label>
   </div>
   <label>Комментарий / материал / требования<textarea name="comment" rows="3" maxlength="2000" placeholder="Материал, цвет, сроки, примечания"></textarea></label>
-  <p class="order-entry-note">Создание выполняется только после нажатия «Сохранить заказ». STL обрабатывается локально в браузере и не прикрепляется к заказу.</p>
+  <p class="order-entry-note">Создание выполняется только после нажатия «Сохранить заказ». STL прикрепляется к созданному заказу после сохранения. При ошибке загрузки заказ сохраняется, а ошибка показывается отдельно.</p>
   <div class="row-controls"><button type="submit">Сохранить заказ</button><button type="button" data-cancel>Отмена</button></div>
   <div class="order-entry-status" role="status" aria-live="polite"></div>`;
   setupSTLCalculator(form);
@@ -61,7 +61,21 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
         p_comment:String(fd.get('comment')||'').trim(),p_source:'3D_ARTPRINT'
       });
       if(error)throw error;
-      setState('Заказ №'+(data?.order_number||'—')+' создан.');notify('Заказ успешно создан');
+      const stl=form.querySelector('input[name="stl"]')?.files?.[0];
+      if(stl){
+        if(!data?.id)throw new Error('Заказ создан, но сервер не вернул ID для загрузки STL. Перезагрузите список и прикрепите файл из карточки заказа.');
+        setState('Заказ создан. Прикрепляем STL…');
+        const safe=stl.name.normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').slice(-120);
+        const path=data.id+'/'+crypto.randomUUID()+'-'+safe;
+        const upload=await supabase.storage.from('order-files').upload(path,stl,{contentType:'model/stl',upsert:false});
+        if(upload.error){setState('Заказ №'+data.order_number+' создан, но STL не загружен: '+upload.error.message);return}
+        const saved=await supabase.from('order_files').insert({order_id:data.id,file_name:stl.name,file_url:path,mime_type:'model/stl'});
+        if(saved.error){
+          await supabase.storage.from('order-files').remove([path]);
+          setState('Заказ №'+data.order_number+' создан, но запись STL не сохранена: '+saved.error.message);return;
+        }
+      }
+      setState('Заказ №'+(data?.order_number||'—')+' создан.');notify('Заказ успешно создан'+(stl?' со STL':''));
       form.reset();update();await refresh();hide();
     }catch(error){setState('Не удалось создать заказ: '+(error?.message||String(error)))}
     finally{saving=false;form.querySelector('[type="submit"]').disabled=false}
