@@ -62,20 +62,25 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
       });
       if(error)throw error;
       const stl=form.querySelector('input[name="stl"]')?.files?.[0];
+      let attachmentError='';
       if(stl){
-        if(!data?.id)throw new Error('Заказ создан, но сервер не вернул ID для загрузки STL. Перезагрузите список и прикрепите файл из карточки заказа.');
+        if(!data?.id)attachmentError='Сервер не вернул ID заказа';
+        else {
         setState('Заказ создан. Прикрепляем STL…');
         const safe=stl.name.normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').slice(-120);
         const path=data.id+'/'+crypto.randomUUID()+'-'+safe;
         const upload=await supabase.storage.from('order-files').upload(path,stl,{contentType:'model/stl',upsert:false});
-        if(upload.error){setState('Заказ №'+data.order_number+' создан, но STL не загружен: '+upload.error.message);return}
+        if(upload.error)attachmentError=upload.error.message;
+        else {
         const saved=await supabase.from('order_files').insert({order_id:data.id,file_name:stl.name,file_url:path,mime_type:'model/stl'});
         if(saved.error){
           await supabase.storage.from('order-files').remove([path]);
-          setState('Заказ №'+data.order_number+' создан, но запись STL не сохранена: '+saved.error.message);return;
+          attachmentError=saved.error.message;
+        }
+        }
         }
       }
-      setState('Заказ №'+(data?.order_number||'—')+' создан.');notify('Заказ успешно создан'+(stl?' со STL':''));
+      setState('Заказ №'+(data?.order_number||'—')+' создан.');notify(attachmentError?'Заказ создан, но STL не прикреплён: '+attachmentError:'Заказ успешно создан'+(stl?' со STL':''));
       form.reset();update();await refresh();hide();
     }catch(error){setState('Не удалось создать заказ: '+(error?.message||String(error)))}
     finally{saving=false;form.querySelector('[type="submit"]').disabled=false}
