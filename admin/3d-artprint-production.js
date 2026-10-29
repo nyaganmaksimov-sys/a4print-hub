@@ -73,6 +73,7 @@ export async function renderProduction({supabase,root,notify}){
     card.append(h,status,detail,overview,numeric);
     // Open the stored production file only on request; signed URLs and storage policies remain enforced.
     const playerControls=document.createElement('div');playerControls.className='row-controls';
+    const fileInfo=document.createElement('span');fileInfo.textContent='G-code берётся из файлов исходного заказа';playerControls.append(fileInfo);
     const playerButton=document.createElement('button');playerButton.type='button';playerButton.textContent='▶ Показать печать G-code';
     const playerRoot=document.createElement('div');playerRoot.hidden=true;
     let disposePlayer=null;
@@ -83,15 +84,15 @@ export async function renderProduction({supabase,root,notify}){
         if(!job.order_id)throw Error('У задания отсутствует связь с заказом');
         const {data:attachments,error:fetchError}=await supabase.from('order_files').select('file_name,file_url').eq('order_id',job.order_id);
         if(fetchError)throw fetchError;
-        const attachment=(attachments||[]).find(f=>/\\.(gcode|gco|gc|gcode\\.3mf)$/i.test(f.file_name||''));
-        if(!attachment)throw Error('К этому заказу ещё не прикреплён G-code');
+        const attachment=(attachments||[]).find(f=>/\.(gcode|gco|gc|gcode\.3mf)$/i.test(f.file_name||''));
+        if(!attachment)throw Error('В заказе нет сохранённого G-code. Проверьте вложения заказа: файл должен быть сохранён в хранилище, а не только выбран в форме.');
 
         const {data:download,error:downloadError}=await supabase.storage.from('order-files').download(attachment.file_url);
         if(downloadError)throw downloadError;
         if(download.size>50*1024*1024)throw Error('Файл G-code больше 50 МБ');
         const {createGcodePlayer}=await import('./3d-artprint-gcode-player.js?v=1');
         playerRoot.hidden=false;
-        const printable=/\\.gcode\\.3mf$/i.test(attachment.file_name)?new Blob([await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(download)],{type:'text/plain'}):download;
+        const printable=/\.gcode\.3mf$/i.test(attachment.file_name)?new Blob([await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(download)],{type:'text/plain'}):download;
         disposePlayer=createGcodePlayer({root:playerRoot,file:printable,estimatedSeconds:Number(job.planned_machine_minutes||0)*60});
         playerButton.textContent='Закрыть визуализацию';
       }catch(error){notify('Визуализация: '+(error?.message||String(error)))}
