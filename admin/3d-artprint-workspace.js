@@ -133,7 +133,7 @@ async function start(){
     await renderOrders(await orderData());return
   }
   if(key==='production'){
-   const {renderProduction}=await import('./3d-artprint-production.js?v=20261029-gcode-fix1');
+   const {renderProduction}=await import('./3d-artprint-production.js?v=20261029-reuse2');
    await renderProduction({supabase,root,notify:message=>{notice.hidden=false;notice.textContent=message}});
    return;
   }

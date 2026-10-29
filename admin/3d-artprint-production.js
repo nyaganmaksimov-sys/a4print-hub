@@ -45,6 +45,27 @@ export async function renderProduction({supabase,root,notify}){
     const eq=await supabase.from('equipment_assets').select('id,name,inventory_number,status').in('id',equipmentIds);
     if(!eq.error)for(const asset of eq.data||[])machineById.set(asset.id,asset);
    }
+   const orderIds=[...new Set(jobs.map(j=>j.order_id).filter(Boolean))];
+   const filesByOrder=new Map();
+   if(orderIds.length){
+    const saved=await supabase.from('order_files').select('order_id,file_name,file_url').in('order_id',orderIds);
+    if(saved.error)notify('Не удалось получить файлы заказов: '+saved.error.message);
+    else for(const record of saved.data||[]){
+     if(!/\.(gcode\.3mf|gcode|gco|gc)$/i.test(record.file_name||''))continue;
+     const list=filesByOrder.get(record.order_id)||[];list.push(record);filesByOrder.set(record.order_id,list);
+    }
+   }
+   const readPrintFile=async attachment=>{
+    const {data,error}=await supabase.storage.from('order-files').download(attachment.file_url);
+    if(error)throw error;
+    if(!data||data.size>50*1024*1024)throw Error('G-code превышает лимит 50 МБ');
+    return data;
+   };
+   const readTextGcode=async attachment=>{
+    const file=await readPrintFile(attachment);
+    return /\.gcode\.3mf$/i.test(attachment.file_name)?
+      (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(file):file.text();
+   };
    const formatDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ru-RU')};
    for(const job of jobs){
     const card=document.createElement('article');card.className='production-job-card';
@@ -72,27 +93,35 @@ export async function renderProduction({supabase,root,notify}){
     const numeric=document.createElement('p');numeric.textContent='План: '+(job.planned_machine_minutes??'—')+' мин · Факт: '+(job.actual_machine_minutes??'—')+' мин · Годных: '+(job.good_quantity??'—')+' · Брак: '+(job.scrap_quantity??'—')+' · Себестоимость: '+(job.production_cost==null?'—':rub(job.production_cost));
     card.append(h,status,detail,overview,numeric);
     // Open the stored production file only on request; signed URLs and storage policies remain enforced.
+    const attachment=(filesByOrder.get(job.order_id)||[]).at(-1)||null;
     const playerControls=document.createElement('div');playerControls.className='row-controls';
-    const fileInfo=document.createElement('span');fileInfo.textContent='G-code берётся из файлов исходного заказа';playerControls.append(fileInfo);
+    const fileInfo=document.createElement('span');fileInfo.textContent=attachment?'Файл заказа: '+attachment.file_name:'G-code в заказе не найден';playerControls.append(fileInfo);
     const playerButton=document.createElement('button');playerButton.type='button';playerButton.textContent='▶ Показать печать G-code';
     const playerRoot=document.createElement('div');playerRoot.hidden=true;
     let disposePlayer=null;
+    playerButton.disabled=!attachment;
+    if(attachment){
+     const downloadButton=document.createElement('button');downloadButton.type='button';downloadButton.textContent='Скачать G-code';
+     downloadButton.addEventListener('click',async()=>{
+      downloadButton.disabled=true;
+      try{
+       const blob=await readPrintFile(attachment);
+       const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=attachment.file_name;a.click();
+       setTimeout(()=>URL.revokeObjectURL(url),30000);
+      }catch(error){notify('Не удалось скачать файл: '+(error?.message||String(error)))}
+      finally{downloadButton.disabled=false}
+     });
+     playerControls.append(downloadButton);
+    }
     playerButton.addEventListener('click',async()=>{
       if(disposePlayer){disposePlayer();disposePlayer=null;playerRoot.hidden=true;playerButton.textContent='▶ Показать печать G-code';return}
       playerButton.disabled=true;
       try{
-        if(!job.order_id)throw Error('У задания отсутствует связь с заказом');
-        const {data:attachments,error:fetchError}=await supabase.from('order_files').select('file_name,file_url').eq('order_id',job.order_id);
-        if(fetchError)throw fetchError;
-        const attachment=(attachments||[]).find(f=>/\.(gcode|gco|gc|gcode\.3mf)$/i.test(f.file_name||''));
-        if(!attachment)throw Error('В заказе нет сохранённого G-code. Проверьте вложения заказа: файл должен быть сохранён в хранилище, а не только выбран в форме.');
-
-        const {data:download,error:downloadError}=await supabase.storage.from('order-files').download(attachment.file_url);
-        if(downloadError)throw downloadError;
-        if(download.size>50*1024*1024)throw Error('Файл G-code больше 50 МБ');
+        if(!attachment)throw Error('В заказе не найден сохранённый G-code');
+        const content=await readTextGcode(attachment);
         const {createGcodePlayer}=await import('./3d-artprint-gcode-player.js?v=1');
         playerRoot.hidden=false;
-        const printable=/\.gcode\.3mf$/i.test(attachment.file_name)?new Blob([await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(download)],{type:'text/plain'}):download;
+        const printable=new Blob([content],{type:'text/plain'});
         disposePlayer=createGcodePlayer({root:playerRoot,file:printable,estimatedSeconds:Number(job.planned_machine_minutes||0)*60});
         playerButton.textContent='Закрыть визуализацию';
       }catch(error){notify('Визуализация: '+(error?.message||String(error)))}
@@ -150,7 +179,21 @@ export async function renderProduction({supabase,root,notify}){
      const minutes=document.createElement('input');minutes.type='number';minutes.min='0.01';minutes.step='0.01';minutes.placeholder='Минуты из G-code';minutes.setAttribute('aria-label','Плановое время печати, мин');
      if(job.planned_machine_minutes!=null)minutes.value=String(job.planned_machine_minutes);
      const save=document.createElement('button');save.type='button';save.textContent='Сохранить время';save.disabled=true;
-     const hint=document.createElement('small');hint.textContent='Загрузите нарезанный G-code или укажите время вручную. Файл не отправляется на сервер.';
+     const hint=document.createElement('small');hint.textContent=attachment?'Данные из G-code заказа: '+attachment.file_name:'G-code к заказу не прикреплён. Можно указать время вручную.';
+     if(attachment){
+      void (async()=>{
+       try{
+        const source=await readTextGcode(attachment);
+        const {parseGcodeMetadata}=await import('./3d-artprint-gcode-estimator.js?v=1');
+        const meta=parseGcodeMetadata(source);
+        if(meta.hours>0){
+         minutes.value=(meta.hours*60).toFixed(3);
+         save.disabled=false;
+         hint.textContent='Время автоматически прочитано из файла заказа: '+(meta.hours*60).toFixed(2)+' мин. Нажмите «Сохранить время».';
+        }else hint.textContent='Файл заказа найден, но время не определено. Укажите его вручную.';
+       }catch(error){hint.textContent='Не удалось прочитать G-code заказа: '+(error?.message||String(error))}
+      })();
+     }
      file.addEventListener('change',async()=>{
       const selected=file.files?.[0];if(!selected)return;
       if(selected.size>50*1024*1024){hint.textContent='Файл больше 50 МБ';return}
