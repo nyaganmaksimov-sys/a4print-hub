@@ -69,7 +69,9 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
       for(const entry of selected){
         if(!data?.id){failures.push(entry.label+': заказ не вернул ID');break}
         setState('Заказ создан. Сохраняем '+entry.label+'…');
-        const filename=entry.file.name.normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').slice(-120);
+        // Storage keys are ASCII-only; keep the original Unicode name in order_files.file_name.
+        const ext=/\.gcode\.3mf$/i.test(entry.file.name)?'.gcode.3mf':/\.stl$/i.test(entry.file.name)?'.stl':/\.(gcode|gco|gc)$/i.test(entry.file.name)?'.'+entry.file.name.split('.').pop().toLowerCase():'.bin';
+        const filename=(entry.label==='STL'?'model':'print')+ext;
         const path=data.id+'/'+crypto.randomUUID()+'-'+filename;
         try{
           const up=await supabase.storage.from('order-files').upload(path,entry.file,{contentType:entry.type,upsert:false});
