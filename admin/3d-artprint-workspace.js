@@ -107,7 +107,7 @@ async function start(){
   if(key==='staff'){const {renderStaffAdmin}=await import('./3d-artprint-staff.js?v=1');await renderStaffAdmin({supabase,root,profile});return}
   if(key==='orders'||key==='clients'){
     if(key==='orders'){
-      const {installOrderEntry}=await import('./3d-artprint-orders.js?v=20261029-gcode-fix1');
+      const {installOrderEntry}=await import('./3d-artprint-orders.js?v=20261029-storagekey1');
       await installOrderEntry({supabase,root,refresh:async()=>renderOrders(await orderData()),notify:message=>{notice.hidden=false;notice.textContent=message}});
     }
     await renderOrders(await orderData());return
