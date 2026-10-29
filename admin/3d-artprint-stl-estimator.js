@@ -1,3 +1,4 @@
+import {installSTLPreview} from './3d-artprint-stl-preview.js?v=1';
 // Local STL estimate only: no upload, no persistence, no automatic order submission.
 // STL coordinates assumed millimeters. Closed watertight meshes required for trustworthy volume.
 const materials={PLA:1.24,PETG:1.27,ABS:1.04,TPU:1.21,ASA:1.07,RESIN:1.15};
@@ -60,6 +61,7 @@ export function setupSTLCalculator(form){
  <div class="stl-result" aria-live="polite">Загрузите STL для анализа.</div>
  <button type="button" data-apply-estimate disabled>Подставить цену в заказ</button>`;
  form.querySelector('.order-entry-grid').after(panel);
+ installSTLPreview(panel);
  let geometry=null,filename='';
  const result=panel.querySelector('.stl-result'),button=panel.querySelector('[data-apply-estimate]');
  const f=n=>Number(n).toLocaleString('ru-RU',{maximumFractionDigits:2});
