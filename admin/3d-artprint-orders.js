@@ -79,6 +79,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
         }catch(err){failures.push(entry.label+': '+(err?.message||String(err)))}
       }
       notify(failures.length?'Заказ №'+data.order_number+' создан, но вложения не сохранились: '+failures.join('; '):'Заказ №'+data.order_number+' создан'+(selected.length?' с файлами':''));
+      if(failures.length){setState('Заказ создан, но файлы не сохранены: '+failures.join('; '));await refresh();return}
       form.reset();update();await refresh();hide();
     }catch(error){setState('Не удалось создать заказ: '+(error?.message||String(error)))}
     finally{saving=false;form.querySelector('[type="submit"]').disabled=false}
