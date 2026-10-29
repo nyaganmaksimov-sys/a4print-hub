@@ -85,13 +85,14 @@ export async function renderProduction({supabase,root,notify}){
         if(fetchError)throw fetchError;
         const attachment=(attachments||[]).find(f=>/\\.(gcode|gco|gc|gcode\\.3mf)$/i.test(f.file_name||''));
         if(!attachment)throw Error('К этому заказу ещё не прикреплён G-code');
-        if(/\\.3mf$/i.test(attachment.file_name))throw Error('Для визуализации .gcode.3mf требуется распаковка. Используйте текстовый .gcode');
+
         const {data:download,error:downloadError}=await supabase.storage.from('order-files').download(attachment.file_url);
         if(downloadError)throw downloadError;
         if(download.size>50*1024*1024)throw Error('Файл G-code больше 50 МБ');
         const {createGcodePlayer}=await import('./3d-artprint-gcode-player.js?v=1');
         playerRoot.hidden=false;
-        disposePlayer=createGcodePlayer({root:playerRoot,file:download,estimatedSeconds:Number(job.planned_machine_minutes||0)*60});
+        const printable=/\\.gcode\\.3mf$/i.test(attachment.file_name)?new Blob([await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(download)],{type:'text/plain'}):download;
+        disposePlayer=createGcodePlayer({root:playerRoot,file:printable,estimatedSeconds:Number(job.planned_machine_minutes||0)*60});
         playerButton.textContent='Закрыть визуализацию';
       }catch(error){notify('Визуализация: '+(error?.message||String(error)))}
       finally{playerButton.disabled=false}
