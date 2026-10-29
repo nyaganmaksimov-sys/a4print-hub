@@ -61,7 +61,6 @@ async function renderOrders(rows){
    fact('Статус',o.status||'—');
    fact('Принтер / задания',(printerByOrder.get(o.id)||['Пока нет задания']).join('; '));
    fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
-   fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
    fact('STL · для менеджера',(stlByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
    fact('Количество',o.quantity);
    fact('Цена за единицу',o.unit_price!=null?rub(o.unit_price):null);
@@ -75,6 +74,27 @@ async function renderOrders(rows){
    actions.append(edit);
    const jobs=document.createElement('a');jobs.href='./3d-artprint-workspace.html?section=production';
    jobs.className='art-order-edit-link';jobs.textContent='Производственные задания';actions.append(jobs);
+   const attach=document.createElement('div');attach.className='row-controls';
+   const fileInput=document.createElement('input');fileInput.type='file';fileInput.accept='.gcode,.gco,.gc,.gcode.3mf';fileInput.setAttribute('aria-label','G-code для заказа №'+number);
+   const uploadButton=document.createElement('button');uploadButton.type='button';uploadButton.textContent='Прикрепить G-code к этому заказу';
+   const result=document.createElement('small');result.setAttribute('role','status');result.style.width='100%';
+   uploadButton.addEventListener('click',async()=>{
+    const file=fileInput.files?.[0];
+    if(!file||!(/\.(gcode|gco|gc|gcode\.3mf)$/i.test(file.name))||file.size>50*1024*1024){result.textContent='Выберите G-code размером до 50 МБ';return}
+    if((gcodeByOrder.get(o.id)||[]).length&&!confirm('У заказа уже есть G-code. Добавить ещё один файл?'))return;
+    uploadButton.disabled=true;result.textContent='Загружаем файл в существующий заказ…';
+    const ext=/\.gcode\.3mf$/i.test(file.name)?'.gcode.3mf':'.'+file.name.split('.').pop().toLowerCase();
+    const path=o.id+'/'+crypto.randomUUID()+'-print'+ext;
+    try{
+     const upload=await supabase.storage.from('order-files').upload(path,file,{contentType:'application/octet-stream',upsert:false});
+     if(upload.error)throw upload.error;
+     const record=await supabase.from('order_files').insert({order_id:o.id,file_name:file.name,file_url:path,mime_type:'application/octet-stream'});
+     if(record.error){await supabase.storage.from('order-files').remove([path]);throw record.error}
+     result.textContent='G-code сохранён в заказе №'+number+'. В производстве он будет доступен без повторной загрузки.';
+     await renderOrders(await orderData());
+    }catch(error){result.textContent='Ошибка прикрепления: '+(error?.message||String(error));uploadButton.disabled=false}
+   });
+   attach.append(fileInput,uploadButton,result);info.append(attach);
    info.append(actions);el.append(info);
   }
   if(o.status==='NEW'&&o.id){
