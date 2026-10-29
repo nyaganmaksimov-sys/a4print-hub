@@ -15,7 +15,7 @@ async function orderData(){
 }
 async function renderOrders(rows){
  const ids=rows.map(o=>o.id).filter(Boolean);
- const printerByOrder=new Map(),stlByOrder=new Map();
+ const printerByOrder=new Map(),stlByOrder=new Map(),gcodeByOrder=new Map();
  if(key==='orders'&&ids.length){
   const jobs=await supabase.from('production_jobs').select('order_id,equipment_id,status').in('order_id',ids);
   if(!jobs.error){
@@ -58,7 +58,7 @@ async function renderOrders(rows){
    fact('Телефон',o.customer_phone||o.phone);
    fact('Статус',o.status||'—');
    fact('Принтер / задания',(printerByOrder.get(o.id)||['Пока нет задания']).join('; '));
-   fact('STL-файлы',(stlByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплены');
+   fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');\n   fact('STL · для менеджера',(stlByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
    fact('Количество',o.quantity);
    fact('Цена за единицу',o.unit_price!=null?rub(o.unit_price):null);
    fact('Итого',o.total!=null?rub(o.total):null);
