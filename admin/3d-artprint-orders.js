@@ -12,7 +12,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
   const form=document.createElement('form');
   form.className='order-entry-form';form.hidden=true;
   form.innerHTML=`<h2>Новый заказ 3D-ARTPRINT</h2>
-  <p>Укажите изделие, клиента и стоимость. Загрузите STL для предварительной оценки; цена уточняется после слайсинга.</p>
+  <p>Основой производственного заказа служит G-code из слайсера. STL — дополнительный файл для менеджера, не нужен для запуска печати.</p>
   <div class="order-entry-grid">
     <label>ФИО / название клиента *<input name="customer" maxlength="200" autocomplete="name" required></label>
     <label>Телефон<input name="phone" maxlength="40" autocomplete="tel" type="tel"></label>
@@ -22,7 +22,7 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
     <label>Итого <output id="orderNewTotal">0 ₽</output></label>
   </div>
   <label>Комментарий / материал / требования<textarea name="comment" rows="3" maxlength="2000" placeholder="Материал, цвет, сроки, примечания"></textarea></label>
-  <p class="order-entry-note">Создание выполняется только после нажатия «Сохранить заказ». STL прикрепляется к созданному заказу после сохранения. При ошибке загрузки заказ сохраняется, а ошибка показывается отдельно.</p>
+  <p class="order-entry-note">G-code — основной рабочий файл; STL — дополнительный, для менеджера. Оба файла прикрепляются только после создания заказа. Ошибка вложения не создаёт повторный заказ.</p>
   <div class="row-controls"><button type="submit">Сохранить заказ</button><button type="button" data-cancel>Отмена</button></div>
   <div class="order-entry-status" role="status" aria-live="polite"></div>`;
   setupSTLCalculator(form);
@@ -61,26 +61,24 @@ export async function installOrderEntry({supabase,root,refresh,notify}){
         p_comment:String(fd.get('comment')||'').trim(),p_source:'3D_ARTPRINT'
       });
       if(error)throw error;
-      const stl=form.querySelector('input[name="stl"]')?.files?.[0];
-      let attachmentError='';
-      if(stl){
-        if(!data?.id)attachmentError='Сервер не вернул ID заказа';
-        else {
-        setState('Заказ создан. Прикрепляем STL…');
-        const safe=stl.name.normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').slice(-120);
-        const path=data.id+'/'+crypto.randomUUID()+'-'+safe;
-        const upload=await supabase.storage.from('order-files').upload(path,stl,{contentType:'model/stl',upsert:false});
-        if(upload.error)attachmentError=upload.error.message;
-        else {
-        const saved=await supabase.from('order_files').insert({order_id:data.id,file_name:stl.name,file_url:path,mime_type:'model/stl'});
-        if(saved.error){
-          await supabase.storage.from('order-files').remove([path]);
-          attachmentError=saved.error.message;
-        }
-        }
-        }
+      const selected=[
+        {file:form.querySelector('input[name="gcode"]')?.files?.[0],type:'application/octet-stream',label:'G-code'},
+        {file:form.querySelector('input[name="stl"]')?.files?.[0],type:'model/stl',label:'STL'}
+      ].filter(x=>x.file);
+      const failures=[];
+      for(const entry of selected){
+        if(!data?.id){failures.push(entry.label+': заказ не вернул ID');break}
+        setState('Заказ создан. Сохраняем '+entry.label+'…');
+        const filename=entry.file.name.normalize('NFKC').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').slice(-120);
+        const path=data.id+'/'+crypto.randomUUID()+'-'+filename;
+        try{
+          const up=await supabase.storage.from('order-files').upload(path,entry.file,{contentType:entry.type,upsert:false});
+          if(up.error)throw up.error;
+          const record=await supabase.from('order_files').insert({order_id:data.id,file_name:entry.file.name,file_url:path,mime_type:entry.type});
+          if(record.error){await supabase.storage.from('order-files').remove([path]);throw record.error}
+        }catch(err){failures.push(entry.label+': '+(err?.message||String(err)))}
       }
-      setState('Заказ №'+(data?.order_number||'—')+' создан.');notify(attachmentError?'Заказ создан, но STL не прикреплён: '+attachmentError:'Заказ успешно создан'+(stl?' со STL':''));
+      notify(failures.length?'Заказ №'+data.order_number+' создан, но вложения не сохранились: '+failures.join('; '):'Заказ №'+data.order_number+' создан'+(selected.length?' с файлами':''));
       form.reset();update();await refresh();hide();
     }catch(error){setState('Не удалось создать заказ: '+(error?.message||String(error)))}
     finally{saving=false;form.querySelector('[type="submit"]').disabled=false}
