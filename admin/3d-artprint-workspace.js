@@ -58,7 +58,8 @@ async function renderOrders(rows){
    fact('Телефон',o.customer_phone||o.phone);
    fact('Статус',o.status||'—');
    fact('Принтер / задания',(printerByOrder.get(o.id)||['Пока нет задания']).join('; '));
-   fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');\n   fact('STL · для менеджера',(stlByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
+   fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
+   fact('STL · для менеджера',(stlByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
    fact('Количество',o.quantity);
    fact('Цена за единицу',o.unit_price!=null?rub(o.unit_price):null);
    fact('Итого',o.total!=null?rub(o.total):null);
