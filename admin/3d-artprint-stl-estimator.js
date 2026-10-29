@@ -45,7 +45,7 @@ export function parseSTL(buffer){
 export function setupSTLCalculator(form){
  const panel=document.createElement('section');
  panel.className='stl-calc';
- panel.innerHTML=`<h3>Расчёт стоимости по STL</h3>
+ panel.innerHTML=`<h3>STL для менеджера — дополнительный просмотр</h3>
  <p>Файл анализируется только в браузере. STL не содержит материала, заполнения, поддержек и времени печати — расчёт предварительный.</p>
  <label>Модель STL (до 30 МБ)<input type="file" name="stl" accept=".stl" /></label>
  <div class="order-entry-grid">
