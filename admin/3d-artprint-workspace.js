@@ -14,6 +14,25 @@ async function orderData(){
  return (Array.isArray(data)?data:[]).filter(o=>o.business_unit==='3D_ARTPRINT');
 }
 async function renderOrders(rows){
+ const ids=rows.map(o=>o.id).filter(Boolean);
+ const printerByOrder=new Map(),stlByOrder=new Map(),gcodeByOrder=new Map();
+ if(key==='orders'&&ids.length){
+  const jobs=await supabase.from('production_jobs').select('order_id,equipment_id,status').in('order_id',ids);
+  if(!jobs.error){
+   const machines=[...new Set((jobs.data||[]).map(j=>j.equipment_id).filter(Boolean))];
+   const equipment=machines.length?await supabase.from('equipment_assets').select('id,name,inventory_number').in('id',machines):{data:[]};
+   const labels=new Map((equipment.data||[]).map(p=>[p.id,p.name+(p.inventory_number?' · '+p.inventory_number:'')]));
+   for(const j of jobs.data||[]){const text=j.equipment_id?(labels.get(j.equipment_id)||'ID '+j.equipment_id):'Не назначен';
+    const old=printerByOrder.get(j.order_id)||[];old.push(text+' ('+j.status+')');printerByOrder.set(j.order_id,old)}
+  }
+  const files=await supabase.from('order_files').select('order_id,file_name,file_url').in('order_id',ids);
+  if(!files.error)for(const f of files.data||[]){
+   const name=f.file_name||'';
+   const target=/\.(gcode|gco|gc|gcode\.3mf)$/i.test(name)?gcodeByOrder:/\.stl$/i.test(name)?stlByOrder:null;
+   if(target){const old=target.get(f.order_id)||[];old.push(f);target.set(f.order_id,old)}
+  }
+ }
+
  root.replaceChildren();
  if(!rows.length){empty('Заказов в доступной выборке пока нет.');return;}
  if(key==='clients'){
@@ -40,6 +59,10 @@ async function renderOrders(rows){
    fact('Клиент',o.customer_full_name||o.customer_company_name||'Не указан');
    fact('Телефон',o.customer_phone||o.phone);
    fact('Статус',o.status||'—');
+   fact('Принтер / задания',(printerByOrder.get(o.id)||['Пока нет задания']).join('; '));
+   fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
+   fact('G-code · файл производства',(gcodeByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
+   fact('STL · для менеджера',(stlByOrder.get(o.id)||[]).map(f=>f.file_name).join(', ')||'Не прикреплён');
    fact('Количество',o.quantity);
    fact('Цена за единицу',o.unit_price!=null?rub(o.unit_price):null);
    fact('Итого',o.total!=null?rub(o.total):null);

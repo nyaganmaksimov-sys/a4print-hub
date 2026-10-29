@@ -71,6 +71,33 @@ export async function renderProduction({supabase,root,notify}){
     if(job.deadline_at)fact('Срок выполнения',formatDate(job.deadline_at));
     const numeric=document.createElement('p');numeric.textContent='План: '+(job.planned_machine_minutes??'—')+' мин · Факт: '+(job.actual_machine_minutes??'—')+' мин · Годных: '+(job.good_quantity??'—')+' · Брак: '+(job.scrap_quantity??'—')+' · Себестоимость: '+(job.production_cost==null?'—':rub(job.production_cost));
     card.append(h,status,detail,overview,numeric);
+    // Open the stored production file only on request; signed URLs and storage policies remain enforced.
+    const playerControls=document.createElement('div');playerControls.className='row-controls';
+    const playerButton=document.createElement('button');playerButton.type='button';playerButton.textContent='▶ Показать печать G-code';
+    const playerRoot=document.createElement('div');playerRoot.hidden=true;
+    let disposePlayer=null;
+    playerButton.addEventListener('click',async()=>{
+      if(disposePlayer){disposePlayer();disposePlayer=null;playerRoot.hidden=true;playerButton.textContent='▶ Показать печать G-code';return}
+      playerButton.disabled=true;
+      try{
+        if(!job.order_id)throw Error('У задания отсутствует связь с заказом');
+        const {data:attachments,error:fetchError}=await supabase.from('order_files').select('file_name,file_url').eq('order_id',job.order_id);
+        if(fetchError)throw fetchError;
+        const attachment=(attachments||[]).find(f=>/\\.(gcode|gco|gc|gcode\\.3mf)$/i.test(f.file_name||''));
+        if(!attachment)throw Error('К этому заказу ещё не прикреплён G-code');
+
+        const {data:download,error:downloadError}=await supabase.storage.from('order-files').download(attachment.file_url);
+        if(downloadError)throw downloadError;
+        if(download.size>50*1024*1024)throw Error('Файл G-code больше 50 МБ');
+        const {createGcodePlayer}=await import('./3d-artprint-gcode-player.js?v=1');
+        playerRoot.hidden=false;
+        const printable=/\\.gcode\\.3mf$/i.test(attachment.file_name)?new Blob([await (await import('./3d-artprint-3mf-reader.js?v=1')).unpackGcode3mf(download)],{type:'text/plain'}):download;
+        disposePlayer=createGcodePlayer({root:playerRoot,file:printable,estimatedSeconds:Number(job.planned_machine_minutes||0)*60});
+        playerButton.textContent='Закрыть визуализацию';
+      }catch(error){notify('Визуализация: '+(error?.message||String(error)))}
+      finally{playerButton.disabled=false}
+    });
+    playerControls.append(playerButton);card.append(playerControls,playerRoot);
     const firstRun=runs.filter(r=>r.production_job_id===job.id).sort((a,b)=>Date.parse(a.started_at)-Date.parse(b.started_at))[0];
     const operator=document.createElement('p');operator.className='production-operator';
     operator.textContent=firstRun?.operator_user_id?'Запустил печать: '+(operators.get(firstRun.operator_user_id)||'Сотрудник · '+firstRun.operator_user_id.slice(0,8)):'Оператор запуска ещё не зафиксирован';
