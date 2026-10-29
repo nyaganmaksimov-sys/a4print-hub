@@ -36,8 +36,8 @@ export async function setupGcodeCalculator(form,supabase){
  if(!stl)return;
  const div=document.createElement('div');
  div.className='gcode-calc';
- div.innerHTML=`<h3>Расчёт по G-code после слайсинга</h3>
- <p>Используются комментарии, записанные слайсером. Если расход или время отсутствуют, введите их вручную. G-code анализируется локально.</p>
+ div.innerHTML=`<h3>Основной файл производства — G-code</h3>
+ <p>Используются комментарии, записанные слайсером. Если расход или время отсутствуют, введите их вручную. G-code анализируется локально и прикрепляется к заказу после сохранения.</p>
  <label>G-code из OrcaSlicer (.gcode, .gcode.3mf, до 50 МБ)<input type="file" name="gcode" accept=".gcode,.gco,.gc,.3mf" /></label>
  <div class="order-entry-grid"><label>Принтер 3D-ARTPRINT<select name="gcodePrinter"><option value="">Ручной тариф</option></select></label><label>Тариф принтера <small data-printer-tariff>Выберите станок</small></label>
  <label>Расход филамента, г<input name="gcodeGrams" type="number" step="0.01" min="0" placeholder="Из G-code или вручную"></label>
@@ -49,7 +49,7 @@ export async function setupGcodeCalculator(form,supabase){
  </div>
  <div class="stl-result" data-gcode-result role="status">Загрузите G-code или заполните поля вручную.</div>
  <button type="button" data-gcode-apply disabled>Подставить цену по G-code</button>`;
- stl.append(div);
+ stl.before(div);
  const get=n=>div.querySelector('[name="'+n+'"]'),info=div.querySelector('[data-gcode-result]'),apply=div.querySelector('[data-gcode-apply]');let filename='',meta={};
  const printer=get('gcodePrinter'),tariff=div.querySelector('[data-printer-tariff]'),saveRent=div.querySelector('[data-save-rent]'),rentStatus=div.querySelector('[data-rent-status]');
  const rentKey=id=>'a4print:3d-artprint:rent-share:v1:'+id;
