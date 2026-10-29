@@ -29,6 +29,31 @@ async function renderOrders(rows){
  for(const o of list){
   const number=o.order_number||String(o.id).slice(0,8);
   const el=item('№'+number+' · '+(o.item_name||o.model_name||'Заказ'),(o.customer_full_name||o.customer_company_name||'Клиент не указан')+' · '+(o.status||'Без статуса'));
+  if(o.id){
+   const info=document.createElement('details');info.className='art-order-details';
+   const summary=document.createElement('summary');summary.textContent='Полная информация о заказе';info.append(summary);
+   const fields=document.createElement('dl');fields.className='art-order-facts';
+   const fact=(label,value)=>{if(value===null||value===undefined||value==='')return;const box=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=String(value);box.append(dt,dd);fields.append(box)};
+   const rub=n=>Number(n).toLocaleString('ru-RU',{style:'currency',currency:'RUB'});
+   fact('Номер заказа',number);
+   fact('Изделие',o.item_name||o.model_name||'Не указано');
+   fact('Клиент',o.customer_full_name||o.customer_company_name||'Не указан');
+   fact('Телефон',o.customer_phone||o.phone);
+   fact('Статус',o.status||'—');
+   fact('Количество',o.quantity);
+   fact('Цена за единицу',o.unit_price!=null?rub(o.unit_price):null);
+   fact('Итого',o.total!=null?rub(o.total):null);
+   fact('Комментарий',o.customer_comment||o.comment);
+   fact('Срок выполнения',o.due_at?new Date(o.due_at).toLocaleString('ru-RU'):null);
+   info.append(fields);
+   const actions=document.createElement('div');actions.className='row-controls';
+   const edit=document.createElement('a');edit.href='./order.html?id='+encodeURIComponent(o.id);
+   edit.className='art-order-edit-link';edit.textContent='Открыть и редактировать заказ';
+   actions.append(edit);
+   const jobs=document.createElement('a');jobs.href='./3d-artprint-workspace.html?section=production';
+   jobs.className='art-order-edit-link';jobs.textContent='Производственные задания';actions.append(jobs);
+   info.append(actions);el.append(info);
+  }
   if(o.status==='NEW'&&o.id){
    const btn=document.createElement('button');btn.type='button';btn.textContent='Подтвердить и передать в производство';
    btn.addEventListener('click',async()=>{
