@@ -46,6 +46,7 @@
 (()=>{
   const JARVIS_KEY='a4print_jarvis_enabled_v1';
   try{if(localStorage.getItem(JARVIS_KEY)==='0'){window.__A4_JARVIS_DISABLED__=true;return}}catch{}
+  if(window.__A4_VOICE_ENGINE_NO_BOOTSTRAP__)return;
   if(window.__A4_JARVIS_VOICE_BOOTSTRAP__)return;window.__A4_JARVIS_VOICE_BOOTSTRAP__=true;
   const addModule=(src,key)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.type='module';s.src=src;s.setAttribute(`data-${key}`,'1');s.setAttribute('data-a4-jarvis','1');document.head.appendChild(s)};
   addModule('/admin/jarvis-wake.js?v=20260913-master1','a4-jarvis-wake');
