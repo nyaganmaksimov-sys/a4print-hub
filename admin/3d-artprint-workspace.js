@@ -135,7 +135,10 @@ async function start(){
   if(key==='production'){
    const {renderProduction}=await import('./3d-artprint-production.js?v=20261029-reuse2');
    await renderProduction({supabase,root,notify:message=>{notice.hidden=false;notice.textContent=message}});
-   startPrintTimeAlerts({supabase,root,notify:message=>{notice.hidden=false;notice.textContent=message}});
+   try{
+    const {startPrintTimeAlerts}=await import('./3d-artprint-print-alerts.js?v=20261030-importfix1');
+    startPrintTimeAlerts({supabase,root,notify:message=>{notice.hidden=false;notice.textContent=message}});
+   }catch(alertError){console.warn('3D-ARTPRINT notifications unavailable:',alertError)}
    return;
   }
   empty('Раздел имеет собственную страницу 3D-ARTPRINT. Рабочие формы и данные подключим на следующем этапе. Пока действия здесь недоступны.');
