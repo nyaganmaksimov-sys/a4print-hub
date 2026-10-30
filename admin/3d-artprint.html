@@ -23,8 +23,8 @@
 <div class="nav-bottom"><div class="brand-badge"><span>3D-ARTPRINT</span><small>Самостоятельная рабочая среда</small></div></div>
 </aside>
 <main class="main">
-<header class="top"><div class="brand-header"><div class="brand-lockup"><img class="official-brand-logo" src="./assets/3d-artprint/logo.png?v=hq20261023" alt="3D-ARTPRINT" width="290" height="97"><div class="eyebrow">Отдельное производство · интеграция с A4PRINT HUB</div></div><div class="brand-splash" aria-hidden="true"></div></div><div class="actions"><span id="syncLabel" role="status">Подключение…</span><button id="reload" type="button">↻ Обновить</button><a class="primary" href="./3d-artprint-workspace.html?section=orders&new=1">+ Новый заказ</a></div></header>
-<div id="notice" class="notice" hidden role="alert"></div>
+<header class="top"><div class="brand-header"><div class="brand-lockup"><img class="official-brand-logo" src="./assets/3d-artprint/logo.png?v=hq20261023" alt="3D-ARTPRINT" width="290" height="97"><div class="eyebrow">Отдельное производство · интеграция с A4PRINT HUB</div></div><div class="brand-splash" aria-hidden="true"></div></div><div class="actions"><span id="syncLabel" role="status">Подключение…</span><button id="printVoiceToggle" type="button" aria-pressed="false" title="Переключить голосовые уведомления">🔇 Звук выключен</button><button id="reload" type="button">↻ Обновить</button><a class="primary" href="./3d-artprint-workspace.html?section=orders&new=1">+ Новый заказ</a></div></header>
+<div id="printVoiceStatus" role="status" style="font-size:12px;opacity:.85;padding:5px 12px"></div><div id="notice" class="notice" hidden role="alert"></div>
 <section class="cards" aria-label="Показатели заказов">
 <a class="kpi" href="./3d-artprint-workspace.html?section=orders&status=NEW"><span>Новые заказы</span><strong id="newOrders">—</strong><small>По всем доступным заказам</small></a>
 <a class="kpi" href="./3d-artprint-workspace.html?section=orders&status=IN_PROGRESS"><span>Активные заказы</span><strong id="activeOrders">—</strong><small>По всем доступным заказам</small></a>
@@ -49,4 +49,4 @@
 <div class="footer-note">Показатели рассчитываются по данным HUB. Финансовые показатели появятся после подключения проверенных агрегатов для организации.</div>
 </main></div>
 <script type="module" src="./3d-artprint-fleet.js?v=10"></script><script type="module" src="./3d-artprint-profiles.js?v=1"></script><script type="module" src="./3d-artprint-job-profiles.js?v=1"></script><script type="module" src="./3d-artprint.js?v=9"></script>
-</body></html>
+<script type="module" src="./3d-artprint-voice-alerts.js?v=20261030-1"></script></body></html>
