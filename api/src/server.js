@@ -288,16 +288,14 @@ app.get('/api/v1/pos/staff/login-list', requireAdmin, async (req, res, next) => 
     const { data: org, error: orgError } = await supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).single();
     if (orgError) throw orgError;
     const staff = await listPosStaff(org.id);
-    const current = await posStaffAccess(req.authUser.id);
-    const currentCredential = current?.profile?.id
-      ? await supabase.from('pos_staff_credentials').select('user_id').eq('user_id',current.profile.id).maybeSingle()
-      : { data: null, error: null };
-    if (currentCredential.error) throw currentCredential.error;
+    const activeStaff=staff.filter(row=>row.is_active);
+    const hasAdminPin=activeStaff.some(row=>row.roles?.includes('ADMIN')&&row.pin_enabled);
+    const bootstrapCandidates=hasAdminPin?[]:activeStaff.filter(row=>row.roles?.includes('ADMIN')&&!row.pin_enabled);
     res.json({
       success:true,
-      staff:staff.filter(row=>row.is_active),
-      bootstrap_required:Boolean(current?.isAdmin && current.profile?.id && !currentCredential.data),
-      bootstrap_staff_id:current?.isAdmin ? current.profile.id : null
+      staff:activeStaff,
+      bootstrap_required:bootstrapCandidates.length>0,
+      bootstrap_candidates:bootstrapCandidates.map(row=>({id:row.id,full_name:row.full_name,position:row.position||''}))
     });
   } catch(e){next(e)}
 });
@@ -339,12 +337,18 @@ app.post('/api/v1/pos/staff/bootstrap-pin', requireAdmin, async (req,res,next)=>
     const pin=String(req.body?.pin||'');
     if(!validStaffPin(pin))return res.status(400).json({success:false,error:'INVALID_PIN_FORMAT',message:'PIN должен содержать от 4 до 8 цифр.'});
     const access=await posStaffAccess(req.authUser.id);
-    if(!access?.isAdmin||!access.profile?.id)return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
-    const existing=await supabase.from('pos_staff_credentials').select('user_id').eq('user_id',access.profile.id).maybeSingle();
+    if(!access?.isAdmin)return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
+    const staffId=cleanText(req.body?.staff_id,80);
+    const target=staffId?await loadPosStaffProfile(staffId):null;
+    const {data:org,error:orgError}=await supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).single();
+    if(orgError)throw orgError;
+    if(!target||target.is_active===false||target.organization_id!==org.id||!target.isAdmin)
+      return res.status(404).json({success:false,error:'BOOTSTRAP_ADMIN_NOT_FOUND',message:'Выберите активного администратора А4-Принт.'});
+    const existing=await supabase.from('pos_staff_credentials').select('user_id').eq('user_id',target.id).maybeSingle();
     if(existing.error)throw existing.error;
-    if(existing.data)return res.status(409).json({success:false,error:'PIN_ALREADY_SET',message:'PIN администратора уже настроен. Для смены используйте управление сотрудниками.'});
+    if(existing.data)return res.status(409).json({success:false,error:'PIN_ALREADY_SET',message:'PIN этого администратора уже настроен.'});
     const hashed=hashStaffPin(pin);
-    const {error}=await supabase.from('pos_staff_credentials').insert({user_id:access.profile.id,pin_salt:hashed.salt,pin_hash:hashed.hash});
+    const {error}=await supabase.from('pos_staff_credentials').insert({user_id:target.id,pin_salt:hashed.salt,pin_hash:hashed.hash});
     if(error)throw error;
     res.json({success:true});
   }catch(e){next(e)}
