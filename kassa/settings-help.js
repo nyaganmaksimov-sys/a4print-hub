@@ -179,7 +179,7 @@
       $('a4CreateStaff')?.addEventListener('click',async()=>{
         const name=$('a4NewStaffName').value.trim(),position=$('a4NewStaffPosition').value.trim(),pin=$('a4NewStaffPin').value;
         const msg=$('a4StaffCreateMessage');msg.textContent='';
-        if(!name||!/^\\d{4,8}$/.test(pin)){msg.className='a4-staff-status off';msg.textContent='Укажите ФИО и PIN из 4–8 цифр.';return}
+        if(!name||!/^\d{4,8}$/.test(pin)){msg.className='a4-staff-status off';msg.textContent='Укажите ФИО и PIN из 4–8 цифр.';return}
         const btn=$('a4CreateStaff');btn.disabled=true;
         try{
           const result=await apiFetch('/api/v1/pos/staff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,position,pin})});
@@ -200,7 +200,7 @@
             const updated=await apiFetch('/api/v1/pos/staff/'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
             if(!updated.response.ok)throw new Error(updated.data?.message||updated.data?.error||'Не удалось сохранить сотрудника');
             if(pin){
-              if(!/^\\d{4,8}$/.test(pin))throw new Error('PIN должен содержать 4–8 цифр.');
+              if(!/^\d{4,8}$/.test(pin))throw new Error('PIN должен содержать 4–8 цифр.');
               const changed=await apiFetch('/api/v1/pos/staff/'+encodeURIComponent(id)+'/pin',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
               if(!changed.response.ok)throw new Error(changed.data?.message||changed.data?.error||'Не удалось изменить PIN');
             }
