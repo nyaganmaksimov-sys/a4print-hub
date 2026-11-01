@@ -165,7 +165,7 @@ const POS_PIN_LOCK_MS = 5 * 60 * 1000;
 function hashStaffPin(pin, salt = randomBytes(16).toString('base64url')) {
   return { salt, hash: scryptSync(String(pin), salt, 64).toString('hex') };
 }
-function validStaffPin(pin) { return /^\\d{4,8}$/.test(String(pin || '')); }
+function validStaffPin(pin) { return /^\d{4,8}$/.test(String(pin || '')); }
 function signPosStaffToken(payload) {
   if (!posStaffTokenSecret) throw new Error('POS_STAFF_TOKEN_SECRET_NOT_CONFIGURED');
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
