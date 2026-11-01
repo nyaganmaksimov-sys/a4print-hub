@@ -195,6 +195,8 @@ jobs:
           grep -q 'WRITE_TIMEOUT=14000' kassa/network-safety.js
           grep -q "RENDER='https://a4print-hub-api.onrender.com'" kassa/network-safety.js
           grep -q 'readWithFailover' kassa/network-safety.js
+          grep -q 'pos/staff/pin-login' kassa/network-safety.js
+          grep -q 'isPinLogin' kassa/network-safety.js
           grep -q 'isIdempotentWrite' kassa/network-safety.js
           grep -q 'shift-session-gate.js' kassa/bootstrap.js
           grep -q 'shift-layout-fix.css' kassa/bootstrap.js
