@@ -55,7 +55,7 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     const headers=new Headers(request.headers);
     const options={method,headers,cache:'no-store',credentials:'omit',redirect:'follow'};
     if(!['GET','HEAD'].includes(method))options.body=bodyBuffer||await request.clone().arrayBuffer();
-    const response=await fetchWithTimeout(`${base}/api/v1/supabase${pathname}${target.search}`,options,4500);
+    const response=await fetchWithTimeout(`${base}/api/v1/supabase${pathname}${target.search}`,options,9000);
     if(response.ok)window.A4KassaApiPreferred=base;
     return response;
   }
