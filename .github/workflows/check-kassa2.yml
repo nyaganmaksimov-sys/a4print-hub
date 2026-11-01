@@ -247,6 +247,7 @@ jobs:
           grep -q 'RENDER_GIT_COMMIT' api/src/pos-build-marker.js
           grep -q 'cashOperations:true' api/src/pos-build-marker.js
           grep -q 'receiptQueueRecovery:true' api/src/pos-build-marker.js
+          grep -q 'staffPinAuth:true' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
       - name: Validate manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
