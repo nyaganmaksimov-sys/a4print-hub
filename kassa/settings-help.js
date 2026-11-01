@@ -119,9 +119,33 @@
         <div class="a4-sh-row"><span>Вид каталога</span><strong>${catalogMode==='grid'?'Плитка':'Список'}</strong></div>
       </div></section>
       <section id="a4CashSetup" class="a4-sh-card wide"><h3>Наличные в кассе</h3><p>Получаю состояние денежного ящика…</p></section>
+      <section class="a4-sh-card wide"><h3>Обновления программы</h3><p id="a4UpdaterStatus">Проверяю установленную версию…</p><div class="a4-sh-actions"><button id="a4UpdaterCheck" class="a4-sh-btn primary" type="button">Проверить обновления</button><button id="a4UpdaterDownload" class="a4-sh-btn" type="button" hidden>Скачать обновление</button><button id="a4UpdaterInstall" class="a4-sh-btn" type="button" hidden>Перезапустить и установить</button></div><p id="a4UpdaterChanges"></p></section>
       <section class="a4-sh-card wide"><h3>Синхронизация</h3><p>Безопасно обновляет каталог и отправляет отложенные чеки. Открытая смена и локальная очередь при этом не удаляются.</p><div class="a4-sh-actions"><button id="a4SetSync" class="a4-sh-btn primary">↻ Синхронизировать сейчас</button><button id="a4SetCatalog" class="a4-sh-btn">Обновить каталог</button><button id="a4SetQueue" class="a4-sh-btn" ${st.queue?'':'disabled'}>Открыть отложенные чеки</button></div></section>
       <section class="a4-sh-card wide"><h3>Отображение каталога</h3><div class="a4-sh-actions"><button id="a4SetList" class="a4-sh-btn ${catalogMode==='list'?'primary':''}">☷ Список</button><button id="a4SetGrid" class="a4-sh-btn ${catalogMode==='grid'?'primary':''}">▦ Плитка</button></div></section>
     </div>`;
+    const updater=window.A4KassaDesktop?.updater;
+    const updaterStatus=$('a4UpdaterStatus');
+    const updaterCheck=$('a4UpdaterCheck');
+    const updaterDownload=$('a4UpdaterDownload');
+    const updaterInstall=$('a4UpdaterInstall');
+    function paintUpdater(st={}){
+      if(!updaterStatus?.isConnected)return;
+      const current=st.currentVersion||window.A4KassaDesktop?.version||'не определена';
+      updaterStatus.textContent='Установлена версия '+current+'. '+(st.message||'');
+      updaterDownload.hidden=st.status!=='available';
+      updaterInstall.hidden=st.status!=='downloaded';
+      const notes=st.releaseNotes||st.whatsNew;
+      $('a4UpdaterChanges').textContent=notes?.changes?.length?'Изменения: '+notes.changes.join('; '):'';
+    }
+    if(!updater){
+      updaterStatus.textContent='Проверка обновлений доступна в установленном Windows-приложении. В веб-версии она недоступна.';
+      updaterCheck.disabled=true;
+    }else{
+      updater.state().then(paintUpdater).catch(e=>{updaterStatus.textContent='Ошибка получения версии: '+String(e?.message||e)});
+      updaterCheck.addEventListener('click',()=>{updaterStatus.textContent='Проверяю обновления…';updater.check().then(paintUpdater).catch(e=>{updaterStatus.textContent=String(e?.message||e)})});
+      updaterDownload.addEventListener('click',()=>{updater.download().then(paintUpdater).catch(e=>{updaterStatus.textContent=String(e?.message||e)})});
+      updaterInstall.addEventListener('click',()=>updater.install());
+    }
     $('a4SetSync')?.addEventListener('click',()=>{$('syncNow')?.click();setTimeout(()=>showSettings(),700)});
     $('a4SetCatalog')?.addEventListener('click',()=>{$('refreshCatalog')?.click()});
     $('a4SetQueue')?.addEventListener('click',()=>{$('navSyncQueue')?.click()});
