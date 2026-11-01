@@ -157,6 +157,7 @@
   }
 
   function showAuth(error=''){
+    sessionStorage.removeItem('a4_kassa_staff_token');sessionStorage.removeItem('a4_kassa_staff_profile');sessionStorage.removeItem('a4_kassa_staff_expires');
     $('appView').hidden=true;$('staffView').hidden=true;$('authView').hidden=false;
     $('loginError').textContent=error;
   }
@@ -750,7 +751,7 @@
   }
 
   function renderAccounts(){const el=$('cashAccount');const prev=el.value;el.innerHTML=state.accounts.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');if(state.accounts.some(x=>x.id===prev))el.value=prev}
-  function renderOperators(){const el=$('operatorSelect');const own=state.operators.find(x=>x.is_self)?.id||state.profile?.id||'';el.innerHTML=state.operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}${x.is_self?' · вы':''}</option>`).join('');el.value=state.isAdmin?(own||state.operators[0]?.id||''):own;el.disabled=!state.isAdmin||state.operators.length<2}
+  function renderOperators(){const el=$('operatorSelect');const own=state.profile?.id||state.operators.find(x=>x.is_self)?.id||'';el.innerHTML=state.operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}${x.is_self?' · вы':''}</option>`).join('');el.value=state.isAdmin?(own||state.operators[0]?.id||''):own;el.disabled=!state.isAdmin||state.operators.length<2}
   function renderShift(){const chip=$('shiftChip');if(state.shift){chip.className='status-chip ok';chip.querySelector('span').textContent='Смена открыта';$('shiftInfo').textContent=`Смена ${state.shift.name||''}`;$('shiftButton').textContent='Закрыть смену'}else{chip.className='status-chip warn';chip.querySelector('span').textContent='Смена закрыта';$('shiftInfo').textContent='Смена не открыта';$('shiftButton').textContent='Открыть смену'}renderCart()}
   function renderNetwork(){const online=state.backendOnline;$('offlineBanner').hidden=online;const chip=$('networkChip');chip.className='status-chip '+(online?'ok':'bad');chip.querySelector('span').textContent=online?'Онлайн':'Офлайн'}
 
