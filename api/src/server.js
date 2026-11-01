@@ -647,6 +647,8 @@ app.post('/api/v1/pos/sale/record', requirePosUser, async(req,res,next)=>{
     const saleId=cleanText(input.p_moysklad_sale_id,160);
     if(!saleId)return res.status(400).json({success:false,error:'SALE_ID_REQUIRED'});
     let operatorId=req.authProfile.id;
+    if(!req.isAdmin&&input.p_operator_id&&String(input.p_operator_id)!==String(req.authProfile.id))
+      return res.status(403).json({success:false,error:'SALE_OPERATOR_MISMATCH',message:'Чек создан другим сотрудником. Войдите под его PIN или попросите администратора.'});
     if(req.isAdmin&&input.p_operator_id){
       const selected=await loadPosStaffProfile(cleanText(input.p_operator_id,80));
       if(!selected||selected.is_active===false||selected.organization_id!==req.posOrganizationId||!selected.isOperator)
@@ -781,6 +783,7 @@ app.post('/api/v1/pos/sale', requirePosUser, async (req, res, next) => {
         article: g.article || null
       };
     });
+    if (!req.isAdmin && input.operator_id && String(input.operator_id) !== String(req.authProfile.id)) return res.status(403).json({ success: false, error: 'SALE_OPERATOR_MISMATCH', message: 'Чек создан другим сотрудником. Для синхронизации войдите под его PIN или попросите администратора.' });
     const profile = await resolvePosOperator(req, cleanText(input.operator_id, 80));
     if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
     const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
