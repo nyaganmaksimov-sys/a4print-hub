@@ -18,8 +18,9 @@
       #utilityDrawer.a4-settings-mode .utility-card,#utilityDrawer.a4-help-mode .utility-card{width:min(760px,calc(100vw - 255px));max-width:none}
       #utilityDrawer.a4-settings-mode .utility-body,#utilityDrawer.a4-help-mode .utility-body{background:#f5f8fa;padding:18px 20px}
       .a4-sh-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.a4-sh-card{background:#fff;border:1px solid #dce5ed;border-radius:12px;padding:14px 16px}.a4-sh-card.wide{grid-column:1/-1}.a4-sh-card h3{margin:0 0 10px;font-size:16px}.a4-sh-card p{margin:0;color:#66758a;line-height:1.5}.a4-sh-list{display:grid;gap:8px}.a4-sh-row{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid #edf1f5;padding:7px 0}.a4-sh-row:last-child{border-bottom:0}.a4-sh-row span{color:#758399}.a4-sh-row strong{text-align:right}.a4-sh-ok{color:#067647}.a4-sh-warn{color:#b54708}.a4-sh-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}.a4-sh-btn{border:1px solid #d3dde7;background:#fff;border-radius:9px;padding:10px 13px;font-weight:750;cursor:pointer}.a4-sh-btn.primary{background:#0aaeba;border-color:#0aaeba;color:#fff}.a4-sh-btn:disabled{opacity:.5;cursor:not-allowed}.a4-help-steps{counter-reset:step;display:grid;gap:10px}.a4-help-step{position:relative;background:#fff;border:1px solid #dce5ed;border-radius:12px;padding:14px 16px 14px 54px;min-height:52px}.a4-help-step:before{counter-increment:step;content:counter(step);position:absolute;left:15px;top:13px;width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#e1f7f9;color:#087f89;font-weight:900}.a4-help-step b{display:block;margin-bottom:3px}.a4-help-step span{color:#66758a;line-height:1.45}.a4-key{display:inline-block;border:1px solid #ccd6df;border-bottom-width:2px;border-radius:5px;background:#fff;padding:2px 6px;font-weight:800;font-size:12px;color:#344054}
+      .a4-staff-card{display:grid;gap:10px;background:#fff;border:1px solid #dce5ed;border-radius:12px;padding:13px}.a4-staff-fields{display:grid;grid-template-columns:1.2fr 1fr;gap:8px}.a4-staff-fields input{min-width:0;width:100%;box-sizing:border-box;border:1px solid #cbd7e3;border-radius:8px;padding:9px;font:inherit}.a4-staff-actions{display:flex;gap:7px;flex-wrap:wrap}.a4-staff-status{font-size:12px;color:#66758a}.a4-staff-status.off{color:#b54708}.a4-staff-list{display:grid;gap:9px;margin-top:12px}
       .a4-cash-setup{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.75fr);gap:16px;align-items:start}.a4-cash-now{font-size:30px;font-weight:900;color:#10213a;margin:5px 0}.a4-cash-note{font-size:12px;color:#758399;line-height:1.4}.a4-cash-form{display:flex;gap:8px;align-items:end}.a4-cash-form label{flex:1;font-size:12px;color:#66758a;font-weight:700}.a4-cash-form input{display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid #cbd7e3;border-radius:9px;padding:10px 11px;font:inherit;background:#fff}.a4-cash-msg{margin-top:8px;font-size:12px;min-height:17px}.a4-cash-msg.error{color:#c62828}.a4-cash-msg.ok{color:#067647}
-      @media(max-width:900px){#utilityDrawer.a4-settings-mode .utility-card,#utilityDrawer.a4-help-mode .utility-card{width:100vw}.a4-sh-grid{grid-template-columns:1fr}.a4-sh-card.wide{grid-column:auto}.a4-cash-setup{grid-template-columns:1fr}}
+      @media(max-width:900px){.a4-staff-fields{grid-template-columns:1fr}#utilityDrawer.a4-settings-mode .utility-card,#utilityDrawer.a4-help-mode .utility-card{width:100vw}.a4-sh-grid{grid-template-columns:1fr}.a4-sh-card.wide{grid-column:auto}.a4-cash-setup{grid-template-columns:1fr}}
     `;document.head.appendChild(st)
   }
 
@@ -120,6 +121,7 @@
       </div></section>
       <section id="a4CashSetup" class="a4-sh-card wide"><h3>Наличные в кассе</h3><p>Получаю состояние денежного ящика…</p></section>
       <section class="a4-sh-card wide"><h3>Обновления программы</h3><p id="a4UpdaterStatus">Проверяю установленную версию…</p><div class="a4-sh-actions"><button id="a4UpdaterCheck" class="a4-sh-btn primary" type="button">Проверить обновления</button><button id="a4UpdaterDownload" class="a4-sh-btn" type="button" hidden>Скачать обновление</button><button id="a4UpdaterInstall" class="a4-sh-btn" type="button" hidden>Перезапустить и установить</button></div><p id="a4UpdaterChanges"></p></section>
+      ${window.A4KassaCurrentStaff?.isAdmin?'<section class="a4-sh-card wide"><h3>Сотрудники</h3><p>Добавление, блокировка и смена PIN-кодов. Управление доступно только администратору.</p><div class="a4-sh-actions"><button id="a4ManageStaff" class="a4-sh-btn primary" type="button">Управление сотрудниками</button></div></section>':''}
       <section class="a4-sh-card wide"><h3>Синхронизация</h3><p>Безопасно обновляет каталог и отправляет отложенные чеки. Открытая смена и локальная очередь при этом не удаляются.</p><div class="a4-sh-actions"><button id="a4SetSync" class="a4-sh-btn primary">↻ Синхронизировать сейчас</button><button id="a4SetCatalog" class="a4-sh-btn">Обновить каталог</button><button id="a4SetQueue" class="a4-sh-btn" ${st.queue?'':'disabled'}>Открыть отложенные чеки</button></div></section>
       <section class="a4-sh-card wide"><h3>Отображение каталога</h3><div class="a4-sh-actions"><button id="a4SetList" class="a4-sh-btn ${catalogMode==='list'?'primary':''}">☷ Список</button><button id="a4SetGrid" class="a4-sh-btn ${catalogMode==='grid'?'primary':''}">▦ Плитка</button></div></section>
     </div>`;
@@ -146,12 +148,77 @@
       updaterDownload.addEventListener('click',()=>{updater.download().then(paintUpdater).catch(e=>{updaterStatus.textContent=String(e?.message||e)})});
       updaterInstall.addEventListener('click',()=>updater.install());
     }
+    $('a4ManageStaff')?.addEventListener('click',()=>renderStaffManagement());
     $('a4SetSync')?.addEventListener('click',()=>{$('syncNow')?.click();setTimeout(()=>showSettings(),700)});
     $('a4SetCatalog')?.addEventListener('click',()=>{$('refreshCatalog')?.click()});
     $('a4SetQueue')?.addEventListener('click',()=>{$('navSyncQueue')?.click()});
     $('a4SetList')?.addEventListener('click',()=>{$('listView')?.click();setTimeout(()=>showSettings(),120)});
     $('a4SetGrid')?.addEventListener('click',()=>{$('gridView')?.click();setTimeout(()=>showSettings(),120)});
     renderCashSetup().catch(()=>{});
+  }
+
+  async function renderStaffManagement(){
+    const body=$('utilityBody');
+    body.innerHTML='<div class="a4-sh-card">Загружаю сотрудников…</div>';
+    try{
+      const out=await apiFetch('/api/v1/pos/staff');
+      if(!out.response.ok)throw new Error(out.data?.message||out.data?.error||'Не удалось загрузить сотрудников');
+      const staff=out.data.staff||[];
+      body.innerHTML=`<div class="a4-sh-grid">
+        <section class="a4-sh-card wide"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><h3>Управление сотрудниками</h3><p>PIN-код от 4 до 8 цифр. Новые сотрудники получают обычный доступ кассира.</p></div><button id="a4StaffBack" class="a4-sh-btn" type="button">← Назад</button></div></section>
+        <section class="a4-sh-card wide"><h3>Добавить сотрудника</h3><div class="a4-staff-fields"><input id="a4NewStaffName" placeholder="ФИО сотрудника"><input id="a4NewStaffPosition" placeholder="Должность (необязательно)"><input id="a4NewStaffPin" type="password" inputmode="numeric" maxlength="8" placeholder="PIN-код 4–8 цифр"></div><div class="a4-sh-actions"><button id="a4CreateStaff" class="a4-sh-btn primary" type="button">Добавить сотрудника</button></div><div id="a4StaffCreateMessage" class="a4-staff-status"></div></section>
+        <section class="a4-sh-card wide"><h3>Список сотрудников</h3><div class="a4-staff-list">${staff.map(row=>`<article class="a4-staff-card" data-staff-card="${esc(row.id)}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><b>${esc(row.full_name)}</b><span class="a4-staff-status ${row.is_active?'':'off'}">${row.is_active?'Активен':'В архиве'}</span></div>
+          <div class="a4-staff-fields"><input data-staff-name value="${esc(row.full_name)}" aria-label="ФИО"><input data-staff-position value="${esc(row.position||'')}" placeholder="Должность" aria-label="Должность"></div>
+          <div class="a4-staff-fields"><input data-staff-pin type="password" inputmode="numeric" maxlength="8" placeholder="${row.pin_enabled?'Новый PIN (необязательно)':'PIN не назначен'}"><div class="a4-staff-status">${row.pin_enabled?'PIN настроен':'Нужно назначить PIN'} · ${row.roles?.includes('ADMIN')?'Администратор':'Кассир'}</div></div>
+          <div class="a4-staff-actions"><button class="a4-sh-btn primary" data-staff-save type="button">Сохранить</button><button class="a4-sh-btn" data-staff-toggle type="button">${row.is_active?'Архивировать':'Восстановить'}</button></div>
+          <div class="a4-staff-status" data-staff-message></div>
+        </article>`).join('')||'<p>Сотрудников пока нет.</p>'}</div></section>
+      </div>`;
+      $('a4StaffBack')?.addEventListener('click',()=>showSettings());
+      $('a4CreateStaff')?.addEventListener('click',async()=>{
+        const name=$('a4NewStaffName').value.trim(),position=$('a4NewStaffPosition').value.trim(),pin=$('a4NewStaffPin').value;
+        const msg=$('a4StaffCreateMessage');msg.textContent='';
+        if(!name||!/^\\d{4,8}$/.test(pin)){msg.className='a4-staff-status off';msg.textContent='Укажите ФИО и PIN из 4–8 цифр.';return}
+        const btn=$('a4CreateStaff');btn.disabled=true;
+        try{
+          const result=await apiFetch('/api/v1/pos/staff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:name,position,pin})});
+          if(!result.response.ok)throw new Error(result.data?.message||result.data?.error||'Не удалось добавить сотрудника');
+          notify('Сотрудник добавлен');
+          await renderStaffManagement();
+        }catch(error){msg.className='a4-staff-status off';msg.textContent=String(error?.message||error);btn.disabled=false}
+      });
+      document.querySelectorAll('[data-staff-card]').forEach(card=>{
+        const id=card.dataset.staffCard;
+        card.querySelector('[data-staff-save]')?.addEventListener('click',async()=>{
+          const msg=card.querySelector('[data-staff-message]'),btn=card.querySelector('[data-staff-save]');
+          msg.textContent='Сохраняю…';btn.disabled=true;
+          try{
+            const pin=card.querySelector('[data-staff-pin]').value;
+            const payload={full_name:card.querySelector('[data-staff-name]').value.trim(),position:card.querySelector('[data-staff-position]').value.trim()};
+            if(!payload.full_name)throw new Error('Укажите ФИО.');
+            const updated=await apiFetch('/api/v1/pos/staff/'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            if(!updated.response.ok)throw new Error(updated.data?.message||updated.data?.error||'Не удалось сохранить сотрудника');
+            if(pin){
+              if(!/^\\d{4,8}$/.test(pin))throw new Error('PIN должен содержать 4–8 цифр.');
+              const changed=await apiFetch('/api/v1/pos/staff/'+encodeURIComponent(id)+'/pin',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
+              if(!changed.response.ok)throw new Error(changed.data?.message||changed.data?.error||'Не удалось изменить PIN');
+            }
+            notify('Данные сотрудника сохранены');await renderStaffManagement();
+          }catch(error){msg.className='a4-staff-status off';msg.textContent=String(error?.message||error);btn.disabled=false}
+        });
+        card.querySelector('[data-staff-toggle]')?.addEventListener('click',async()=>{
+          const button=card.querySelector('[data-staff-toggle]'),archiving=button.textContent.trim()==='Архивировать';
+          if(archiving&&!confirm('Переместить сотрудника в архив? Старые чеки и история сохранятся.'))return;
+          button.disabled=true;
+          try{
+            const result=await apiFetch('/api/v1/pos/staff/'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:!archiving})});
+            if(!result.response.ok)throw new Error(result.data?.message||result.data?.error||'Не удалось изменить статус');
+            notify(archiving?'Сотрудник перемещён в архив':'Сотрудник восстановлен');await renderStaffManagement();
+          }catch(error){card.querySelector('[data-staff-message]').textContent=String(error?.message||error);button.disabled=false}
+        });
+      });
+    }catch(error){body.innerHTML=`<section class="a4-sh-card wide"><h3>Управление сотрудниками</h3><p class="a4-sh-warn">${esc(error?.message||error)}</p><button id="a4StaffBack" class="a4-sh-btn" type="button">← Назад</button></section>`;$('a4StaffBack')?.addEventListener('click',()=>showSettings())}
   }
 
   function showHelp(event){
