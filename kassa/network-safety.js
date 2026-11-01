@@ -121,7 +121,8 @@
   function isAuthWrite(url){
     const p=url.pathname;
     return /\/api\/v1\/mobile\/auth\/(?:password|refresh)\/?$/.test(p)
-      || /\/api\/v1\/supabase\/auth\/v1\//.test(p);
+      || /\/api\/v1\/supabase\/auth\/v1\//.test(p)
+      || /\/api\/v1\/pos\/staff\/pin-login\/?$/.test(p);
   }
 
   function isIdempotentWrite(url){
@@ -129,6 +130,8 @@
     return isAuthWrite(url)
       || /\/api\/v1\/pos\/sale\/?$/.test(p);
   }
+
+  function isPinLogin(url){return /\/api\/v1\/pos\/staff\/pin-login\/?$/.test(url.pathname)}
 
   async function writeWithFailover(req,url){
     const routes=routeOrder(url);
@@ -146,7 +149,10 @@
         if(response.ok){window.A4KassaApiPreferred=routes[i];return response;}
         if(response.status<500){
           clientResponse=clientResponse||response;
-          if(authWrite&&i<routes.length-1)continue;
+          if(isPinLogin(url)&&response.status===401){
+            const authError=await response.clone().json().catch(()=>null);
+            if(authError?.error!=='PIN_INVALID'&&authError?.error!=='PIN_TEMPORARILY_LOCKED'&&i<routes.length-1)continue;
+          }else if(authWrite&&!isPinLogin(url)&&i<routes.length-1)continue;
           return response;
         }
         lastError=new Error(`HTTP ${response.status}`);
