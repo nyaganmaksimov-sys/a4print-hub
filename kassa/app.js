@@ -69,7 +69,7 @@
         const r=await fetch(base+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
         const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
         if(r.status===401&&retry){
-          const refreshed=await supabase.auth.refreshSession();
+          const refreshed=await refreshSessionOnce();
           if(refreshed.data?.session){
             state.session=refreshed.data.session;
             clearTimeout(timer);
@@ -92,36 +92,38 @@
     throw lastError||new Error('API_UNAVAILABLE');
   }
 
+  let sessionRefreshPromise=null;
+  async function refreshSessionOnce(){
+    if(!sessionRefreshPromise){
+      sessionRefreshPromise=supabase.auth.refreshSession().finally(()=>{sessionRefreshPromise=null});
+    }
+    return sessionRefreshPromise;
+  }
+
   async function backendPasswordLogin(email,password){
-    let serverError=null;
-    let serverSession=null;
-    if(API){
+    let serverError=null,serverSession=null;
+    for(const base of API_BASES){
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),9000);
       try{
-        const r=await fetch(`${API}/api/v1/mobile/auth/password`,{
+        const r=await fetch(`${base}/api/v1/mobile/auth/password`,{
           method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-          body:JSON.stringify({email,password}),cache:'no-store'
+          body:JSON.stringify({email,password}),cache:'no-store',signal:controller.signal
         });
         const d=await r.json().catch(()=>({}));
         if(r.ok&&d?.success&&d?.session?.access_token&&d?.session?.refresh_token){
-          serverSession=d.session;
-        }else{
-          const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
-          if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
-          serverError=err;
+          serverSession=d.session;window.A4KassaApiPreferred=base;break;
         }
+        const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
+        if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
+        serverError=err;
       }catch(e){
         if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;
         serverError=e;
-      }
+      }finally{clearTimeout(timer)}
     }
     if(serverSession){
-      // A valid response from our login endpoint is not a network failure.
-      // Do not discard it and repeat the password grant if setSession fails.
       try{
-        const s=await supabase.auth.setSession({
-          access_token:serverSession.access_token,
-          refresh_token:serverSession.refresh_token
-        });
+        const s=await supabase.auth.setSession({access_token:serverSession.access_token,refresh_token:serverSession.refresh_token});
         if(s.error)throw s.error;
         if(!s.data?.session)throw new Error('Сессия не сохранена.');
         return s.data.session;
