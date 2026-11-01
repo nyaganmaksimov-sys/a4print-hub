@@ -10,12 +10,13 @@
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
   });
   const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
+  const API_BASES=[API,'https://a4print-hub-api.onrender.com'].filter((v,i,a)=>v&&a.indexOf(v)===i);
   // Add the signed staff context to every request made to the POS API. This
   // also covers queue recovery and optional UI modules loaded after app.js.
   const nativeFetch=window.fetch.bind(window);
   window.fetch=(input,init={})=>{
     const url=typeof input==='string'?input:(input?.url||'');
-    if(API&&String(url).startsWith(API)){
+    if(API_BASES.some(base=>String(url).startsWith(base))){
       const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));
       const staffToken=sessionStorage.getItem('a4_kassa_staff_token');
       if(staffToken)headers.set('X-A4PRINT-STAFF-TOKEN',staffToken);
@@ -70,48 +71,73 @@
   let lastApiSuccessAt=0;
   async function api(path,opt={},retry=true){
     if(!state.session?.access_token)throw new Error('AUTH_REQUIRED');
-    const controller=new AbortController();
-    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:8000;
-    const t=setTimeout(()=>controller.abort(),timeoutMs);
-    try{
-      const r=await fetch(API+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
-      const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
-      if(r.status===401&&retry&&!path.startsWith('/api/v1/pos/staff/pin-login')){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
-      if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
-      lastApiSuccessAt=Date.now();state.backendOnline=true;renderNetwork();return d;
-    }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
+    const method=String(opt.method||'GET').toUpperCase();
+    const safeRead=method==='GET'||method==='HEAD';
+    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:10000;
+    let lastError=null;
+    const bases=safeRead?API_BASES:[API];
+    for(const base of bases){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),timeoutMs);
+      try{
+        const r=await fetch(base+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
+        const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
+        if(r.status===401&&retry){
+          const refreshed=await refreshSessionOnce();
+          if(refreshed.data?.session){
+            state.session=refreshed.data.session;
+            clearTimeout(timer);
+            return api(path,opt,false);
+          }
+        }
+        if(!r.ok){
+          const err=new Error(d.message||d.error||`HTTP ${r.status}`);
+          // Fail over only for transient server errors on idempotent reads.
+          if(safeRead&&r.status>=500){lastError=err;continue}
+          throw err;
+        }
+        lastApiSuccessAt=Date.now();state.backendOnline=true;window.A4KassaApiPreferred=base;renderNetwork();return d;
+      }catch(e){
+        lastError=e;
+        if(!safeRead)throw e;
+      }finally{clearTimeout(timer)}
+    }
+    state.backendOnline=false;renderNetwork();
+    throw lastError||new Error('API_UNAVAILABLE');
+  }
+
+  let sessionRefreshPromise=null;
+  async function refreshSessionOnce(){
+    if(!sessionRefreshPromise){
+      sessionRefreshPromise=supabase.auth.refreshSession().finally(()=>{sessionRefreshPromise=null});
+    }
+    return sessionRefreshPromise;
   }
 
   async function backendPasswordLogin(email,password){
-    let serverError=null;
-    let serverSession=null;
-    if(API){
+    let serverError=null,serverSession=null;
+    for(const base of API_BASES){
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),9000);
       try{
-        const r=await fetch(`${API}/api/v1/mobile/auth/password`,{
+        const r=await fetch(`${base}/api/v1/mobile/auth/password`,{
           method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-          body:JSON.stringify({email,password}),cache:'no-store'
+          body:JSON.stringify({email,password}),cache:'no-store',signal:controller.signal
         });
         const d=await r.json().catch(()=>({}));
         if(r.ok&&d?.success&&d?.session?.access_token&&d?.session?.refresh_token){
-          serverSession=d.session;
-        }else{
-          const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
-          if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
-          serverError=err;
+          serverSession=d.session;window.A4KassaApiPreferred=base;break;
         }
+        const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
+        if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
+        serverError=err;
       }catch(e){
         if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;
         serverError=e;
-      }
+      }finally{clearTimeout(timer)}
     }
     if(serverSession){
-      // A valid response from our login endpoint is not a network failure.
-      // Do not discard it and repeat the password grant if setSession fails.
       try{
-        const s=await supabase.auth.setSession({
-          access_token:serverSession.access_token,
-          refresh_token:serverSession.refresh_token
-        });
+        const s=await supabase.auth.setSession({access_token:serverSession.access_token,refresh_token:serverSession.refresh_token});
         if(s.error)throw s.error;
         if(!s.data?.session)throw new Error('Сессия не сохранена.');
         return s.data.session;
@@ -828,7 +854,9 @@
   }
 
   function bind(){
-    $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin').onclick=googleLogin;$('logout').onclick=logout;\n    $('staffLoginSubmit').onclick=staffPinLogin;$('staffPin').addEventListener('keydown',e=>{if(e.key==='Enter')staffPinLogin()});$('staffBootstrapSave').onclick=bootstrapAdminPin;\n    document.querySelectorAll('[data-pin-digit]').forEach(b=>b.onclick=()=>{$('staffPin').value=($('staffPin').value+b.dataset.pinDigit).slice(0,8);$('staffPin').focus()});$('staffPinClear').onclick=()=>{$('staffPin').value='';$('staffPin').focus()};$('staffPinBack').onclick=()=>{$('staffPin').value=$('staffPin').value.slice(0,-1);$('staffPin').focus()};
+    $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin').onclick=googleLogin;$('logout').onclick=logout;
+    $('staffLoginSubmit').onclick=staffPinLogin;$('staffPin').addEventListener('keydown',e=>{if(e.key==='Enter')staffPinLogin()});$('staffBootstrapSave').onclick=bootstrapAdminPin;
+    document.querySelectorAll('[data-pin-digit]').forEach(b=>b.onclick=()=>{$('staffPin').value=($('staffPin').value+b.dataset.pinDigit).slice(0,8);$('staffPin').focus()});$('staffPinClear').onclick=()=>{$('staffPin').value='';$('staffPin').focus()};$('staffPinBack').onclick=()=>{$('staffPin').value=$('staffPin').value.slice(0,-1);$('staffPin').focus()};
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
     $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];state.discount={type:'PERCENT',value:0};renderCart()}};
     $('holdReceipt').onclick=holdReceipt;$('openHeld').onclick=openHeld;$('closeHeld').onclick=closeHeld;
