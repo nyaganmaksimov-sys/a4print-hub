@@ -10,6 +10,7 @@
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
   });
   const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
+  const API_BASES=[API,'https://a4print-hub-api.onrender.com'].filter((v,i,a)=>v&&a.indexOf(v)===i);
   const $=id=>document.getElementById(id);
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
@@ -56,16 +57,39 @@
   let lastApiSuccessAt=0;
   async function api(path,opt={},retry=true){
     if(!state.session?.access_token)throw new Error('AUTH_REQUIRED');
-    const controller=new AbortController();
-    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:8000;
-    const t=setTimeout(()=>controller.abort(),timeoutMs);
-    try{
-      const r=await fetch(API+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
-      const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
-      if(r.status===401&&retry){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
-      if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
-      lastApiSuccessAt=Date.now();state.backendOnline=true;renderNetwork();return d;
-    }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
+    const method=String(opt.method||'GET').toUpperCase();
+    const safeRead=method==='GET'||method==='HEAD';
+    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:10000;
+    let lastError=null;
+    const bases=safeRead?API_BASES:[API];
+    for(const base of bases){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),timeoutMs);
+      try{
+        const r=await fetch(base+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
+        const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
+        if(r.status===401&&retry){
+          const refreshed=await supabase.auth.refreshSession();
+          if(refreshed.data?.session){
+            state.session=refreshed.data.session;
+            clearTimeout(timer);
+            return api(path,opt,false);
+          }
+        }
+        if(!r.ok){
+          const err=new Error(d.message||d.error||`HTTP ${r.status}`);
+          // Fail over only for transient server errors on idempotent reads.
+          if(safeRead&&r.status>=500){lastError=err;continue}
+          throw err;
+        }
+        lastApiSuccessAt=Date.now();state.backendOnline=true;window.A4KassaApiPreferred=base;renderNetwork();return d;
+      }catch(e){
+        lastError=e;
+        if(!safeRead)throw e;
+      }finally{clearTimeout(timer)}
+    }
+    state.backendOnline=false;renderNetwork();
+    throw lastError||new Error('API_UNAVAILABLE');
   }
 
   async function backendPasswordLogin(email,password){
@@ -712,13 +736,21 @@
   async function health(){
     const wasOnline=state.backendOnline;
     const probeStarted=Date.now();
-    const controller=new AbortController();const t=setTimeout(()=>controller.abort(),10000);
-    try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok;if(r.ok)lastApiSuccessAt=Date.now()}catch(error){if(lastApiSuccessAt<=probeStarted&&Date.now()-lastApiSuccessAt>30000)state.backendOnline=false;console.warn('KASSA health probe failed:',error)}finally{clearTimeout(t)}
+    let healthy=false,lastError=null;
+    for(const base of API_BASES){
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),7000);
+      try{
+        const r=await fetch(`${base}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});
+        if(r.ok){healthy=true;window.A4KassaApiPreferred=base;lastApiSuccessAt=Date.now();break}
+        lastError=new Error('HTTP '+r.status);
+      }catch(error){lastError=error}
+      finally{clearTimeout(timer)}
+    }
+    if(healthy)state.backendOnline=true;
+    else if(lastApiSuccessAt<=probeStarted&&Date.now()-lastApiSuccessAt>30000)state.backendOnline=false;
+    if(!healthy)console.warn('KASSA health probes failed:',lastError);
     renderNetwork();
     if(state.backendOnline){
-      // A heartbeat must not rescan IndexedDB every 15 seconds. Recovery is
-      // event-driven; wake it only after connectivity returns or when memory
-      // already says there is pending work.
       if(!wasOnline||state.queue.length)syncQueue().catch(()=>{});
       if(!state.shift)loadShift().catch(()=>{});
     }
