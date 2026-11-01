@@ -310,7 +310,8 @@ jobs:
               && grep -q '"paymentBreakdown":true' /tmp/live.json \
               && grep -q '"saleIdempotency":true' /tmp/live.json \
               && grep -q '"cashOperations":true' /tmp/live.json \
-              && grep -q '"receiptQueueRecovery":true' /tmp/live.json; then
+              && grep -q '"receiptQueueRecovery":true' /tmp/live.json \
+              && grep -q '"staffPinAuth":true' /tmp/live.json; then
               if [ "$require_marker" = "true" ]; then
                 echo 'Render is running the current API commit with required capabilities.'
               else
