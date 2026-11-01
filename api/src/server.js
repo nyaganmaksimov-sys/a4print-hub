@@ -203,7 +203,7 @@ async function loadPosStaffProfile(userId) {
   };
 }
 async function listPosStaff(organizationId) {
-  const { data: units, error: unitsError } = await supabase.from('organization_units').select('id')
+  const { data: units, error: unitsError } = await supabase.from('organization_units').select('id,name')
     .eq('organization_id', organizationId).eq('is_active', true);
   if (unitsError) throw unitsError;
   const unitIds = (units || []).map(row => row.id);
@@ -231,7 +231,8 @@ async function listPosStaff(organizationId) {
     if (roleName && !roles.includes(roleName)) roles.push(roleName);
     rolesByUser.set(assignment.user_id, roles);
   }
-  return (staff || []).map(row => ({ ...row, roles: rolesByUser.get(row.id) || [], pin_enabled: enabled.has(row.id) }));
+  const unitNameById = new Map((units || []).map(row => [row.id, row.name]));
+  return (staff || []).map(row => ({ ...row, unit_name: unitNameById.get(row.organization_unit_id) || '', roles: rolesByUser.get(row.id) || [], pin_enabled: enabled.has(row.id) }));
 }
 async function requirePosAdmin(req, res, next) {
   if (!req.isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
@@ -295,7 +296,7 @@ app.get('/api/v1/pos/staff/login-list', requireAdmin, async (req, res, next) => 
       success:true,
       staff:activeStaff,
       bootstrap_required:bootstrapCandidates.length>0,
-      bootstrap_candidates:bootstrapCandidates.map(row=>({id:row.id,full_name:row.full_name,position:row.position||''}))
+      bootstrap_candidates:bootstrapCandidates.map(row=>({id:row.id,full_name:row.full_name,position:row.position||'',email:row.email||'',unit_name:row.unit_name||''}))
     });
   } catch(e){next(e)}
 });
