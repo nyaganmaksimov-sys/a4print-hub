@@ -200,7 +200,7 @@
       const rows=data.staff||[];
       $('staffCards').innerHTML=rows.map(row=>`<button class="staff-choice${row.pin_enabled?'':' needs-pin'}" type="button" data-staff-id="${esc(row.id)}" ${row.pin_enabled?'':'disabled'}>
         <span class="staff-choice-avatar">${esc((row.full_name||'?').trim().slice(0,1).toUpperCase())}</span>
-        <span><b>${esc(row.full_name)}</b><small>${row.pin_enabled?'Ввести PIN': 'PIN ещё не назначен'}</small></span>
+        <span><b>${esc(row.full_name)}</b><small>${esc(row.unit_name||row.position||'Касса')} · ${row.pin_enabled?'Ввести PIN': 'PIN ещё не назначен'}</small></span>
       </button>`).join('')||'<div class="staff-login-loading">Нет активных сотрудников с доступом к кассе.</div>';
       document.querySelectorAll('[data-staff-id]').forEach(button=>button.onclick=()=>{
         state.selectedStaffId=button.dataset.staffId;
@@ -208,7 +208,7 @@
         $('staffPin').focus();
       });
       $('staffBootstrap').hidden=!data.bootstrap_required;
-      $('staffBootstrapEmployee').innerHTML=(data.bootstrap_candidates||[]).map(row=>`<option value="${esc(row.id)}">${esc(row.full_name)}</option>`).join('');
+      $('staffBootstrapEmployee').innerHTML=(data.bootstrap_candidates||[]).map(row=>`<option value="${esc(row.id)}">${esc(row.full_name)} · ${esc(row.unit_name||row.position||'А4-Принт')}${row.email?' · '+esc(row.email):''}</option>`).join('');
       $('staffBootstrapError').textContent='';
       if(data.bootstrap_required){
         $('staffBootstrapTitle').textContent='Первичная настройка PIN администратора';
