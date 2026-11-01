@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { syncMoySkladCatalog, fetchMoySkladStock, createRetailSale, createRetailReturn, repairMoySkladSaleItems, getRetailShiftStatus, openRetailShift, closeRetailShift } from './moysklad.js';
 import { requireMoySkladOrganization, moySkladTenantError } from './pos-moysklad-tenant.js';
 import { registerPosMoySkladInvoices } from './pos-invoices.js';
@@ -30,7 +31,7 @@ const corsOptions = {
     return callback(new Error(`CORS_ORIGIN_DENIED: ${origin}`));
   },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'X-A4PRINT-STAFF-TOKEN'],
   maxAge: 86400
 };
 app.use(cors(corsOptions));
@@ -141,21 +142,92 @@ async function posStaffAccess(authUserId) {
   };
 }
 
+const posStaffTokenSecret = process.env.POS_STAFF_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const POS_STAFF_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const POS_PIN_MAX_ATTEMPTS = 5;
+const POS_PIN_LOCK_MS = 5 * 60 * 1000;
+
+function hashStaffPin(pin, salt = randomBytes(16).toString('base64url')) {
+  return { salt, hash: scryptSync(String(pin), salt, 64).toString('hex') };
+}
+function validStaffPin(pin) { return /^\\d{4,8}$/.test(String(pin || '')); }
+function signPosStaffToken(payload) {
+  if (!posStaffTokenSecret) throw new Error('POS_STAFF_TOKEN_SECRET_NOT_CONFIGURED');
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = createHmac('sha256', posStaffTokenSecret).update(encoded).digest('base64url');
+  return encoded + '.' + signature;
+}
+function verifyPosStaffToken(token, authUserId) {
+  try {
+    if (!posStaffTokenSecret || !token) return null;
+    const [encoded, signature] = String(token).split('.');
+    if (!encoded || !signature) return null;
+    const expected = createHmac('sha256', posStaffTokenSecret).update(encoded).digest();
+    const actual = Buffer.from(signature, 'base64url');
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    if (payload.auth_sub !== authUserId || !payload.staff_id || !payload.organization_id || Number(payload.exp) <= Date.now()) return null;
+    return payload;
+  } catch { return null; }
+}
+async function loadPosStaffProfile(userId) {
+  const { data, error } = await supabase.from('users')
+    .select('id,full_name,email,phone,position,is_active,organization_unit_id,organization_units(organization_id,is_active),user_roles(roles(name))')
+    .eq('id', userId).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const unit = data.organization_units;
+  const roles = (data.user_roles || []).map(row => String(row?.roles?.name || '').trim().toUpperCase()).filter(Boolean);
+  const { organization_units: _unit, user_roles: _roles, ...profile } = data;
+  return {
+    ...profile,
+    organization_id: unit && unit.is_active !== false ? unit.organization_id || null : null,
+    roles,
+    isAdmin: roles.includes('ADMIN'),
+    isOperator: roles.includes('POS_OPERATOR')
+  };
+}
+async function listPosStaff(organizationId) {
+  const { data: units, error: unitsError } = await supabase.from('organization_units').select('id')
+    .eq('organization_id', organizationId).eq('is_active', true);
+  if (unitsError) throw unitsError;
+  const unitIds = (units || []).map(row => row.id);
+  if (!unitIds.length) return [];
+  const { data: roleRows, error: rolesError } = await supabase.from('roles').select('id,name').in('name', ['ADMIN','POS_OPERATOR']);
+  if (rolesError) throw rolesError;
+  const roleIds = (roleRows || []).map(row => row.id);
+  if (!roleIds.length) return [];
+  const { data: assignments, error: assignmentsError } = await supabase.from('user_roles').select('user_id').in('role_id', roleIds);
+  if (assignmentsError) throw assignmentsError;
+  const userIds = [...new Set((assignments || []).map(row => row.user_id))];
+  if (!userIds.length) return [];
+  const { data: staff, error: staffError } = await supabase.from('users')
+    .select('id,full_name,email,phone,position,is_active,organization_unit_id,created_at')
+    .in('id', userIds).in('organization_unit_id', unitIds).order('full_name');
+  if (staffError) throw staffError;
+  const { data: credentials, error: credentialsError } = await supabase.from('pos_staff_credentials').select('user_id');
+  if (credentialsError) throw credentialsError;
+  const enabled = new Set((credentials || []).map(row => row.user_id));
+  return (staff || []).map(row => ({ ...row, pin_enabled: enabled.has(row.id) }));
+}
+async function requirePosAdmin(req, res, next) {
+  if (!req.isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
+  next();
+}
+
 async function requirePosUser(req, res, next) {
   const startedAt = Date.now();
   try {
     const ctx = await authContext(req);
     if (ctx.error) return res.status(401).json({ success: false, error: ctx.error });
-
-    // Read current staff status, organization unit and roles in one PostgREST
-    // request. This preserves live authorization checks while removing multiple
-    // sequential Oregon <-> Frankfurt round trips on every cashier request.
-    const access = await posStaffAccess(ctx.user.id);
-    const profile = access?.profile || null;
-    if (!access?.isAdmin && !access?.isOperator) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
-    if (!profile || profile.is_active === false) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
-    if (!profile.organization_id) return res.status(403).json({ success: false, error: 'POS_ORGANIZATION_REQUIRED', message: 'Сотрудник не привязан к компании.' });
-
+    const staffToken = req.headers['x-a4print-staff-token'];
+    const tokenPayload = verifyPosStaffToken(staffToken, ctx.user.id);
+    if (!tokenPayload) return res.status(401).json({ success: false, error: 'POS_STAFF_PIN_REQUIRED', message: 'Выберите сотрудника и введите PIN-код.' });
+    const profile = await loadPosStaffProfile(tokenPayload.staff_id);
+    if (!profile || profile.is_active === false || profile.organization_id !== tokenPayload.organization_id) {
+      return res.status(403).json({ success: false, error: 'POS_STAFF_DISABLED', message: 'Профиль сотрудника отключён или изменён.' });
+    }
+    if (!profile.isAdmin && !profile.isOperator) return res.status(403).json({ success: false, error: 'POS_ACCESS_REQUIRED' });
     const posTenant = await requireMoySkladOrganization({
       service: supabase,
       authUserId: ctx.user.id,
@@ -163,13 +235,13 @@ async function requirePosUser(req, res, next) {
       posApp: true
     });
     if (!posTenant.ok) return moySkladTenantError(res, posTenant);
-
     req.authUser = ctx.user;
     req.authProfile = profile;
     req.staffOrganizationId = profile.organization_id;
     req.posOrganizationId = posTenant.organization.id;
-    req.isAdmin = Boolean(access.isAdmin);
-
+    req.isAdmin = Boolean(profile.isAdmin);
+    req.isOperator = Boolean(profile.isOperator);
+    req.posStaffToken = tokenPayload;
     const durationMs = Date.now() - startedAt;
     if (durationMs >= 500) console.warn('[POS_AUTH_TIMING]', JSON.stringify({ duration_ms: durationMs }));
     next();
@@ -185,6 +257,127 @@ async function resolvePosOperator(req, requestedId) {
   const organizationId = await organizationIdForUnit(data.organization_unit_id);
   return organizationId === req.posOrganizationId ? { ...data, organization_id: organizationId } : own;
 }
+
+// Shared cashier account bootstrap and PIN-based employee identity.
+app.get('/api/v1/pos/staff/login-list', requireAdmin, async (req, res, next) => {
+  try {
+    const { data: org, error: orgError } = await supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).single();
+    if (orgError) throw orgError;
+    const staff = await listPosStaff(org.id);
+    const current = await posStaffAccess(req.authUser.id);
+    const currentCredential = current?.profile?.id
+      ? await supabase.from('pos_staff_credentials').select('user_id').eq('user_id',current.profile.id).maybeSingle()
+      : { data: null, error: null };
+    if (currentCredential.error) throw currentCredential.error;
+    res.json({
+      success:true,
+      staff:staff.filter(row=>row.is_active),
+      bootstrap_required:Boolean(current?.isAdmin && current.profile?.id && !currentCredential.data),
+      bootstrap_staff_id:current?.isAdmin ? current.profile.id : null
+    });
+  } catch(e){next(e)}
+});
+
+app.post('/api/v1/pos/staff/pin-login', requireAdmin, async (req, res, next) => {
+  try {
+    const staffId = cleanText(req.body?.staff_id,80);
+    const pin = String(req.body?.pin || '');
+    if (!staffId || !validStaffPin(pin)) return res.status(400).json({success:false,error:'INVALID_PIN_FORMAT',message:'PIN должен содержать от 4 до 8 цифр.'});
+    const staff = await loadPosStaffProfile(staffId);
+    if (!staff || staff.is_active === false || staff.organization_id !== (await supabase.from('organizations').select('id').eq('code','A4PRINT').single()).data?.id || (!staff.isAdmin && !staff.isOperator)) {
+      return res.status(404).json({success:false,error:'STAFF_NOT_AVAILABLE',message:'Сотрудник недоступен.'});
+    }
+    const {data:credential,error} = await supabase.from('pos_staff_credentials').select('*').eq('user_id',staffId).maybeSingle();
+    if(error)throw error;
+    if(!credential)return res.status(409).json({success:false,error:'PIN_NOT_SET',message:'Для сотрудника ещё не назначен PIN. Обратитесь к администратору.'});
+    if(credential.locked_until && new Date(credential.locked_until).getTime()>Date.now()) {
+      return res.status(429).json({success:false,error:'PIN_TEMPORARILY_LOCKED',message:'Слишком много попыток. Попробуйте через несколько минут.'});
+    }
+    const candidate=hashStaffPin(pin,credential.pin_salt).hash;
+    const a=Buffer.from(candidate,'hex'),b=Buffer.from(credential.pin_hash,'hex');
+    const valid=a.length===b.length&&timingSafeEqual(a,b);
+    if(!valid){
+      const attempts=Number(credential.failed_attempts||0)+1;
+      const locked=attempts>=POS_PIN_MAX_ATTEMPTS?new Date(Date.now()+POS_PIN_LOCK_MS).toISOString():null;
+      const {error:updateError}=await supabase.from('pos_staff_credentials').update({failed_attempts:locked?0:attempts,locked_until:locked,updated_at:new Date().toISOString()}).eq('user_id',staffId);
+      if(updateError)throw updateError;
+      return res.status(401).json({success:false,error:'PIN_INVALID',message:locked?'PIN заблокирован на 5 минут после пяти неверных попыток.':'Неверный PIN-код.'});
+    }
+    const {error:resetError}=await supabase.from('pos_staff_credentials').update({failed_attempts:0,locked_until:null,updated_at:new Date().toISOString()}).eq('user_id',staffId);
+    if(resetError)throw resetError;
+    const token=signPosStaffToken({staff_id:staff.id,auth_sub:req.authUser.id,organization_id:staff.organization_id,exp:Date.now()+POS_STAFF_TOKEN_TTL_MS});
+    res.json({success:true,token,expires_at:new Date(Date.now()+POS_STAFF_TOKEN_TTL_MS).toISOString(),staff:{id:staff.id,full_name:staff.full_name,position:staff.position||'',organization_unit_id:staff.organization_unit_id,organization_id:staff.organization_id,roles:staff.roles,isAdmin:staff.isAdmin,isOperator:staff.isOperator}});
+  }catch(e){next(e)}
+});
+
+app.post('/api/v1/pos/staff/bootstrap-pin', requireAdmin, async (req,res,next)=>{
+  try{
+    const pin=String(req.body?.pin||'');
+    if(!validStaffPin(pin))return res.status(400).json({success:false,error:'INVALID_PIN_FORMAT',message:'PIN должен содержать от 4 до 8 цифр.'});
+    const access=await posStaffAccess(req.authUser.id);
+    if(!access?.isAdmin||!access.profile?.id)return res.status(403).json({success:false,error:'ADMIN_REQUIRED'});
+    const existing=await supabase.from('pos_staff_credentials').select('user_id').eq('user_id',access.profile.id).maybeSingle();
+    if(existing.error)throw existing.error;
+    if(existing.data)return res.status(409).json({success:false,error:'PIN_ALREADY_SET',message:'PIN администратора уже настроен. Для смены используйте управление сотрудниками.'});
+    const hashed=hashStaffPin(pin);
+    const {error}=await supabase.from('pos_staff_credentials').insert({user_id:access.profile.id,pin_salt:hashed.salt,pin_hash:hashed.hash});
+    if(error)throw error;
+    res.json({success:true});
+  }catch(e){next(e)}
+});
+
+app.get('/api/v1/pos/staff', requirePosUser, requirePosAdmin, async(req,res,next)=>{
+  try{res.json({success:true,staff:await listPosStaff(req.posOrganizationId)})}catch(e){next(e)}
+});
+app.post('/api/v1/pos/staff', requirePosUser, requirePosAdmin, async(req,res,next)=>{
+  try{
+    const fullName=cleanText(req.body?.full_name,160);
+    const pin=String(req.body?.pin||'');
+    const position=cleanText(req.body?.position,100);
+    if(!fullName||!validStaffPin(pin))return res.status(400).json({success:false,error:'INVALID_STAFF_DATA',message:'Укажите ФИО и PIN от 4 до 8 цифр.'});
+    const {data:unit,error:unitError}=await supabase.from('organization_units').select('id').eq('id',req.authProfile.organization_unit_id).eq('organization_id',req.posOrganizationId).eq('is_active',true).maybeSingle();
+    if(unitError)throw unitError;
+    if(!unit)return res.status(400).json({success:false,error:'STAFF_UNIT_REQUIRED',message:'Подразделение администратора недоступно.'});
+    const {data:profile,error:profileError}=await supabase.from('users').insert({full_name:fullName,position:position||null,is_active:true,organization_unit_id:unit.id}).select('id,full_name,position,is_active,organization_unit_id').single();
+    if(profileError)throw profileError;
+    const {data:role,error:roleError}=await supabase.from('roles').select('id').eq('name','POS_OPERATOR').single();
+    if(roleError)throw roleError;
+    const {error:assignError}=await supabase.from('user_roles').insert({user_id:profile.id,role_id:role.id});
+    if(assignError){await supabase.from('users').update({is_active:false}).eq('id',profile.id);throw assignError}
+    const hashed=hashStaffPin(pin);
+    const {error:pinError}=await supabase.from('pos_staff_credentials').insert({user_id:profile.id,pin_salt:hashed.salt,pin_hash:hashed.hash});
+    if(pinError){await supabase.from('users').update({is_active:false}).eq('id',profile.id);throw pinError}
+    res.status(201).json({success:true,staff:{...profile,pin_enabled:true}});
+  }catch(e){next(e)}
+});
+app.patch('/api/v1/pos/staff/:id', requirePosUser, requirePosAdmin, async(req,res,next)=>{
+  try{
+    const staff=await loadPosStaffProfile(req.params.id);
+    if(!staff||staff.organization_id!==req.posOrganizationId)return res.status(404).json({success:false,error:'STAFF_NOT_FOUND'});
+    if(staff.id===req.authProfile.id&&req.body?.is_active===false)return res.status(400).json({success:false,error:'CANNOT_DISABLE_SELF',message:'Нельзя отключить собственную учётную запись.'});
+    const updates={};
+    if(typeof req.body?.full_name==='string'&&req.body.full_name.trim())updates.full_name=cleanText(req.body.full_name,160);
+    if(typeof req.body?.position==='string')updates.position=cleanText(req.body.position,100)||null;
+    if(typeof req.body?.is_active==='boolean')updates.is_active=req.body.is_active;
+    if(Object.keys(updates).length){
+      const {error}=await supabase.from('users').update(updates).eq('id',staff.id);
+      if(error)throw error;
+    }
+    res.json({success:true});
+  }catch(e){next(e)}
+});
+app.put('/api/v1/pos/staff/:id/pin', requirePosUser, requirePosAdmin, async(req,res,next)=>{
+  try{
+    const staff=await loadPosStaffProfile(req.params.id);
+    if(!staff||staff.organization_id!==req.posOrganizationId)return res.status(404).json({success:false,error:'STAFF_NOT_FOUND'});
+    const pin=String(req.body?.pin||'');
+    if(!validStaffPin(pin))return res.status(400).json({success:false,error:'INVALID_PIN_FORMAT',message:'PIN должен содержать от 4 до 8 цифр.'});
+    const hashed=hashStaffPin(pin);
+    const {error}=await supabase.from('pos_staff_credentials').upsert({user_id:staff.id,pin_salt:hashed.salt,pin_hash:hashed.hash,failed_attempts:0,locked_until:null,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if(error)throw error;
+    res.json({success:true});
+  }catch(e){next(e)}
+});
 
 const cleanText = (value, max = 500) => String(value || '').trim().slice(0, max);
 const customerFields = 'id,organization_id,full_name,company_name,email,phone,notes,created_at,updated_at';
@@ -654,7 +847,7 @@ app.post('/api/v1/pos/returns', requirePosUser, async (req, res, next) => {
         external_type: g.external_href.split('/').slice(-2, -1)[0] || (g.item_type === 'SERVICE' ? 'service' : 'product')
       };
     });
-    const profile = await operatorProfile(req.authUser.id);
+    const profile = req.authProfile || await operatorProfile(req.authUser.id);
     if (profile && profile.is_active === false) return res.status(403).json({ success: false, error: 'OPERATOR_DISABLED' });
     const operatorName = profile?.full_name || req.authUser.email || 'Оператор';
 
