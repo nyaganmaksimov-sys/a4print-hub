@@ -82,7 +82,7 @@
       try{
         const r=await fetch(base+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
         const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
-        if(r.status===401&&retry){
+        if(r.status===401&&retry&&!path.startsWith('/api/v1/pos/staff/pin-login')){
           const refreshed=await refreshSessionOnce();
           if(refreshed.data?.session){
             state.session=refreshed.data.session;
