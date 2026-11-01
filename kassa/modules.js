@@ -76,7 +76,7 @@
 
   function fillReportOperators(){
     const el=$('reportOperator');if(!el)return;
-    const own=state.operators.find(x=>x.is_self)?.id||state.profile?.id||'';
+    const own=state.profile?.id||state.operators.find(x=>x.is_self)?.id||'';
     if(state.isAdmin){
       const prev=el.value;el.innerHTML='<option value="">Все операторы</option>'+state.operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}</option>`).join('');
       if([...el.options].some(x=>x.value===prev))el.value=prev;el.hidden=false;
