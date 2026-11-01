@@ -126,12 +126,13 @@
   function isIdempotentWrite(url){
     const p=url.pathname;
     return isAuthWrite(url)
-      || /\/api\/v1\/pos\/shift\/open\/?$/.test(p)
       || /\/api\/v1\/pos\/sale\/?$/.test(p);
   }
 
   async function writeWithFailover(req,url){
     const routes=routeOrder(url);
+    // Shift opens can create a second remote shift when a response times out.
+    // Never reroute money/shift writes without a server-verified operation key.
     const allowFallback=isIdempotentWrite(url);
     const authWrite=isAuthWrite(url);
     const timeout=writeTimeoutFor(url);
