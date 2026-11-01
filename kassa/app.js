@@ -164,6 +164,7 @@
   function showApp(){$('authView').hidden=true;$('staffView').hidden=true;$('appView').hidden=false}
 
   async function showStaffLogin(error=''){
+    state.selectedStaffId=null;
     $('appView').hidden=true;$('authView').hidden=true;$('staffView').hidden=false;
     $('staffLoginError').textContent=error;
     $('staffCards').innerHTML='<div class="staff-login-loading">Загружаю список сотрудников…</div>';
