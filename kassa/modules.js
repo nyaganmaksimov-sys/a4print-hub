@@ -54,27 +54,14 @@
     if(state.referenceReady)return;
     if(state.referencePromise)return state.referencePromise;
     state.referencePromise=(async()=>{
-      const s=await getSession();
-      const [admin,profile,org]=await Promise.all([
-        supabase.rpc('has_role',{required_role:'ADMIN'}),
-        supabase.from('users').select('id,full_name,email,is_active').eq('auth_user_id',s.user.id).eq('is_active',true).limit(1).maybeSingle(),
-        supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).limit(1).maybeSingle()
-      ]);
-      if(admin.error)throw admin.error;if(profile.error)throw profile.error;if(org.error)throw org.error;
-      if(!profile.data)throw new Error('Профиль кассира не найден или отключён.');
-      state.isAdmin=!!admin.data;state.profile=profile.data;
-      let organizationId=org.data?.id||null;
-      if(!organizationId&&profile.data?.id){
-        const unitProfile=await supabase.from('users').select('organization_unit_id').eq('id',profile.data.id).limit(1).maybeSingle();
-        if(unitProfile.error)throw unitProfile.error;
-        if(unitProfile.data?.organization_unit_id){
-          const unit=await supabase.from('organization_units').select('organization_id,is_active').eq('id',unitProfile.data.organization_unit_id).limit(1).maybeSingle();
-          if(unit.error)throw unit.error;
-          if(unit.data?.is_active!==false)organizationId=unit.data?.organization_id||null;
-        }
-      }
-      if(!organizationId)throw new Error('Компания кассы недоступна.');
-      state.organizationId=organizationId;
+      const staff=window.A4KassaCurrentStaff;
+      if(!staff?.id)throw new Error('Сначала выберите сотрудника по PIN-коду.');
+      const org=await supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).limit(1).maybeSingle();
+      if(org.error)throw org.error;
+      if(!org.data?.id)throw new Error('Компания кассы недоступна.');
+      state.isAdmin=!!staff.isAdmin;
+      state.profile=staff;
+      state.organizationId=org.data.id;
       const [accountsResponse,operators]=await Promise.all([
         api('/api/v1/pos/accounts'),
         supabase.rpc('get_pos_operators')
