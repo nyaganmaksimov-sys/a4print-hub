@@ -144,7 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s database/migrations/108_pos_receipt_history.sql
-          grep -q 'get_pos_receipt_history' kassa/history-hub.js
+          grep -q '/api/v1/pos/history' kassa/history-hub.js
           grep -q 'Печать чека' kassa/history-hub.js
           grep -q 'returned_total' kassa/history-hub.js
           grep -q "'./history-hub.js'" kassa/bootstrap.js
@@ -169,7 +169,7 @@ jobs:
             history=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/history-hub.js?flows=${GITHUB_SHA}" || true)
             returns=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/return-finish.js?flows=${GITHUB_SHA}" || true)
             boot=$(curl -fsSL --max-time 20 "https://a4print-hub.ru/kassa/bootstrap.js?flows=${GITHUB_SHA}" || true)
-            if echo "$history" | grep -q 'get_pos_receipt_history' \
+            if echo "$history" | grep -q '/api/v1/pos/history' \
               && echo "$history" | grep -q 'Печать чека' \
               && echo "$returns" | grep -q 'Возврат проведён' \
               && echo "$boot" | grep -q 'history-hub.js' \
