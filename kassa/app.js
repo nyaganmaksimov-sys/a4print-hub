@@ -76,7 +76,7 @@
     try{
       const r=await fetch(API+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
       const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
-      if(r.status===401&&retry){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
+      if(r.status===401&&retry&&!/\\/pos\\/staff\\/pin-login/.test(path)){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
       if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
       lastApiSuccessAt=Date.now();state.backendOnline=true;renderNetwork();return d;
     }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
