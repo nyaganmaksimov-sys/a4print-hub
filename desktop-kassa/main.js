@@ -260,6 +260,9 @@ function retryDelay(){
 }
 
 function currentTarget(){
+  // The bundled POS must never bounce back to an externally hosted shell
+  // just because a local page load previously failed.
+  if(localKassaUrl)return localKassaUrl;
   const targets=kassaTargets();
   return targets[retryAttempt%Math.max(targets.length,1)]||PRIMARY_KASSA_URL;
 }
@@ -355,7 +358,7 @@ async function createWindow(){
 
   mainWindow.webContents.on('did-navigate',(_e,url)=>{
     log('NAV DONE',url);
-    if(isRemoteUrl(url)){
+    if(url.startsWith('http://127.0.0.1:')||isRemoteUrl(url)){
       clearRetry();
       retryAttempt=0;
       lastFailedUrl='';
