@@ -111,7 +111,7 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
   // These RPCs are read-only and are called immediately after login to verify
   // cashier permissions and load the catalog. They can safely fail over to the
   // alternate API host; money-changing RPCs are deliberately excluded.
-  const rpcName=pathname.match(/^\\/rest\\/v1\\/rpc\\/([^/]+)$/)?.[1]||'';
+  const rpcName=pathname.startsWith('/rest/v1/rpc/')?pathname.slice('/rest/v1/rpc/'.length):'';
   const readOnlyRpcs=new Set(['has_role','get_pos_catalog','get_pos_operators']);
   if(method==='POST'&&readOnlyRpcs.has(rpcName)){
     let lastError=null;
