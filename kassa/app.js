@@ -251,7 +251,8 @@
       sessionStorage.setItem('a4_kassa_staff_token',data.token);
       sessionStorage.setItem('a4_kassa_staff_profile',JSON.stringify(data.staff));
       sessionStorage.setItem('a4_kassa_staff_expires',data.expires_at);
-      window.A4KassaCurrentStaff={...data.staff,isAdmin:state.isAdmin};\n      try{localStorage.setItem('a4_kassa_selected_operator',data.staff.id)}catch{}
+      window.A4KassaCurrentStaff={...data.staff,isAdmin:state.isAdmin};
+      try{localStorage.setItem('a4_kassa_selected_operator',data.staff.id)}catch{}
       $('uiCashierName').textContent=data.staff.full_name;
       $('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';
       showApp();await startApp();
@@ -891,7 +892,8 @@
     if(!state.session){showAuth();return}
     try{await checkAccess();if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');
       const cachedToken=sessionStorage.getItem('a4_kassa_staff_token'),cachedProfile=sessionStorage.getItem('a4_kassa_staff_profile'),expires=sessionStorage.getItem('a4_kassa_staff_expires');
-      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};try{localStorage.setItem('a4_kassa_selected_operator',staff.id)}catch{}$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}
+      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};
+        try{localStorage.setItem('a4_kassa_selected_operator',staff.id)}catch{}$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}
       await showStaffLogin()}catch(e){showAuth(friendly(e,'Не удалось проверить доступ.'))}
   }
   boot().catch(e=>showAuth(friendly(e,'Ошибка запуска кассы.')));
