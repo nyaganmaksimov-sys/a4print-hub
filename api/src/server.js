@@ -70,6 +70,21 @@ async function requireAdmin(req, res, next) {
   try {
     const ctx = await authContext(req);
     if (ctx.error) return res.status(401).json({ success: false, error: ctx.error });
+    const staffToken = req.headers['x-a4print-staff-token'];
+    if (staffToken) {
+      const payload = verifyPosStaffToken(staffToken, ctx.user.id);
+      if (!payload) return res.status(401).json({ success: false, error: 'POS_STAFF_PIN_REQUIRED' });
+      const staff = await loadPosStaffProfile(payload.staff_id);
+      if (!staff || staff.is_active === false || staff.organization_id !== payload.organization_id) {
+        return res.status(403).json({ success: false, error: 'POS_STAFF_DISABLED' });
+      }
+      if (!staff.isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
+      req.authUser = ctx.user;
+      req.authProfile = staff;
+      req.staffOrganizationId = staff.organization_id;
+      req.isAdmin = true;
+      return next();
+    }
     const { data: isAdmin, error } = await ctx.client.rpc('has_role', { required_role: 'ADMIN' });
     if (error) throw error;
     if (!isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
@@ -105,7 +120,7 @@ async function operatorProfile(authUserId) {
 
 async function requireAdminOrganization(req, res, next) {
   try {
-    const profile = await operatorProfile(req.authUser?.id);
+    const profile = req.authProfile || await operatorProfile(req.authUser?.id);
     if (!profile?.id || !profile?.organization_unit_id || !profile?.organization_id) {
       return res.status(403).json({
         success: false,
