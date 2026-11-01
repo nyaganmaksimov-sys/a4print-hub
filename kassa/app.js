@@ -691,8 +691,8 @@
   async function health(){
     const wasOnline=state.backendOnline;
     if(!navigator.onLine){state.backendOnline=false;renderNetwork();return false}
-    const controller=new AbortController();const t=setTimeout(()=>controller.abort(),4500);
-    try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok}catch{state.backendOnline=false}finally{clearTimeout(t)}
+    const controller=new AbortController();const t=setTimeout(()=>controller.abort(),10000);
+    try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok}catch(error){state.backendOnline=false;console.warn('KASSA health probe failed:',error)}finally{clearTimeout(t)}
     renderNetwork();
     if(state.backendOnline){
       // A heartbeat must not rescan IndexedDB every 15 seconds. Recovery is
