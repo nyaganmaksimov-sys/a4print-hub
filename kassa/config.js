@@ -63,7 +63,9 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
   }
 
   // Reads/auth may race safe routes. Financial writes must stay single-route.
-  const riskyWrite=method!=='GET'&&method!=='HEAD'&&/record_pos_sale|record_pos_return|cashout|shift/i.test(pathname);
+  const riskyWrite=method!=='GET'&&method!=='HEAD';
+  // Never race multiple copies of the same POST. Auth refresh can rotate tokens;
+  // RPC writes may have effects even when the HTTP response is lost.
   if(!riskyWrite){
     const jobs=proxyBases.map(base=>proxy(base).then(r=>{if(!r.ok&&r.status>=500)throw new Error(`HTTP ${r.status}`);return r}));
     try{
