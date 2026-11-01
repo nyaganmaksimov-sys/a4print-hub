@@ -82,9 +82,20 @@
         serverError=err;
       }catch(e){if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;serverError=e}
     }
-    const direct=await supabase.auth.signInWithPassword({email,password});
-    if(direct.error)throw direct.error||serverError;
-    return direct.data.session;
+    try{
+      const direct=await supabase.auth.signInWithPassword({email,password});
+      if(direct.error)throw direct.error;
+      return direct.data.session;
+    }catch(error){
+      // Do not collapse a failed primary API + blocked Supabase route into an
+      // opaque "no connection" without telling operators where to check.
+      const first=String(serverError?.message||'').slice(0,180);
+      const second=String(error?.message||error).slice(0,180);
+      console.warn('KASSA login routes unavailable', {primary:first,secondary:second});
+      if(/fetch|network|timeout|abort|failed|socket/i.test(first+' '+second))
+        throw new Error('Сервер авторизации недоступен с этого компьютера. Проверьте доступ к api.a4print-hub.ru и повторите вход без VPN.');
+      throw error;
+    }
   }
 
   async function checkAccess(){
