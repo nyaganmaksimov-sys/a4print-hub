@@ -149,7 +149,10 @@
         if(response.ok){window.A4KassaApiPreferred=routes[i];return response;}
         if(response.status<500){
           clientResponse=clientResponse||response;
-          if(authWrite&&!isPinLogin(url)&&i<routes.length-1)continue;
+          if(isPinLogin(url)&&response.status===401){
+            const authError=await response.clone().json().catch(()=>null);
+            if(authError?.error!=='PIN_INVALID'&&authError?.error!=='PIN_TEMPORARILY_LOCKED'&&i<routes.length-1)continue;
+          }else if(authWrite&&!isPinLogin(url)&&i<routes.length-1)continue;
           return response;
         }
         lastError=new Error(`HTTP ${response.status}`);
