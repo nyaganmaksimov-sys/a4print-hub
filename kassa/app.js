@@ -251,7 +251,7 @@
       sessionStorage.setItem('a4_kassa_staff_token',data.token);
       sessionStorage.setItem('a4_kassa_staff_profile',JSON.stringify(data.staff));
       sessionStorage.setItem('a4_kassa_staff_expires',data.expires_at);
-      window.A4KassaCurrentStaff={...data.staff,isAdmin:state.isAdmin};
+      window.A4KassaCurrentStaff={...data.staff,isAdmin:state.isAdmin};\n      try{localStorage.setItem('a4_kassa_selected_operator',data.staff.id)}catch{}
       $('uiCashierName').textContent=data.staff.full_name;
       $('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';
       showApp();await startApp();
@@ -306,12 +306,11 @@
     try{
       if(!state.organizationId)throw new Error('Компания кассы не определена.');
       const [g,a,o]=await Promise.all([
-        supabase.rpc('get_pos_catalog'),
-        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
-        supabase.rpc('get_pos_operators')
+        api('/api/v1/pos/catalog'),
+        api('/api/v1/pos/accounts'),
+        api('/api/v1/pos/operators')
       ]);
-      if(g.error)throw g.error;if(a.error)throw a.error;if(o.error)throw o.error;
-      state.catalog=(g.data||[]).filter(x=>Number(x.sale_price||0)>=0);state.accounts=a.data||[];state.operators=o.data||[];
+      state.catalog=(g.catalog||[]).filter(x=>Number(x.sale_price||0)>=0);state.accounts=a.accounts||[];state.operators=o.operators||[];
       state.catalogUpdated=nowIso();await DB.replaceAll('catalog',state.catalog);await DB.setMeta('catalogUpdated',state.catalogUpdated);
       renderCategories();renderAccounts();renderOperators();filterCatalog();
       $('catalogMeta').textContent=`${state.catalog.length} позиций · обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
@@ -828,8 +827,7 @@
           }
           if(current.stage==='backend_done'){
             const d=current.backend_result||{};
-            const r=await supabase.rpc('record_pos_sale',{p_moysklad_sale_id:d.moysklad?.id,p_moysklad_sale_name:d.moysklad?.name||null,p_moysklad_shift_id:current.shift?.id||null,p_operator_id:current.operator_id||null,p_customer_id:current.customer_id||null,p_cash_account_id:current.cash_account_id||null,p_payment_method:current.payment_method,p_total:Number(d.sum??current.total),p_items:current.items});
-            if(r.error&&!/duplicate|unique/i.test(String(r.error.message||'')))throw r.error;
+            await api('/api/v1/pos/sale/record',{method:'POST',body:JSON.stringify({rpc:'record_pos_sale',p_moysklad_sale_id:d.moysklad?.id,p_moysklad_sale_name:d.moysklad?.name||null,p_moysklad_shift_id:current.shift?.id||null,p_operator_id:current.operator_id||null,p_customer_id:current.customer_id||null,p_cash_account_id:current.cash_account_id||null,p_payment_method:current.payment_method,p_total:Number(d.sum??current.total),p_items:current.items})});
             await DB.put('receipts',{...current,id:current.id,stage:'done',synced_at:nowIso(),backend_result:d});await DB.del('queue',current.id);await DB.trimReceipts(100);
           }
         }catch(e){current.tries=Number(current.tries||0)+1;current.last_error=friendly(e);await DB.put('queue',current);if(/AUTH_REQUIRED|INVALID_SESSION|401/i.test(String(e?.message||'')))break}
@@ -893,7 +891,7 @@
     if(!state.session){showAuth();return}
     try{await checkAccess();if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');
       const cachedToken=sessionStorage.getItem('a4_kassa_staff_token'),cachedProfile=sessionStorage.getItem('a4_kassa_staff_profile'),expires=sessionStorage.getItem('a4_kassa_staff_expires');
-      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}
+      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};try{localStorage.setItem('a4_kassa_selected_operator',staff.id)}catch{}$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}
       await showStaffLogin()}catch(e){showAuth(friendly(e,'Не удалось проверить доступ.'))}
   }
   boot().catch(e=>showAuth(friendly(e,'Ошибка запуска кассы.')));
