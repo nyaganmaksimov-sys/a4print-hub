@@ -259,6 +259,7 @@ async function requirePosUser(req, res, next) {
     });
     if (!posTenant.ok) return moySkladTenantError(res, posTenant);
     req.authUser = ctx.user;
+    req.authClient = ctx.client;
     req.authProfile = profile;
     req.staffOrganizationId = profile.organization_id;
     req.posOrganizationId = posTenant.organization.id;
@@ -538,6 +539,137 @@ app.get('/api/v1/pos/accounts', requirePosUser, async (req, res, next) => {
     if (error) throw error;
     res.json({ success: true, accounts: data || [] });
   } catch (e) { next(e); }
+});
+
+app.get('/api/v1/pos/catalog', requirePosUser, async(req,res,next)=>{
+  try{
+    const {data,error}=await supabase.rpc('get_pos_catalog');
+    if(error)throw error;
+    res.json({success:true,catalog:data||[]});
+  }catch(e){next(e)}
+});
+
+app.get('/api/v1/pos/operators', requirePosUser, async(req,res,next)=>{
+  try{
+    const staff=await listPosStaff(req.posOrganizationId);
+    const operators=staff.filter(row=>row.is_active&&row.roles?.includes('POS_OPERATOR')&&(req.isAdmin||row.id===req.authProfile.id))
+      .map(row=>({id:row.id,full_name:row.full_name,email:row.email||'',is_active:row.is_active,is_self:row.id===req.authProfile.id}));
+    res.json({success:true,operators});
+  }catch(e){next(e)}
+});
+
+app.get('/api/v1/pos/reports/dashboard', requirePosUser, async(req,res,next)=>{
+  try{
+    const from=cleanText(req.query.from,60),to=cleanText(req.query.to,60);
+    const fromDate=from?new Date(from):new Date(Date.now()-30*86400000);
+    const toDate=to?new Date(to):new Date();
+    if(!Number.isFinite(fromDate.getTime())||!Number.isFinite(toDate.getTime())||fromDate>=toDate)
+      return res.status(400).json({success:false,error:'INVALID_REPORT_RANGE'});
+    let operatorId=req.authProfile.id;
+    if(req.isAdmin){
+      const requested=cleanText(req.query.operator_id,80);
+      operatorId=null;
+      if(requested){
+        const selected=await loadPosStaffProfile(requested);
+        if(!selected||selected.is_active===false||selected.organization_id!==req.posOrganizationId||!selected.isOperator)
+          return res.status(400).json({success:false,error:'INVALID_REPORT_OPERATOR'});
+        operatorId=selected.id;
+      }
+    }
+    const {data,error}=await req.authClient.rpc('pos_dashboard',{
+      p_from:fromDate.toISOString(),p_to:toDate.toISOString(),p_operator_id:operatorId
+    });
+    if(error)throw error;
+    res.json({success:true,dashboard:data||{}});
+  }catch(e){next(e)}
+});
+
+app.get('/api/v1/pos/history', requirePosUser, async(req,res,next)=>{
+  try{
+    const limit=Math.min(300,Math.max(1,Number(req.query.limit)||150));
+    let query=supabase.from('pos_sales')
+      .select('id,moysklad_sale_id,moysklad_sale_name,moysklad_shift_id,payment_method,total,item_count,items,sold_at,sync_status,operator_id,customer_id,cash_account_id,shift_session_id')
+      .eq('organization_id',req.posOrganizationId)
+      .order('sold_at',{ascending:false}).limit(limit);
+    if(!req.isAdmin)query=query.eq('operator_id',req.authProfile.id);
+    const {data:sales,error}=await query;
+    if(error)throw error;
+    const rows=sales||[];
+    const ids=rows.map(row=>row.id);
+    const operatorIds=[...new Set(rows.map(row=>row.operator_id).filter(Boolean))];
+    const customerIds=[...new Set(rows.map(row=>row.customer_id).filter(Boolean))];
+    const accountIds=[...new Set(rows.map(row=>row.cash_account_id).filter(Boolean))];
+    const shiftIds=[...new Set(rows.map(row=>row.shift_session_id).filter(Boolean))];
+    const [users,customers,accounts,shifts,returns]=await Promise.all([
+      operatorIds.length?supabase.from('users').select('id,full_name').in('id',operatorIds):Promise.resolve({data:[],error:null}),
+      customerIds.length?supabase.from('customers').select('id,full_name').in('id',customerIds):Promise.resolve({data:[],error:null}),
+      accountIds.length?supabase.from('cash_accounts').select('id,name').in('id',accountIds):Promise.resolve({data:[],error:null}),
+      shiftIds.length?supabase.from('pos_shift_sessions').select('id,moysklad_shift_name').in('id',shiftIds):Promise.resolve({data:[],error:null}),
+      ids.length?supabase.from('pos_returns').select('pos_sale_id,amount').in('pos_sale_id',ids):Promise.resolve({data:[],error:null})
+    ]);
+    for(const result of [users,customers,accounts,shifts,returns])if(result.error)throw result.error;
+    const userMap=new Map((users.data||[]).map(row=>[row.id,row.full_name]));
+    const customerMap=new Map((customers.data||[]).map(row=>[row.id,row.full_name]));
+    const accountMap=new Map((accounts.data||[]).map(row=>[row.id,row.name]));
+    const shiftMap=new Map((shifts.data||[]).map(row=>[row.id,row.moysklad_shift_name]));
+    const returnedMap=new Map();
+    for(const row of returns.data||[])returnedMap.set(row.pos_sale_id,(returnedMap.get(row.pos_sale_id)||0)+Number(row.amount||0));
+    let history=rows.map(row=>({
+      id:row.id,moysklad_sale_id:row.moysklad_sale_id,sale_name:row.moysklad_sale_name,
+      shift_id:null,shift_name:shiftMap.get(row.shift_session_id)||'—',sold_at:row.sold_at,
+      payment_method:row.payment_method,total:Number(row.total||0),item_count:Number(row.item_count||0),
+      items:row.items||[],sync_status:row.sync_status==='IMPORTED_MS'?'Импортирован из МойСклад':row.sync_status==='SYNCED'?'Синхронизирован':row.sync_status||'—',
+      operator_id:row.operator_id,operator:userMap.get(row.operator_id)||(row.sync_status==='IMPORTED_MS'?'Не указан в МойСклад':'Неизвестно'),
+      customer_id:row.customer_id,customer:customerMap.get(row.customer_id)||null,
+      cash_account:accountMap.get(row.cash_account_id)||null,returned_total:returnedMap.get(row.id)||0,returned_count:0
+    }));
+    const search=cleanText(req.query.q,120).toLowerCase();
+    if(search)history=history.filter(row=>[row.sale_name,row.operator,row.customer,row.payment_method,row.total,...(Array.isArray(row.items)?row.items.map(item=>item?.name):[])].join(' ').toLowerCase().includes(search));
+    res.json({success:true,rows:history});
+  }catch(e){next(e)}
+});
+
+app.get('/api/v1/pos/sale/sync-state', requirePosUser, async(req,res,next)=>{
+  try{
+    const id=cleanText(req.query.moysklad_sale_id,160);
+    if(!id)return res.status(400).json({success:false,error:'SALE_ID_REQUIRED'});
+    let query=supabase.from('pos_sales').select('id,operator_id,sync_status').eq('organization_id',req.posOrganizationId).eq('moysklad_sale_id',id).order('updated_at',{ascending:false}).limit(1);
+    if(!req.isAdmin)query=query.eq('operator_id',req.authProfile.id);
+    const {data,error}=await query.maybeSingle();
+    if(error)throw error;
+    res.json({success:true,found:Boolean(data),synced:Boolean(data&&data.sync_status==='SYNCED')});
+  }catch(e){next(e)}
+});
+
+app.post('/api/v1/pos/sale/record', requirePosUser, async(req,res,next)=>{
+  try{
+    const input=req.body||{};
+    const saleId=cleanText(input.p_moysklad_sale_id,160);
+    if(!saleId)return res.status(400).json({success:false,error:'SALE_ID_REQUIRED'});
+    let operatorId=req.authProfile.id;
+    if(req.isAdmin&&input.p_operator_id){
+      const selected=await loadPosStaffProfile(cleanText(input.p_operator_id,80));
+      if(!selected||selected.is_active===false||selected.organization_id!==req.posOrganizationId||!selected.isOperator)
+        return res.status(400).json({success:false,error:'INVALID_SALE_OPERATOR'});
+      operatorId=selected.id;
+    }
+    const args={
+      p_moysklad_sale_id:saleId,
+      p_moysklad_sale_name:cleanText(input.p_moysklad_sale_name,200)||null,
+      p_moysklad_shift_id:cleanText(input.p_moysklad_shift_id,160)||null,
+      p_operator_id:operatorId,
+      p_customer_id:cleanText(input.p_customer_id,80)||null,
+      p_cash_account_id:cleanText(input.p_cash_account_id,80)||null,
+      p_payment_method:cleanText(input.p_payment_method,80)||'Наличные',
+      p_total:Math.max(0,Number(input.p_total)||0),
+      p_items:Array.isArray(input.p_items)?input.p_items:[]
+    };
+    const rpc=cleanText(input.rpc,40)==='record_pos_sale_v2'?'record_pos_sale_v2':'record_pos_sale';
+    if(rpc==='record_pos_sale_v2')args.p_order_id=cleanText(input.p_order_id,80)||null;
+    const {data,error}=await req.authClient.rpc(rpc,args);
+    if(error)throw error;
+    res.json({success:true,id:data,operator_id:operatorId});
+  }catch(e){next(e)}
 });
 
 app.get('/api/v1/pos/customers', requirePosUser, async (req, res, next) => {
