@@ -8,7 +8,7 @@ window.addEventListener('keydown',(event)=>{
 contextBridge.exposeInMainWorld('A4KassaDesktop',Object.freeze({
   desktop:true,
   platform:process.platform,
-  version:'2.1.8',
+  version:require('./package.json').version,
   printers:()=>ipcRenderer.invoke('a4-kassa:print'),
   settings:()=>ipcRenderer.invoke('a4-kassa:settings:get'),
   selectPrinter:(name)=>ipcRenderer.invoke('a4-kassa:settings:set-printer',name),
