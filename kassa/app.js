@@ -204,10 +204,30 @@
           }
         }
       }else{
-        const d=await api('/api/v1/pos/shift/open',{method:'POST',body:JSON.stringify({operator_id:operatorId})});
-        state.shift={...(d.shift||{}),store:d.store||null,checked_at:nowIso()};
-        await DB.setMeta('shift',state.shift);
-        toast(d.alreadyOpen?'Подключились к открытой смене':'Смена открыта');
+        try{
+          const d=await api('/api/v1/pos/shift/open',{method:'POST',body:JSON.stringify({operator_id:operatorId})});
+          if(d?.success===false||!d?.shift?.id||d.localPending||String(d.shift.id).startsWith('local-'))
+            throw new Error(d?.message||'Сервер не подтвердил открытие смены.');
+          state.shift={...d.shift,store:d.store||null,checked_at:nowIso()};
+          await DB.setMeta('shift',state.shift);
+          toast(d.alreadyOpen?'Подключились к открытой смене':'Смена открыта');
+        }catch(openError){
+          // An open request may succeed even if its response times out.
+          // Check server state before allowing another attempt.
+          try{
+            const current=await api('/api/v1/pos/shift');
+            if(current?.shift?.id&&!String(current.shift.id).startsWith('local-')){
+              state.shift={...current.shift,store:current.store||null,checked_at:nowIso()};
+              await DB.setMeta('shift',state.shift);
+              toast('Открытая смена подтверждена сервером');
+            }else{
+              toast(friendly(openError,'Смена не открыта'),true);
+            }
+          }catch(verificationError){
+            toast('Статус смены неизвестен. Проверьте подключение перед повторным открытием.',true);
+            console.warn('Shift open: uncertain result',openError,verificationError);
+          }
+        }
       }
       renderShift();
     }catch(e){toast(friendly(e,'Ошибка смены'),true)}

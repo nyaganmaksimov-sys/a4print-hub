@@ -168,11 +168,13 @@
     if(!isShiftUrl(u))return previousFetch(input,init);
 
     if(method==='POST'&&u.pathname.endsWith('/open')){
-      const body=parseBody(init);
-      const local=makeLocal(body);
-      setLocalActive(local);
-      startRemoteOpen(input,init).catch(()=>{});
-      return responseJson({success:true,alreadyOpen:false,localPending:true,shift:local,store:null,operator:{id:body.operator_id||null,name:null}});
+      // Never claim the shift was opened before the backend confirms it.
+      // Existing pending local shifts are recovered separately below.
+      if(state.openTask)return responseJson({
+        success:false,error:'SHIFT_SYNC_PENDING',
+        message:'Открытие смены уже выполняется. Дождитесь подтверждения сервера.'
+      },409);
+      return previousFetch(input,init);
     }
 
     if(method==='GET'&&/\/api\/v1\/pos\/shift\/?$/.test(u.pathname)){
