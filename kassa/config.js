@@ -35,11 +35,14 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     }catch(error){console.warn('A4PRINT KASSA order bridge payload:',error)}
   }
 
-  const proxyBases=[
+  const allowedBases=[
     'https://api.a4print-hub.ru',
     String(cfg.apiBaseUrl||'').replace(/\/$/,''),
     'https://a4print-hub-api.onrender.com'
   ].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const preferred=String(window.A4KassaApiPreferred||'');
+  const proxyBases=[...(allowedBases.includes(preferred)?[preferred]:[]),...allowedBases]
+    .filter((v,i,a)=>a.indexOf(v)===i);
 
   async function fetchWithTimeout(url,options={},ms=4500){
     const controller=new AbortController();
@@ -52,7 +55,9 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     const headers=new Headers(request.headers);
     const options={method,headers,cache:'no-store',credentials:'omit',redirect:'follow'};
     if(!['GET','HEAD'].includes(method))options.body=bodyBuffer||await request.clone().arrayBuffer();
-    return fetchWithTimeout(`${base}/api/v1/supabase${pathname}${target.search}`,options,4500);
+    const response=await fetchWithTimeout(`${base}/api/v1/supabase${pathname}${target.search}`,options,4500);
+    if(response.ok)window.A4KassaApiPreferred=base;
+    return response;
   }
 
   async function direct(){
@@ -77,6 +82,20 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     }
   }
 
+  // The original API may be inaccessible on an ISP without VPN. For login
+  // password grants (not token refresh), try the alternate host sequentially.
+  // Never race or repeat refresh tokens and financial RPC writes.
+  if(method==='POST'&&pathname==='/auth/v1/token'&&target.searchParams.get('grant_type')==='password'){
+    let lastError=null;
+    for(const base of proxyBases){
+      try{
+        const response=await proxy(base);
+        if(response.ok||response.status<500)return response;
+        lastError=new Error('HTTP '+response.status);
+      }catch(error){lastError=error}
+    }
+    throw lastError||new Error('AUTH_UNREACHABLE');
+  }
   return proxy(proxyBases[0]);
 };
 

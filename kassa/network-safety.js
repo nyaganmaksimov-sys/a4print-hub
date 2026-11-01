@@ -60,7 +60,8 @@
 
   function routeOrder(url){
     const current=url.origin;
-    return [current,PRIMARY,configured,RENDER].filter((v,i,a)=>v&&a.indexOf(v)===i);
+    const preferred=String(window.A4KassaApiPreferred||'');
+    return [preferred,current,PRIMARY,configured,RENDER].filter((v,i,a)=>v&&KNOWN.includes(v)&&a.indexOf(v)===i);
   }
 
   // Heavy POS reads can fan out into several MoySklad calls. Racing the same
@@ -73,7 +74,7 @@
     for(const base of routes){
       try{
         const response=await one(req.clone(),url,base,/\/api\/v1\/pos\/invoices\/[0-9a-f-]+\/closing\/pdf\/?$/.test(url.pathname)?INVOICE_PDF_TIMEOUT:/\/api\/v1\/pos\/invoices(?:\/|$)/.test(url.pathname)?INVOICE_READ_TIMEOUT:HEAVY_READ_TIMEOUT);
-        if(response.ok)return response;
+        if(response.ok){window.A4KassaApiPreferred=base;return response;}
         if(response.status<500)return response;
         clientResponse=response;
         lastError=new Error(`HTTP ${response.status}`);
@@ -100,7 +101,7 @@
           try{
             const response=await one(req.clone(),url,base,READ_TIMEOUT);
             if(settled)return;
-            if(response.ok){settled=true;resolve(response);return}
+            if(response.ok){window.A4KassaApiPreferred=base;settled=true;resolve(response);return}
             if(response.status<500&&!clientResponse)clientResponse=response;
             else lastError=new Error(`HTTP ${response.status}`);
           }catch(error){lastError=error}
@@ -142,7 +143,7 @@
     for(let i=0;i<routes.length;i++){
       try{
         const response=await one(req.clone(),url,routes[i],timeout);
-        if(response.ok)return response;
+        if(response.ok){window.A4KassaApiPreferred=routes[i];return response;}
         if(response.status<500){
           clientResponse=clientResponse||response;
           if(authWrite&&i<routes.length-1)continue;
