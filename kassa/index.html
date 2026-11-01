@@ -48,7 +48,8 @@
       <button id="staffLoginSubmit" class="btn primary wide" type="button">Войти в кассу</button>
       <section id="staffBootstrap" class="staff-bootstrap" hidden>
         <h3 id="staffBootstrapTitle">Первичная настройка PIN администратора</h3>
-        <p>У общей учётной записи ещё нет PIN. Сначала задайте личный PIN администратора.</p>
+        <p>У кассы ещё нет PIN администратора. Выберите администратора А4-Принт, который будет управлять сотрудниками.</p>
+        <label>Администратор<select id="staffBootstrapEmployee"></select></label>
         <label>Новый PIN<input id="staffBootstrapPin" type="password" inputmode="numeric" maxlength="8" placeholder="4–8 цифр"></label>
         <label>Повторите PIN<input id="staffBootstrapPinConfirm" type="password" inputmode="numeric" maxlength="8" placeholder="Повторите PIN"></label>
         <div id="staffBootstrapError" class="form-error"></div>
