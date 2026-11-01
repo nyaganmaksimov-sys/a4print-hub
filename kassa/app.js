@@ -63,7 +63,7 @@
       const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
       if(r.status===401&&retry){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
       if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
-      state.backendOnline=true;return d;
+      state.backendOnline=true;renderNetwork();return d;
     }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
   }
 
@@ -184,8 +184,7 @@
     try{
       await refreshQueue();
       if(state.shift&&state.queue.length){openQueue();toast('Сначала синхронизируйте чеки в очереди.',true);return}
-      if(!navigator.onLine){toast('Нет интернет-соединения. Проверьте подключение и повторите.',true);return}
-      const operatorId=$('operatorSelect').value||state.profile?.id||null;
+        const operatorId=$('operatorSelect').value||state.profile?.id||null;
       if(state.shift){
         const expectedShiftId=String(state.shift.id||'');
         try{
@@ -631,7 +630,7 @@
   function renderAccounts(){const el=$('cashAccount');const prev=el.value;el.innerHTML=state.accounts.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');if(state.accounts.some(x=>x.id===prev))el.value=prev}
   function renderOperators(){const el=$('operatorSelect');const own=state.operators.find(x=>x.is_self)?.id||state.profile?.id||'';el.innerHTML=state.operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}${x.is_self?' · вы':''}</option>`).join('');el.value=state.isAdmin?(own||state.operators[0]?.id||''):own;el.disabled=!state.isAdmin||state.operators.length<2}
   function renderShift(){const chip=$('shiftChip');if(state.shift){chip.className='status-chip ok';chip.querySelector('span').textContent='Смена открыта';$('shiftInfo').textContent=`Смена ${state.shift.name||''}`;$('shiftButton').textContent='Закрыть смену'}else{chip.className='status-chip warn';chip.querySelector('span').textContent='Смена закрыта';$('shiftInfo').textContent='Смена не открыта';$('shiftButton').textContent='Открыть смену'}renderCart()}
-  function renderNetwork(){const online=navigator.onLine&&state.backendOnline;$('offlineBanner').hidden=online;const chip=$('networkChip');chip.className='status-chip '+(online?'ok':'bad');chip.querySelector('span').textContent=online?'Онлайн':'Офлайн'}
+  function renderNetwork(){const online=state.backendOnline;$('offlineBanner').hidden=online;const chip=$('networkChip');chip.className='status-chip '+(online?'ok':'bad');chip.querySelector('span').textContent=online?'Онлайн':'Офлайн'}
 
   async function choosePayment(method,button){state.payment=method;document.querySelectorAll('.pay-tab').forEach(x=>x.classList.toggle('active',x===button))}
   function toggleCustomerPanel(){const p=$('customerPanel');p.hidden=!p.hidden;if(!p.hidden)setTimeout(()=>$('customerSearch').focus(),0)}
@@ -667,7 +666,7 @@
       await refreshQueue();
       return;
     }
-    if(state.syncing||!navigator.onLine||!state.backendOnline||!state.session)return;state.syncing=true;
+    if(state.syncing||!state.backendOnline||!state.session)return;state.syncing=true;
     try{
       await refreshQueue();
       for(const sale of [...state.queue]){
@@ -690,7 +689,6 @@
 
   async function health(){
     const wasOnline=state.backendOnline;
-    if(!navigator.onLine){state.backendOnline=false;renderNetwork();return false}
     const controller=new AbortController();const t=setTimeout(()=>controller.abort(),10000);
     try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok}catch(error){state.backendOnline=false;console.warn('KASSA health probe failed:',error)}finally{clearTimeout(t)}
     renderNetwork();
@@ -721,7 +719,7 @@
     $('refreshCatalog').onclick=()=>refreshRemoteData(true);$('syncNow').onclick=async()=>{await health();await Promise.allSettled([refreshRemoteData(true),loadShift(),loadStock(),syncQueue()])};$('catalogSort').onchange=()=>{state.catalogSort=$('catalogSort').value||'SMART';filterCatalog()};
     $('customerToggle').onclick=toggleCustomerPanel;$('customerSearch').oninput=()=>{clearTimeout(customerTimer);customerTimer=setTimeout(searchCustomers,250)};$('clearCustomer').onclick=()=>{state.customer=null;$('customerName').textContent='Не выбран';$('customerPanel').hidden=true};
     $('openOldPos').onclick=()=>location.href='../pos/';
-    window.addEventListener('online',()=>health());window.addEventListener('offline',()=>{state.backendOnline=false;renderNetwork()});
+    window.addEventListener('online',()=>health());window.addEventListener('offline',()=>{health().catch(()=>{})});
     window.addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();$('search').focus();$('search').select()}if(e.key==='F4'){e.preventDefault();openDiscountEditor()}if(e.key==='F8'){e.preventDefault();if(!$('payButton').disabled)queueSale()}if(e.key==='Escape'){closeHeld();closeAdjustModal();closeQueue();$('customerPanel').hidden=true}});
     if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn),{once:true});
   }
