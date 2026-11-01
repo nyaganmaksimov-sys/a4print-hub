@@ -88,12 +88,14 @@
     refreshCash().catch(()=>{});
     const r=await range();if(!r)return;
     const operator=$('reportOperator')&&!$('reportOperator').hidden&&$('reportOperator').value?$('reportOperator').value:null;
-    const out=await supabase.rpc('pos_dashboard',{p_from:r.start.toISOString(),p_to:r.end.toISOString(),p_operator_id:operator});
-    if(out.error)return;
+    const session=(await supabase.auth.getSession()).data?.session;if(!session)return;
+    const params=new URLSearchParams({from:r.start.toISOString(),to:r.end.toISOString()});if(operator)params.set('operator_id',operator);
+    const response=await fetch(`${API}/api/v1/pos/reports/dashboard?${params.toString()}`,{cache:'no-store',headers:{Authorization:`Bearer ${session.access_token}`,Accept:'application/json'}});
+    const out=await response.json().catch(()=>({}));if(!response.ok)return;
     const card=$('reportSalesCount')?.closest('.stat-card');if(!card)return;
     let note=$('reportSourceNote');
     if(!note){note=document.createElement('small');note.id='reportSourceNote';note.style.cssText='display:block;margin-top:6px;color:#718096;font-size:11px;line-height:1.35';card.append(note)}
-    const d=out.data||{};
+    const d=out.dashboard||{};
     note.textContent=`A4PRINT KASSA: ${Number(d.sales_kassa_count||0).toLocaleString('ru-RU')} · из МойСклад: ${Number(d.sales_imported_count||0).toLocaleString('ru-RU')}`;
   }
 
