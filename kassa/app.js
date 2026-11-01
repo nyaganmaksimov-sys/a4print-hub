@@ -76,7 +76,7 @@
     try{
       const r=await fetch(API+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
       const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
-      if(r.status===401&&retry&&!/\\/pos\\/staff\\/pin-login/.test(path)){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
+      if(r.status===401&&retry&&!path.startsWith('/api/v1/pos/staff/pin-login')){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
       if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
       lastApiSuccessAt=Date.now();state.backendOnline=true;renderNetwork();return d;
     }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
@@ -196,7 +196,7 @@
     const pin=$('staffBootstrapPin').value;
     const confirmPin=$('staffBootstrapPinConfirm').value;
     $('staffBootstrapError').textContent='';
-    if(!/^\\d{4,8}$/.test(pin)){ $('staffBootstrapError').textContent='PIN должен содержать от 4 до 8 цифр.';return; }
+    if(!/^\d{4,8}$/.test(pin)){ $('staffBootstrapError').textContent='PIN должен содержать от 4 до 8 цифр.';return; }
     if(pin!==confirmPin){ $('staffBootstrapError').textContent='PIN-коды не совпадают.';return; }
     $('staffBootstrapSave').disabled=true;
     try{
@@ -211,7 +211,7 @@
   async function staffPinLogin(){
     const pin=$('staffPin').value;
     if(!state.selectedStaffId){$('staffLoginError').textContent='Сначала выберите сотрудника.';return}
-    if(!/^\\d{4,8}$/.test(pin)){$('staffLoginError').textContent='Введите PIN от 4 до 8 цифр.';return}
+    if(!/^\d{4,8}$/.test(pin)){$('staffLoginError').textContent='Введите PIN от 4 до 8 цифр.';return}
     $('staffLoginSubmit').disabled=true;$('staffLoginError').textContent='Проверяю PIN…';
     try{
       const data=await api('/api/v1/pos/staff/pin-login',{method:'POST',body:JSON.stringify({staff_id:state.selectedStaffId,pin})});
@@ -862,7 +862,10 @@
     bind();await DB.open();
     const s=await supabase.auth.getSession();state.session=s.data.session;
     if(!state.session){showAuth();return}
-    try{await checkAccess();if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');\n      const cachedToken=sessionStorage.getItem('a4_kassa_staff_token'),cachedProfile=sessionStorage.getItem('a4_kassa_staff_profile'),expires=sessionStorage.getItem('a4_kassa_staff_expires');\n      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}\n      await showStaffLogin()}catch(e){showAuth(friendly(e,'Не удалось проверить доступ.'))}
+    try{await checkAccess();if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');
+      const cachedToken=sessionStorage.getItem('a4_kassa_staff_token'),cachedProfile=sessionStorage.getItem('a4_kassa_staff_profile'),expires=sessionStorage.getItem('a4_kassa_staff_expires');
+      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}
+      await showStaffLogin()}catch(e){showAuth(friendly(e,'Не удалось проверить доступ.'))}
   }
   boot().catch(e=>showAuth(friendly(e,'Ошибка запуска кассы.')));
 })();
