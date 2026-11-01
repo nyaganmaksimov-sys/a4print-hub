@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="light">
   <title>A4PRINT KASSA 2.1</title>
   <link rel="manifest" href="./manifest.webmanifest?v=4">
-  <link rel="stylesheet" href="./styles.css?v=20260920-whitebrand1">
+  <link rel="stylesheet" href="./styles.css?v=20261101-staff-pin1">
   <link rel="stylesheet" href="./modules.css?v=20260905-pos3">
   <style>[hidden]{display:none!important}</style>
   <script src="./config.js?v=20260910-novpn1"></script>
@@ -32,6 +32,33 @@
     </div>
   </section>
 
+  <section id="staffView" class="auth-view staff-auth-view" hidden>
+    <div class="auth-card staff-auth-card">
+      <div class="brand-row brandbook-auth"><img src="./assets/a4-kassa-logo.webp" alt="A4-Касса"><span>рабочее место кассира · PIN-вход</span></div>
+      <div class="auth-copy"><h1>Кто работает сейчас?</h1><p>Выберите сотрудника и введите персональный PIN-код.</p></div>
+      <div id="staffCards" class="staff-cards"><div class="staff-login-loading">Загружаю список сотрудников…</div></div>
+      <label class="staff-pin-label">PIN-код<input id="staffPin" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="••••" aria-label="PIN-код сотрудника"></label>
+      <div class="staff-pin-pad" aria-label="Цифровая клавиатура">
+        <button type="button" data-pin-digit="1">1</button><button type="button" data-pin-digit="2">2</button><button type="button" data-pin-digit="3">3</button>
+        <button type="button" data-pin-digit="4">4</button><button type="button" data-pin-digit="5">5</button><button type="button" data-pin-digit="6">6</button>
+        <button type="button" data-pin-digit="7">7</button><button type="button" data-pin-digit="8">8</button><button type="button" data-pin-digit="9">9</button>
+        <button type="button" id="staffPinClear">Очистить</button><button type="button" data-pin-digit="0">0</button><button type="button" id="staffPinBack">⌫</button>
+      </div>
+      <div id="staffLoginError" class="form-error" role="alert"></div>
+      <button id="staffLoginSubmit" class="btn primary wide" type="button">Войти в кассу</button>
+      <section id="staffBootstrap" class="staff-bootstrap" hidden>
+        <h3 id="staffBootstrapTitle">Первичная настройка PIN администратора</h3>
+        <p>У кассы ещё нет PIN администратора. Выберите администратора А4-Принт, который будет управлять сотрудниками.</p>
+        <label>Администратор<select id="staffBootstrapEmployee"></select></label>
+        <label>Новый PIN<input id="staffBootstrapPin" type="password" inputmode="numeric" maxlength="8" placeholder="4–8 цифр"></label>
+        <label>Повторите PIN<input id="staffBootstrapPinConfirm" type="password" inputmode="numeric" maxlength="8" placeholder="Повторите PIN"></label>
+        <div id="staffBootstrapError" class="form-error"></div>
+        <button id="staffBootstrapSave" class="btn primary wide" type="button">Сохранить PIN администратора</button>
+      </section>
+      <div class="auth-foot">А4-Принт · A4PRINT HUB</div>
+    </div>
+  </section>
+
   <section id="appView" class="app-view" hidden>
     <aside id="mainNav" class="main-nav">
       <div class="nav-brand"><img class="nav-brand-full" src="./assets/a4-kassa-logo-white.svg" alt="A4PRINT KASSA"><img class="nav-brand-icon" src="./assets/a4-kassa-mark-white.svg" alt="" aria-hidden="true"><span>Версия 2.1</span></div>
@@ -46,7 +73,7 @@
         <button id="navHelp" class="nav-item" type="button"><span class="nav-icon">?</span><b>Помощь</b></button>
       </nav>
       <div class="nav-spacer"></div>
-      <button id="logout" class="nav-item nav-logout" type="button"><span class="nav-icon">⇥</span><b>Выход</b></button>
+      <button id="logout" class="nav-item nav-logout" type="button"><span class="nav-icon">⇥</span><b>Сменить сотрудника</b></button>
       <div class="nav-user">
         <div class="avatar">●</div><div><b id="uiCashierName">Кассир</b><span id="uiCashierRole">A4PRINT HUB</span></div>
       </div>
@@ -151,6 +178,6 @@
     .held-actions button:first-child{background:#087f8c;color:white;border-color:#087f8c}
     .held-empty{color:#64748b}
   </style>
-    <script src="./bootstrap.js?v=20260920-price-discount1"></script>
+    <script src="./bootstrap.js?v=20261101-staff-pin1"></script>
 </body>
 </html>

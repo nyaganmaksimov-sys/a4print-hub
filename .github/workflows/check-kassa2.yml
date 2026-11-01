@@ -50,6 +50,7 @@ jobs:
         run: |
           node --check kassa/app.js
           node --check kassa/modules.js
+          node --check kassa/queue-recovery.js
           node --check kassa/ui.js
           node --check kassa/db.js
           node --check kassa/sw.js
@@ -82,6 +83,7 @@ jobs:
           node --check api/src/pos-sale-idempotency.js
           node --check api/src/pos-cash-operations.js
           node --check api/src/boot.js
+          node --check api/src/server.js
           node --check api/src/pos-build-marker.js
       - name: Test invoice closing and PDF modules
         run: |
@@ -110,6 +112,7 @@ jobs:
           test -f supabase/migrations/20260921172409_kassa_stamp_visibility_and_idempotency.sql
           test -f supabase/migrations/20260921172554_kassa_stamp_legacy_duplicate_guard.sql
           test -f supabase/migrations/20260921173755_kassa_keep_special_orders_visible_when_paid.sql
+          test -f supabase/migrations/20261101155500_pos_staff_credentials.sql
           test -f kassa/manifest.webmanifest
           test -f desktop-kassa/main.js
           test -f desktop-kassa/splash.html
@@ -154,7 +157,7 @@ jobs:
           grep -q 'updater:Object.freeze' desktop-kassa/preload.js
           grep -q 'desktop-updater.js' kassa/bootstrap.js
           grep -q 'Перезапустить и установить' kassa/desktop-updater.js
-          grep -q '2.1.22' desktop-kassa/package.json
+          grep -q '2.1.24' desktop-kassa/package.json
           node -e "const p=require('./desktop-kassa/package.json'),n=require('./desktop-kassa/update-notes.json');if(p.version!==n.version)throw new Error('release notes version mismatch')"
           grep -q 'Что нового' kassa/desktop-updater.js
           grep -q 'showWhatsNew' desktop-kassa/main.js
@@ -172,11 +175,17 @@ jobs:
           grep -q 'Возвраты' kassa/index.html
           grep -q 'Отчёты и статистика' kassa/index.html
           grep -q '/api/v1/pos/returns' kassa/modules.js
-          grep -q 'pos_dashboard' kassa/modules.js
+          grep -q '/api/v1/pos/reports/dashboard' kassa/modules.js
+          grep -q 'pos_dashboard' api/src/server.js
           grep -q 'a4_kassa_catalog_mode' kassa/ui.js
           grep -q 'IndexedDB\|indexedDB' kassa/db.js
           grep -q "DB.put('queue'" kassa/app.js
           grep -q 'syncQueue' kassa/app.js
+          grep -q 'staffView' kassa/index.html
+          grep -q 'pin-login' kassa/app.js
+          grep -q 'x-a4print-staff-token' api/src/server.js
+          grep -q 'requirePosAdmin' api/src/server.js
+          grep -q 'pos_staff_credentials' api/src/server.js
           grep -q 'serviceWorker.register' kassa/app.js
           grep -q 'client_operation_id' kassa/app.js
           grep -q 'network-safety.js' kassa/bootstrap.js
@@ -239,6 +248,7 @@ jobs:
           grep -q 'RENDER_GIT_COMMIT' api/src/pos-build-marker.js
           grep -q 'cashOperations:true' api/src/pos-build-marker.js
           grep -q 'receiptQueueRecovery:true' api/src/pos-build-marker.js
+          grep -q 'staffPinAuth:true' api/src/pos-build-marker.js
           ! grep -q 'shift-debug.js' api/src/boot.js
       - name: Validate manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('kassa/manifest.webmanifest','utf8')); console.log('manifest ok')"
@@ -301,7 +311,8 @@ jobs:
               && grep -q '"paymentBreakdown":true' /tmp/live.json \
               && grep -q '"saleIdempotency":true' /tmp/live.json \
               && grep -q '"cashOperations":true' /tmp/live.json \
-              && grep -q '"receiptQueueRecovery":true' /tmp/live.json; then
+              && grep -q '"receiptQueueRecovery":true' /tmp/live.json \
+              && grep -q '"staffPinAuth":true' /tmp/live.json; then
               if [ "$require_marker" = "true" ]; then
                 echo 'Render is running the current API commit with required capabilities.'
               else

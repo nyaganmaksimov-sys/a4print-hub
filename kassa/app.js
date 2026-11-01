@@ -10,6 +10,21 @@
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
   });
   const API=String(cfg.apiBaseUrl||'').replace(/\/$/,'');
+  const API_BASES=[API,'https://a4print-hub-api.onrender.com'].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  // Add the signed staff context to every request made to the POS API. This
+  // also covers queue recovery and optional UI modules loaded after app.js.
+  const nativeFetch=window.fetch.bind(window);
+  window.fetch=(input,init={})=>{
+    const url=typeof input==='string'?input:(input?.url||'');
+    if(API_BASES.some(base=>String(url).startsWith(base))){
+      const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));
+      const staffToken=sessionStorage.getItem('a4_kassa_staff_token');
+      if(staffToken)headers.set('X-A4PRINT-STAFF-TOKEN',staffToken);
+      return nativeFetch(input,{...init,headers});
+    }
+    return nativeFetch(input,init);
+  };
+
   const $=id=>document.getElementById(id);
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2})+' ₽';
@@ -17,7 +32,7 @@
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   const state={
-    session:null,profile:null,organizationId:null,isAdmin:false,isOperator:false,backendOnline:false,syncing:false,
+    session:null,profile:null,organizationId:null,isAdmin:false,isOperator:false,staffToken:null,selectedStaffId:null,backendOnline:false,syncing:false,
     catalog:[],filtered:[],stock:{},accounts:[],operators:[],cart:[],customer:null,
     category:'FAVORITES',payment:'Наличные',shift:null,queue:[],favorites:new Set(),search:'',catalogSort:'SMART',
     catalogUpdated:null,installPrompt:null,discount:{type:'PERCENT',value:0}
@@ -56,48 +71,73 @@
   let lastApiSuccessAt=0;
   async function api(path,opt={},retry=true){
     if(!state.session?.access_token)throw new Error('AUTH_REQUIRED');
-    const controller=new AbortController();
-    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:8000;
-    const t=setTimeout(()=>controller.abort(),timeoutMs);
-    try{
-      const r=await fetch(API+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
-      const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
-      if(r.status===401&&retry){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
-      if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
-      lastApiSuccessAt=Date.now();state.backendOnline=true;renderNetwork();return d;
-    }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
+    const method=String(opt.method||'GET').toUpperCase();
+    const safeRead=method==='GET'||method==='HEAD';
+    const timeoutMs=/^\/api\/v1\/pos\/shift\/close\/?$/.test(path)?75000:/^\/api\/v1\/pos\/shift\/?$/.test(path)?38000:10000;
+    let lastError=null;
+    const bases=safeRead?API_BASES:[API];
+    for(const base of bases){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),timeoutMs);
+      try{
+        const r=await fetch(base+path,{...opt,cache:'no-store',signal:controller.signal,headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json','Accept':'application/json',...(opt.headers||{})}});
+        const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
+        if(r.status===401&&retry&&!path.startsWith('/api/v1/pos/staff/pin-login')){
+          const refreshed=await refreshSessionOnce();
+          if(refreshed.data?.session){
+            state.session=refreshed.data.session;
+            clearTimeout(timer);
+            return api(path,opt,false);
+          }
+        }
+        if(!r.ok){
+          const err=new Error(d.message||d.error||`HTTP ${r.status}`);
+          // Fail over only for transient server errors on idempotent reads.
+          if(safeRead&&r.status>=500){lastError=err;continue}
+          throw err;
+        }
+        lastApiSuccessAt=Date.now();state.backendOnline=true;window.A4KassaApiPreferred=base;renderNetwork();return d;
+      }catch(e){
+        lastError=e;
+        if(!safeRead)throw e;
+      }finally{clearTimeout(timer)}
+    }
+    state.backendOnline=false;renderNetwork();
+    throw lastError||new Error('API_UNAVAILABLE');
+  }
+
+  let sessionRefreshPromise=null;
+  async function refreshSessionOnce(){
+    if(!sessionRefreshPromise){
+      sessionRefreshPromise=supabase.auth.refreshSession().finally(()=>{sessionRefreshPromise=null});
+    }
+    return sessionRefreshPromise;
   }
 
   async function backendPasswordLogin(email,password){
-    let serverError=null;
-    let serverSession=null;
-    if(API){
+    let serverError=null,serverSession=null;
+    for(const base of API_BASES){
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),9000);
       try{
-        const r=await fetch(`${API}/api/v1/mobile/auth/password`,{
+        const r=await fetch(`${base}/api/v1/mobile/auth/password`,{
           method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-          body:JSON.stringify({email,password}),cache:'no-store'
+          body:JSON.stringify({email,password}),cache:'no-store',signal:controller.signal
         });
         const d=await r.json().catch(()=>({}));
         if(r.ok&&d?.success&&d?.session?.access_token&&d?.session?.refresh_token){
-          serverSession=d.session;
-        }else{
-          const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
-          if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
-          serverError=err;
+          serverSession=d.session;window.A4KassaApiPreferred=base;break;
         }
+        const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
+        if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
+        serverError=err;
       }catch(e){
         if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;
         serverError=e;
-      }
+      }finally{clearTimeout(timer)}
     }
     if(serverSession){
-      // A valid response from our login endpoint is not a network failure.
-      // Do not discard it and repeat the password grant if setSession fails.
       try{
-        const s=await supabase.auth.setSession({
-          access_token:serverSession.access_token,
-          refresh_token:serverSession.refresh_token
-        });
+        const s=await supabase.auth.setSession({access_token:serverSession.access_token,refresh_token:serverSession.refresh_token});
         if(s.error)throw s.error;
         if(!s.data?.session)throw new Error('Сессия не сохранена.');
         return s.data.session;
@@ -142,18 +182,109 @@
     if(a4.data?.id&&a4.data.is_active!==false)state.organizationId=a4.data.id;
   }
 
-  function showAuth(error=''){$('appView').hidden=true;$('authView').hidden=false;$('loginError').textContent=error}
-  function showApp(){$('authView').hidden=true;$('appView').hidden=false}
+  function showAuth(error=''){
+    sessionStorage.removeItem('a4_kassa_staff_token');sessionStorage.removeItem('a4_kassa_staff_profile');sessionStorage.removeItem('a4_kassa_staff_expires');
+    $('appView').hidden=true;$('staffView').hidden=true;$('authView').hidden=false;
+    $('loginError').textContent=error;
+  }
+  function showApp(){$('authView').hidden=true;$('staffView').hidden=true;$('appView').hidden=false}
+
+  async function showStaffLogin(error=''){
+    state.selectedStaffId=null;
+    $('appView').hidden=true;$('authView').hidden=true;$('staffView').hidden=false;
+    $('staffLoginError').textContent=error;
+    $('staffCards').innerHTML='<div class="staff-login-loading">Загружаю список сотрудников…</div>';
+    $('staffPin').value='';
+    try{
+      const data=await api('/api/v1/pos/staff/login-list');
+      const rows=data.staff||[];
+      $('staffCards').innerHTML=rows.map(row=>`<button class="staff-choice${row.pin_enabled?'':' needs-pin'}" type="button" data-staff-id="${esc(row.id)}" ${row.pin_enabled?'':'disabled'}>
+        <span class="staff-choice-avatar">${esc((row.full_name||'?').trim().slice(0,1).toUpperCase())}</span>
+        <span><b>${esc(row.full_name)}</b><small>${row.pin_enabled?'Ввести PIN': 'PIN ещё не назначен'}</small></span>
+      </button>`).join('')||'<div class="staff-login-loading">Нет активных сотрудников с доступом к кассе.</div>';
+      document.querySelectorAll('[data-staff-id]').forEach(button=>button.onclick=()=>{
+        state.selectedStaffId=button.dataset.staffId;
+        document.querySelectorAll('.staff-choice').forEach(x=>x.classList.toggle('selected',x===button));
+        $('staffPin').focus();
+      });
+      $('staffBootstrap').hidden=!data.bootstrap_required;
+      $('staffBootstrapEmployee').innerHTML=(data.bootstrap_candidates||[]).map(row=>`<option value="${esc(row.id)}">${esc(row.full_name)}</option>`).join('');
+      $('staffBootstrapError').textContent='';
+      if(data.bootstrap_required){
+        $('staffBootstrapTitle').textContent='Первичная настройка PIN администратора';
+      }
+      $('staffLoginError').textContent=error;
+    }catch(e){
+      $('staffCards').innerHTML='<div class="staff-login-loading">Не удалось получить список сотрудников. Проверьте интернет и повторите.</div>';
+      $('staffLoginError').textContent=friendly(e,'Нет связи с сервером.');
+    }
+  }
+
+  async function bootstrapAdminPin(){
+    const pin=$('staffBootstrapPin').value;
+    const confirmPin=$('staffBootstrapPinConfirm').value;
+    $('staffBootstrapError').textContent='';
+    if(!/^\d{4,8}$/.test(pin)){ $('staffBootstrapError').textContent='PIN должен содержать от 4 до 8 цифр.';return; }
+    if(pin!==confirmPin){ $('staffBootstrapError').textContent='PIN-коды не совпадают.';return; }
+    $('staffBootstrapSave').disabled=true;
+    try{
+      await api('/api/v1/pos/staff/bootstrap-pin',{method:'POST',body:JSON.stringify({staff_id:$('staffBootstrapEmployee').value,pin})});
+      $('staffBootstrapPin').value='';$('staffBootstrapPinConfirm').value='';
+      toast('PIN администратора настроен');
+      await showStaffLogin();
+    }catch(e){$('staffBootstrapError').textContent=friendly(e,'Не удалось настроить PIN.')}
+    finally{$('staffBootstrapSave').disabled=false}
+  }
+
+  async function staffPinLogin(){
+    const pin=$('staffPin').value;
+    if(!state.selectedStaffId){$('staffLoginError').textContent='Сначала выберите сотрудника.';return}
+    if(!/^\d{4,8}$/.test(pin)){$('staffLoginError').textContent='Введите PIN от 4 до 8 цифр.';return}
+    $('staffLoginSubmit').disabled=true;$('staffLoginError').textContent='Проверяю PIN…';
+    try{
+      const data=await api('/api/v1/pos/staff/pin-login',{method:'POST',body:JSON.stringify({staff_id:state.selectedStaffId,pin})});
+      if(!data?.token||!data?.staff?.id)throw new Error('Сервер не вернул сессию сотрудника.');
+      state.staffToken=data.token;
+      state.profile=data.staff;
+      state.organizationId=data.staff.organization_id;
+      state.isAdmin=!!data.staff.isAdmin;
+      state.isOperator=!!data.staff.isOperator;
+      sessionStorage.setItem('a4_kassa_staff_token',data.token);
+      sessionStorage.setItem('a4_kassa_staff_profile',JSON.stringify(data.staff));
+      sessionStorage.setItem('a4_kassa_staff_expires',data.expires_at);
+      window.A4KassaCurrentStaff={...data.staff,isAdmin:state.isAdmin};
+      try{localStorage.setItem('a4_kassa_selected_operator',data.staff.id)}catch{}
+      $('uiCashierName').textContent=data.staff.full_name;
+      $('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';
+      showApp();await startApp();
+      window.dispatchEvent(new CustomEvent('a4:kassa-queue-pending'));
+    }catch(e){$('staffPin').value='';$('staffLoginError').textContent=friendly(e,'Не удалось войти по PIN.')}
+    finally{$('staffLoginSubmit').disabled=false}
+  }
+
+  function switchStaff(){
+    if(state.cart?.length&&!confirm('В чеке есть незавершённые позиции. Они останутся на экране и будут оформлены от имени следующего сотрудника. Сменить сотрудника?'))return;
+    sessionStorage.removeItem('a4_kassa_staff_token');
+    sessionStorage.removeItem('a4_kassa_staff_profile');
+    sessionStorage.removeItem('a4_kassa_staff_expires');
+    state.staffToken=null;state.profile=null;state.selectedStaffId=null;state.isAdmin=false;state.isOperator=false;
+    window.A4KassaCurrentStaff=null;
+    clearInterval(healthTimer);clearInterval(syncTimer);
+    showStaffLogin();
+  }
 
   async function loginSubmit(e){
     e.preventDefault();$('loginError').textContent='';$('loginSubmit').disabled=true;$('loginSubmit').textContent='Входим…';
     try{
       state.session=await backendPasswordLogin($('loginEmail').value.trim().toLowerCase(),$('loginPassword').value);
       if(!state.session)throw new Error('Сессия не создана.');
-      await checkAccess();showApp();await startApp();
+      await checkAccess();
+      if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');
+      await showStaffLogin();
     }catch(e2){showAuth(friendly(e2,'Не удалось войти.'))}
     finally{$('loginSubmit').disabled=false;$('loginSubmit').textContent='Войти'}
   }
+
   async function googleLogin(){
     $('loginError').textContent='';$('googleLogin').disabled=true;
     try{const redirectTo=new URL('./',location.href).href;const r=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo}});if(r.error)throw r.error}
@@ -162,7 +293,7 @@
 
   function authStorageKey(k){k=String(k||'');return /^sb-.*-auth-token$/i.test(k)||/^a4print_mobile_(access|refresh|expires)$/i.test(k)||k==='a4print_auth_return_to'}
   function clearStore(store){try{const ks=[];for(let i=0;i<store.length;i++)ks.push(store.key(i));ks.filter(authStorageKey).forEach(k=>store.removeItem(k))}catch{}}
-  function logout(){clearStore(localStorage);clearStore(sessionStorage);supabase.auth.signOut({scope:'local'}).catch(()=>{});location.replace(`./?logout=1&t=${Date.now()}`)}
+  function logout(){switchStaff()}
 
   async function loadCached(){
     try{
@@ -178,12 +309,11 @@
     try{
       if(!state.organizationId)throw new Error('Компания кассы не определена.');
       const [g,a,o]=await Promise.all([
-        supabase.rpc('get_pos_catalog'),
-        supabase.from('cash_accounts').select('id,name,account_type,is_active').eq('organization_id',state.organizationId).eq('is_active',true).order('name'),
-        supabase.rpc('get_pos_operators')
+        api('/api/v1/pos/catalog'),
+        api('/api/v1/pos/accounts'),
+        api('/api/v1/pos/operators')
       ]);
-      if(g.error)throw g.error;if(a.error)throw a.error;if(o.error)throw o.error;
-      state.catalog=(g.data||[]).filter(x=>Number(x.sale_price||0)>=0);state.accounts=a.data||[];state.operators=o.data||[];
+      state.catalog=(g.catalog||[]).filter(x=>Number(x.sale_price||0)>=0);state.accounts=a.accounts||[];state.operators=o.operators||[];
       state.catalogUpdated=nowIso();await DB.replaceAll('catalog',state.catalog);await DB.setMeta('catalogUpdated',state.catalogUpdated);
       renderCategories();renderAccounts();renderOperators();filterCatalog();
       $('catalogMeta').textContent=`${state.catalog.length} позиций · обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
@@ -650,7 +780,7 @@
   }
 
   function renderAccounts(){const el=$('cashAccount');const prev=el.value;el.innerHTML=state.accounts.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');if(state.accounts.some(x=>x.id===prev))el.value=prev}
-  function renderOperators(){const el=$('operatorSelect');const own=state.operators.find(x=>x.is_self)?.id||state.profile?.id||'';el.innerHTML=state.operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}${x.is_self?' · вы':''}</option>`).join('');el.value=state.isAdmin?(own||state.operators[0]?.id||''):own;el.disabled=!state.isAdmin||state.operators.length<2}
+  function renderOperators(){const el=$('operatorSelect');const own=state.profile?.id||state.operators.find(x=>x.is_self)?.id||'';el.innerHTML=state.operators.map(x=>`<option value="${x.id}">${esc(x.full_name)}${x.is_self?' · вы':''}</option>`).join('');el.value=state.isAdmin?(own||state.operators[0]?.id||''):own;el.disabled=!state.isAdmin||state.operators.length<2}
   function renderShift(){const chip=$('shiftChip');if(state.shift){chip.className='status-chip ok';chip.querySelector('span').textContent='Смена открыта';$('shiftInfo').textContent=`Смена ${state.shift.name||''}`;$('shiftButton').textContent='Закрыть смену'}else{chip.className='status-chip warn';chip.querySelector('span').textContent='Смена закрыта';$('shiftInfo').textContent='Смена не открыта';$('shiftButton').textContent='Открыть смену'}renderCart()}
   function renderNetwork(){const online=state.backendOnline;$('offlineBanner').hidden=online;const chip=$('networkChip');chip.className='status-chip '+(online?'ok':'bad');chip.querySelector('span').textContent=online?'Онлайн':'Офлайн'}
 
@@ -700,8 +830,7 @@
           }
           if(current.stage==='backend_done'){
             const d=current.backend_result||{};
-            const r=await supabase.rpc('record_pos_sale',{p_moysklad_sale_id:d.moysklad?.id,p_moysklad_sale_name:d.moysklad?.name||null,p_moysklad_shift_id:current.shift?.id||null,p_operator_id:current.operator_id||null,p_customer_id:current.customer_id||null,p_cash_account_id:current.cash_account_id||null,p_payment_method:current.payment_method,p_total:Number(d.sum??current.total),p_items:current.items});
-            if(r.error&&!/duplicate|unique/i.test(String(r.error.message||'')))throw r.error;
+            await api('/api/v1/pos/sale/record',{method:'POST',body:JSON.stringify({rpc:'record_pos_sale',p_moysklad_sale_id:d.moysklad?.id,p_moysklad_sale_name:d.moysklad?.name||null,p_moysklad_shift_id:current.shift?.id||null,p_operator_id:current.operator_id||null,p_customer_id:current.customer_id||null,p_cash_account_id:current.cash_account_id||null,p_payment_method:current.payment_method,p_total:Number(d.sum??current.total),p_items:current.items})});
             await DB.put('receipts',{...current,id:current.id,stage:'done',synced_at:nowIso(),backend_result:d});await DB.del('queue',current.id);await DB.trimReceipts(100);
           }
         }catch(e){current.tries=Number(current.tries||0)+1;current.last_error=friendly(e);await DB.put('queue',current);if(/AUTH_REQUIRED|INVALID_SESSION|401/i.test(String(e?.message||'')))break}
@@ -727,6 +856,8 @@
 
   function bind(){
     $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin').onclick=googleLogin;$('logout').onclick=logout;
+    $('staffLoginSubmit').onclick=staffPinLogin;$('staffPin').addEventListener('keydown',e=>{if(e.key==='Enter')staffPinLogin()});$('staffBootstrapSave').onclick=bootstrapAdminPin;
+    document.querySelectorAll('[data-pin-digit]').forEach(b=>b.onclick=()=>{$('staffPin').value=($('staffPin').value+b.dataset.pinDigit).slice(0,8);$('staffPin').focus()});$('staffPinClear').onclick=()=>{$('staffPin').value='';$('staffPin').focus()};$('staffPinBack').onclick=()=>{$('staffPin').value=$('staffPin').value.slice(0,-1);$('staffPin').focus()};
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
     $('clearCart').onclick=()=>{if(state.cart.length&&confirm('Очистить текущий чек?')){state.cart=[];state.discount={type:'PERCENT',value:0};renderCart()}};
     $('holdReceipt').onclick=holdReceipt;$('openHeld').onclick=openHeld;$('closeHeld').onclick=closeHeld;
@@ -761,7 +892,11 @@
     bind();await DB.open();
     const s=await supabase.auth.getSession();state.session=s.data.session;
     if(!state.session){showAuth();return}
-    try{await checkAccess();showApp();await startApp()}catch(e){showAuth(friendly(e,'Не удалось проверить доступ.'))}
+    try{await checkAccess();if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');
+      const cachedToken=sessionStorage.getItem('a4_kassa_staff_token'),cachedProfile=sessionStorage.getItem('a4_kassa_staff_profile'),expires=sessionStorage.getItem('a4_kassa_staff_expires');
+      if(cachedToken&&cachedProfile&&expires&&new Date(expires).getTime()>Date.now()){try{const staff=JSON.parse(cachedProfile);state.staffToken=cachedToken;state.profile=staff;state.organizationId=staff.organization_id;state.isAdmin=!!staff.isAdmin;state.isOperator=!!staff.isOperator;window.A4KassaCurrentStaff={...staff,isAdmin:state.isAdmin};
+        try{localStorage.setItem('a4_kassa_selected_operator',staff.id)}catch{}$('uiCashierName').textContent=staff.full_name;$('uiCashierRole').textContent=state.isAdmin?'Администратор':'Кассир';showApp();await startApp();return}catch{switchStaff()}}
+      await showStaffLogin()}catch(e){showAuth(friendly(e,'Не удалось проверить доступ.'))}
   }
   boot().catch(e=>showAuth(friendly(e,'Ошибка запуска кассы.')));
 })();

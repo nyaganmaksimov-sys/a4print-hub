@@ -92,9 +92,12 @@
   async function load(force=false){
     const body=$('utilityBody');if(!body)return;
     if(!rows.length||force)body.innerHTML='<div class="a4-history-empty">Загрузка истории из A4PRINT HUB…</div>';
-    const result=await supabase.rpc('get_pos_receipt_history',{p_limit:150,p_search:null});
-    if(result.error){body.innerHTML=`<div class="a4-history-empty"><div><b>Не удалось загрузить историю</b><br><span>${esc(result.error.message||'Ошибка')}</span></div></div>`;return}
-    rows=Array.isArray(result.data)?result.data:[];
+    const session=(await supabase.auth.getSession()).data?.session;
+    if(!session)throw new Error('Сессия завершена. Войдите снова.');
+    const response=await fetch(`${API}/api/v1/pos/history?limit=150`,{cache:'no-store',headers:{Authorization:`Bearer ${session.access_token}`,Accept:'application/json'}});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.message||result.error||`HTTP ${response.status}`);
+    rows=Array.isArray(result.rows)?result.rows:[];
     if(selected)selected=rows.find(x=>String(x.id)===String(selected.id))||null;
     render();
   }

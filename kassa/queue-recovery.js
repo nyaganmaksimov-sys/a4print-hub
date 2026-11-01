@@ -97,17 +97,21 @@
     return data;
   }
 
-  async function isHubSynced(moyskladId){
+  async function isHubSynced(moyskladId,accessToken){
     if(!moyskladId)return false;
-    const {data,error}=await supabase.rpc('get_pos_sale_sync_state',{p_moysklad_sale_id:moyskladId});
-    if(error)return false;
+    const response=await fetch(`${API}/api/v1/pos/sale/sync-state?moysklad_sale_id=${encodeURIComponent(moyskladId)}`,{
+      cache:'no-store',headers:{Authorization:`Bearer ${accessToken}`,Accept:'application/json'}
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.message||data.error||`HTTP ${response.status}`);
     return Boolean(data?.synced);
   }
 
-  async function writeHubSale(sale){
+  async function writeHubSale(sale,accessToken){
     const d=sale.backend_result||{};
     if(!d?.moysklad?.id)return false;
-    const args={
+    const body={
+      rpc:sale.order_id?'record_pos_sale_v2':'record_pos_sale',
       p_moysklad_sale_id:d.moysklad.id,
       p_moysklad_sale_name:d.moysklad.name||null,
       p_moysklad_shift_id:sale.shift?.id||null,
@@ -118,14 +122,15 @@
       p_total:Number(d.sum??sale.total),
       p_items:sale.items||[]
     };
-    const rpc=sale.order_id?'record_pos_sale_v2':'record_pos_sale';
-    if(sale.order_id)args.p_order_id=sale.order_id;
-    const r=await supabase.rpc(rpc,args);
-    if(r.error){
-      if(!sale.order_id&&/duplicate|unique/i.test(String(r.error.message||'')))return true;
-      throw r.error;
-    }
-    sale.hub_result=r.data||null;
+    if(sale.order_id)body.p_order_id=sale.order_id;
+    const response=await fetch(`${API}/api/v1/pos/sale/record`,{
+      method:'POST',cache:'no-store',
+      headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.message||data.error||`HTTP ${response.status}`);
+    sale.hub_result=data.id||null;
     return true;
   }
 
@@ -166,12 +171,12 @@
           // A HUB order payment must always pass through record_pos_sale_v2.
           // A plain pos_sales row can already exist (for example after receipt
           // recovery) while its orders/payments linkage is still missing.
-          if(!sale.order_id&&await isHubSynced(moyskladId)){
+          if(!sale.order_id&&await isHubSynced(moyskladId,currentSession.access_token)){
             await finalizeSale(sale);
             continue;
           }
 
-          if(await writeHubSale(sale)){
+          if(await writeHubSale(sale,currentSession.access_token)){
             await finalizeSale(sale);
             continue;
           }

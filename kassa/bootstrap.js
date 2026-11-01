@@ -7,7 +7,7 @@
     return;
   }
 
-  const VERSION='20260918-cash-operation-idempotency1';
+  const VERSION='20261101-staff-pin1';
   const $=id=>document.getElementById(id);
   const MOBILE=matchMedia('(max-width:980px)').matches;
   const ASSET_TIMEOUT=7000;
