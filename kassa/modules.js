@@ -56,19 +56,16 @@
     state.referencePromise=(async()=>{
       const staff=window.A4KassaCurrentStaff;
       if(!staff?.id)throw new Error('Сначала выберите сотрудника по PIN-коду.');
-      const org=await supabase.from('organizations').select('id').eq('code','A4PRINT').eq('is_active',true).limit(1).maybeSingle();
-      if(org.error)throw org.error;
-      if(!org.data?.id)throw new Error('Компания кассы недоступна.');
+      if(!staff.organization_id)throw new Error('Компания кассы недоступна.');
       state.isAdmin=!!staff.isAdmin;
       state.profile=staff;
-      state.organizationId=org.data.id;
+      state.organizationId=staff.organization_id;
       const [accountsResponse,operators]=await Promise.all([
         api('/api/v1/pos/accounts'),
-        supabase.rpc('get_pos_operators')
+        api('/api/v1/pos/operators')
       ]);
-      if(operators.error)throw operators.error;
       state.accounts=Array.isArray(accountsResponse?.accounts)?accountsResponse.accounts:[];
-      state.operators=operators.data||[];
+      state.operators=operators.operators||[];
       fillReportOperators();state.referenceReady=true;
     })().finally(()=>{state.referencePromise=null});
     return state.referencePromise;
@@ -192,9 +189,10 @@
       const {start,end}=await rangeFor(key);
       const range=`${start.toLocaleDateString('ru-RU')} — ${end.toLocaleDateString('ru-RU')}`;
       $('reportRange').textContent=range;
-      const r=await supabase.rpc('pos_dashboard',{p_from:start.toISOString(),p_to:end.toISOString(),p_operator_id:operator});
-      if(r.error)throw r.error;
-      const data=r.data||{};state.reportCache.set(cacheKey,{data,range,loadedAt:Date.now()});renderReport(data);
+      const params=new URLSearchParams({from:start.toISOString(),to:end.toISOString()});
+      if(operator)params.set('operator_id',operator);
+      const r=await api('/api/v1/pos/reports/dashboard?'+params.toString());
+      const data=r.dashboard||{};state.reportCache.set(cacheKey,{data,range,loadedAt:Date.now()});renderReport(data);
     })().finally(()=>state.reportPromise.delete(cacheKey));
     state.reportPromise.set(cacheKey,promise);return promise;
   }
