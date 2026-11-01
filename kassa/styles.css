@@ -281,3 +281,28 @@ body.nav-collapsed .nav-brand>span{display:none!important}
 @media (min-width:981px) and (max-height:760px){
   .nav-brand-full{width:138px!important;max-width:138px!important;height:40px!important}
 }
+
+/* Employee PIN entry */
+.staff-auth-view{overflow:auto;align-items:center}
+.staff-auth-card{width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto}
+.staff-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:16px 0}
+.staff-choice{display:flex;align-items:center;gap:10px;text-align:left;border:1px solid #d8e1e9;background:#fff;border-radius:10px;padding:11px;cursor:pointer;min-width:0}
+.staff-choice.selected{border-color:var(--teal);background:#eafafb;box-shadow:0 0 0 2px rgba(8,174,187,.12)}
+.staff-choice:disabled{opacity:.55;cursor:not-allowed}
+.staff-choice-avatar{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:50%;background:#e4f7f8;color:#087f89;font-weight:900;font-size:17px}
+.staff-choice span:last-child{display:grid;gap:3px;min-width:0}
+.staff-choice b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.staff-choice small{color:#718096;font-size:11px}
+.staff-login-loading{grid-column:1/-1;color:#718096;text-align:center;padding:14px}
+.staff-pin-label{display:grid;gap:7px;font-size:13px;font-weight:800}
+.staff-pin-label input{text-align:center;font-size:22px;letter-spacing:9px;font-weight:900}
+.staff-pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0 14px}
+.staff-pin-pad button{min-height:42px;border:1px solid #d9e1e8;border-radius:9px;background:#f8fafc;font-weight:800;cursor:pointer}
+.staff-pin-pad button:active{background:#dff7f9}
+.staff-pin-pad button[id]{font-size:12px;color:#536477}
+.staff-bootstrap{border-top:1px solid #e3eaf0;margin-top:18px;padding-top:16px}
+.staff-bootstrap h3{margin:0 0 6px;font-size:16px}
+.staff-bootstrap p{margin:0 0 10px;color:#667085;font-size:12px;line-height:1.45}
+.staff-bootstrap label{display:grid;gap:6px;margin:9px 0;font-size:12px;font-weight:700}
+.staff-bootstrap input{width:100%;padding:11px;border:1px solid #ccd5e1;border-radius:9px;box-sizing:border-box}
+@media(max-width:560px){.staff-auth-view{padding:12px}.staff-auth-card{padding:18px}.staff-cards{grid-template-columns:1fr}.staff-choice{padding:9px}}
