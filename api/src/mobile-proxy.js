@@ -31,6 +31,7 @@ const corsOptions = {
   origin(origin, callback) {
     if (!origin || trustedOrigins.has('*') || trustedOrigins.has(origin)) return callback(null, true);
     if (/^https:\/\/[a-z0-9-]+\.a4print-hub\.ru$/i.test(origin)) return callback(null, true);
+    if (/^http:\/\/(?:127\.0\.0\.1|localhost):4784[1-3]$/.test(origin)) return callback(null, true);
     return callback(new Error(`CORS_ORIGIN_DENIED: ${origin}`));
   },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
