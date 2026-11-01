@@ -72,13 +72,24 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
   // Never race multiple copies of the same POST. Auth refresh can rotate tokens;
   // RPC writes may have effects even when the HTTP response is lost.
   if(!riskyWrite){
-    const jobs=proxyBases.map(base=>proxy(base).then(r=>{if(!r.ok&&r.status>=500)throw new Error(`HTTP ${r.status}`);return r}));
-    try{
-      if(typeof Promise.any==='function')return await Promise.any(jobs);
-      return await new Promise((resolve,reject)=>{let left=jobs.length,last;jobs.forEach(p=>p.then(resolve,e=>{last=e;if(--left===0)reject(last)}))});
-    }catch(proxyError){
-      try{return await direct()}
-      catch(directError){console.warn('A4PRINT KASSA bounded proxy/direct failed',proxyError,directError);throw proxyError}
+    // Sequential fallback avoids Promise.any AggregateError, redundant bursts,
+    // and opaque login failures when the ISP blocks every route.
+    let lastError=null;
+    let serverResponse=null;
+    for(const base of proxyBases){
+      try{
+        const response=await proxy(base);
+        if(response.ok)return response;
+        if(response.status<500)return response;
+        serverResponse=response;
+        lastError=new Error('API '+base+': HTTP '+response.status);
+      }catch(error){lastError=error}
+    }
+    try{return await direct()}
+    catch(error){
+      console.warn('KASSA all Supabase GET routes failed',lastError,error);
+      if(serverResponse)return serverResponse;
+      throw new Error('AUTH_NETWORK_UNAVAILABLE: сервер авторизации недоступен без VPN');
     }
   }
 
