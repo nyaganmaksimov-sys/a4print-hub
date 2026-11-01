@@ -18,7 +18,8 @@ express.application.get=function patchedGet(path,...handlers){
       paymentBreakdown:true,
       saleIdempotency:true,
       cashOperations:true,
-      receiptQueueRecovery:true
+      receiptQueueRecovery:true,
+      staffPinAuth:true
     }));
   }
   return originalGet.call(this,path,...handlers);
