@@ -208,6 +208,7 @@
         $('staffPin').focus();
       });
       $('staffBootstrap').hidden=!data.bootstrap_required;
+      $('staffBootstrapEmployee').innerHTML=(data.bootstrap_candidates||[]).map(row=>`<option value="${esc(row.id)}">${esc(row.full_name)}</option>`).join('');
       $('staffBootstrapError').textContent='';
       if(data.bootstrap_required){
         $('staffBootstrapTitle').textContent='Первичная настройка PIN администратора';
@@ -227,7 +228,7 @@
     if(pin!==confirmPin){ $('staffBootstrapError').textContent='PIN-коды не совпадают.';return; }
     $('staffBootstrapSave').disabled=true;
     try{
-      await api('/api/v1/pos/staff/bootstrap-pin',{method:'POST',body:JSON.stringify({pin})});
+      await api('/api/v1/pos/staff/bootstrap-pin',{method:'POST',body:JSON.stringify({staff_id:$('staffBootstrapEmployee').value,pin})});
       $('staffBootstrapPin').value='';$('staffBootstrapPinConfirm').value='';
       toast('PIN администратора настроен');
       await showStaffLogin();
