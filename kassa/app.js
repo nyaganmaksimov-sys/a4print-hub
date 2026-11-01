@@ -53,6 +53,7 @@
   function loadFavorites(){try{state.favorites=new Set(JSON.parse(localStorage.getItem(favoritesKey())||'[]'))}catch{state.favorites=new Set()}}
   function saveFavorites(){try{localStorage.setItem(favoritesKey(),JSON.stringify([...state.favorites]))}catch{}}
 
+  let lastApiSuccessAt=0;
   async function api(path,opt={},retry=true){
     if(!state.session?.access_token)throw new Error('AUTH_REQUIRED');
     const controller=new AbortController();
@@ -63,7 +64,7 @@
       const text=await r.text();let d={};try{d=text?JSON.parse(text):{}}catch{}
       if(r.status===401&&retry){const refreshed=await supabase.auth.refreshSession();if(refreshed.data?.session){state.session=refreshed.data.session;return api(path,opt,false)}}
       if(!r.ok)throw new Error(d.message||d.error||`HTTP ${r.status}`);
-      state.backendOnline=true;renderNetwork();return d;
+      lastApiSuccessAt=Date.now();state.backendOnline=true;renderNetwork();return d;
     }catch(e){if(/AbortError|fetch|network|socket/i.test(String(e?.name||'')+' '+String(e?.message||'')))state.backendOnline=false;throw e}finally{clearTimeout(t)}
   }
 
@@ -689,8 +690,9 @@
 
   async function health(){
     const wasOnline=state.backendOnline;
+    const probeStarted=Date.now();
     const controller=new AbortController();const t=setTimeout(()=>controller.abort(),10000);
-    try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok}catch(error){state.backendOnline=false;console.warn('KASSA health probe failed:',error)}finally{clearTimeout(t)}
+    try{const r=await fetch(`${API}/api/v1/health?kassa=${Date.now()}`,{cache:'no-store',signal:controller.signal});state.backendOnline=r.ok;if(r.ok)lastApiSuccessAt=Date.now()}catch(error){if(lastApiSuccessAt<=probeStarted&&Date.now()-lastApiSuccessAt>30000)state.backendOnline=false;console.warn('KASSA health probe failed:',error)}finally{clearTimeout(t)}
     renderNetwork();
     if(state.backendOnline){
       // A heartbeat must not rescan IndexedDB every 15 seconds. Recovery is
