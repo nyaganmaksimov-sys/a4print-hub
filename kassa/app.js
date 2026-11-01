@@ -262,6 +262,7 @@
   }
 
   function switchStaff(){
+    if(state.cart?.length&&!confirm('В чеке есть незавершённые позиции. Они останутся на экране и будут оформлены от имени следующего сотрудника. Сменить сотрудника?'))return;
     sessionStorage.removeItem('a4_kassa_staff_token');
     sessionStorage.removeItem('a4_kassa_staff_profile');
     sessionStorage.removeItem('a4_kassa_staff_expires');
