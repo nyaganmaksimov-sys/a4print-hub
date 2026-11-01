@@ -212,7 +212,7 @@ async function listPosStaff(organizationId) {
   if (rolesError) throw rolesError;
   const roleIds = (roleRows || []).map(row => row.id);
   if (!roleIds.length) return [];
-  const { data: assignments, error: assignmentsError } = await supabase.from('user_roles').select('user_id').in('role_id', roleIds);
+  const { data: assignments, error: assignmentsError } = await supabase.from('user_roles').select('user_id,role_id').in('role_id', roleIds);
   if (assignmentsError) throw assignmentsError;
   const userIds = [...new Set((assignments || []).map(row => row.user_id))];
   if (!userIds.length) return [];
@@ -223,7 +223,15 @@ async function listPosStaff(organizationId) {
   const { data: credentials, error: credentialsError } = await supabase.from('pos_staff_credentials').select('user_id');
   if (credentialsError) throw credentialsError;
   const enabled = new Set((credentials || []).map(row => row.user_id));
-  return (staff || []).map(row => ({ ...row, pin_enabled: enabled.has(row.id) }));
+  const roleNameById = new Map((roleRows || []).map(row => [row.id, row.name]));
+  const rolesByUser = new Map();
+  for (const assignment of assignments || []) {
+    const roles = rolesByUser.get(assignment.user_id) || [];
+    const roleName = roleNameById.get(assignment.role_id);
+    if (roleName && !roles.includes(roleName)) roles.push(roleName);
+    rolesByUser.set(assignment.user_id, roles);
+  }
+  return (staff || []).map(row => ({ ...row, roles: rolesByUser.get(row.id) || [], pin_enabled: enabled.has(row.id) }));
 }
 async function requirePosAdmin(req, res, next) {
   if (!req.isAdmin) return res.status(403).json({ success: false, error: 'ADMIN_REQUIRED' });
