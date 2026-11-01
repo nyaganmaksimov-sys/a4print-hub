@@ -107,6 +107,31 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     }
     throw lastError||new Error('AUTH_UNREACHABLE');
   }
+
+  // These RPCs are read-only and are called immediately after login to verify
+  // cashier permissions and load the catalog. They can safely fail over to the
+  // alternate API host; money-changing RPCs are deliberately excluded.
+  const rpcName=pathname.match(/^\\/rest\\/v1\\/rpc\\/([^/]+)$/)?.[1]||'';
+  const readOnlyRpcs=new Set(['has_role','get_pos_catalog','get_pos_operators']);
+  if(method==='POST'&&readOnlyRpcs.has(rpcName)){
+    let lastError=null;
+    let serverResponse=null;
+    for(const base of proxyBases){
+      try{
+        const response=await proxy(base);
+        if(response.ok||response.status<500)return response;
+        serverResponse=response;
+        lastError=new Error('API '+base+': HTTP '+response.status);
+      }catch(error){lastError=error}
+    }
+    try{return await direct()}
+    catch(error){
+      console.warn('KASSA read-only Supabase RPC routes failed',rpcName,lastError,error);
+      if(serverResponse)return serverResponse;
+      throw new Error('SUPABASE_READ_UNAVAILABLE: не удалось проверить доступ кассира через доступные серверы');
+    }
+  }
+
   return proxy(proxyBases[0]);
 };
 
