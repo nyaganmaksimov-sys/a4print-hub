@@ -77,6 +77,20 @@ window.A4SupabaseFetch=async function a4KassaSupabaseFetch(input,init){
     }
   }
 
+  // The original API may be inaccessible on an ISP without VPN. For login
+  // password grants (not token refresh), try the alternate host sequentially.
+  // Never race or repeat refresh tokens and financial RPC writes.
+  if(method==='POST'&&pathname==='/auth/v1/token'&&target.searchParams.get('grant_type')==='password'){
+    let lastError=null;
+    for(const base of proxyBases){
+      try{
+        const response=await proxy(base);
+        if(response.ok||response.status<500)return response;
+        lastError=new Error('HTTP '+response.status);
+      }catch(error){lastError=error}
+    }
+    throw lastError||new Error('AUTH_UNREACHABLE');
+  }
   return proxy(proxyBases[0]);
 };
 
