@@ -359,9 +359,14 @@ app.post('/api/v1/pos/staff', requirePosUser, requirePosAdmin, async(req,res,nex
     const pin=String(req.body?.pin||'');
     const position=cleanText(req.body?.position,100);
     if(!fullName||!validStaffPin(pin))return res.status(400).json({success:false,error:'INVALID_STAFF_DATA',message:'Укажите ФИО и PIN от 4 до 8 цифр.'});
-    const {data:unit,error:unitError}=await supabase.from('organization_units').select('id').eq('id',req.authProfile.organization_unit_id).eq('organization_id',req.posOrganizationId).eq('is_active',true).maybeSingle();
+    let {data:unit,error:unitError}=await supabase.from('organization_units').select('id').eq('organization_id',req.posOrganizationId).eq('name','Менеджеры и продажи').eq('is_active',true).maybeSingle();
     if(unitError)throw unitError;
-    if(!unit)return res.status(400).json({success:false,error:'STAFF_UNIT_REQUIRED',message:'Подразделение администратора недоступно.'});
+    if(!unit&&req.authProfile.organization_unit_id){
+      const fallback=await supabase.from('organization_units').select('id').eq('id',req.authProfile.organization_unit_id).eq('organization_id',req.posOrganizationId).eq('is_active',true).maybeSingle();
+      if(fallback.error)throw fallback.error;
+      unit=fallback.data;
+    }
+    if(!unit)return res.status(400).json({success:false,error:'STAFF_UNIT_REQUIRED',message:'Не найдено активное подразделение для кассиров.'});
     const {data:profile,error:profileError}=await supabase.from('users').insert({full_name:fullName,position:position||null,is_active:true,organization_unit_id:unit.id}).select('id,full_name,position,is_active,organization_unit_id').single();
     if(profileError)throw profileError;
     const {data:role,error:roleError}=await supabase.from('roles').select('id').eq('name','POS_OPERATOR').single();
