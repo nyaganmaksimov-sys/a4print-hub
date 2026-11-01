@@ -70,31 +70,52 @@
 
   async function backendPasswordLogin(email,password){
     let serverError=null;
+    let serverSession=null;
     if(API){
       try{
-        const r=await fetch(`${API}/api/v1/mobile/auth/password`,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({email,password}),cache:'no-store'});
+        const r=await fetch(`${API}/api/v1/mobile/auth/password`,{
+          method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body:JSON.stringify({email,password}),cache:'no-store'
+        });
         const d=await r.json().catch(()=>({}));
         if(r.ok&&d?.success&&d?.session?.access_token&&d?.session?.refresh_token){
-          const s=await supabase.auth.setSession({access_token:d.session.access_token,refresh_token:d.session.refresh_token});
-          if(s.error)throw s.error;return s.data.session;
+          serverSession=d.session;
+        }else{
+          const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
+          if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
+          serverError=err;
         }
-        const err=new Error(d.message||d.error||`HTTP ${r.status}`);err.status=r.status;
-        if(r.status>=400&&r.status<500&&r.status!==408&&r.status!==429)throw err;
-        serverError=err;
-      }catch(e){if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;serverError=e}
+      }catch(e){
+        if(e?.status>=400&&e?.status<500&&e?.status!==408&&e?.status!==429)throw e;
+        serverError=e;
+      }
+    }
+    if(serverSession){
+      // A valid response from our login endpoint is not a network failure.
+      // Do not discard it and repeat the password grant if setSession fails.
+      try{
+        const s=await supabase.auth.setSession({
+          access_token:serverSession.access_token,
+          refresh_token:serverSession.refresh_token
+        });
+        if(s.error)throw s.error;
+        if(!s.data?.session)throw new Error('Сессия не сохранена.');
+        return s.data.session;
+      }catch(error){
+        console.warn('KASSA session activation failed',String(error?.message||error));
+        throw new Error('Пароль принят сервером, но касса не смогла активировать сессию: '+String(error?.message||error));
+      }
     }
     try{
       const direct=await supabase.auth.signInWithPassword({email,password});
       if(direct.error)throw direct.error;
       return direct.data.session;
     }catch(error){
-      // Do not collapse a failed primary API + blocked Supabase route into an
-      // opaque "no connection" without telling operators where to check.
       const first=String(serverError?.message||'').slice(0,180);
       const second=String(error?.message||error).slice(0,180);
-      console.warn('KASSA login routes unavailable', {primary:first,secondary:second});
+      console.warn('KASSA login routes unavailable',{primary:first,secondary:second});
       if(/fetch|network|timeout|abort|failed|socket/i.test(first+' '+second))
-        throw new Error('Сервер авторизации недоступен с этого компьютера. Проверьте доступ к api.a4print-hub.ru и повторите вход без VPN.');
+        throw new Error('Не удалось подключиться к серверу входа: '+(first||second)+'.');
       throw error;
     }
   }
