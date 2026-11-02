@@ -1,0 +1,57 @@
+name: A4PRINT HUB repository audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'audit/**'
+    paths:
+      - 'scripts/repository_audit.py'
+      - 'admin/**'
+      - 'kassa/**'
+      - 'api/**'
+      - '.github/workflows/repository-audit.yml'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan all tracked code and local references
+        run: |
+          python scripts/repository_audit.py > repository-audit.txt
+          python scripts/repository_audit.py --json > repository-audit.json
+          cat repository-audit.txt
+      - name: Check removed modules do not remain in runtime loader
+        run: |
+          ! grep -q "load('employees-delete.js'" admin/config.js
+          test ! -e admin/workspace-popup.js
+          test ! -e admin/workspace-popup-coverage.js
+      - name: Check core JavaScript
+        run: |
+          node --check admin/config.js
+          node --check kassa/bootstrap.js
+          node --check desktop-kassa/main.js
+          node --check api/src/boot.js
+      - name: Install and run API regression tests
+        run: |
+          cd api
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: a4print-repository-audit
+          path: |
+            repository-audit.txt
+            repository-audit.json
+          if-no-files-found: warn
