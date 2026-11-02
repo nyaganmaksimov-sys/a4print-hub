@@ -1,6 +1,4 @@
 import {supabase} from './guard.js?v=20260905-netfix1';
-window.__A4_VOICE_ENGINE_NO_BOOTSTRAP__=true;
-await import('./voice-engine.js?v=20261030-artprint1');
 // Spoken print-time alerts on the 3D-ARTPRINT home dashboard.
 // Browser speech voice is system-provided, not an imitation of an actor.
 const STORE='a4:3dartprint:voice-alert-enabled';
@@ -14,27 +12,43 @@ function sync(){
  button.title=enabled?'Отключить голосовые сообщения':'Включить голосовые сообщения о печати';
  status.textContent=enabled?'Голосовые оповещения активны, если браузер разрешает воспроизведение':'Голосовые оповещения отключены';
 }
+let activeUtterance=null;
 async function speak(message){
- const engine=window.A4VoiceEngine;
- if(!engine){status.textContent='Голосовой движок недоступен';return false}
+ // The global HUB Jarvis is intentionally disabled; production voice is separate.
+ // Browser TTS works without the Jarvis backend or server credentials.
+ if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)){
+  status.textContent='Браузер не поддерживает озвучивание. Попробуйте Chrome или Edge.';
+  return false;
+ }
  try{
-  const {data:{session}}=await supabase.auth.getSession();
-  return await engine.speak(message,{
-   profile:'male',priority:'high',interrupt:true,
-   apiBaseUrl:window.A4PRINT_CONFIG?.apiBaseUrl||'',
-   tokenProvider:async()=>session?.access_token||''
-  });
- }catch(error){console.warn('3D-ARTPRINT speech:',error);status.textContent='Не удалось воспроизвести уведомление';return false}
+  speechSynthesis.cancel();
+  const voice=new SpeechSynthesisUtterance(message);
+  activeUtterance=voice;
+  voice.lang='ru-RU';voice.rate=.89;voice.pitch=.8;voice.volume=1;
+  const available=speechSynthesis.getVoices();
+  const ru=available.filter(v=>String(v.lang).toLowerCase().startsWith('ru'));
+  voice.voice=ru.find(v=>/pavel|dmit|male|максим|дмитр|павел/i.test(v.name))||ru[0]||null;
+  voice.onstart=()=>{status.textContent='🔊 Джарвис произносит сообщение…'};
+  voice.onend=()=>{activeUtterance=null;status.textContent='✓ Голосовое сообщение воспроизведено'};
+  voice.onerror=e=>{activeUtterance=null;status.textContent='Ошибка озвучивания ('+e.error+'). Проверьте звук и установленные голоса.'};
+  speechSynthesis.speak(voice);
+  return true;
+ }catch(error){status.textContent='Не удалось запустить голос: '+error.message;return false}
 }
 
 button.addEventListener('click',()=>{
  enabled=!enabled;
  try{localStorage.setItem(STORE,enabled?'1':'0')}catch{}
- if(!enabled)window.A4VoiceEngine?.stop?.();
+ if(!enabled)window.speechSynthesis?.cancel?.();
  sync();
- if(enabled){void window.A4VoiceEngine?.unlock?.();void speak('Джарвис на связи. Голосовые уведомления о завершении печати включены.');}
+ if(enabled)void speak('Джарвис на связи. Голосовые уведомления о завершении печати включены.');
 });
 sync();
+const testButton=document.getElementById('printVoiceTest');
+testButton?.addEventListener('click',()=>{
+ if(!enabled){status.textContent='Сначала включите звук';return}
+ void speak('Внимание. Печать на принтере Флэшфордж завершена. Требуется проверить принтер и снять готовую модель.');
+});
 document.addEventListener('a4:3d-production-jobs-loaded',event=>{
  jobs=event.detail?.jobs||[];runs=event.detail?.runs||[];void check();
 });
