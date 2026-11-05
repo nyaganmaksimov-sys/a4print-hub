@@ -2,7 +2,7 @@
 
 ## Что меняется
 
-На странице входа вместо email показывается **Логин**. Пароль остаётся прежним.
+На страницах входа HUB, кассы (в том числе старой POS-страницы) и мобильного HUB вместо email показывается **Логин**. Пароль остаётся прежним.
 Форма стала простой; вход через Google убран с основного экрана. Уже выданные
 сессии, PIN-коды кассы и персональные права доступа не меняются.
 
@@ -56,7 +56,7 @@ on conflict (auth_user_id) do update set username = excluded.username;
    `select count(*) from public.users u left join public.staff_login_aliases a on a.auth_user_id=u.auth_user_id where u.auth_user_id is not null and u.is_active and a.auth_user_id is null;`
 3. Проверить права на таблицу: `anon` и `authenticated` не могут её читать.
 4. Проверить корректный / неверный логин, неверный пароль и отказ при отключённом пользователе.
-5. Проверить HUB на ПК и телефоне, 3D-ARTPRINT и вход в кассу;
+5. Проверить HUB на ПК и телефоне, вход в кассу и отдельно 3D-ARTPRINT (PR #390);
    **PIN-вход сотрудников кассы должен остаться прежним**.
 6. Проверить работу старого клиента, который отправляет `email`, до обновления EXE.
 7. Проверить CORS и работу без VPN; при `HTTP 402` тест остановить,
@@ -80,3 +80,9 @@ on conflict (auth_user_id) do update set username = excluded.username;
 - [Таблица логинов](https://github.com/nyaganmaksimov-sys/a4print-hub/blob/feature/username-password-login-20261105/supabase/migrations/20261105102000_staff_login_aliases.sql)
 - [Вход HUB](https://github.com/nyaganmaksimov-sys/a4print-hub/blob/feature/username-password-login-20261105/admin/login.html)
 - [Вход кассы](https://github.com/nyaganmaksimov-sys/a4print-hub/blob/feature/username-password-login-20261105/kassa/index.html)
+
+## Раздельное ревью 3D-ARTPRINT
+
+Изменение производственного кабинета вынесено в отдельный [PR #390](https://github.com/nyaganmaksimov-sys/a4print-hub/pull/390), чтобы пройти защиту границ модуля. Его надо развёртывать **после** общего API и миграции из [PR #389](https://github.com/nyaganmaksimov-sys/a4print-hub/pull/389).
+
+ЦУИМ не изменён: у покупателей маркетплейса отдельный процесс регистрации и входа.
