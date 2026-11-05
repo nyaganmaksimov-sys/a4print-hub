@@ -4,6 +4,7 @@ import cors from 'cors';
 import { spawn } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
 import { registerTelegramRoutes } from './telegram.js';
+import { resolveLoginEmail, LoginLookupError } from './staff-login.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -150,7 +151,7 @@ function sessionView(session) {
 
 function authMessage(error) {
   const msg = String(error?.message || 'Не удалось войти.');
-  if (/invalid login credentials/i.test(msg)) return 'Неверный email или пароль.';
+  if (/invalid login credentials/i.test(msg)) return 'Неверный логин или пароль.';
   if (/email not confirmed/i.test(msg)) return 'Email ещё не подтверждён.';
   return msg;
 }
@@ -194,16 +195,39 @@ app.post('/api/v1/mobile/auth/password', async (req, res, next) => {
   try {
     const client = publicClient();
     if (!client) return res.status(503).json({ success: false, error: 'AUTH_NOT_CONFIGURED', message: 'Авторизация временно недоступна.' });
-    const email = String(req.body?.email || '').trim().toLowerCase();
+    const login = String(req.body?.login ?? req.body?.email ?? '').trim();
     const password = String(req.body?.password || '');
-    if (!email || !password) return res.status(400).json({ success: false, error: 'EMAIL_PASSWORD_REQUIRED', message: 'Введите email и пароль.' });
+    if (!login || !password || login.length > 254 || password.length > 1024) {
+      return res.status(400).json({ success: false, error: 'LOGIN_PASSWORD_REQUIRED', message: 'Введите логин и пароль.' });
+    }
+
+    let email;
+    try {
+      email = await resolveLoginEmail(login, service);
+    } catch (lookupError) {
+      if (lookupError instanceof LoginLookupError) {
+        return res.status(503).json({
+          success: false, error: 'USERNAME_LOOKUP_UNAVAILABLE',
+          message: 'Сервер входа временно недоступен. Повторите попытку позже.'
+        });
+      }
+      throw lookupError;
+    }
+    if (!email) {
+      return res.status(401).json({ success: false, error: 'LOGIN_FAILED', message: 'Неверный логин или пароль.' });
+    }
 
     const { data, error } = await client.auth.signInWithPassword({ email, password });
     if (error || !data?.session) {
-      return res.status(error?.status === 429 ? 429 : 401).json({
-        success: false,
-        error: 'LOGIN_FAILED',
-        message: authMessage(error)
+      const upstreamStatus = Number(error?.status || 0);
+      if (upstreamStatus === 402 || upstreamStatus >= 500) {
+        return res.status(503).json({
+          success: false, error: 'AUTH_PROVIDER_UNAVAILABLE',
+          message: 'Сервер авторизации временно ограничен. Пароль не изменён.'
+        });
+      }
+      return res.status(upstreamStatus === 429 ? 429 : 401).json({
+        success: false, error: 'LOGIN_FAILED', message: authMessage(error)
       });
     }
     res.json({ success: true, session: sessionView(data.session) });
