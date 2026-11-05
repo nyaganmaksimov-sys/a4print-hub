@@ -1,0 +1,41 @@
+name: Check Neon Cloud Staging
+on:
+  pull_request:
+    paths:
+      - 'api/cloud-staging/**'
+      - '.github/workflows/check-neon-cloud-staging.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check code and package
+        run: |
+          node --check api/cloud-staging/server.js
+          node -e "const p=require('./api/cloud-staging/package.json');if(!p.dependencies.pg)process.exit(1)"
+      - name: Check no production writes are enabled
+        run: |
+          grep -q 'productionTrafficEnabled: false' api/cloud-staging/server.js
+          grep -q 'posSalesEnabled: false' api/cloud-staging/server.js
+          grep -q 'moyskladWritesEnabled: false' api/cloud-staging/server.js
+          grep -q 'STAGING_ENDPOINT_DISABLED' api/cloud-staging/server.js
+      - name: Install and smoke test HTTP routes
+        run: |
+          set -e
+          npm install --prefix api/cloud-staging --omit=dev --no-audit --no-fund
+          PORT=34491 node api/cloud-staging/server.js > /tmp/staging.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          sleep 2
+          code=$(curl -s -o /tmp/response.json -w '%{http_code}' http://127.0.0.1:34491/api/v1/cloud/health)
+          test "$code" = 503
+          node -e "const s=require('/tmp/response.json');if(s.productionTrafficEnabled!==false||s.posSalesEnabled!==false)process.exit(1)"
+          code=$(curl -s -o /tmp/blocked.json -w '%{http_code}' -X POST http://127.0.0.1:34491/api/v1/pos/sales)
+          test "$code" = 503
+          node -e "const s=require('/tmp/blocked.json');if(s.error!=='STAGING_ENDPOINT_DISABLED')process.exit(1)"
