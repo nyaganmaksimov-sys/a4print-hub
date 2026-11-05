@@ -125,7 +125,7 @@ jobs:
           grep -q 'mobile-auth-route.js' admin/login.html
           grep -q 'finishOAuth' mobile/app.js
           grep -q 'access_token' mobile/app.js
-          grep -q 'grant_type=password' mobile/app.js
+          grep -q '/api/v1/mobile/auth/password' mobile/app.js
           grep -q "const target='/mobile/'+location.search+location.hash" mobile/auth-callback.html
           ! grep -q 'a4printhub://auth/callback' mobile/auth-callback.html
 
