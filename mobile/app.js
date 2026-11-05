@@ -22,8 +22,8 @@ function statusClass(s){return s==='READY'?'ready':s==='NEW'?'new':['CONFIRMED',
 function customerName(o){const c=o.customers||{};return c.full_name||c.company_name||'Клиент не указан'}
 function friendlyError(ex,fallback='Не удалось выполнить операцию.'){
   const msg=String(ex?.message||ex||'').trim();if(!msg)return fallback;
-  if(/invalid login credentials|invalid_credentials|неверный email/i.test(msg))return 'Неверный email или пароль.';
-  if(/email not confirmed/i.test(msg))return 'Email ещё не подтверждён.';
+  if(/invalid login credentials|invalid_credentials|неверный email/i.test(msg))return 'Неверный логин или пароль.';
+  if(/email not confirmed/i.test(msg))return 'Учётная запись ещё не подтверждена.';
   if(/provider.*not enabled|unsupported provider/i.test(msg))return 'Этот способ входа пока не подключён к A4PRINT HUB.';
   if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с A4PRINT HUB. Проверьте интернет и повторите попытку.';
   if(/timeout|timed out|время ожидания|слишком долго/i.test(msg))return 'Соединение устанавливается слишком долго. Повторите попытку.';
@@ -57,6 +57,34 @@ async function request(url,{method='GET',body,token,timeout=22000}={}){
   finally{clearTimeout(timer)}
 }
 function sb(path,opt={}){return request(SUPABASE_URL+path,opt)}
+
+// The browser never resolves an internal email. Only the trusted API can do that.
+async function loginByUsername(login,password){
+  const endpoints=['https://api.a4print-hub.ru','https://a4print-hub-api.onrender.com'];
+  let lastError=null;
+  for(const base of endpoints){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    try{
+      const response=await fetch(base+'/api/v1/mobile/auth/password',{
+        method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify({login,password}),cache:'no-store',credentials:'omit',signal:controller.signal
+      });
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok){
+        const error=new Error(body.message||body.error||'Сервер входа недоступен.');
+        error.status=response.status;
+        if(response.status<500&&response.status!==408&&response.status!==429)throw error;
+        lastError=error;continue;
+      }
+      if(!body?.success||!body?.session?.access_token)throw new Error('Сервер не вернул сессию.');
+      return body.session;
+    }catch(error){
+      if(error.status&&error.status<500&&error.status!==408&&error.status!==429)throw error;
+      lastError=error;
+    }finally{clearTimeout(timer)}
+  }
+  throw lastError||new Error('Сервер входа недоступен.');
+}
 
 async function refreshSession(){
   const refresh=refreshToken();if(!refresh)return false;
@@ -139,8 +167,8 @@ async function finishOAuth(){
 $('loginForm')?.addEventListener('submit',async e=>{
   e.preventDefault();const btn=$('loginButton');setLoginError('');btn.disabled=true;btn.textContent='Входим…';
   try{
-    const email=$('email').value.trim().toLowerCase();const password=$('password').value;
-    const data=await sb('/auth/v1/token?grant_type=password',{method:'POST',body:{email,password},timeout:20000});
+    const login=$('login').value.trim().toLowerCase();const password=$('password').value;
+    const data=await loginByUsername(login,password);
     if(!data?.access_token)throw new Error('Сервер не вернул сессию.');
     saveSession(data);btn.textContent='Открываем A4PRINT HUB…';await enterApp();
   }catch(ex){showLogin(friendlyError(ex,'Не удалось войти.'))}
