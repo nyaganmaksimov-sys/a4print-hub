@@ -39,3 +39,25 @@ jobs:
           code=$(curl -s -o /tmp/blocked.json -w '%{http_code}' -X POST http://127.0.0.1:34491/api/v1/pos/sales)
           test "$code" = 503
           node -e "const s=require('/tmp/blocked.json');if(s.error!=='STAGING_ENDPOINT_DISABLED')process.exit(1)"
+
+  live-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deployed Neon/Render API
+        run: |
+          set -euo pipefail
+          url="https://a4print-neon-cloud-api-staging.onrender.com"
+          code=$(curl --retry 3 --retry-delay 3 -sS --max-time 45 -o /tmp/staging-health.json -w '%{http_code}' "$url/api/v1/cloud/health")
+          echo "Health HTTP $code"
+          cat /tmp/staging-health.json
+          test "$code" = 200
+          node -e "const a=require('/tmp/staging-health.json');if(a.environment!=='TEST_ONLY'||!a.checks.database||!a.checks.neonAuthJwks||a.productionTrafficEnabled!==false)process.exit(1)"
+      - name: Ensure real sale endpoint is disabled
+        run: |
+          set -euo pipefail
+          url="https://a4print-neon-cloud-api-staging.onrender.com"
+          code=$(curl -sS --max-time 25 -X POST -o /tmp/staging-blocked.json -w '%{http_code}' "$url/api/v1/pos/sales")
+          echo "Blocked write HTTP $code"
+          cat /tmp/staging-blocked.json
+          test "$code" = 503
+          node -e "const a=require('/tmp/staging-blocked.json');if(a.error!=='STAGING_ENDPOINT_DISABLED')process.exit(1)"
