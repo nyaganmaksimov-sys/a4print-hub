@@ -6,23 +6,18 @@ const RETURN_KEY='a4print_auth_return_to';
 const form=document.getElementById('form');
 const submit=document.getElementById('submit');
 const error=document.getElementById('error');
-const recoveryBox=document.getElementById('recoveryBox');
-const recoveryEmail=document.getElementById('recoveryEmail');
-const recoveryError=document.getElementById('recoveryError');
-const recoverySuccess=document.getElementById('recoverySuccess');
-const sendRecovery=document.getElementById('sendRecovery');
 let authSettings=null;
 
 function showError(message){error.textContent=message||'Не удалось выполнить вход.';error.style.display='block'}
 function hideError(){error.textContent='';error.style.display='none'}
-function resetRecoveryMessages(){recoveryError.style.display='none';recoverySuccess.style.display='none';recoveryError.textContent='';recoverySuccess.textContent=''}
 function friendlyError(ex,fallback='Не удалось выполнить вход.'){
   const msg=String(ex?.message||ex||'').trim();
   if(!msg)return fallback;
-  if(/invalid login credentials|invalid_credentials|неверный email или пароль/i.test(msg))return 'Неверный email или пароль.';
-  if(/email not confirmed/i.test(msg))return 'Email ещё не подтверждён.';
+  if(/invalid login credentials|invalid_credentials|неверный (email|логин) или пароль/i.test(msg))return 'Неверный логин или пароль.';
+  if(/email not confirmed/i.test(msg))return 'Учётная запись ещё не подтверждена.';
   if(/provider.*not enabled|unsupported provider/i.test(msg))return 'Этот способ входа пока не подключён.';
   if(/oauth state not found|state.*expired/i.test(msg))return 'Сессия входа устарела. Нажмите кнопку входа ещё раз.';
+  if(ex?.status===402||ex?.status===503)return 'Сервер авторизации ограничен или недоступен. Это не ошибка пароля.';
   if(/failed to fetch|network|load failed|networkerror|abort|socket|host/i.test(msg))return 'Не удалось связаться с сервером входа. Повторите попытку через несколько секунд.';
   return msg;
 }
@@ -95,14 +90,14 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     }
   }
 
-  async function signInPassword(email,password){
+  async function signInPassword(login,password){
     let backendError=null;
     if(API_BASE){
       try{
         const response=await fetch(`${API_BASE}/api/v1/mobile/auth/password`,{
           method:'POST',
           headers:{'Content-Type':'application/json','Accept':'application/json'},
-          body:JSON.stringify({email,password}),
+          body:JSON.stringify({login,password}),
           cache:'no-store',
           credentials:'omit'
         });
@@ -127,8 +122,9 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
       }
     }
 
+    if(!login.includes('@'))throw backendError||new Error('Сервер входа по логину недоступен. Повторите попытку позже.');
     try{
-      const {data,error}=await supabase.auth.signInWithPassword({email,password});
+      const {data,error}=await supabase.auth.signInWithPassword({email:login,password});
       if(error)throw error;
       if(!data?.session)throw new Error('Сервер не вернул сессию.');
       return data.session;
@@ -138,29 +134,14 @@ function clearReturn(){try{localStorage.removeItem(RETURN_KEY)}catch{}}
     }
   }
 
-  document.getElementById('showRecovery').onclick=()=>{resetRecoveryMessages();recoveryEmail.value=document.getElementById('email').value.trim();recoveryBox.classList.add('open');recoveryEmail.focus()};
-  document.getElementById('hideRecovery').onclick=()=>recoveryBox.classList.remove('open');
-  sendRecovery.onclick=async()=>{
-    resetRecoveryMessages();const emailValue=recoveryEmail.value.trim();
-    if(!emailValue){recoveryError.textContent='Введите email.';recoveryError.style.display='block';return}
-    sendRecovery.disabled=true;
-    try{
-      const redirectTo=new URL('./reset-password.html',location.href).href;
-      const {error}=await supabase.auth.resetPasswordForEmail(emailValue,{redirectTo});
-      if(error)throw error;
-      recoverySuccess.textContent='Ссылка отправлена. Откройте письмо и перейдите по ней.';recoverySuccess.style.display='block';
-    }catch(e){recoveryError.textContent=friendlyError(e,'Не удалось отправить письмо.');recoveryError.style.display='block'}
-    finally{sendRecovery.disabled=false}
-  };
-
   for(const b of document.querySelectorAll('[data-provider]'))b.onclick=()=>startOAuth(String(b.dataset.provider||'').trim(),b);
 
   form.addEventListener('submit',async event=>{
     event.preventDefault();hideError();submit.disabled=true;submit.textContent='Входим…';
     try{
-      const emailValue=document.getElementById('email').value.trim().toLowerCase();
+      const loginValue=document.getElementById('login').value.trim().toLowerCase();
       const password=document.getElementById('password').value;
-      await signInPassword(emailValue,password);
+      await signInPassword(loginValue,password);
       submit.textContent='Проверяем доступ…';
       await routeByProfile();
     }catch(e){showError(friendlyError(e,'Не удалось выполнить вход.'))}
