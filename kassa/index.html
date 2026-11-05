@@ -20,10 +20,8 @@
     <div class="auth-card">
       <div class="brand-row brandbook-auth"><img src="./assets/a4-kassa-logo.webp" alt="A4-Касса"><span>рабочее место кассира · 2.1</span></div>
       <div class="auth-copy"><h1>Вход в кассу</h1><p>Продажи сохраняются локально и синхронизируются с A4PRINT HUB и МойСклад.</p></div>
-      <button id="googleLogin" class="btn google" type="button">Войти через Google</button>
-      <div class="or"><span>или по email</span></div>
       <form id="loginForm">
-        <label>Email<input id="loginEmail" type="email" autocomplete="username" required placeholder="name@company.ru"></label>
+        <label>Логин<input id="loginUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" placeholder="Ваш логин"></label>
         <label>Пароль<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
         <div id="loginError" class="form-error"></div>
         <button id="loginSubmit" class="btn primary wide" type="submit">Войти</button>
