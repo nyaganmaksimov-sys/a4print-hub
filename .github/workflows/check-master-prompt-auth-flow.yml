@@ -48,9 +48,10 @@ jobs:
           grep -q "import {supabase} from './guard.js" admin/login.js
           grep -q "import {supabase} from './guard.js" admin/register.js
           grep -q "import {supabase} from './guard.js" admin/reset-password.js
-          grep -q 'auth-ui.js?v=20260922-authflow1' admin/login.html
+          grep -q 'auth-ui.js?v=20261105-userlogin1' admin/login.html
+          grep -q 'id="login"' admin/login.html
           grep -q 'auth-ui.js?v=20260922-authflow1' admin/register.html
-          grep -q 'type="module" src="./login.js?v=20260922-authflow1"' admin/login.html
+          grep -q 'type="module" src="./login.js?v=20261105-userlogin1"' admin/login.html
           grep -q 'type="module" src="./register.js?v=20260922-authflow1"' admin/register.html
           grep -q 'type="module" src="./reset-password.js?v=20260922-authflow1"' admin/reset-password.html
           grep -q "A4AuthUI.isEnabled('login',provider)" admin/login.js

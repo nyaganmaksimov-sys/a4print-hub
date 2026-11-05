@@ -34,11 +34,22 @@ form.addEventListener('submit', async event => {
   try {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: document.getElementById('email').value.trim(),
-      password: document.getElementById('password').value
+    const login = document.getElementById('login').value.trim().toLowerCase();
+    const password = document.getElementById('password').value;
+    const API_BASE = String(cfg.apiBaseUrl || 'https://a4print-hub-api.onrender.com').replace(/[/]$/, '');
+    const response = await fetch(API_BASE + '/api/v1/mobile/auth/password', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: JSON.stringify({login, password}), credentials: 'omit', cache: 'no-store'
     });
-    if (signInError) throw signInError;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.success || !payload?.session?.access_token) {
+      throw new Error(payload?.message || 'Сервер входа недоступен.');
+    }
+    const {data, error: signInError} = await supabase.auth.setSession({
+      access_token: payload.session.access_token,
+      refresh_token: payload.session.refresh_token
+    });
+    if (signInError || !data?.session) throw signInError || new Error('Не удалось сохранить сессию.');
 
     const role = await checkRoleWithRetry();
     if (!role.admin && !role.operator) {

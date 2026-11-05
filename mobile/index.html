@@ -27,19 +27,13 @@
       <div class="mobile-brand"><span class="mobile-brand-mark">A4</span><span>A4PRINT HUB</span></div>
       <h1>Вход в A4PRINT HUB</h1>
       <p>Рабочее приложение для сотрудников</p>
-      <div class="social-auth" aria-label="Вход через социальные сервисы">
-        <button class="social-button" type="button" data-provider="google"><span class="social-icon">G</span>Войти через Google</button>
-        <button class="social-button" type="button" data-provider="custom:yandex"><span class="social-icon">Я</span>Войти через Яндекс</button>
-        <button class="social-button" type="button" data-provider="custom:mailru"><span class="social-icon">@</span>Войти через Mail.ru</button>
-      </div>
-      <div class="login-divider">или по email</div>
       <form id="loginForm">
-        <label>Email<input id="email" type="email" autocomplete="username" inputmode="email" required></label>
+        <label>Логин<input id="login" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" required></label>
         <label>Пароль<input id="password" type="password" autocomplete="current-password" required></label>
         <div id="loginError" class="error"></div>
         <button id="loginButton" type="submit">Войти</button>
       </form>
-      <a class="forgot" href="/admin/reset-password.html">Забыли пароль?</a>
+      <p class="forgot">Забыли логин или пароль? Обратитесь к администратору.</p>
     </div>
   </div>
 
@@ -114,7 +108,7 @@
   <script src="./supabase-proxy-bridge.js?v=20260910-resilient2"></script>
   <script src="./quick-menu.js?v=3"></script>
   <script src="./oauth-bridge.js?v=8"></script>
-  <script type="module" src="./app.js?v=10"></script>
+  <script type="module" src="./app.js?v=20261105-userlogin1"></script>
   <script type="module" src="./dashboard.js?v=3"></script>
   <script type="module" src="./updates-client.js?v=1"></script>
   <script type="module" src="./pwa.js?v=1"></script>

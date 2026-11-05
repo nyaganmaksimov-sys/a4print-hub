@@ -1,0 +1,85 @@
+name: Check username/password login
+on:
+  pull_request:
+    paths:
+      - 'admin/login.html'
+      - 'admin/login.js'
+      - 'admin/auth-ui.js'
+      - 'admin/3d-artprint-login.*'
+      - 'kassa/index.html'
+      - 'kassa/app.js'
+      - 'pos/login.*'
+      - 'mobile/index.html'
+      - 'mobile/app.js'
+      - 'api/src/mobile-proxy.js'
+      - 'api/src/staff-login.js'
+      - 'api/test/staff-login.test.mjs'
+      - 'supabase/migrations/*staff_login_aliases.sql'
+      - '.github/workflows/check-username-login.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auth:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: auth_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d auth_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JS syntax
+        run: |
+          set -euo pipefail
+          for f in \
+            admin/login.js admin/auth-ui.js admin/3d-artprint-login.js \
+            mobile/app.js kassa/app.js pos/login.js \
+            api/src/mobile-proxy.js api/src/staff-login.js; do
+            node --check "$f"
+          done
+      - name: Test server-side login resolver
+        run: node --test api/test/staff-login.test.mjs
+      - name: Test username mapping and RLS on isolated PostgreSQL
+        run: |
+          set -euo pipefail
+          container="${{ job.services.postgres.id }}"
+          docker exec -i "$container" psql -U postgres -d auth_test -v ON_ERROR_STOP=1 < api/test/sql/staff-login-fixture.sql
+          docker exec -i "$container" psql -U postgres -d auth_test -v ON_ERROR_STOP=1 < supabase/migrations/20261105102000_staff_login_aliases.sql
+          # Running twice must not create duplicate aliases.
+          docker exec -i "$container" psql -U postgres -d auth_test -v ON_ERROR_STOP=1 < supabase/migrations/20261105102000_staff_login_aliases.sql
+          docker exec -i "$container" psql -U postgres -d auth_test -v ON_ERROR_STOP=1 < api/test/sql/staff-login-assertions.sql
+      - name: Verify username input wiring
+        run: |
+          set -euo pipefail
+          grep -q 'id="login"' admin/login.html
+          grep -q 'id="loginUsername"' kassa/index.html
+          grep -q 'id="login"' pos/login.html
+          grep -q 'id="login"' mobile/index.html
+          grep -q 'name="login"' admin/3d-artprint-login.html
+          grep -q '/api/v1/mobile/auth/password' api/src/mobile-proxy.js
+          grep -q 'staff_login_aliases' api/src/staff-login.js
+          grep -q 'enable row level security' supabase/migrations/*staff_login_aliases.sql
+          grep -q 'revoke all on table public.staff_login_aliases' supabase/migrations/*staff_login_aliases.sql
+          ! grep -q 'type="email"' admin/login.html
+          ! grep -q 'id="loginEmail"' kassa/index.html
+          ! grep -q 'type="email"' pos/login.html
+          ! grep -q 'type="email"' mobile/index.html
+      - name: API regression tests
+        run: |
+          npm ci --prefix api --no-audit --no-fund
+          npm test --prefix api

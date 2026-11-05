@@ -58,7 +58,7 @@
     });
     const formId=mode==='registration'?'form':(root.querySelector('#loginForm')?'loginForm':'form');
     const emailForm=root.querySelector(`#${formId}`);
-    setHidden(emailForm,section.email===false);
+    setHidden(emailForm,section.email===false && emailForm?.dataset?.usernameOnly!=='true');
     const divider=root.querySelector('.login-divider,.divider');
     setHidden(divider,section.email===false || !['google','yandex','mailru'].some(k=>section[k]));
     if(mode==='login'){
