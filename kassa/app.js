@@ -42,7 +42,7 @@
   let saleSubmitting=false;
   let editingHeldId=null;
   function toast(text,error=false){const n=$('toast');n.textContent=text;n.className='toast show'+(error?' error':'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.className='toast',3200)}
-  function friendly(e,fallback='Ошибка'){const m=String(e?.message||e||'').trim();if(!m)return fallback;if(/invalid login credentials|invalid_credentials/i.test(m))return'Неверный email или пароль.';if(/failed to fetch|network|load failed|abort|socket|fetch failed/i.test(m))return'Нет связи с сервером.';if(/POS_ACCESS_REQUIRED|ADMIN_REQUIRED|Нет доступа/i.test(m))return'У этой учётной записи нет доступа к кассе.';return m}
+  function friendly(e,fallback='Ошибка'){const m=String(e?.message||e||'').trim();if(!m)return fallback;if(/invalid login credentials|invalid_credentials/i.test(m))return'Неверный логин или пароль.';if(/failed to fetch|network|load failed|abort|socket|fetch failed/i.test(m))return'Нет связи с сервером.';if(/POS_ACCESS_REQUIRED|ADMIN_REQUIRED|Нет доступа/i.test(m))return'У этой учётной записи нет доступа к кассе.';return m}
   function uuid(){return crypto.randomUUID?crypto.randomUUID():`k2-${Date.now()}-${Math.random().toString(36).slice(2)}`}
   const round2=value=>Math.round((Number(value||0)+Number.EPSILON)*100)/100;
   const clamp=(value,min,max)=>Math.min(max,Math.max(min,Number(value||0)));
@@ -114,14 +114,14 @@
     return sessionRefreshPromise;
   }
 
-  async function backendPasswordLogin(email,password){
+  async function backendPasswordLogin(login,password){
     let serverError=null,serverSession=null;
     for(const base of API_BASES){
       const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),9000);
       try{
         const r=await fetch(`${base}/api/v1/mobile/auth/password`,{
           method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-          body:JSON.stringify({email,password}),cache:'no-store',signal:controller.signal
+          body:JSON.stringify({login,password}),cache:'no-store',signal:controller.signal
         });
         const d=await r.json().catch(()=>({}));
         if(r.ok&&d?.success&&d?.session?.access_token&&d?.session?.refresh_token){
@@ -146,8 +146,9 @@
         throw new Error('Пароль принят сервером, но касса не смогла активировать сессию: '+String(error?.message||error));
       }
     }
+    if(!login.includes('@'))throw serverError||new Error('Сервер входа по логину сейчас недоступен.');
     try{
-      const direct=await supabase.auth.signInWithPassword({email,password});
+      const direct=await supabase.auth.signInWithPassword({email:login,password});
       if(direct.error)throw direct.error;
       return direct.data.session;
     }catch(error){
@@ -276,7 +277,7 @@
   async function loginSubmit(e){
     e.preventDefault();$('loginError').textContent='';$('loginSubmit').disabled=true;$('loginSubmit').textContent='Входим…';
     try{
-      state.session=await backendPasswordLogin($('loginEmail').value.trim().toLowerCase(),$('loginPassword').value);
+      state.session=await backendPasswordLogin($('loginUsername').value.trim().toLowerCase(),$('loginPassword').value);
       if(!state.session)throw new Error('Сессия не создана.');
       await checkAccess();
       if(!state.isAdmin)throw new Error('Для общей учётной записи кассы нужны права администратора.');
@@ -855,7 +856,7 @@
   }
 
   function bind(){
-    $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin').onclick=googleLogin;$('logout').onclick=logout;
+    $('loginForm').addEventListener('submit',loginSubmit);$('googleLogin')?.addEventListener('click',googleLogin);$('logout').onclick=logout;
     $('staffLoginSubmit').onclick=staffPinLogin;$('staffPin').addEventListener('keydown',e=>{if(e.key==='Enter')staffPinLogin()});$('staffBootstrapSave').onclick=bootstrapAdminPin;
     document.querySelectorAll('[data-pin-digit]').forEach(b=>b.onclick=()=>{$('staffPin').value=($('staffPin').value+b.dataset.pinDigit).slice(0,8);$('staffPin').focus()});$('staffPinClear').onclick=()=>{$('staffPin').value='';$('staffPin').focus()};$('staffPinBack').onclick=()=>{$('staffPin').value=$('staffPin').value.slice(0,-1);$('staffPin').focus()};
     $('search').oninput=()=>{state.search=$('search').value;filterCatalog()};$('search').onkeydown=e=>{if(e.key==='Enter'){const exact=state.filtered.filter(x=>[x.barcode,x.article,x.sku].filter(Boolean).some(v=>String(v).toLowerCase()===state.search.trim().toLowerCase()));if(exact.length===1){addToCart(exact[0].id);$('search').select()}}};
