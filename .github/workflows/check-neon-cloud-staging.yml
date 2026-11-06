@@ -57,7 +57,7 @@ jobs:
           echo "Health HTTP $code"
           cat /tmp/staging-health.json
           test "$code" = 200
-          node -e "const a=require('/tmp/staging-health.json');if(a.environment!=='TEST_ONLY'||!a.checks.database||!a.checks.neonAuthJwks||a.productionTrafficEnabled!==false)process.exit(1)"
+          node -e "const a=require('/tmp/staging-health.json');if(a.environment!=='TEST_ONLY'||!a.checks.database||!a.checks.neonAuthJwks||a.productionTrafficEnabled!==false||Number(a.applicationTables)<4)process.exit(1)"
       - name: Verify live CUIM catalog came from Neon
         run: |
           set -euo pipefail
