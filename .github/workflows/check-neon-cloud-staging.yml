@@ -48,7 +48,7 @@ jobs:
           test -f api/cloud-staging/sql/003_synthetic_auth_probe.sql
           grep -q 'enable row level security' api/cloud-staging/sql/003_synthetic_auth_probe.sql
           grep -q 'anon' api/cloud-staging/sql/003_synthetic_auth_probe.sql || true
-          node --check api/cloud-staging/test/neon-auth-live.mjs
+          node --check api/cloud-staging/scripts/neon-auth-e2e.mjs
           code=$(curl -s -o /tmp/auth-disabled.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"login":"staging_operator","password":"incorrect-password-1234"}' http://127.0.0.1:34491/api/v1/cloud/auth/password)
           test "$code" = 503
           node -e "const s=require('/tmp/auth-disabled.json');if(s.error!=='STAGING_AUTH_DISABLED')process.exit(1)"

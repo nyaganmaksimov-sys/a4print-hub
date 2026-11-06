@@ -25,5 +25,5 @@ jobs:
       - name: One-time live Neon Auth proof (fake account; random password; never print)
         run: |
           set -euo pipefail
-          node --check api/cloud-staging/test/neon-auth-live.mjs
-          node api/cloud-staging/test/neon-auth-live.mjs
+          node --check api/cloud-staging/scripts/neon-auth-e2e.mjs
+          node api/cloud-staging/scripts/neon-auth-e2e.mjs
