@@ -58,6 +58,24 @@ jobs:
           cat /tmp/staging-health.json
           test "$code" = 200
           node -e "const a=require('/tmp/staging-health.json');if(a.environment!=='TEST_ONLY'||!a.checks.database||!a.checks.neonAuthJwks||a.productionTrafficEnabled!==false)process.exit(1)"
+      - name: Verify live CUIM catalog came from Neon
+        run: |
+          set -euo pipefail
+          url="https://a4print-neon-cloud-api-staging.onrender.com/api/v1/cloud/cuim/taxonomy"
+          code=$(curl --retry 3 --retry-delay 3 -sS --max-time 50 -o /tmp/cuim-taxonomy.json -w '%{http_code}' "$url")
+          echo "Taxonomy HTTP $code"
+          test "$code" = 200
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/cuim-taxonomy.json', 'utf8'));
+          if (data.environment !== 'TEST_ONLY' || data.readOnly !== true || data.customerDataIncluded !== false) process.exit(1);
+          if (data.counts?.sections !== 8 || data.counts?.subcategories !== 61) process.exit(2);
+          if (data.catalog.sections.length !== 8 || data.catalog.subcategories.length !== 61) process.exit(3);
+          for (const row of [...data.catalog.sections, ...data.catalog.subcategories]) {
+            if ('cost_price' in row || 'email' in row || 'password' in row || 'active' in row) process.exit(4);
+          }
+          console.log('CUIM catalog snapshot: 8 sections, 61 subcategories, read-only');
+          NODE
       - name: Ensure real sale endpoint is disabled
         run: |
           set -euo pipefail
