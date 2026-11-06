@@ -21,7 +21,11 @@ async function requireJson(response, status, label) {
 const signup = await req(AUTH + '/sign-up/email', {
   email: EMAIL, password: PASSWORD, name: 'A4PRINT staging test operator'
 });
-if (!signup.ok) throw new Error('Neon Auth synthetic sign-up HTTP ' + signup.status);
+if (!signup.ok) {
+  const details = await signup.json().catch(() => ({}));
+  const errorCode = String(details?.code || details?.error?.code || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '').slice(0,60);
+  throw new Error('Neon Auth synthetic sign-up HTTP ' + signup.status + ' code=' + errorCode + ' keys=' + Object.keys(details).slice(0,8).join(','));
+}
 console.log('Neon Auth synthetic sign-up succeeded');
 
 const signin = await req(AUTH + '/sign-in/email', {email: EMAIL, password: PASSWORD});
