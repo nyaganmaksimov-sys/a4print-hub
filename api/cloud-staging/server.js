@@ -23,6 +23,42 @@ let lastProbe = null;
 let lastProbeTime = 0;
 let pending = null;
 
+let taxonomyCache = null;
+let taxonomyCachedAt = 0;
+let taxonomyPending = null;
+
+async function publicTaxonomy() {
+  if (!pool) throw new Error('DATABASE_NOT_CONFIGURED');
+  if (taxonomyCache && Date.now() - taxonomyCachedAt < 300000) return taxonomyCache;
+  if (taxonomyPending) return taxonomyPending;
+  taxonomyPending = (async () => {
+    const [sections, subcategories] = await Promise.all([
+      pool.query(`SELECT section_key, title, slug, icon_fallback, sort_order
+        FROM public.marketplace_city_sections WHERE active IS TRUE
+        ORDER BY sort_order, section_key LIMIT 30`),
+      pool.query(`SELECT subcategory_key, section_key, title, slug, icon_fallback, sort_order
+        FROM public.marketplace_city_subcategories WHERE active IS TRUE
+        ORDER BY sort_order, subcategory_key LIMIT 150`)
+    ]);
+    const result = {
+      service: 'a4print-cloud-staging',
+      environment: 'TEST_ONLY',
+      source: 'CUIM taxonomy read-only snapshot',
+      readOnly: true,
+      customerDataIncluded: false,
+      catalog: {
+        sections: sections.rows,
+        subcategories: subcategories.rows
+      },
+      counts: { sections: sections.rows.length, subcategories: subcategories.rows.length }
+    };
+    taxonomyCache = result;
+    taxonomyCachedAt = Date.now();
+    return result;
+  })().finally(() => { taxonomyPending = null; });
+  return taxonomyPending;
+}
+
 function send(res, code, payload) {
   res.writeHead(code, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -110,6 +146,29 @@ const server = createServer(async (req, res) => {
       return send(res, 503, {
         service: 'a4print-cloud-staging', status: 'unavailable',
         productionTrafficEnabled: false
+      });
+    }
+  }
+
+
+  if (path === '/api/v1/cloud/cuim/taxonomy') {
+    if (req.method !== 'GET' && req.method !== 'HEAD')
+      return send(res, 405, {error: 'METHOD_NOT_ALLOWED'});
+    try {
+      const taxonomy = await publicTaxonomy();
+      // The source Supabase policies already allowed public reading of active taxonomy.
+      // Return only public columns. Never return user, price, payment or inactive records.
+      const origin = String(req.headers.origin || '');
+      if (origin === 'https://tcuim.online' || origin === 'https://www.tcuim.online') {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+      }
+      return send(res, 200, taxonomy);
+    } catch {
+      return send(res, 503, {
+        error: 'CATALOG_SNAPSHOT_UNAVAILABLE',
+        message: 'Cloud staging taxonomy is not ready.',
+        environment: 'TEST_ONLY'
       });
     }
   }
