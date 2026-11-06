@@ -83,6 +83,16 @@ jobs:
           }
           console.log('CUIM catalog snapshot: 8 sections, 61 subcategories, read-only');
           NODE
+      - name: Verify staging synthetic login probe is locked after E2E
+        run: |
+          set -euo pipefail
+          api="https://a4print-neon-cloud-api-staging.onrender.com"
+          code=$(curl --retry 2 --retry-delay 2 -sS --max-time 45 -X POST -H 'Content-Type: application/json' \
+            -d '{"login":"staging_operator","password":"incorrect-password-1234"}' \
+            -o /tmp/closed-auth.json -w '%{http_code}' "$api/api/v1/cloud/auth/password")
+          echo "Staging auth lockdown HTTP $code"
+          test "$code" = 503
+          node -e "const r=require('/tmp/closed-auth.json');if(r.error!=='STAGING_AUTH_DISABLED'||r.environment!=='TEST_ONLY')process.exit(1)"
       - name: Ensure real sale endpoint is disabled
         run: |
           set -euo pipefail
