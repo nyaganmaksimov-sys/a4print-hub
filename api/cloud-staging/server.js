@@ -6,6 +6,7 @@
  */
 import { createServer } from 'node:http';
 import { Pool } from 'pg';
+import { createNeonVerifier, authorizeSession } from './auth-session.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const DATABASE_URL = String(process.env.DATABASE_URL || '');
@@ -29,6 +30,16 @@ let taxonomyPending = null;
 
 const NEON_AUTH_BASE_URL = String(process.env.NEON_AUTH_BASE_URL || '').replace(/\/$/, '');
 const AUTH_PROBE_ENABLED = process.env.STAGING_AUTH_PROBE_ENABLED === 'true';
+let verifiedToken = null;
+try {
+  verifiedToken = createNeonVerifier({
+    baseUrl: NEON_AUTH_BASE_URL,
+    jwksUrl: NEON_AUTH_JWKS_URL
+  });
+} catch {
+  // Inconsistent JWKS URL or issuer must disable the route, not crash production.
+  console.error('[cloud-staging] Neon JWT verifier disabled: unsafe config');
+}
 const SELF_ORIGIN = 'https://a4print-neon-cloud-api-staging.onrender.com';
 const attemptLedger = new Map();
 
@@ -256,6 +267,14 @@ const server = createServer(async (req, res) => {
   }
 
 
+
+  if (path === '/api/v1/cloud/auth/session') {
+    if (req.method !== 'GET') return send(res, 405, {error:'METHOD_NOT_ALLOWED'});
+    const decision = await authorizeSession({
+      authorization:req.headers.authorization, verify:verifiedToken, pool
+    });
+    return send(res, decision.status, decision.result);
+  }
 
   if (path === '/api/v1/cloud/auth/password') {
     if (req.method !== 'POST') return send(res, 405, { error: 'METHOD_NOT_ALLOWED' });
