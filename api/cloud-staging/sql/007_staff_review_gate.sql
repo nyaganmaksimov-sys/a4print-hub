@@ -56,7 +56,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM neon_auth."user" u
     WHERE u.id=NEW.neon_auth_user_id
-      AND lower(u.email) ~ '^a4print-staging-[a-z0-9-]+@example\.com
+      AND lower(u.email) ~ '^a4print-staging-[a-z0-9-]+@example\.com$'
   ) THEN
     RAISE EXCEPTION 'non-synthetic identity cannot access cloud_staging_session_grants'
       USING ERRCODE='23514';
@@ -65,19 +65,6 @@ BEGIN
 END;
 $func$;
 CREATE OR REPLACE TRIGGER cloud_validate_synthetic_grant
-  BEFORE INSERT OR UPDATE ON public.cloud_staging_session_grants
-  FOR EACH ROW EXECUTE FUNCTION public.cloud_reject_non_synthetic_grant();
-REVOKE ALL ON FUNCTION public.cloud_reject_non_synthetic_grant() FROM PUBLIC, anonymous, authenticated, a4print_cloud_probe;
-
-  ) THEN
-    RAISE EXCEPTION 'non-synthetic identity cannot access cloud_staging_session_grants'
-      USING ERRCODE='23514';
-  END IF;
-  RETURN NEW;
-END;
-$func$;
-DROP TRIGGER IF EXISTS cloud_validate_synthetic_grant ON public.cloud_staging_session_grants;
-CREATE TRIGGER cloud_validate_synthetic_grant
   BEFORE INSERT OR UPDATE ON public.cloud_staging_session_grants
   FOR EACH ROW EXECUTE FUNCTION public.cloud_reject_non_synthetic_grant();
 REVOKE ALL ON FUNCTION public.cloud_reject_non_synthetic_grant() FROM PUBLIC, anonymous, authenticated, a4print_cloud_probe;
