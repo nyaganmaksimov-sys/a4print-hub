@@ -18,6 +18,8 @@ jobs:
       - name: Check code and package
         run: |
           node --check api/cloud-staging/server.js
+          node --check api/cloud-staging/auth-session.js
+          node --check api/cloud-staging/specs/session-access.spec.mjs
           node -e "const p=require('./api/cloud-staging/package.json');if(!p.dependencies.pg)process.exit(1)"
       - name: Check no production writes are enabled
         run: |
@@ -29,6 +31,7 @@ jobs:
         run: |
           set -e
           npm install --prefix api/cloud-staging --omit=dev --no-audit --no-fund
+          node --test api/cloud-staging/specs/session-access.spec.mjs
           PORT=34491 node api/cloud-staging/server.js > /tmp/staging.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
@@ -52,6 +55,12 @@ jobs:
           code=$(curl -s -o /tmp/auth-disabled.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"login":"staging_operator","password":"incorrect-password-1234"}' http://127.0.0.1:34491/api/v1/cloud/auth/password)
           test "$code" = 503
           node -e "const s=require('/tmp/auth-disabled.json');if(s.error!=='STAGING_AUTH_DISABLED')process.exit(1)"
+          code=$(curl -s -o /tmp/session-no-token.json -w '%{http_code}' http://127.0.0.1:34491/api/v1/cloud/auth/session)
+          test "$code" = 401
+          node -e "const s=require('/tmp/session-no-token.json');if(s.error!=='AUTH_TOKEN_REQUIRED')process.exit(1)"
+          test -f api/cloud-staging/sql/005_synthetic_session_grants.sql
+          grep -q 'enable row level security' api/cloud-staging/sql/005_synthetic_session_grants.sql
+          grep -q 'revoke all' api/cloud-staging/sql/005_synthetic_session_grants.sql
 
   live-smoke:
     runs-on: ubuntu-latest
@@ -83,6 +92,18 @@ jobs:
           }
           console.log('CUIM catalog snapshot: 8 sections, 61 subcategories, read-only');
           NODE
+      - name: Reject unsigned/absent Neon session tokens
+        run: |
+          set -euo pipefail
+          api="https://a4print-neon-cloud-api-staging.onrender.com"
+          code=$(curl -sS --max-time 35 -o /tmp/session-no-token.json -w '%{http_code}' "$api/api/v1/cloud/auth/session")
+          echo "Session without JWT HTTP $code"
+          test "$code" = 401
+          node -e "const a=require('/tmp/session-no-token.json');if(a.error!=='AUTH_TOKEN_REQUIRED')process.exit(1)"
+          code=$(curl -sS --max-time 35 -H 'Authorization: Bearer invalid.token.payload' -o /tmp/session-invalid.json -w '%{http_code}' "$api/api/v1/cloud/auth/session")
+          echo "Session with invalid JWT HTTP $code"
+          test "$code" = 401
+          node -e "const a=require('/tmp/session-invalid.json');if(a.error!=='INVALID_OR_EXPIRED_TOKEN')process.exit(1)"
       - name: Verify staging synthetic login probe is locked after E2E
         run: |
           set -euo pipefail
