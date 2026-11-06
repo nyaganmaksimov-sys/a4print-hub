@@ -39,6 +39,12 @@ jobs:
           code=$(curl -s -o /tmp/blocked.json -w '%{http_code}' -X POST http://127.0.0.1:34491/api/v1/pos/sales)
           test "$code" = 503
           node -e "const s=require('/tmp/blocked.json');if(s.error!=='STAGING_ENDPOINT_DISABLED')process.exit(1)"
+          code=$(curl -s -o /tmp/catalog-unready.json -w '%{http_code}' http://127.0.0.1:34491/api/v1/cloud/cuim/taxonomy)
+          test "$code" = 503
+          node -e "const s=require('/tmp/catalog-unready.json');if(s.error!=='CATALOG_SNAPSHOT_UNAVAILABLE')process.exit(1)"
+          test -f api/cloud-staging/sql/001_cuim_taxonomy.sql
+          grep -q 'enable row level security' api/cloud-staging/sql/001_cuim_taxonomy.sql
+          grep -q 'a4print_cloud_probe' api/cloud-staging/sql/001_cuim_taxonomy.sql
 
   live-smoke:
     runs-on: ubuntu-latest
