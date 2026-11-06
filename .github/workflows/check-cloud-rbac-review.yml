@@ -1,0 +1,46 @@
+name: Check Cloud RBAC Review Gate
+on:
+  pull_request:
+    paths:
+      - 'api/cloud-staging/sql/006_rbac_review_snapshot.sql'
+      - 'api/cloud-staging/sql/007_staff_review_gate.sql'
+      - 'api/cloud-staging/specs/fixtures/rbac-review-*.sql'
+      - '.github/workflows/check-cloud-rbac-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  protected-role-migration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: rbac_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rbac_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply private RBAC migrations twice
+        run: |
+          set -euo pipefail
+          container="${{ job.services.postgres.id }}"
+          test -n "$container"
+          docker exec -i "$container" psql -U postgres -d rbac_test -v ON_ERROR_STOP=1 < api/cloud-staging/specs/fixtures/rbac-review-base.sql
+          docker exec -i "$container" psql -U postgres -d rbac_test -v ON_ERROR_STOP=1 < api/cloud-staging/sql/006_rbac_review_snapshot.sql
+          docker exec -i "$container" psql -U postgres -d rbac_test -v ON_ERROR_STOP=1 < api/cloud-staging/sql/007_staff_review_gate.sql
+          docker exec -i "$container" psql -U postgres -d rbac_test -v ON_ERROR_STOP=1 < api/cloud-staging/sql/006_rbac_review_snapshot.sql
+          docker exec -i "$container" psql -U postgres -d rbac_test -v ON_ERROR_STOP=1 < api/cloud-staging/sql/007_staff_review_gate.sql
+      - name: Verify identity blockers, schema privacy and fake-only grant trigger
+        run: |
+          set -euo pipefail
+          container="${{ job.services.postgres.id }}"
+          docker exec -i "$container" psql -U postgres -d rbac_test -v ON_ERROR_STOP=1 < api/cloud-staging/specs/fixtures/rbac-review-assert.sql
