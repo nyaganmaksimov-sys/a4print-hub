@@ -1,4 +1,4 @@
-name: Neon Auth isolated end-to-end (one-off)
+name: Neon Auth isolated end-to-end (diagnostic)
 on:
   pull_request:
     paths:
