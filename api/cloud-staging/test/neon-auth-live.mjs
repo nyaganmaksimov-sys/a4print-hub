@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 
 const AUTH = 'https://ep-spring-sound-b9j2pelc.neonauth.c-7.eu-central-1.aws.neon.tech/a4print_cloud/auth';
 const API = 'https://a4print-neon-cloud-api-staging.onrender.com';
-const EMAIL = 'a4print-staging-operator-20261106-5b9cd8@example.com';
+const EMAIL = 'a4print-staging-auth-20261106-73ba8c@example.com';
 const LOGIN = 'staging_operator';
 // Use a unique, high-entropy password in this runner only. Never print or persist.
 const PASSWORD = 'Z!9a4-' + randomBytes(25).toString('base64url');

@@ -1,9 +1,13 @@
-name: Neon Auth isolated end-to-end (diagnostic)
+name: Neon Auth isolated end-to-end (staging #2)
 on:
   pull_request:
     paths:
       - '.github/workflows/check-neon-auth-e2e.yml'
   workflow_dispatch:
+
+concurrency:
+  group: cloud-auth-e2e-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
