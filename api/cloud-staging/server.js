@@ -27,6 +27,111 @@ let taxonomyCache = null;
 let taxonomyCachedAt = 0;
 let taxonomyPending = null;
 
+const NEON_AUTH_BASE_URL = String(process.env.NEON_AUTH_BASE_URL || '').replace(/\/$/, '');
+const AUTH_PROBE_ENABLED = process.env.STAGING_AUTH_PROBE_ENABLED === 'true';
+const SELF_ORIGIN = 'https://a4print-neon-cloud-api-staging.onrender.com';
+const attemptLedger = new Map();
+
+function underLimit(login) {
+  const now = Date.now();
+  for (const [key, data] of attemptLedger) if (now - data.start >= 15 * 60000) attemptLedger.delete(key);
+  const entry = attemptLedger.get(login);
+  if (entry && entry.count >= 6) return false;
+  attemptLedger.set(login, entry ? { start: entry.start, count: entry.count + 1 } : { start: now, count: 1 });
+  return true;
+}
+
+async function parseSmallJson(req) {
+  let bytes = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    bytes += chunk.length;
+    if (bytes > 1600) throw new Error('REQUEST_TOO_LARGE');
+    chunks.push(chunk);
+  }
+  if (!bytes) throw new Error('EMPTY_REQUEST');
+  const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('INVALID_JSON');
+  return data;
+}
+
+async function probePassword(req, res) {
+  // This intentionally DOES NOT create an application session or grant a role.
+  // It only proves that a synthetic username can be checked by Managed Better Auth.
+  if (!AUTH_PROBE_ENABLED || !NEON_AUTH_BASE_URL.startsWith('https://') || !pool) {
+    return send(res, 503, { error: 'STAGING_AUTH_DISABLED', environment: 'TEST_ONLY' });
+  }
+  const origin = String(req.headers.origin || '');
+  if (origin && origin !== SELF_ORIGIN) {
+    return send(res, 403, { error: 'ORIGIN_DENIED' });
+  }
+  if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) {
+    return send(res, 415, { error: 'JSON_REQUIRED' });
+  }
+
+  let payload;
+  try { payload = await parseSmallJson(req); }
+  catch { return send(res, 400, { error: 'INVALID_REQUEST' }); }
+
+  const login = String(payload.login || '').trim().toLowerCase();
+  const password = payload.password;
+  if (!/^staging_[a-z0-9_-]{3,32}$/.test(login) || typeof password !== 'string'
+    || password.length < 12 || password.length > 256) {
+    return send(res, 401, { error: 'INVALID_LOGIN_OR_PASSWORD' });
+  }
+  if (!underLimit(login)) {
+    return send(res, 429, { error: 'TRY_LATER', environment: 'TEST_ONLY' });
+  }
+
+  let email = null;
+  try {
+    const found = await pool.query(
+      'SELECT auth_email FROM public.cloud_staging_login_aliases WHERE username=$1 AND is_active=true LIMIT 1',
+      [login]
+    );
+    email = found.rows?.[0]?.auth_email || null;
+  } catch {
+    return send(res, 503, { error: 'STAGING_AUTH_UNAVAILABLE', environment: 'TEST_ONLY' });
+  }
+  if (!email || !email.endsWith('@example.com')) {
+    return send(res, 401, { error: 'INVALID_LOGIN_OR_PASSWORD' });
+  }
+  try {
+    const upstream = await fetch(NEON_AUTH_BASE_URL + '/sign-in/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', Origin: SELF_ORIGIN },
+      body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(10000),
+      redirect: 'manual'
+    });
+    if (upstream.status === 429) return send(res, 429, { error: 'TRY_LATER' });
+    if (upstream.status === 400 || upstream.status === 401 || upstream.status === 403
+      || upstream.status === 404 || upstream.status === 422) {
+      return send(res, 401, { error: 'INVALID_LOGIN_OR_PASSWORD' });
+    }
+    if (!upstream.ok) return send(res, 503, { error: 'STAGING_AUTH_UNAVAILABLE' });
+
+    const result = await upstream.json();
+    if (String(result?.user?.email || '').toLowerCase() !== email.toLowerCase()
+      || !result.user?.id) {
+      return send(res, 503, { error: 'STAGING_AUTH_USER_MISMATCH' });
+    }
+    // Important: don't forward Neon session cookie/token or JWT to untrusted callers.
+    return send(res, 200, {
+      success: true,
+      login,
+      provider: 'Neon Auth',
+      environment: 'TEST_ONLY',
+      passwordVerified: true,
+      sessionIssued: false,
+      permissions: [],
+      message: 'Пароль проверен Neon Auth. Рабочая сессия и доступ к кассе не выдаются.'
+    });
+  } catch {
+    return send(res, 503, { error: 'STAGING_AUTH_UNAVAILABLE' });
+  }
+}
+
 async function publicTaxonomy() {
   if (!pool) throw new Error('DATABASE_NOT_CONFIGURED');
   if (taxonomyCache && Date.now() - taxonomyCachedAt < 300000) return taxonomyCache;
@@ -150,6 +255,12 @@ const server = createServer(async (req, res) => {
     }
   }
 
+
+
+  if (path === '/api/v1/cloud/auth/password') {
+    if (req.method !== 'POST') return send(res, 405, { error: 'METHOD_NOT_ALLOWED' });
+    return probePassword(req, res);
+  }
 
   if (path === '/api/v1/cloud/cuim/taxonomy') {
     if (req.method !== 'GET' && req.method !== 'HEAD')
